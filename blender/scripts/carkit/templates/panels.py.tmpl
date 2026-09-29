@@ -1,0 +1,251 @@
+"""%%NAME%% panel layout - scaffolded from the SU7 Ultra by carkit.templates.
+
+Every line below is the SU7's, moved to this car's stations and heights by
+the donor morph. None of it is this car yet. Replace the lines one at a time
+from the camera-matched overlay (ref_match / carkit.qa.refmatch.overlay):
+
+    1. door shut lines (_DOOR_F_EDGE, _DOOR_R_EDGE, X_BPILLAR_F)
+    2. window lines: A-pillar (V_A), glass top (V_GT), B-pillar (GB_F/GB_R),
+       quarter light (X_QTR_*, V_QTR_*), backlight (V_REARGLASS, X_ROOF_R)
+    3. hood shut line (Y_HOOD), fascia splits, mouth and intakes
+
+Openings (arches, quarter light, intakes) are cut by exact booleans on the
+half sheets; see carkit/body/panels.py for the panel spec format.
+"""
+import %%P%%_surface as S
+import %%P%%_nose as N
+from carkit.geom import (Curve, clamp01 as _clamp01, smoothstep as _smooth,
+                         ramp as _ramp, round_rect as _round_rect,
+                         smooth_loop as _smooth_loop)
+from carkit import mesh as M
+from carkit import cut as C
+from carkit.body import panels as BP
+from carkit.body import fascia as FA
+
+PFX = "%%OBJ%%_"
+SKIN = M.SKIN
+
+# ------------------------------------------------------------- shut lines
+X_COWL = S.COWL_X
+X_BPILLAR_F = %%X_BPILLAR_F%%        # front door | rear door, below the belt
+X_BACKLIGHT = S.BACKLIGHT_X
+X_ROOF_F = %%X_ROOF_F%%              # windscreen header
+X_ROOF_R = %%X_ROOF_R%%              # backlight header
+X_QTR_F = %%X_QTR_F%%                # rear door frame / quarter light divider
+X_QTR_R = %%X_QTR_R%%                # quarter light, rear tip
+
+V_BELT = S.V_SHOULDER + 0.028        # beltline / window seal
+V_REARGLASS = 0.842                  # backlight's side edge
+
+_DOOR_F_EDGE = %%DOOR_F_EDGE%%
+_DOOR_R_EDGE = %%DOOR_R_EDGE%%
+
+
+def X_DOOR_F(v):
+    return _DOOR_F_EDGE(S.section_v(%%X_DOOR_F_REF%%, v)[1])
+
+
+def X_DOOR_R(v):
+    return _DOOR_R_EDGE(S.section_v(%%X_DOOR_R_REF%%, v)[1])
+
+
+def V_SILL(x):
+    return S.v_at_z(x, S.Z_FLOOR(x) + 0.030, 0.0, S.V_SHOULDER)
+
+
+Y_HOOD = %%Y_HOOD%%
+
+
+def V_HOOD(x):
+    return S.v_at_y_upper(x, Y_HOOD(x))
+
+
+def V_GT(x):
+    """Top of the side glass: 100 mm below the roof rail's outer edge."""
+    return S.v_along(x, S.v_rail(x), -0.100)
+
+
+def V_RAIL(x):
+    return S.v_along(x, S.v_rail(x), 0.050)
+
+
+def V_A(x):
+    t = (X_COWL - x) / (X_COWL - X_ROOF_F)
+    top = V_GT(X_ROOF_F) + 0.020
+    return (V_BELT + 0.022) + (top - V_BELT - 0.022) * _smooth(t)
+
+
+_QTR_TIP = []
+
+
+def V_QTR_TIP():
+    if not _QTR_TIP:
+        _QTR_TIP.append(S.v_at_z(X_QTR_R, %%Z_QTR_TIP%%, S.V_SHOULDER, 1.0))
+    return _QTR_TIP[0]
+
+
+def V_QTR_LOW(x):
+    t = (X_QTR_F - x) / (X_QTR_F - X_QTR_R)
+    return (V_BELT + 0.010) + (V_QTR_TIP() - V_BELT - 0.010) * (_clamp01(t) ** 1.6)
+
+
+def V_C(x):
+    t = (X_QTR_F - x) / (X_QTR_F - X_QTR_R)
+    hi = V_GT(X_QTR_F) + 0.020
+    lo = V_QTR_TIP() + 0.020
+    return hi - (hi - lo) * (_clamp01(t) ** 1.25)
+
+
+def V_GLASS_TOP(x):
+    if x < X_QTR_F:
+        return V_C(x) - 0.020
+    return min(V_A(x) - 0.020, V_GT(x))
+
+
+def V_RAIL_TOP(x):
+    a = V_A(x) + 0.016
+    r = V_RAIL(x)
+    c = V_REARGLASS - 0.004
+    return c + (r - c) * _ramp(x, X_ROOF_R) + (a - r) * _ramp(x, X_ROOF_F)
+
+
+def V_DOOR_R_TOP(x):
+    return V_BELT + max(0.0, V_QTR_LOW(x) - V_BELT - 0.010)
+
+
+def _glass_s(v):
+    return _clamp01((v - V_BELT) / max(1e-4, (V_GT(%%X_GLASS_REF%%) - V_BELT)))
+
+
+def GB_F(v):                         # B-pillar, front glass edge (leans back)
+    return %%GBF0%% + (%%GBF1%% - %%GBF0%%) * _glass_s(v)
+
+
+def GB_R(v):                         # B-pillar, rear glass edge
+    return %%GBR0%% + (%%GBR1%% - %%GBR0%%) * _glass_s(v)
+
+
+# ---------------------------------------------------------------- fascia
+Z_FASCIA_SPLIT_F = %%Z_SPLIT_F%%
+Z_FASCIA_SPLIT_R = %%Z_SPLIT_R%%
+# A recessed lower mouth between painted cheeks, e.g. dict(w_fence=0.87,
+# recess=0.030) - only if the car has one. None: a plain two-piece fascia.
+MOUTH = None
+# Front-elevation (y, z) outlines cut through the mouth, left half; one that
+# crosses the centreline uses _round_rect(..., open_inboard=True).
+INTAKES_F = []
+
+
+# ---------------------------------------------------------------- panels
+PANELS = [
+    dict(name=PFX + "Fender_Front", x=(X_DOOR_F, N.JOIN_F), v=(V_SILL, V_HOOD),
+         nx=50, nv=40, arch=True, gap=dict(v0=False), mat="paint"),
+    dict(name=PFX + "Door_Front", x=(X_BPILLAR_F, X_DOOR_F), v=(V_SILL, V_BELT),
+         nx=40, nv=40, arch=True, gap=dict(v0=False), mat="paint"),
+    dict(name=PFX + "Door_Rear", x=(X_DOOR_R, X_BPILLAR_F), v=(V_SILL, V_DOOR_R_TOP),
+         nx=38, nv=40, arch=True, gap=dict(v0=False), mat="paint"),
+    dict(name=PFX + "Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_SILL, V_REARGLASS),
+         nx=50, nv=44, arch=True, gap=dict(v0=False), mat="paint", quarter_light=True),
+    dict(name=PFX + "Hood", x=(X_COWL, N.JOIN_F), v=(V_HOOD, 1.0),
+         nx=60, nv=34, gap=dict(v1=False), mat="paint"),
+    dict(name=PFX + "Decklid", x=(N.JOIN_R, X_BACKLIGHT), v=(V_REARGLASS, 1.0),
+         nx=16, nv=30, gap=dict(v1=False), mat="paint"),
+    dict(name=PFX + "Roof_Rail", x=(X_QTR_R, X_COWL),
+         v=(lambda x: V_GLASS_TOP(x) + 0.006, V_RAIL_TOP),
+         nx=130, nv=10, gap=dict(x0=False), mat="paint"),
+    dict(name=PFX + "Greenhouse_Black", x=(X_QTR_R - 0.030, X_COWL),
+         v=(V_BELT, 1.0), nx=110, nv=48, gap=dict(v1=False), mat="black_gloss",
+         offset=-0.003, thickness=0.0),
+    dict(name=PFX + "Roof_Rear_Black", x=(X_BACKLIGHT, X_QTR_R),
+         v=(V_REARGLASS, 1.0), nx=10, nv=12, gap=dict(v1=False),
+         mat="black_gloss", offset=-0.003, thickness=0.0),
+    dict(name=PFX + "Glass_Windshield", x=(X_ROOF_F, X_COWL - 0.012),
+         v=(lambda x: V_A(x) + 0.020, 0.9995), nx=72, nv=56, glass="glass",
+         gap=dict(v1=False)),
+    dict(name=PFX + "Glass_DoorFront", x=(GB_F, X_COWL - 0.030),
+         v=(V_BELT + 0.010, lambda x: min(V_A(x) - 0.020, V_GT(x))),
+         nx=60, nv=28, glass="glass_dark"),
+    dict(name=PFX + "Glass_DoorRear", x=(X_QTR_F + 0.030, GB_R),
+         v=(V_BELT + 0.010, V_GT), nx=50, nv=28, glass="glass_dark"),
+    dict(name=PFX + "Glass_Quarter", x=(X_QTR_R + 0.004, X_QTR_F),
+         v=(V_QTR_LOW, lambda x: V_C(x) - 0.020), nx=24, nv=14, glass="glass_dark"),
+    dict(name=PFX + "Glass_Rear", x=(X_BACKLIGHT + 0.018, X_ROOF_R),
+         v=(V_REARGLASS + 0.012, 0.9995), nx=56, nv=44, glass="glass_dark",
+         gap=dict(v1=False)),
+]
+
+
+def _cut_arches(ob):
+    return C.cut_arches(ob, S.BODY)
+
+
+def _quarter_light_outline():
+    pts = []
+    n = 40
+    x_front = X_QTR_F + 0.080
+    for i in range(n + 1):
+        x = X_QTR_R + (x_front - X_QTR_R) * i / float(n)
+        v = max(V_BELT, V_QTR_LOW(min(x, X_QTR_F)) - 0.010)
+        pts.append((x, S.section_v(x, v)[1]))
+    top = S.HEIGHT + 0.30
+    pts += [(x_front, top), (X_QTR_R, top)]
+    return pts
+
+
+def _cut_quarter_light(ob):
+    c = C.prism_y("_qlight_" + ob.name, _quarter_light_outline(), 0.30, S.HALF_W + 0.40)
+    C.difference(ob, [c], "qlight_", reset_materials=True)
+
+
+CUTTERS = {"arch": _cut_arches, "quarter_light": _cut_quarter_light}
+
+
+def build_panels(collection, lib):
+    return BP.build_panels(PANELS, S.BODY, collection, lib, cutters=CUTTERS)
+
+
+def build_front(collection, lib):
+    zl, zh = N.NOSE_Z_LO, N.NOSE_Z_HI
+    if MOUTH:
+        up, ch, u, vs = FA.split_nose(PFX + "Fascia", N.NOSE, collection, lib,
+                                      Z_FASCIA_SPLIT_F, MOUTH["w_fence"], MOUTH["recess"],
+                                      intakes=INTAKES_F)
+        made = [up, ch, u]
+        made += FA.mouth_walls(PFX + "Fascia", N.NOSE, collection, lib, Z_FASCIA_SPLIT_F,
+                               MOUTH["w_fence"], MOUTH["recess"], vs)
+        x_u = FA.recessed_x(N.NOSE, MOUTH["recess"])
+        for k, outline in enumerate(INTAKES_F):
+            r = FA.intake_tunnel(PFX + "Intake%d_Tunnel" % k, outline, collection,
+                                 lib["shadow"], cap=N.NOSE, x_surface=x_u, depth=0.11,
+                                 taper=0.95)
+            M.mirror_y(r)
+            made.append(r)
+        return made
+    return [FA.cap_panel(PFX + "Fascia_Upper", N.NOSE, collection, lib, Z_FASCIA_SPLIT_F,
+                         zh - 0.0008, top_to_centre=True),
+            FA.cap_panel(PFX + "Fascia_Lower", N.NOSE, collection, lib, zl + 0.0008,
+                         Z_FASCIA_SPLIT_F, nz=24)]
+
+
+def build_rear(collection, lib):
+    # A proud black valance instead of the lower panel, if the car has one:
+    # FA.valance(PFX + "Tail_Valance", N.TAIL, collection, lib,
+    #            lambda w: Z_FASCIA_SPLIT_R, stand=0.010)
+    zl, zh = N.TAIL_Z_LO, N.TAIL_Z_HI
+    return [FA.cap_panel(PFX + "Tail_Upper", N.TAIL, collection, lib, Z_FASCIA_SPLIT_R,
+                         zh - 0.0008, top_to_centre=True),
+            FA.cap_panel(PFX + "Tail_Lower", N.TAIL, collection, lib, zl + 0.0008,
+                         Z_FASCIA_SPLIT_R, nz=24)]
+
+
+def build_all(collection, lib):
+    made = []
+    made += build_panels(collection, lib)
+    made += build_front(collection, lib)
+    made += build_rear(collection, lib)
+    made.append(BP.shadow_shell(N.BODY, collection, lib, PFX + "Shell_Shadow"))
+    made += BP.wheel_liners(S.BODY, collection, lib, PFX + "Liner_",
+                            y_outer=S.HALF_W - 0.017)
+    made.append(BP.underbody(S.BODY, collection, lib, PFX + "Underbody",
+                             x0=%%UNDER_X0%%, length=%%UNDER_LEN%%))
+    return made

@@ -1,0 +1,137 @@
+@import 'tailwindcss';
+
+/*
+  The platform reads as an instrument, not a brochure: near-black grounds,
+  one warm accent borrowed from cabin ambient lighting, and numerals in a
+  tabular face so figures line up column to column in the comparison tables.
+*/
+@theme {
+  --color-ink-900: #07080a;
+  --color-ink-850: #0b0d10;
+  --color-ink-800: #101317;
+  --color-ink-700: #171b21;
+  --color-ink-600: #212730;
+  --color-ink-500: #2e3742;
+  --color-ink-400: #4a5563;
+  --color-ink-300: #7c8798;
+  --color-ink-200: #aeb7c4;
+  --color-ink-100: #dee3ea;
+
+  --color-ember-500: #ff6a00;
+  --color-ember-400: #ff8a33;
+  --color-ember-300: #ffab66;
+
+  --color-signal-500: #35d0a5;
+  --color-signal-400: #5fe0bc;
+  --color-warn-500: #ffcf4d;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-ink-900);
+  color: var(--color-ink-100);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+/* Figures must align vertically in spec tables. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.hairline {
+  border-color: color-mix(in oklab, var(--color-ink-500) 55%, transparent);
+}
+
+/* Faint grid, like a data surface rather than a page. */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.glow-ember {
+  box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.35), 0 0 32px -6px rgba(255, 106, 0, 0.45);
+}
+
+@keyframes sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+.animate-sweep {
+  animation: sweep 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2.2s ease-in-out infinite;
+}
+
+/* The in-car UI lives inside a 3D-transformed layer; keep its text crisp. */
+.hmi-surface {
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* HyperOS skin (components/hmi/hyperos) */
+.hyperos { user-select: none; }
+.hy-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 6px;
+  height: 22px;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.hy-slider::-moz-range-thumb {
+  width: 6px;
+  height: 22px;
+  border: 0;
+  border-radius: 3px;
+  background: #fff;
+}
+/* lane markings sliding toward the car while in D */
+@keyframes hy-dash { to { stroke-dashoffset: 64; } }
+.hy-dash-run { animation: hy-dash 0.7s linear infinite; }
+/* sheets rise from the dock */
+@keyframes hy-rise { from { transform: translateY(24px); opacity: 0; } }
+.hy-sheet { animation: hy-rise 0.22s ease-out; }
+/* hotspots on the parked car breathe */
+@keyframes hy-breathe { 50% { transform: scale(1.18); } }
+.hy-hotspot > span { animation: hy-breathe 2.4s ease-in-out infinite; }
+.hy-radar { transition: all 0.35s ease; }
+.hy-scroll { scrollbar-width: none; }
+.hy-scroll::-webkit-scrollbar { display: none; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-ink-850); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-600);
+  border-radius: 6px;
+  border: 2px solid var(--color-ink-850);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

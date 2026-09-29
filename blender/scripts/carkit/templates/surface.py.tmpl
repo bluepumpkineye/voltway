@@ -1,0 +1,51 @@
+"""%%NAME%% body surface - profile curves of the flank loft (carkit LoftBody).
+
+Scaffolded %%DATE%% by carkit.templates from the SU7 Ultra, morphed to the
+published dimensions: %%DIMS%%.
+These curves are the DONOR'S SHAPE at this car's size, not this car. Replace
+them from the camera-matched overlay, one curve at a time, in this order:
+
+    Z_ROOF      the side silhouette's top edge (hood, screen, roof, deck)
+    Z_FLOOR     the silhouette's bottom edge, sill and overhangs
+    Z_SHOULDER  the beltline crease - the most important character line
+    Y_HIP, Z_HIP, Y_ROCKER   widest point and sill, from the front/rear photos
+    Y_SHOULDER, Y_ROOF, Z_CREST, UNDERCUT   the section's fine shape
+"""
+from carkit.geom import Curve, Joined          # noqa: F401
+from carkit.body import LoftBody
+
+LENGTH, WIDTH, HEIGHT = %%LENGTH%%, %%WIDTH%%, %%HEIGHT%%
+HALF_L = LENGTH / 2.0
+HALF_W = WIDTH / 2.0
+%%AXLES%%
+V_SHOULDER = 0.520
+COWL_X = %%COWL_X%%
+BACKLIGHT_X = %%BACKLIGHT_X%%
+
+%%CURVES%%
+
+BODY = LoftBody(
+    name="%%NAME%%", length=LENGTH, width=WIDTH, height=HEIGHT,
+    front_axle=FRONT_AXLE, rear_axle=REAR_AXLE, wheel_r=WHEEL_R, arch_r=ARCH_R,
+    z_roof=Z_ROOF, z_floor=Z_FLOOR, y_hip=Y_HIP, z_hip=Z_HIP,
+    z_shoulder=Z_SHOULDER, y_shoulder=Y_SHOULDER, y_roof=Y_ROOF,
+    y_rocker=Y_ROCKER, undercut=UNDERCUT, z_crest=Z_CREST,
+    v_shoulder=V_SHOULDER, cowl_x=COWL_X, backlight_x=BACKLIGHT_X,
+    sill_height=%%SILL%%, core_z=%%CORE_Z%%, crease="sharp",
+)
+
+z_rocker = BODY.z_rocker
+section = BODY.section
+section_v = BODY.section_v
+surface = BODY.surface
+arch_top_z = BODY.arch_top_z
+arch_v = BODY.arch_v
+upper_length = BODY.upper_length
+v_rail = BODY.v_rail
+v_along = BODY.v_along
+v_at_y_upper = BODY.v_at_y_upper
+v_at_z = BODY.v_at_z
+nearest_on_section = BODY.nearest_on_section
+surface_normal = BODY.surface_normal
+surface_offset = BODY.surface_offset
+dims_report = BODY.dims_report

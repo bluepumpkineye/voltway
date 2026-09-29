@@ -1,0 +1,32 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+.env*
+!.env.example
+next-env.d.ts
+tsconfig.tsbuildinfo
+blender/candidates/
+blender/*.blend1
+blender/jev_log/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Blender: renders and scene files are outputs of the build scripts
+# (build_su7 / build_rx); old hand-made script backups predate git
+blender/renders/
+blender/*.blend
+blender/backup_*/
+
+# Third-party photographs used for camera matching stay local: the repo is
+# public, and they are not ours to redistribute
+blender/reference/
+public/reference images/
+
+# CC0 HDRIs from Poly Haven, 25 MB each: re-downloadable, see
+# blender/textures/hdri/README.md
+blender/textures/hdri/*.hdr
