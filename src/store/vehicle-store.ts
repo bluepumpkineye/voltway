@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import type { DriveMode } from '@/lib/performance';
+import type { AnchorId } from '@/data/vehicles/schema';
 
 export type HmiScreen =
   | 'home'
@@ -32,6 +33,29 @@ export type CameraMode = 'exterior' | 'transition' | 'interior';
 export type Gear = 'P' | 'D';
 
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
+
+/** The showroom's bottom tabs (/showroom/[slug]). */
+export type ShowroomTab = 'colour' | 'interior' | 'dimensions';
+
+/** Studio is the default; city is the HDRI world the car was baked under. */
+export type ShowroomScene = 'studio' | 'city';
+
+/** Which published dimension the Dimensions tab is showing. */
+export type DimensionFocus = 'length' | 'width' | 'height';
+
+/** Each tab opens on its own pose; the Dimensions chips pick theirs. */
+const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
+  colour: 'hero',
+  interior: 'driver',
+  dimensions: 'side',
+};
+// Height uses the front view: beside the car it has free space for the ruler
+// and its label, which the side view (nose and roof up to the screen edge) lacks.
+const DIMENSION_ANCHOR: Record<DimensionFocus, AnchorId> = {
+  length: 'side',
+  width: 'front',
+  height: 'front',
+};
 
 export interface ClimateState {
   driverTempC: number;
@@ -82,6 +106,15 @@ export interface VehicleUiState {
 
   adasActive: boolean;
 
+  // ---- the showroom
+  tab: ShowroomTab;
+  /** '' means the first option: the car as built */
+  paintId: string;
+  trimId: string;
+  anchorId: AnchorId;
+  sceneKind: ShowroomScene;
+  dimension: DimensionFocus;
+
   setVariant: (id: string) => void;
   setDriveMode: (m: DriveMode) => void;
   /** Select one of the car's own modes (and the model mode behind it). */
@@ -103,8 +136,20 @@ export interface VehicleUiState {
   setHeadlights: (on: boolean) => void;
   setLocked: (v: boolean) => void;
   setAdas: (v: boolean) => void;
+  setTab: (t: ShowroomTab) => void;
+  setPaint: (id: string) => void;
+  setTrim: (id: string) => void;
+  /** Fly to a pose. The camera mode follows, so the cabin mounts and the glass clears. */
+  setAnchor: (id: AnchorId) => void;
+  setSceneKind: (s: ShowroomScene) => void;
+  setDimension: (d: DimensionFocus) => void;
   reset: (variantId: string) => void;
 }
+
+const anchorState = (anchorId: AnchorId) => ({
+  anchorId,
+  cameraMode: anchorId === 'driver' ? ('interior' as const) : ('exterior' as const),
+});
 
 const initialClimate: ClimateState = {
   driverTempC: 22,
@@ -160,6 +205,13 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   locked: true,
   adasActive: false,
 
+  tab: 'colour',
+  paintId: '',
+  trimId: '',
+  anchorId: 'hero',
+  sceneKind: 'studio',
+  dimension: 'length',
+
   setVariant: (variantId) => set({ variantId }),
   setDriveMode: (driveMode) => set({ driveMode, modeId: null }),
   setCarMode: (modeId, driveMode) => set({ modeId, driveMode }),
@@ -199,6 +251,13 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setLocked: (locked) => set({ locked }),
   setAdas: (adasActive) => set({ adasActive }),
 
+  setTab: (tab) => set({ tab, dimension: 'length', ...anchorState(TAB_ANCHOR[tab]) }),
+  setPaint: (paintId) => set({ paintId }),
+  setTrim: (trimId) => set({ trimId }),
+  setAnchor: (id) => set(anchorState(id)),
+  setSceneKind: (sceneKind) => set({ sceneKind }),
+  setDimension: (dimension) => set({ dimension, ...anchorState(DIMENSION_ANCHOR[dimension]) }),
+
   reset: (variantId) =>
     set({
       variantId,
@@ -222,5 +281,11 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       headlightsOn: false,
       locked: true,
       adasActive: false,
+      tab: 'colour',
+      paintId: '',
+      trimId: '',
+      anchorId: 'hero',
+      sceneKind: 'studio',
+      dimension: 'length',
     }),
 }));

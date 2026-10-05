@@ -9,6 +9,7 @@ import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
+import { usePaint, useTrim } from './configurator';
 
 /**
  * Blender exports with +Y up, so the car's axes arrive as:
@@ -57,10 +58,14 @@ interface Props {
 
 export function CarModel({ vehicle, variant, url }: Props) {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const { headlightsOn, cameraMode } = useVehicleStore();
+  const { headlightsOn, cameraMode, paintId } = useVehicleStore();
+  const invalidate = useThree((s) => s.invalidate);
   const model = useClonedScene(scene);
   const inside = cameraMode === 'interior';
   const hasCabin = Boolean(vehicle.assets.interiorModelUrl);
+
+  // the showroom's paint swatches (the first option is the car as exported)
+  usePaint(model, vehicle.configurator, paintId);
 
   /*
    * The export merges the build down to a handful of meshes to hold draw calls,
@@ -102,7 +107,8 @@ export function CarModel({ vehicle, variant, url }: Props) {
       m.toneMapped = false;
       m.needsUpdate = true;
     }
-  }, [refs.headlamps, headlightsOn]);
+    invalidate();
+  }, [refs.headlamps, headlightsOn, invalidate]);
 
   // Inside the cabin: drop the blackout layer and see out through the glass.
   // Glass ships as dark opaque (KHR_materials_transmission blanks the three.js
@@ -133,7 +139,8 @@ export function CarModel({ vehicle, variant, url }: Props) {
         o.castShadow = !inside;
       }
     });
-  }, [refs, inside, hasCabin, model]);
+    invalidate();
+  }, [refs, inside, hasCabin, model, invalidate]);
 
   return (
     <group>
@@ -176,7 +183,11 @@ function CabinWithProbe(props: Props & { probeUrl: string }) {
 function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture | null }) {
   const { scene } = useGLTF(url, DRACO_PATH);
   const model = useClonedScene(scene);
-  const { ambientOn, ambientHue, ambientBrightness } = useVehicleStore();
+  const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
+  const invalidate = useThree((s) => s.invalidate);
+
+  // the showroom's cabin colourways (the first option is the cabin as built)
+  useTrim(model, vehicle.configurator, trimId);
 
   const refs = React.useMemo(() => {
     const ambient: THREE.MeshStandardMaterial[] = [];
@@ -215,7 +226,8 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
       m.toneMapped = false;
       m.needsUpdate = true;
     }
-  }, [refs.ambient, ambientOn, ambientHue, ambientBrightness]);
+    invalidate();
+  }, [refs.ambient, ambientOn, ambientHue, ambientBrightness, invalidate]);
 
   React.useEffect(() => {
     // the live HMI covers screen_main, so its backing material stays dim
@@ -225,7 +237,8 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
       m.toneMapped = false;
       m.needsUpdate = true;
     }
-  }, [refs.screens]);
+    invalidate();
+  }, [refs.screens, invalidate]);
 
   // The door cards (int_door_L/R, origin on the hinge) stay shut: the painted
   // doors are merged into the body, so a card swinging alone would pass

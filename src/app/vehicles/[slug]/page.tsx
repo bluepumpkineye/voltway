@@ -21,6 +21,10 @@ export default async function VehiclePage({ params }: { params: Promise<{ slug: 
   if (!vehicle) notFound();
 
   const fv = flagshipVariant(vehicle);
+  // the showroom's colour sources join the list; a page both cite is listed once
+  const sources = [...vehicle.sources, ...(vehicle.configurator?.sources ?? [])].filter(
+    (s, i, all) => all.findIndex((o) => o.url === s.url) === i,
+  );
 
   return (
     <main className="mx-auto max-w-[1600px] px-5 py-8">
@@ -56,6 +60,14 @@ export default async function VehiclePage({ params }: { params: Promise<{ slug: 
             </dd>
           </div>
         </dl>
+        {vehicle.configurator && vehicle.assets.modelUrl && (
+          <Link
+            href={`/showroom/${vehicle.slug}`}
+            className="inline-flex items-center gap-2 rounded-full bg-ink-100 px-5 py-2.5 text-[13px] font-medium text-ink-900 transition-colors hover:bg-white"
+          >
+            Open the showroom <span aria-hidden>→</span>
+          </Link>
+        )}
       </header>
 
       {vehicle.dataCaveat && (
@@ -68,12 +80,12 @@ export default async function VehiclePage({ params }: { params: Promise<{ slug: 
 
       <SpecTable vehicle={vehicle} />
 
-      <section className="mt-10">
+      <section id="sources" className="mt-10 scroll-mt-20">
         <h2 className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-400">
           Sources
         </h2>
         <ul className="mt-3 flex flex-col gap-1.5">
-          {vehicle.sources.map((s) => (
+          {sources.map((s) => (
             <li key={s.url}>
               <a
                 href={s.url}

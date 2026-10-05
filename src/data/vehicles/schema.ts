@@ -164,6 +164,73 @@ export interface Source {
   url: string;
 }
 
+// ------------------------------------------------------------ configurator
+
+/**
+ * How a paint is finished, as the parameters of the exterior's clearcoated
+ * paint material (a MeshPhysicalMaterial once glTF has loaded it). Anything
+ * left out keeps the build's own value, so a finish only has to say what
+ * differs from the car as built.
+ */
+export interface PaintFinish {
+  /** The body colour as seen in daylight, sRGB hex (converted to linear on use). */
+  color: string;
+  roughness?: number;
+  /** The shipped paint is dielectric; a metallic finish raises this a little. */
+  metalness?: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+  /** Lobe weight at grazing angles (the RX's blue-violet shift). Omit for none. */
+  sheen?: { color: string; roughness?: number; weight?: number };
+}
+
+/**
+ * One paint the car is sold in. The first entry of `paints` is the colour the
+ * Blender build is painted in and carries no `finish`: choosing it restores the
+ * material exactly as exported.
+ */
+export interface PaintOption {
+  id: string;
+  /** English display name; `nameZh` is the maker's own name. */
+  name: string;
+  nameZh?: string;
+  /** CSS background for the swatch: a colour, or a gradient for a shifting paint. */
+  swatch: string;
+  finish?: PaintFinish;
+}
+
+/**
+ * One cabin colourway. `colors` maps a cabin material's name (case-insensitive,
+ * as exported: `INT_Leather_Accent`) to the colour factor it takes. The cabin's
+ * lighting is baked as light only, never as albedo, so recolouring a material
+ * is shaded correctly. The first entry is the cabin as built, with no `colors`.
+ */
+export interface TrimOption {
+  id: string;
+  name: string;
+  nameZh?: string;
+  /** Two-tone swatch: the main surface, then the accent. */
+  swatch: [string, string];
+  colors?: Record<string, string>;
+}
+
+/** The named camera poses the showroom flies between. */
+export type AnchorId = 'hero' | 'side' | 'front' | 'rear' | 'rear34' | 'wheel' | 'driver';
+
+/**
+ * What a car offers the showroom. Colour values are matched by eye to the
+ * maker's published imagery under Voltway's studio rig, so the interface calls
+ * them approximate; the names, and which options exist, are the maker's.
+ */
+export interface ConfiguratorSpec {
+  /** Exact name of the paint material in the exterior GLB (case-insensitive). */
+  paintMaterial: string;
+  paints: PaintOption[];
+  trims: TrimOption[];
+  /** Where the options come from, cited on the vehicle page. */
+  sources: Source[];
+}
+
 export interface Vehicle {
   slug: string;
   brand: string;
@@ -179,6 +246,8 @@ export interface Vehicle {
   variants: Variant[];
   cockpit: Cockpit;
   assets: VehicleAssets;
+  /** Paint and trim options for the showroom (see ConfiguratorSpec). */
+  configurator?: ConfiguratorSpec;
   sources: Source[];
   /** Set when a car is too new for reliable data on some fields. */
   dataCaveat?: string;

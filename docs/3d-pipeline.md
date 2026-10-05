@@ -6,6 +6,12 @@ it is now library code (`blender/scripts/carkit`), so the next car is mostly
 **data plus calls**. The lessons that cost the most time are called out where
 they apply. The full list is at the end.
 
+Where the web showroom is heading (a HIMA-style studio with swappable paint,
+trim and wheels, opening doors, x-ray and space views) and what that asks of
+this pipeline is in [`hima-benchmark.md`](hima-benchmark.md): exporting doors,
+tailgate and wheel designs as their own nodes, a studio light rig shared with
+the web, and baked occlusion and ground shadows.
+
 ---
 
 ## 0. What a finished car is
@@ -401,6 +407,9 @@ Driving this from the Blender MCP:
 | `*led_white*` | material | headlamps |
 | `INT_Screen` | material | screen backing |
 | `M_Glass`, `M_Glass_Privacy` | material | a clear or privacy tint from inside |
+| `*_Wheels` | node, origin on the front-left wheel centre | the showroom's wheel pose and the wheelbase ruler |
+| the car's paint material (`configurator.paintMaterial`, e.g. `M_Paint_Yellow`) | material | showroom paint swatches |
+| the cabin trim materials a colourway names (`INT_Leather_Accent`, `INT_Leather_White`, `INT_Thread_Accent`, ...) | material | showroom cabin colourways |
 
 ---
 
@@ -439,6 +448,45 @@ Driving this from the Blender MCP:
   - the car's drive modes go in `cockpit.driveModes`, with published outputs where there are any (the page's power readout uses them)
   - images of the car inside the HMI are rendered from the build (`blender/renders/hmi`, `public/hmi/<car>/`); fade shadow-catcher alpha away from the car, or the studio rig's broad shadows reach the image edge as a hard rectangle
   - `/capture/hmi/<slug>?screen=&gear=&page=&mode=&climate=1` shows the HMI alone in a given state; `qa.hmi_capture.capture(slug, query={...})` screenshots it
+
+### The showroom (`/showroom/[slug]`)
+
+A car opens in the showroom when its data has `assets.modelUrl` and a
+`configurator`. What it asks of the build is in the names table above; how it
+works:
+
+- **`vehicle.configurator`** (`schema.ts`): `paintMaterial`, `paints[]`,
+  `trims[]` and `sources`. The first paint and the first trim are the car as
+  exported (no `finish`, no `colors`), so choosing them restores the material's
+  own values. Names and the set of options are the maker's; colour values are
+  matched by eye and shown as approximate. Cite each source.
+- **Paint** (`usePaint`, `viewer/configurator.ts`): a tween of the clearcoated
+  paint material's colour, roughness, metalness, clearcoat and sheen. The
+  exported paint is a dielectric (the export gate fails metallic above 0.2), so
+  a metallic finish raises `metalness` at runtime. Sheen is never driven to
+  zero: crossing zero removes it from the shader and recompiles the program.
+- **Trim** (`useTrim`): a tween of named cabin materials' colour factor. It is
+  correct because the cabin bake is light only. A textured leather (the RX's
+  perforated white) is tinted by multiplication, so a new colourway of it must
+  start from a white base texture.
+- **Anchors** (`src/lib/showroom/anchors.ts`): the camera poses are derived from
+  the published size and the measured mesh (x extent, and the `*_Wheels` origin
+  as the front-left wheel centre), so a new car needs no camera data. The seated
+  pose is `driverEye`. Dev builds warn when a model's length is more than 1.5 %
+  off the published figure.
+- **Studio** (`StudioShowroom`, `src/data/studio/rig.ts`): the room (cove, rings)
+  is unlit and on layer 1; the paint reflects the dark rig, drawn into a cube map
+  with drei `Lightformer`s. The floor is a `MeshReflectorMaterial` lit by its own
+  uniform white, because the reflector tints its diffuse colour by the
+  reflection. **`scene.background` must be a real colour**: the mirror pass
+  clears to it, and the renderer's own clear colour is alpha 0 (ContactShadows
+  needs that), which clears the mirror to premultiplied black and darkens the
+  whole floor.
+- **Rendering on demand** (`frameloop="demand"`): every store change invalidates
+  a frame, tweens and the camera invalidate while they move, and anything that
+  finishes asynchronously (HDR decode, PMREM, shader compile) is covered by the
+  invalidator's few seconds of frames. New code that mutates a material outside
+  those paths must call `invalidate()`.
 
 ### Judging the web result against the photo
 

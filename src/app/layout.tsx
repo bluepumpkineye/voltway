@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { SiteChrome } from '@/components/SiteChrome';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-ink-900 text-ink-100 antialiased">
+        <SiteChrome>
         <header className="sticky top-0 z-50 border-b hairline bg-ink-900/85 backdrop-blur-xl">
           <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-8 px-5">
             <Link href="/" className="group flex items-center gap-2.5">
@@ -48,9 +50,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </header>
+        </SiteChrome>
 
         {children}
 
+        <SiteChrome>
         <footer className="border-t hairline px-5 py-8">
           <div className="mx-auto flex max-w-[1600px] flex-col gap-2 text-[11px] leading-relaxed text-ink-400">
             <p>
@@ -66,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </p>
           </div>
         </footer>
+        </SiteChrome>
       </body>
     </html>
   );

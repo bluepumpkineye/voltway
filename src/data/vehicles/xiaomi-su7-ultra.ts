@@ -87,11 +87,98 @@ export const xiaomiSu7Ultra: Vehicle = {
     // over the driver's seat, from the camera-matched cabin build
     driverEye: [-0.30, 0.395, 1.14],
   },
+  // Paints: the five Xiaomi lists on xiaomiev.com/ultra. Interiors: Xiaomi's
+  // own page only says the Ultra has its own cabin colours and stitching, so the
+  // pairings come from Autohome's configuration table for the 2025 Ultra. Black
+  // / Yellow and Black / Red are the two it links to photographed cars; Night
+  // Black / Glacier Blue and Moon Grey / Black are listed there and nowhere on
+  // Xiaomi's page, so treat those two as the least certain. The build is
+  // Lightning Yellow with the Black / Yellow cabin ("as built"); every other
+  // colour is matched by eye to the maker's imagery under our studio rig.
+  configurator: {
+    paintMaterial: 'M_Paint_Yellow',
+    paints: [
+      {
+        id: 'lightning-yellow',
+        name: 'Lightning Yellow',
+        nameZh: '闪电黄',
+        swatch: '#e8bd0f',
+      },
+      {
+        id: 'space-silver',
+        name: 'Space Silver',
+        nameZh: '太空银',
+        swatch: '#b7c0cc',
+        finish: { color: '#9aa4b0', roughness: 0.3, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.035 },
+      },
+      {
+        id: 'parrot-green',
+        name: 'Parrot Green',
+        nameZh: '鹦鹉绿',
+        swatch: '#0b5d70',
+        finish: { color: '#064a5c', roughness: 0.28, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.035 },
+      },
+      {
+        id: 'obsidian-black',
+        name: 'Obsidian Black',
+        nameZh: '曜石黑',
+        swatch: '#1a1b1d',
+        finish: { color: '#0b0b0d', roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03 },
+      },
+      {
+        id: 'pearl-white',
+        name: 'Pearl White',
+        nameZh: '珍珠白',
+        swatch: '#f1f1ee',
+        finish: { color: '#ecece8', roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.035 },
+      },
+    ],
+    // The cabin is black Alcantara and leather with one accent colour on the
+    // seat panels, the stitching and the wheel marker.
+    trims: [
+      {
+        id: 'black-yellow',
+        name: 'Black / Yellow',
+        nameZh: '黑色/黄色',
+        swatch: ['#111113', '#d9a40a'],
+      },
+      {
+        id: 'black-red',
+        name: 'Black / Red',
+        nameZh: '黑色/红色',
+        swatch: ['#111113', '#b02a30'],
+        colors: { INT_Leather_Accent: '#9c1f28', INT_Thread_Accent: '#b0222c' },
+      },
+      {
+        id: 'night-glacier',
+        name: 'Night Black / Glacier Blue',
+        nameZh: '极夜黑/冰河蓝',
+        swatch: ['#111113', '#0a6a84'],
+        colors: { INT_Leather_Accent: '#0b6b84', INT_Thread_Accent: '#0f86a6' },
+      },
+      {
+        id: 'moon-grey-black',
+        name: 'Moon Grey / Black',
+        nameZh: '月影灰/黑色',
+        swatch: ['#7e7f83', '#111113'],
+        colors: {
+          INT_Alcantara: '#76787d',
+          INT_Leather_Black: '#55575b',
+          INT_Leather_Accent: '#111112',
+          INT_Thread_Accent: '#2a2a2c',
+        },
+      },
+    ],
+    sources: [
+      { label: 'Xiaomi - SU7 Ultra: five exterior colours', url: 'https://www.xiaomiev.com/ultra' },
+      { label: 'Autohome - SU7 Ultra 2025 configuration table: interior colours', url: 'https://car.autohome.com.cn/config/spec/70545.html' },
+    ],
+  },
   sources: [
     { label: 'CnEVPost — Xiaomi launches SU7 Ultra', url: 'https://cnevpost.com/2025/02/27/xiaomi-launches-su7-ultra/' },
     { label: 'CnEVPost — 630 km on 93.7 kWh pack', url: 'https://cnevpost.com/2024/12/05/xiaomi-su7-ultra-range-630-km-93-kwh-battery/' },
     { label: 'CarNewsChina — 1,526 hp, RMB 529,900', url: 'https://carnewschina.com/2025/02/27/xiaomi-su7-ultra-1526-hp-electric-sedan-started-sales-in-china-for-72830-usd/' },
-    { label: 'Xiaomi — SU7 Ultra: drive modes, Track Master app', url: 'https://www.xiaomiev.com/ultra' },
+    { label: 'Xiaomi — SU7 Ultra: drive modes, Track Master app, exterior colours', url: 'https://www.xiaomiev.com/ultra' },
     { label: 'Xiaomi — HyperOS smart cabin', url: 'https://www.xiaomiev.com/smartcabin' },
     { label: 'China PEV — mode outputs 816 / 1,346 / 1,548 PS', url: 'https://www.chinapev.com/xiaomi/xiaomi-su7-ultra-officially-launched-starting-at-rmb-529900-ignite-your-driving-passion/' },
     { label: 'CarNewsChina — MIIT filing: 5,070 mm, overhangs, 1,560 mm wing', url: 'https://carnewschina.com/2024/11/08/xiaomi-su7-ultra-declared-by-chinese-miit-powered-by-three-electric-motors/' },

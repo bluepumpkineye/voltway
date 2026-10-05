@@ -71,6 +71,92 @@ export const luxeedRx: Vehicle = {
     // over the driver's seat, from the camera-matched cabin build
     driverEye: [-0.32, 0.41, 1.19],
   },
+  // The maker's own palette (hima.auto/zhijie/rx): six paints, four cabin
+  // colours. The build is Blue Morpho with the Red Shadow White cabin, so those
+  // two are "as built"; every other value is matched by eye to the maker's
+  // press images under our studio rig (hence "approximate" in the interface).
+  // The wheels (21-inch double five-spoke is one of several), caliper colours
+  // and the frunk are not selectable yet: they need new geometry (Phase 3).
+  configurator: {
+    paintMaterial: 'M_Paint_RX_ShiftBlue',
+    paints: [
+      {
+        id: 'blue-morpho',
+        name: 'Blue Morpho',
+        nameZh: '闪蝶蓝',
+        swatch: 'linear-gradient(135deg, #3b5cf2 0%, #5a4ff0 48%, #8e55e0 100%)',
+      },
+      {
+        id: 'star-rose',
+        name: 'Star Rose',
+        nameZh: '星玫粉',
+        swatch: '#dfb7aa',
+        finish: { color: '#bd887d', roughness: 0.3, metalness: 0.45, clearcoat: 1, clearcoatRoughness: 0.04 },
+      },
+      {
+        id: 'titanium-silver',
+        name: 'Titanium Silver',
+        nameZh: '钛空银',
+        swatch: '#9b9ea3',
+        finish: { color: '#7d8085', roughness: 0.32, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.04 },
+      },
+      {
+        id: 'aurora-green',
+        name: 'Aurora Green',
+        nameZh: '极光绿',
+        swatch: '#276a68',
+        finish: { color: '#17555a', roughness: 0.3, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.04 },
+      },
+      {
+        id: 'obsidian-black',
+        name: 'Obsidian Black',
+        nameZh: '曜石黑',
+        swatch: '#1b1c1e',
+        finish: { color: '#0c0d0f', roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03 },
+      },
+      {
+        id: 'warm-cloud-white',
+        name: 'Warm Cloud White',
+        nameZh: '暖云白',
+        swatch: '#efede8',
+        finish: { color: '#e8e5de', roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04 },
+      },
+    ],
+    // The cabin's seat leather is the white perforated texture, so a colourway
+    // tints it; the accent leather and the stitching take the second colour.
+    trims: [
+      {
+        id: 'red-shadow-white',
+        name: 'Red Shadow White',
+        nameZh: '赤影白',
+        swatch: ['#ebe8e4', '#b3262e'],
+      },
+      {
+        id: 'flash-gold-black',
+        name: 'Flash Gold Black',
+        nameZh: '闪金黑',
+        swatch: ['#1a1a1c', '#d4a62a'],
+        colors: { INT_Leather_White: '#19191c', INT_Leather_Accent: '#b8891a', INT_Thread_Accent: '#d4a62a' },
+      },
+      {
+        id: 'warm-sand-brown',
+        name: 'Warm Sand Brown',
+        nameZh: '暖沙棕',
+        swatch: ['#dbd1c4', '#5b2326'],
+        colors: { INT_Leather_White: '#d9cfc2', INT_Leather_Accent: '#5b2326', INT_Thread_Accent: '#6e2c2f' },
+      },
+      {
+        id: 'red-tea-orange',
+        name: 'Red Tea Orange',
+        nameZh: '赤茶橘',
+        swatch: ['#c8692c', '#2b1b14'],
+        colors: { INT_Leather_White: '#c1621f', INT_Leather_Accent: '#2b1b14', INT_Thread_Accent: '#3a2318' },
+      },
+    ],
+    sources: [
+      { label: 'HIMA - Luxeed RX: six paints, four interior colours', url: 'https://hima.auto/zhijie/rx/' },
+    ],
+  },
   sources: [
     { label: 'CnEVPost - Luxeed opens RX pre-orders', url: 'https://cnevpost.com/2026/08/20/luxeed-opens-pre-orders-rx-suv/' },
     { label: 'CarNewsChina - 586 hp, pre-orders Aug 20', url: 'https://carnewschina.com/2026/08/18/cherys-luxeed-rx-from-ex-ferrari-designer-586-hp-to-start-pre-orders-on-august-20/' },

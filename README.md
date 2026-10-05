@@ -23,6 +23,7 @@ Then open <http://localhost:3000>. The built car is at `/vehicles/xiaomi-su7-ult
 | `/` | Landing page, vehicle grid |
 | `/vehicles` | All seven cars |
 | `/vehicles/[slug]` | Exterior orbit, interior view, live dashboard, spec tables, sources |
+| `/showroom/[slug]` | The HIMA-style showroom: white studio, paint and cabin colours, driver's seat, dimension rulers (the SU7 Ultra and the Luxeed RX) |
 | `/compare` | Cross-vehicle table, CLTC and WLTP kept apart |
 
 Each vehicle page has three views:
@@ -33,6 +34,33 @@ Each vehicle page has three views:
 
 All three read one Zustand store, so switching to Sport updates the in-car
 readout, the external metrics panel and the cabin lighting together.
+
+### The showroom
+
+`/showroom/<slug>` is the product's direction (see
+[`docs/hima-benchmark.md`](docs/hima-benchmark.md)): a bright studio with a
+bottom tab bar, in the manner of the HIMA 3D hall.
+
+- **Colour:** the maker's own paints (six for the Luxeed RX, five for the SU7
+  Ultra). A swatch tweens the clearcoated paint material in place; the first
+  swatch is the car exactly as exported from Blender.
+- **Interior:** the camera flies into the driver's seat and the cabin mounts
+  with its live HMI. The swatches are the maker's cabin colourways (four each);
+  the cabin's baked lighting is light only, so recolouring a trim is shaded
+  correctly.
+- **Dimensions:** length with wheelbase, width and height, as floor rulers
+  carrying the published figures.
+- **Studio / City:** the studio is the default; the city is the HDRI world the
+  cabin was baked under.
+- The address always links to what is on screen (`?tab=&paint=&trim=&scene=&dim=`).
+- It renders on demand (an idle showroom draws no frames), respects
+  `prefers-reduced-motion`, and drops the floor mirror on phones.
+
+Paint and trim names and the set of options come from the makers' pages (cited
+on each vehicle page); the colour values are matched by eye to their imagery
+under our studio rig, so the interface calls them approximate. Where an option
+is listed by only one outside source it says so in
+`src/data/vehicles/<car>.ts`.
 
 ## Data honesty
 
@@ -60,6 +88,11 @@ covers phases, quality gates, the interior workflow, the lighting bake, web
 integration and every lesson that cost time. The reusable library is
 `blender/scripts/carkit` (module map in its [README](blender/scripts/carkit/README.md)).
 The SU7 modules below are that car's data plus calls into it.
+
+**Where the showroom is heading** is in
+[`docs/hima-benchmark.md`](docs/hima-benchmark.md): a teardown of the HIMA 3D
+hall (techniques only), the gap to Voltway, the studio-rendering recipe and
+the phased roadmap.
 
 ```
 blender/scripts/
@@ -285,7 +318,12 @@ The app loads Draco through the local decoder in `public/draco/`.
   between the front seats.
 - Door toggles change the status graphic only. The painted doors are merged
   into the body, so a door card swinging alone would pass through its own
-  door; opening both needs the exterior doors split into their own nodes.
+  door; opening both needs the exterior doors split into their own nodes
+  (Phase 3 of the showroom roadmap).
+- The showroom changes paint and cabin colour only. Wheel designs, caliper
+  colours, opening doors and boot, an x-ray view, the frunk and the cargo bay
+  need new geometry or reference photos (Phases 3 and 4). The cabin is still
+  baked under the city HDRI, so its light does not change with the studio.
 - Navigation and media content is illustrative, not a live service. The
   playlist and album art are invented, and Track Master's circuit, lap times
   and temperatures are a demo session, not real track data.
