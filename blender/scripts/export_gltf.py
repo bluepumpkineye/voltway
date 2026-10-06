@@ -11,17 +11,33 @@ Machinery in carkit.export. Objects stay separate where the web app
 addresses them by name:
 
     screen_main              the quad the live HMI is mounted onto
-    int_door_L / int_door_R  door cards, origin on the hinge axis
+    int_door_L/R, int_rdoor_L/R
+                             door cards, origin on the hinge axis
+    int_trunk                the felt under the trunk lid, origin on its hinge
     SU7Ultra_Blackout        the black glass underlay and inner shadow shell:
                              they make the glass read deep from outside and
                              would wall the camera in - hidden in the cabin view
     SU7Ultra_Body            the paint, visible from inside through the glass
+    SU7Ultra_Door_FL/FR/RL/RR, SU7Ultra_DoorFrame_*
+                             the four doors and the inside of each, origin on
+                             the hinge (su7_openings)
+    SU7Ultra_Bonnet          the clamshell bonnet and its underside (su7_bays)
+    SU7Ultra_Trunk           the trunk lid, wing and all, and SU7Ultra_TrunkArms,
+                             its gooseneck arms (su7_trunk)
+    SU7Ultra_Greenhouse      the roof rail and glass above the belt: the X-ray's
+                             ghost
 
 Everything else is merged, so the app finds live surfaces (ambient strips,
 headlamps, screens) by MATERIAL name rather than mesh name.
 
-    import export_gltf as X
-    X.web()        # full rebuild, bake, both exports (~6 min)
+Runs without the MCP, in a background Blender that starts from an empty scene,
+so the open session is left alone:
+
+    blender -b --factory-startup --python-expr
+        "import sys; sys.path.append(r'<repo>/blender/scripts');
+         import export_gltf as X; X.web_ext()"      # exterior only, ~1 min
+
+    ... X.web()                                     # exterior + cabin, baked, ~12 min
 """
 import os
 import sys
@@ -59,8 +75,16 @@ WEB_EXPOSURE = 0.92
 # wheel hub sank to black; at full strength the cabin read studio-lit again.
 RIG_FILL = 0.5
 
-PROTECTED = {"screen_main", "int_door_L", "int_door_R"}
+PROTECTED = {"screen_main", "int_door_L", "int_door_R", "int_rdoor_L", "int_rdoor_R",
+             # the lid's liner swings with it (su7_trunk)
+             "int_trunk",
+             # the X-ray tab takes the headliner away
+             "int_headliner"}
 BLACKOUT = ("SU7Ultra_Shell_Shadow", "SU7Ultra_Greenhouse_Black", "SU7Ultra_Roof_Rear_Black")
+# the roof rail and the panes above the belt: the X-ray tab's ghost
+GREENHOUSE = ("SU7Ultra_Roof_Rail", "SU7Ultra_Glass_Windshield", "SU7Ultra_Glass_Quarter",
+              "SU7Ultra_Glass_Rear")
+GREENHOUSE_GROUP = ("SU7Ultra_Greenhouse", "SU7_GreenhouseGrp")
 
 # joined name -> collection
 GROUPS = [
@@ -70,9 +94,6 @@ GROUPS = [
     ("SU7Ultra_Blackout", "SU7_Blackout"),
 ]
 INTERIOR_GROUPS = [("SU7Ultra_Cabin", "SU7_Interior")]
-
-# Front door hinge axis (vertical): the leading edge at mid height, on the skin
-HINGE = (0.972, 0.930, 0.600)
 
 # where the cabin probe is shot from: between the front seats at head height
 PROBE_AT = (-0.35, 0.0, 1.10)
@@ -95,19 +116,100 @@ def split_blackout():
     return col
 
 
-def merge_for_export():
+def check_transmission():
+    """KHR_materials_transmission blanks the three.js frame: after
+    export_safe() no exported material may transmit."""
+    bad = []
+    for _, cname in GROUPS:
+        col = bpy.data.collections.get(cname)
+        for o in (col.objects if col else ()):
+            for m in (o.data.materials if o.type == 'MESH' else ()):
+                if m is None or not m.use_nodes:
+                    continue
+                b = next((n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+                t = b.inputs.get("Transmission Weight") if b else None
+                if t is not None and (t.is_linked or t.default_value > 0.0):
+                    bad.append(m.name)
+    if bad:
+        raise RuntimeError("transmissive materials left: %s" % sorted(set(bad)))
+
+
+def split_greenhouse():
+    """The roof rail and the panes of glass above the belt become a node of
+    their own, so the viewer's X-ray tab can turn it to a ghost."""
+    col = bpy.data.collections.get(GREENHOUSE_GROUP[1]) or bpy.data.collections.new(GREENHOUSE_GROUP[1])
+    if col.name not in bpy.context.scene.collection.children:
+        bpy.context.scene.collection.children.link(col)
+    for n in GREENHOUSE:
+        ob = bpy.data.objects.get(n)
+        if ob is None:
+            raise RuntimeError("greenhouse part %s missing from the build" % n)
+        for c in list(ob.users_collection):
+            c.objects.unlink(ob)
+        col.objects.link(ob)
+    return col
+
+
+def prepare_exterior():
+    """Everything the exterior needs before it is merged and exported: the
+    blackout layer split off, the bonnet, the four doors and the trunk lid made
+    hinged nodes, the hull opened behind them, the greenhouse its own node. Once
+    per build (SU7_Trunk marks it done); the cabin's open-state bake wants the
+    parts split, so web() calls it before that bake."""
+    if bpy.data.objects.get("SU7_Trunk") is not None:
+        return
+    from carkit import materials as MB
+    MB.export_safe()
     split_blackout()
-    return _X.merge_for_export(GROUPS, PROTECTED)
+    check_transmission()
+    import su7_bays as BY
+    import su7_openings as OP
+    import su7_trunk as TR
+    BY.build_frunk()          # the bay under the bonnet, then the bonnet as a hinged node
+    BY.split_bonnet()
+    BY.open_hull()
+    OP.build_sill()           # the painted sill, carbon plates and seal bead of the doorways
+    OP.cut_underlay()         # the windows out of the black underlay: it must not stay behind
+    TR.build_seal()           # a black bead behind the trunk lid's shut line
+    TR.build_cups()           # the cups its gooseneck arms end in
+    OP.split_doors()          # a hinged node per door (the cabin's cards: join_doors)
+    OP.open_hull()            # the hull behind them, so the cabin shows when one is open
+    TR.split_lid()            # the lid: skin, deck, wing, lamps' inner halves - one node
+    TR.build_arms()           # its arms, shown while it is open
+    split_greenhouse()        # roof rail and glass above the belt: the X-ray's ghost
+
+
+def exterior_groups():
+    import su7_bays as BY
+    import su7_openings as OP
+    import su7_trunk as TR
+    return GROUPS + OP.door_groups() + BY.bonnet_groups() + TR.trunk_groups() + [GREENHOUSE_GROUP]
+
+
+def merge_for_export():
+    prepare_exterior()
+    return _X.merge_for_export(exterior_groups(), PROTECTED)
 
 
 def export(path=DEST, draco=True):
-    return _X.export(path, GROUPS, "SU7Ultra_Body", draco=draco)
+    return _X.export(path, exterior_groups(), "SU7Ultra_Body", draco=draco)
 
 
 def main(draco=True):
     """The exterior only (the scene must hold a fresh build_su7.main())."""
     merge_for_export()
     return export(draco=draco)
+
+
+def web_ext(draco=True):
+    """Fresh build -> merged exterior GLB (no cabin)."""
+    for m in [m for m in sys.modules if m.startswith("su7_") or m == "build_su7"]:
+        sys.modules.pop(m, None)
+    import build_su7
+    from carkit import materials as MB
+    build_su7.main(interior=False)
+    MB.export_safe()
+    return main(draco=draco)
 
 
 # ------------------------------------------------------------------ cabin
@@ -150,18 +252,10 @@ def cabin_lighting():
 
 
 def join_doors(collection="SU7_Interior"):
-    """Each front door card's parts -> one object, origin on the hinge, so
-    the app can swing it (rotation about glTF +Y)."""
-    col = bpy.data.collections[collection]
-    for tag, sign in (("L", 1.0), ("R", -1.0)):
-        names = [o.name for o in col.objects
-                 if o.type == 'MESH' and o.name.startswith("int_door_%s_" % tag)]
-        ob = _X.join("int_door_" + tag, names)
-        if ob is None:
-            continue
-        h = Vector((HINGE[0], sign * HINGE[1], HINGE[2]))
-        ob.data.transform(Matrix.Translation(ob.matrix_world.translation - h))
-        ob.matrix_world = Matrix.Translation(h)
+    """Each door card's parts (front and rear) -> one object, origin on the
+    hinge (su7_openings)."""
+    import su7_openings as OP
+    OP.join_cards(collection)
 
 
 def bake_cabin(samples=256, probe_samples=384):
@@ -187,6 +281,35 @@ def bake_cabin(samples=256, probe_samples=384):
     finally:
         for ob in hidden:
             ob.hide_render = False
+    return stats
+
+
+def bake_cabin_open(samples=256):
+    """The same vertex lighting with every door and the trunk lid open: the
+    second set of light the viewer blends in as a part swings open (the cabin
+    is lit by the doorways, the boot by the sky). Needs prepare_exterior()
+    first, so the parts are split and hinged."""
+    from carkit import bake as BK
+    import su7_openings as OP
+    import su7_trunk as TR
+    col = bpy.data.collections["SU7_Interior"]
+    OP.join_cards()
+    for key, d in OP.DOORS.items():
+        OP.set_angle(key, d["deg"])
+    TR.set_lid(TR.OPEN_DEG)
+    hidden = cabin_lighting()
+    try:
+        with BK.thin_glass():
+            objs = BK.prepare(col, attr=BK.ATTR_OPEN)
+            stats = BK.vertex_lighting(objs, samples=samples, attr=BK.ATTR_OPEN)
+            BK.smooth(objs, attr=BK.ATTR_OPEN)
+            BK.to_generic(objs, BK.ATTR_OPEN, BK.EXPORT_ATTR_OPEN)
+    finally:
+        for ob in hidden:
+            ob.hide_render = False
+        for key in OP.DOORS:
+            OP.set_angle(key, 0.0)
+        TR.set_lid(0.0)
     return stats
 
 
@@ -224,18 +347,28 @@ def export_interior(draco=True):
 
 
 def web(samples=256, probe_samples=384):
-    """Full rebuild -> baked cabin -> both GLBs, the probe and the backdrop.
-
-    Through the MCP, run everything up to bake_cabin() on a persistent
-    bpy.app.timers callback and the exports in a direct call (docs/3d-pipeline.md
-    section 4)."""
-    sys.modules.pop("build_su7", None)
+    """Full rebuild -> baked cabin (shut, then every opening open) -> both GLBs,
+    the probe and the backdrop. In a background Blender (module docstring)."""
+    import time
+    t = time.time()
+    for m in [m for m in sys.modules if m.startswith("su7_") or m == "build_su7"]:
+        sys.modules.pop(m, None)
     import build_su7
     build_su7.main(interior=False)
     import su7_interior as IN
     IN.main()
+    import su7_trunk as TR
+    TR.build_boot()           # the boot behind the lid, and the lid's liner
+    TR.build_liner()
+    print("build: %.0f s" % (time.time() - t))
     stats = bake_cabin(samples, probe_samples)
-    return {"bake": stats, **exports()}
+    print("bake: %.0f s" % (time.time() - t))
+    prepare_exterior()
+    stats_open = bake_cabin_open(samples)
+    print("bake open: %.0f s" % (time.time() - t))
+    out = {"bake": stats, "bake_open": stats_open, **exports()}
+    print("web: %.0f s" % (time.time() - t))
+    return out
 
 
 def exports():

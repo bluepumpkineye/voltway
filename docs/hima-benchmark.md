@@ -155,7 +155,7 @@ owner before any modelling**.
 | 0 | This document | done |
 | 1 | **Showroom shell** at `/showroom/[slug]`: both cars, today's GLBs. Bottom tab bar, camera anchors, paint and cabin-trim swatches (official palettes, sourced), dimension rulers, Studio / City toggle, URL state | done (2026-10-05) |
 | 2 | **Studio look**: light-rig HDRs, studio set, exterior `_BAKEDAO`, ground shadow, cabin re-bake, Cycles studio stills and triptych QA. RX first, then SU7 | queued: after Phases 3 and 4, because the cabin re-bake wants the doors open |
-| 3 | **Openings and wheels** (RX pilot): split doors and tailgate, jambs, sills, a modelled boot and frunk, wheel designs and caliper colours. References first | in progress (RX first): the four doors, the bonnet with its frunk and the tailgate with its boot open in the showroom (2026-10-06); the cabin is baked shut and open; the wheels and the SU7 (42 reference photos waiting for approval) are next |
+| 3 | **Openings and wheels** (RX pilot): split doors and tailgate, jambs, sills, a modelled boot and frunk, wheel designs and caliper colours. References first | openings done for both cars: the four doors, the bonnet with its frunk and the tailgate or trunk lid with its boot open in the showroom (RX 2026-10-06; SU7, from 42 approved photographs, 2026-10-06); the cabins are baked shut and open; the wheels and caliper colours are next |
 | 4 | **X-ray, hotspots, space**: beltline split, ghost greenhouse, seat hotspots, mannequins, luggage, boot dimensions | the ghost greenhouse is built (the RX's X-ray tab, 2026-10-06); hotspots, mannequins, luggage and boot dimensions are still to do |
 | 5 | **Compare, mobile, payload**: split-screen compare, portrait anchors, quality tier, meshopt / KTX2 export, ≤ 20 MB per car | planned |
 
@@ -165,8 +165,9 @@ Order (owner, 2026-10-05): the openings and the x-ray come before the studio loo
 
 - The Luxeed RX has a frunk and a 622 L boot with a 30 L hidden compartment;
   tyres are staggered (255 front, 275 rear); the calipers are six-piston at
-  the front. The SU7 Ultra has a 559 L boot and a 105 L frunk. Both frunks
-  are currently missing from the models.
+  the front. The SU7 Ultra has a 559 L boot and a 105 L frunk. Both cars'
+  frunks and boots are modelled now (without the stated volumes or the hidden
+  compartment).
 - Cars with a camera-matched cabin keep their own `driverEye`; the showroom's
   driver anchor reads it.
 

@@ -174,6 +174,46 @@ export const xiaomiSu7Ultra: Vehicle = {
       { label: 'Autohome - SU7 Ultra 2025 configuration table: interior colours', url: 'https://car.autohome.com.cn/config/spec/70545.html' },
     ],
   },
+  // The four doors swing on their leading edge (the hinge: mid height, on the
+  // skin; blender/scripts/su7_openings.py). The node origins are the hinges, and
+  // the cabin's door cards turn about the same axes. Angles from the opening
+  // photographs; the sign is the swing direction (glTF y up).
+  openings: [
+    { id: 'doorFL', node: 'SU7Ultra_Door_FL', cardNode: 'int_door_L', frameNode: 'SU7Ultra_DoorFrame_FL', deg: -75, xrayHide: true },
+    { id: 'doorFR', node: 'SU7Ultra_Door_FR', cardNode: 'int_door_R', frameNode: 'SU7Ultra_DoorFrame_FR', deg: 75, xrayHide: true },
+    { id: 'doorRL', node: 'SU7Ultra_Door_RL', cardNode: 'int_rdoor_L', frameNode: 'SU7Ultra_DoorFrame_RL', deg: -68, xrayHide: true },
+    { id: 'doorRR', node: 'SU7Ultra_Door_RR', cardNode: 'int_rdoor_R', frameNode: 'SU7Ultra_DoorFrame_RR', deg: 68, xrayHide: true },
+    // One clamshell bonnet, hinged on a lateral axis at the cowl and held up
+    // near the vertical by two gas struts (photographs 33-42; su7_bays.py): its
+    // underside is a painted inner panel with a honeycomb of hexagons.
+    {
+      id: 'frunk',
+      node: 'SU7Ultra_Bonnet',
+      axis: 'z',
+      deg: 78,
+      struts: [
+        { body: [1.0, 0.78, -0.7], moving: [1.14, 0.9, -0.69] },
+        { body: [1.0, 0.78, 0.7], moving: [1.14, 0.9, 0.69] },
+      ],
+    },
+    // The trunk lid (deck, tail cap, wing and the lamps' inner halves) hangs just
+    // behind the backlight and stands nearly upright, lifted on two gooseneck
+    // arms that are drawn only while it is open (su7_trunk.py; photographs
+    // 22-32). The cabin's felt liner turns with it.
+    {
+      id: 'boot',
+      node: 'SU7Ultra_Trunk',
+      cardNode: 'int_trunk',
+      frameNode: 'SU7Ultra_TrunkArms',
+      axis: 'z',
+      deg: -82,
+    },
+  ],
+  // The X-ray tab: the roof rail and the panes of glass above the belt turn to
+  // one pale ghost (the SU7Ultra_Greenhouse node, split out in
+  // blender/scripts/export_gltf.py), the doors and the dark hull are not drawn,
+  // and the cabin shows through with its headliner removed.
+  xray: { node: 'SU7Ultra_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
   sources: [
     { label: 'CnEVPost — Xiaomi launches SU7 Ultra', url: 'https://cnevpost.com/2025/02/27/xiaomi-launches-su7-ultra/' },
     { label: 'CnEVPost — 630 km on 93.7 kWh pack', url: 'https://cnevpost.com/2024/12/05/xiaomi-su7-ultra-range-630-km-93-kwh-battery/' },

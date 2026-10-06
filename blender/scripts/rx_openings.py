@@ -250,9 +250,13 @@ def build_frame(key, skin_loop):
         off = min(0.014, 0.5 * gap)
         path.append((card[i].x + nx * off, card[i].y - side * 0.004, card[i].z + nz * off))
         radii.append(r / 0.012)
+    # the gap to the skin's edge is read off discrete points: smooth the bead's
+    # radius round the loop (a moving average) so its outline is not a saw
+    k = 4
+    radii = [sum(radii[(i + j) % n] for j in range(-k, k + 1)) / (2 * k + 1) for i in range(n)]
     bead = tube("RX_DoorBead_" + key, path, ellipse(0.012, 0.010, 10), col,
                 bpy.data.materials["M_Black_Satin"], closed=True, lateral=(0.0, 1.0, 0.0),
-                scale=lambda s: (radii[min(len(radii) - 1, int(s * (len(radii) - 1) + 0.5))],) * 2)
+                scale=lambda s: (radii[int(round(s * n)) % n],) * 2)
     from carkit import export as X
     frame = X.join("RX_DoorFrame_" + key, [ring.name, bead.name])
     h = hinge(key)
@@ -412,9 +416,12 @@ def open_hull(hull="RX_Shell_Shadow", core_z=0.70):
 
 
 # ------------------------------------------------- the window's black underlay
-def _glass_cutter(key, inset, front=0.03, back=0.06):
+def _glass_cutter(key, inset, front=0.03, back=0.06, drop=0.05):
     """A prism of one door glass's outline, `inset` smaller, swept along the
-    glass's outward normal: the cutter for the sheet behind it."""
+    glass's outward normal: the cutter for the sheet behind it. The glass's
+    lower edge is taken `drop` further down, to the door skin's top edge: the
+    sheet's strip between the two (about 2 cm, the window sill) would stay
+    behind as a glossy black bar that mirrors the studio white."""
     from carkit import cut as C
     d = DOORS[key]
     src = bpy.data.objects[ROWS[d["row"]][1]]
@@ -435,7 +442,10 @@ def _glass_cutter(key, inset, front=0.03, back=0.06):
         w = n.cross(t).normalized()
         if w.dot(centre - p) < 0.0:
             w = -w
-        pts.append(tuple(p + w * inset))
+        q = p + w * inset
+        if w.z > 0.7:                      # on the lower edge (w points into the glass)
+            q.z -= drop
+        pts.append(tuple(q))
     bpy.data.meshes.remove(me)
     return C.prism_dir("_glasscut_" + key, pts, tuple(n), back=back, front=front)
 

@@ -141,6 +141,15 @@ def set_inputs(bsdf, **kw):
             sock.default_value = v
 
 
+def ensure(name, base, rough=0.6, **kw):
+    """The named material, made on first use with these Principled inputs."""
+    m = bpy.data.materials.get(name)
+    if m is None:
+        m, _nt, b = mat(name)
+        set_inputs(b, base=base, metallic=kw.pop("metallic", 0.0), roughness=rough, **kw)
+    return m
+
+
 def flake(m, nt, bsdf, scale=2600.0, bump=0.04, metal_max=0.09):
     """Metallic flake, driven into the BASE layer.
 

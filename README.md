@@ -301,9 +301,10 @@ and drags the camera.
 
 ## Performance
 
-Exterior: **2.4 MB GLB** (Draco), 375k triangles, 32 draw calls. The cabin is
-a separate **4.4 MB GLB** (170k triangles, 38 draw calls) plus a 0.9 MB HDR
-probe, and the outside world adds a 1.0 MB JPEG and a 0.4 MB HDR. All of it is
+Exterior: **2.7 MB GLB** (Draco), 403k triangles, 82 draw calls (the doors,
+bonnet and trunk lid are nodes of their own). The cabin is a separate **5.3 MB
+GLB** (182k triangles, 54 draw calls, lit twice: shut and with everything open)
+plus a 1.0 MB HDR probe, and the outside world adds a 1.0 MB JPEG and a 1.5 MB HDR. All of it is
 preloaded behind the exterior view, so going inside is instant.
 The app loads Draco through the local decoder in `public/draco/`.
 
@@ -316,18 +317,22 @@ The app loads Draco through the local decoder in `public/draco/`.
 - The cabin's lighting is baked, so it is static. The ambient light guides
   glow but do not light the trim, and reflections come from one probe shot
   between the front seats.
-- The Luxeed RX's four doors, bonnet and tailgate open (tap them in the
-  showroom or use the car screen's buttons) and its X-ray tab shows the cabin
-  through a ghosted roof and glass; the SU7 Ultra's openings do not exist yet
-  (its reference photos are waiting for approval). The cabin is baked twice,
-  shut and with everything open, and the light follows how far a part is open.
-- The showroom changes paint and cabin colour, opens the RX's doors, bonnet and
-  tailgate and shows its X-ray. Wheel designs and caliper colours still need
-  new geometry or reference photos (Phase 3). The cabin is still baked under
+- Both cars' four doors, bonnet and boot open (tap them in the showroom or use
+  the car screen's buttons) and the X-ray tab shows the cabin through a ghosted
+  roof and glass. The SU7 Ultra's were built from 42 approved photographs: a
+  clamshell bonnet with its honeycomb underside over a felt-lined frunk, and a
+  trunk lid that lifts on two gooseneck arms over a carpeted boot. The cabin is
+  baked twice, shut and with everything open, and the light follows how far a
+  part is open.
+- The showroom changes paint and cabin colour, opens the doors, bonnet and boot
+  and shows the X-ray. Wheel designs and caliper colours still need new geometry
+  or reference photos (Phase 3). The cabin is still baked under
   the city HDRI, so its light does not change with the studio.
-- The tailgate's inside is a plain liner and the boot a simple carpeted bay
-  (floor, walls, sill plates, a lamp module); the under-floor compartment, the
-  hatch's hinges and its sensor strip are not modelled.
+- The RX tailgate's inside is a plain liner and its boot a simple carpeted bay
+  (floor, walls, sill plates, a lamp module); the SU7's lid hangs on a modelled
+  gooseneck pair but swings on a single virtual axis (the real linkage is a
+  four-bar), and its boot has no net pockets, split seat-back wall or cargo
+  floor lid. The under-floor compartments and the sensor strips are not modelled.
 - Navigation and media content is illustrative, not a live service. The
   playlist and album art are invented, and Track Master's circuit, lap times
   and temperatures are a demo session, not real track data.

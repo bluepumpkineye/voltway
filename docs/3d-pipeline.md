@@ -401,15 +401,18 @@ Driving this from the Blender MCP:
 |---|---|---|
 | `screen_main` | node | the live HMI is warped onto it |
 | `int_door_L`, `int_door_R`, `int_rdoor_L`, `int_rdoor_R` | node, origin on the hinge | the cabin's door cards, swung with their doors (`Vehicle.openings[].cardNode`) |
-| `LuxeedRX_Door_FL/FR/RL/RR` | node, origin on the hinge | the exterior doors: skin, glass, handle, mirror (`openings[].node`) |
-| `LuxeedRX_DoorFrame_*` | node, origin on the hinge | a door's painted inner frame and seal bead, shown only while it is ajar (`frameNode`) |
-| `LuxeedRX_Bonnet` | node, origin on the hinge axis (along the car's width) | the bonnet and its liner; `axis: 'z'` in glTF |
+| `LuxeedRX_Door_FL/FR/RL/RR`, `SU7Ultra_Door_FL/FR/RL/RR` | node, origin on the hinge | the exterior doors: skin, glass, handle, mirror (`openings[].node`) |
+| `LuxeedRX_DoorFrame_*`, `SU7Ultra_DoorFrame_*` | node, origin on the hinge | a door's painted inner frame and seal bead, shown only while it is ajar (`frameNode`) |
+| `LuxeedRX_Bonnet`, `SU7Ultra_Bonnet` | node, origin on the hinge axis (along the car's width) | the bonnet and its underside; `axis: 'z'` in glTF |
 | `LuxeedRX_Tailgate` | node, origin on the hinge (under the spoiler blade, on the centreline) | the hatch: skin, backlight, black band, blade, light bar's centre unit, lettering, painted return flange (`openings[].node`, `axis: 'z'`) |
 | `int_tailgate` | cabin node, same hinge | the hatch's black liner and the backlight's reveal (`cardNode`) |
+| `SU7Ultra_Trunk` | node, origin on the hinge (a virtual axis a little ahead of and above the lid's front edge) | the SU7's trunk lid: tail cap's upper face, deck, wing, duck tail, stripes, badges, the lamps' inner halves, painted return flange (`openings[].node`, `axis: 'z'`) |
+| `int_trunk` | cabin node, same hinge | the lid's felt liner (`cardNode`) |
+| `SU7Ultra_TrunkArms` | node, same hinge | the two gooseneck arms and their brackets, drawn only while the lid is open and turning with it (`frameNode`) |
 | `int_parcel_shelf`, `int_rear_sill` | cabin nodes | hidden while the tailgate is open (`openings[].hides`): the real boot has no shelf |
 | `int_headliner` | cabin node | hidden by the X-ray tab (`xray.hideCabin`) |
 | `int_cpillar`, `int_cpillar_flange`, `int_qtr_lower` | cabin nodes | the rear pillar trims, hidden while the tailgate is open and the camera is outside (`openings[].hidesOutside`): their ragged rear edges show from the open boot |
-| `LuxeedRX_Greenhouse` | node | roof, A-pillars and rails and the panes of glass above the belt: the X-ray's ghost (`xray.node`) |
+| `LuxeedRX_Greenhouse`, `SU7Ultra_Greenhouse` | node | roof, A-pillars and rails and the panes of glass above the belt: the X-ray's ghost (`xray.node`) |
 | `_BAKEDLIGHT`, `_BAKEDLIGHT_OPEN` | cabin vertex attributes | the cabin's light with every door shut, and with every door and the tailgate open; the shader mixes them by how far a part is open |
 | `SU7Ultra_Blackout` (`*_blackout`) | node | hidden in the cabin view |
 | `SU7Ultra_Body`, `SU7Ultra_Wheels` | node | hidden in the cabin view on single-file cars |
@@ -528,6 +531,11 @@ the swing in degrees (its sign is the direction) and any gas struts.
   window when its door swung. `cut_underlay()` cuts each door glass's outline
   (2.5 mm in) out of it with an exact boolean, and `rx_gate.cut_underlay()` does
   the backlight's footprint of `RX_Roof_Rear_Black` with straight bisect cuts.
+  The cutter's lower edge is taken down to the door skin's top edge
+  (`_glass_cutter(drop=)`): the 16-20 mm strip of underlay between the skin and
+  the glass (the window sill) used to stay behind as a glossy black bar, and a
+  glossy black sheet seen edge-on mirrors the white studio, so it read as a
+  silver bar floating across the open doorway.
 - **Tailgate and boot (`rx_gate.py`).** The shut line (`rx_rear.GATE_EDGE`) now
   runs on up the cap's side to its top edge, so the cap's sheet is two pieces;
   `split_tail()` prunes the groove the exact boolean left in the slot (30 mm
@@ -578,6 +586,62 @@ flies to the anchor that shows it (`OPENING_ANCHOR` in the store).
 Budgets with the moving parts as separate nodes: the RX exterior is about
 390k triangles and ~70 primitives (draw calls), against 383k and 32 before;
 with the cabin mounted about 130 calls.
+
+### The SU7 Ultra's openings (`su7_openings.py`, `su7_bays.py`, `su7_trunk.py`)
+
+The same machinery, fitted to the SU7 from the 42 approved photographs
+(`blender/reference/xiaomi-su7-ultra/openings`, gitignored). What differs from the RX:
+
+- **Doors** (`su7_openings.py`, a port of `rx_openings.py`). Frameless glass on
+  all four doors, hinged on the leading edge, 75 degrees (front) and 68 (rear).
+  The gold "Ultra" script on the front doors is a per-side object and moves with
+  its door. The carbon sill with its "xiaomi Ultra" scuff plates and seal bead
+  (`build_sill`) comes from photographs 10 and 12. The SU7's flank is one
+  Y-mirrored carkit object per part, so `_side_object()` bakes one side of each.
+- **Bonnet and frunk** (`su7_bays.py`). One clamshell bonnet hinged at the cowl,
+  up 78 degrees on two near-vertical struts (the viewer draws those from the
+  `struts` anchors). Under it: a black cowl panel with two vents, a plate and the
+  parked wipers; a thick gasket round a deep felt tub whose floor has a ribbed
+  tray between two raised covers (photographs 33-37); and the bonnet's own
+  underside, a painted inner panel under a return flange with a honeycomb of 31
+  hexagonal cells, two pockets, four plugs and the cast strut brackets (39, 42).
+  The racing stripes run over the nose, so `split_stripes()` cuts them along the
+  hood's shut line (an exact boolean with a slot as wide as the gap) and the
+  hood's half goes with the bonnet. The outline of everything (apron, gasket,
+  flange, hull cut) is the hood panel's own boundary (`hood_outline()`), so the bay
+  follows the hood. The helpers it shares with the RX live in `carkit/bay.py`.
+- **Trunk lid and boot** (`su7_trunk.py`). The SU7's lid is not a hatch: the
+  backlight is fixed, and the lid is the tail cap's upper face inside the shut
+  line (`split_cap()` prunes the groove the slot's boolean left, against a
+  rebuilt copy of the cap, and takes the lid's piece), the decklid behind it, the
+  wing, duck tail, stripes, badges and the inner halves of the tail lamps (six
+  lamp parts the lid's side edge crosses are cut at |y| = 0.54: `_cut_at_y()`).
+  It hangs from a virtual axis a little ahead of and above its front edge, so it
+  lifts about 0.2 m as it swings 82 degrees, clear of the glass. Its underside is
+  a felt liner (`build_liner()`: `int_trunk`, a copy of both sheets 30 mm behind
+  the skin, in the cabin's collection so it is baked) inside a painted return
+  flange (`build_flange()`). The two gooseneck arms (`build_arms()`,
+  `SU7Ultra_TrunkArms`) are drawn in the pose of the photographs and turned back
+  into the closed pose; the viewer shows that node only while the lid is open
+  (it is the lid's `frameNode`, which turns with the lid and is hidden when it
+  is shut), so the arms never sit visibly inside a closed car. The boot
+  (`build_boot()`) is a carpeted floor and walls that lean in with the tail's
+  tumblehome (they follow the cap's skin, read by ray, 65 mm inside it), a sill
+  ledge along the shut line, a bag hook and a 12 V socket (25-32).
+- **The hull** is opened behind every part: `open_hull()` in each module deletes
+  the faces behind a skin (rays from the core line for the doors, straight down
+  and straight back for the lid, an exact boolean with the bay's plan for the bonnet).
+- **X-ray.** `export_gltf.split_greenhouse()` makes `SU7Ultra_Greenhouse` from the
+  roof rail and the windscreen, quarter and rear glass. The SU7's roof glass is the
+  black underlay (`SU7Ultra_Greenhouse_Black`, in the blackout node), which the
+  viewer hides, so the X-ray shows the cabin through the roof opening.
+- **Run it.** `export_gltf.web_ext()` (exterior, ~1 min) and `web()` (exterior,
+  cabin, both bakes, ~11 min), in a background Blender as for the RX:
+  `blender -b --factory-startup --python-expr "import sys; sys.path.append(r'<repo>/blender/scripts'); import export_gltf as X; X.web()"`.
+
+Budgets: the SU7 exterior is now about 403k triangles in 82 primitives (375k and
+32 before) and 2.7 MB; the cabin is 5.3 MB with both bakes (4.4 MB before), 54
+primitives.
 
 ### Judging the web result against the photo
 

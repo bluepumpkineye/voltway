@@ -521,12 +521,21 @@ def _belt_z(x, v=None):
     return S.section_v(x, PN.V_BELT if v is None else v)[1]
 
 
-def build_doors(col, lib):
+def front_card(side):
+    """The front door card's frame: its outline, thickness and the skin it
+    follows (build_doors builds on it; su7_openings builds the open door's frame on it)."""
     from carkit.geom import Curve
     from carkit.interior.door import DoorCard
-    made = []
     th = Curve([(0.38, 0.095), (0.55, 0.125), (0.70, 0.150), (0.80, 0.132), (0.88, 0.098),
                 (0.96, 0.070)], mode="pchip")
+    return DoorCard(S.BODY, lambda z: PN._DOOR_F_EDGE(z) - 0.022,
+                    lambda z: PN.X_BPILLAR_F + 0.006, 0.40, _belt_z, th,
+                    v_top=PN.V_BELT, side=side)
+
+
+def build_doors(col, lib):
+    from carkit.geom import Curve
+    made = []
     # The yellow insert continues the dash band into the door and DESCENDS
     # toward the rear into the armrest; the black Alcantara upper door grows
     # taller behind it.
@@ -537,9 +546,8 @@ def build_doors(col, lib):
     for side, tag in ((1.0, "L"), (-1.0, "R")):
         # the rear edge runs to within 6 mm of the B-pillar shut line; a seal
         # strip (build_closures) fills the slot between front and rear cards
-        dc = DoorCard(S.BODY, lambda z: PN._DOOR_F_EDGE(z) - 0.022,
-                      lambda z: PN.X_BPILLAR_F + 0.006, 0.40, _belt_z, th,
-                      v_top=PN.V_BELT, side=side)
+        dc = front_card(side)
+        th = dc.th
         pre = "int_door_%s_" % tag
         xr = lambda z: PN.X_BPILLAR_F + 0.006
         xf = lambda z: PN._DOOR_F_EDGE(z) - 0.022
