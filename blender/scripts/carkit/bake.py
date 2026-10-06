@@ -37,12 +37,16 @@ ATTR = "BakedLight"
 # cabin in the viewer); custom "_" attributes export per primitive intact.
 # GLTFLoader names it "_bakedlight".
 EXPORT_ATTR = "_BAKEDLIGHT"
+# The same bake with the car's doors and tailgate open: a second set of light
+# for the viewer to blend in as a part swings open (CarModel.tsx).
+ATTR_OPEN = "BakedLightOpen"
+EXPORT_ATTR_OPEN = "_BAKEDLIGHT_OPEN"
 # stored = lighting * STORE_SCALE; the viewer multiplies back
 # (uBakeGain = pi / STORE_SCALE)
 STORE_SCALE = 0.25
 
 
-def prepare(collection, skip=()):
+def prepare(collection, skip=(), attr=ATTR):
     """Apply modifiers on the collection's meshes and give each a float
     colour attribute to bake into. Returns the meshes."""
     from .export import bake_modifiers
@@ -51,7 +55,7 @@ def prepare(collection, skip=()):
     for o in objs:
         bake_modifiers(o)
         me = o.data
-        ca = me.color_attributes.get(ATTR) or me.color_attributes.new(ATTR, 'FLOAT_COLOR', 'POINT')
+        ca = me.color_attributes.get(attr) or me.color_attributes.new(attr, 'FLOAT_COLOR', 'POINT')
         me.color_attributes.active_color = ca
         me.color_attributes.render_color_index = me.color_attributes.active_color_index
     return objs
@@ -151,22 +155,21 @@ def thin_glass(tints=None):
                 nt.nodes.remove(n)
 
 
-def to_generic(objects):
+def to_generic(objects, attr=ATTR, export=EXPORT_ATTR):
     """Copy the baked colour attribute into the float3 EXPORT_ATTR."""
     for o in objects:
         me = o.data
-        ca = me.color_attributes.get(ATTR)
+        ca = me.color_attributes.get(attr)
         if ca is None:
             continue
         c = np.empty(len(ca.data) * 4, np.float32)
         ca.data.foreach_get("color", c)
-        at = me.attributes.get(EXPORT_ATTR) or me.attributes.new(EXPORT_ATTR, 'FLOAT_VECTOR',
-                                                                 'POINT')
+        at = me.attributes.get(export) or me.attributes.new(export, 'FLOAT_VECTOR', 'POINT')
         at.data.foreach_set("vector", c.reshape(-1, 4)[:, :3].ravel())
 
 
-def vertex_lighting(objects, samples=256, scale=STORE_SCALE):
-    """Bake the diffuse lighting into ATTR on every object. Returns stats."""
+def vertex_lighting(objects, samples=256, scale=STORE_SCALE, attr=ATTR):
+    """Bake the diffuse lighting into `attr` on every object. Returns stats."""
     scn = bpy.context.scene
     try:
         scn.render.engine = 'CYCLES'
@@ -180,6 +183,8 @@ def vertex_lighting(objects, samples=256, scale=STORE_SCALE):
     for o in objects:
         o.hide_set(False)
         o.select_set(True)
+        # the bake writes the ACTIVE colour attribute
+        o.data.color_attributes.active_color = o.data.color_attributes[attr]
     active = objects[0]
     bpy.context.view_layer.objects.active = active
     mats = {s.material for o in objects for s in o.material_slots if s.material}
@@ -191,7 +196,7 @@ def vertex_lighting(objects, samples=256, scale=STORE_SCALE):
                                 target='VERTEX_COLORS', use_clear=True)
     lo, hi, total = 1e9, 0.0, []
     for o in objects:
-        ca = o.data.color_attributes[ATTR]
+        ca = o.data.color_attributes[attr]
         a = np.empty(len(ca.data) * 4, np.float32)
         ca.data.foreach_get("color", a)
         a = a.reshape(-1, 4)
@@ -209,7 +214,7 @@ def vertex_lighting(objects, samples=256, scale=STORE_SCALE):
     return stats
 
 
-def smooth(objects, iterations=2, keep=0.5):
+def smooth(objects, iterations=2, keep=0.5, attr=ATTR):
     """Average each vertex's baked light with its edge neighbours.
 
     Every vertex is an independent Monte Carlo estimate, so a vertex bake
@@ -218,7 +223,7 @@ def smooth(objects, iterations=2, keep=0.5):
     couple of vertices."""
     for o in objects:
         me = o.data
-        ca = me.color_attributes.get(ATTR)
+        ca = me.color_attributes.get(attr)
         if ca is None or ca.domain != 'POINT' or len(me.edges) == 0:
             continue
         n = len(me.vertices)

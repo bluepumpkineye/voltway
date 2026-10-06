@@ -157,6 +157,50 @@ export const luxeedRx: Vehicle = {
       { label: 'HIMA - Luxeed RX: six paints, four interior colours', url: 'https://hima.auto/zhijie/rx/' },
     ],
   },
+  // The four doors swing on their leading edge (the hinge: mid height, on the
+  // skin; blender/scripts/rx_openings.py). The node origins are the hinges, and
+  // the cabin's door cards turn about the same axes. Angles from the opening
+  // photographs; the sign is the swing direction (glTF y up).
+  openings: [
+    { id: 'doorFL', node: 'LuxeedRX_Door_FL', cardNode: 'int_door_L', frameNode: 'LuxeedRX_DoorFrame_FL', deg: -75, xrayHide: true },
+    { id: 'doorFR', node: 'LuxeedRX_Door_FR', cardNode: 'int_door_R', frameNode: 'LuxeedRX_DoorFrame_FR', deg: 75, xrayHide: true },
+    { id: 'doorRL', node: 'LuxeedRX_Door_RL', cardNode: 'int_rdoor_L', frameNode: 'LuxeedRX_DoorFrame_RL', deg: -68, xrayHide: true },
+    { id: 'doorRR', node: 'LuxeedRX_Door_RR', cardNode: 'int_rdoor_R', frameNode: 'LuxeedRX_DoorFrame_RR', deg: 68, xrayHide: true },
+    // The bonnet hinges on a lateral axis under its rear edge and rises ~62 deg
+    // (photographs 39-41); two gas struts hold it from the cowl corners.
+    {
+      id: 'frunk',
+      node: 'LuxeedRX_Bonnet',
+      axis: 'z',
+      deg: 62,
+      struts: [
+        { body: [0.97, 0.93, -0.6], moving: [1.2, 1.0, -0.58] },
+        { body: [0.97, 0.93, 0.6], moving: [1.2, 1.0, 0.58] },
+      ],
+    },
+    // The tailgate hangs from the roof's trailing edge (rx_gate.py: the hinge
+    // under the spoiler blade) and swings up ~78 deg (photographs 24-26) on two
+    // gas struts at its sides. The cabin's liner turns with it; the parcel shelf
+    // and the rear sill under the glass are not in the real boot, so they go.
+    {
+      id: 'boot',
+      node: 'LuxeedRX_Tailgate',
+      cardNode: 'int_tailgate',
+      axis: 'z',
+      deg: -78,
+      hides: ['int_parcel_shelf', 'int_rear_sill'],
+      hidesOutside: ['int_cpillar', 'int_cpillar_flange', 'int_qtr_lower'],
+      struts: [
+        { body: [-1.97, 1.26, -0.585], moving: [-2.34, 1.1, -0.6] },
+        { body: [-1.97, 1.26, 0.585], moving: [-2.34, 1.1, 0.6] },
+      ],
+    },
+  ],
+  // The X-ray tab: the roof, A-pillars, rails and every pane of glass above the
+  // belt turn to one pale ghost (the LuxeedRX_Greenhouse node, split out in
+  // blender/scripts/rx_gate.py), the doors and the dark hull are not drawn, and
+  // the cabin shows through with its headliner removed.
+  xray: { node: 'LuxeedRX_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
   sources: [
     { label: 'CnEVPost - Luxeed opens RX pre-orders', url: 'https://cnevpost.com/2026/08/20/luxeed-opens-pre-orders-rx-suv/' },
     { label: 'CarNewsChina - 586 hp, pre-orders Aug 20', url: 'https://carnewschina.com/2026/08/18/cherys-luxeed-rx-from-ex-ferrari-designer-586-hp-to-start-pre-orders-on-august-20/' },

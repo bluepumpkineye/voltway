@@ -400,7 +400,17 @@ Driving this from the Blender MCP:
 | Name | Kind | Used for |
 |---|---|---|
 | `screen_main` | node | the live HMI is warped onto it |
-| `int_door_L`, `int_door_R` | node, origin on hinge | door cards |
+| `int_door_L`, `int_door_R`, `int_rdoor_L`, `int_rdoor_R` | node, origin on the hinge | the cabin's door cards, swung with their doors (`Vehicle.openings[].cardNode`) |
+| `LuxeedRX_Door_FL/FR/RL/RR` | node, origin on the hinge | the exterior doors: skin, glass, handle, mirror (`openings[].node`) |
+| `LuxeedRX_DoorFrame_*` | node, origin on the hinge | a door's painted inner frame and seal bead, shown only while it is ajar (`frameNode`) |
+| `LuxeedRX_Bonnet` | node, origin on the hinge axis (along the car's width) | the bonnet and its liner; `axis: 'z'` in glTF |
+| `LuxeedRX_Tailgate` | node, origin on the hinge (under the spoiler blade, on the centreline) | the hatch: skin, backlight, black band, blade, light bar's centre unit, lettering, painted return flange (`openings[].node`, `axis: 'z'`) |
+| `int_tailgate` | cabin node, same hinge | the hatch's black liner and the backlight's reveal (`cardNode`) |
+| `int_parcel_shelf`, `int_rear_sill` | cabin nodes | hidden while the tailgate is open (`openings[].hides`): the real boot has no shelf |
+| `int_headliner` | cabin node | hidden by the X-ray tab (`xray.hideCabin`) |
+| `int_cpillar`, `int_cpillar_flange`, `int_qtr_lower` | cabin nodes | the rear pillar trims, hidden while the tailgate is open and the camera is outside (`openings[].hidesOutside`): their ragged rear edges show from the open boot |
+| `LuxeedRX_Greenhouse` | node | roof, A-pillars and rails and the panes of glass above the belt: the X-ray's ghost (`xray.node`) |
+| `_BAKEDLIGHT`, `_BAKEDLIGHT_OPEN` | cabin vertex attributes | the cabin's light with every door shut, and with every door and the tailgate open; the shader mixes them by how far a part is open |
 | `SU7Ultra_Blackout` (`*_blackout`) | node | hidden in the cabin view |
 | `SU7Ultra_Body`, `SU7Ultra_Wheels` | node | hidden in the cabin view on single-file cars |
 | `*Ambient*` | material | emission driven by the HMI (colour, brightness, on/off) |
@@ -487,6 +497,87 @@ works:
   finishes asynchronously (HDR decode, PMREM, shader compile) is covered by the
   invalidator's few seconds of frames. New code that mutates a material outside
   those paths must call `invalidate()`.
+
+### Openings: doors, bonnet and tailgate (`rx_openings.py`, `rx_bays.py`, `rx_gate.py`)
+
+A part that opens is its own glTF node with its **origin on the hinge**, so
+opening is a rotation of that node about its own axis. `Vehicle.openings`
+(`src/data/vehicles/schema.ts`) names, per part, the exterior node, the cabin's
+matching node (a door card), an optional frame node, the axis (glTF, y up),
+the swing in degrees (its sign is the direction) and any gas struts.
+
+- **Doors.** The door panels are mirrored objects built into `RX_Body`, so
+  `rx_openings.split_doors()` takes one side of each (modifiers baked, custom
+  normals kept), joins its skin, glass, handle and mirror into
+  `RX_Door_<FL|FR|RL|RR>` and moves the origin to the hinge: the leading edge
+  at mid height, on the skin. It also builds the painted inner frame
+  (`build_frame`: a ring in the plane of the card's carrier, a rim wall out to
+  the skin edge, a black seal bead) and the painted sill with its RX plates and
+  seal bead (`build_sill`), and opens the dark hull behind the doors
+  (`open_hull`: faces behind a door skin along rays from the core line).
+- **Cabin cards.** `join_cards()` joins each card's parts into `int_door_L/R`
+  and `int_rdoor_L/R` on the same hinges, in `export_interior`.
+- **Bonnet and frunk.** `rx_bays.build_frunk()` builds the bay from the frunk
+  photographs (apron, gasketed tub, ribbed mat, covers, stops, vent, latch
+  slot), `split_bonnet()` makes `RX_Bonnet` (hood plus a black liner) with its
+  origin on the hinge axis under the rear edge, and `open_hull()` cuts the
+  hull's roof under it with an exact boolean.
+- **The windows leave with the doors.** The greenhouse's black underlay
+  (`RX_Greenhouse_Black`) is one sheet 3 mm under every pane of glass, and the
+  glass ships opaque, so it only showed as a black pane left standing in a
+  window when its door swung. `cut_underlay()` cuts each door glass's outline
+  (2.5 mm in) out of it with an exact boolean, and `rx_gate.cut_underlay()` does
+  the backlight's footprint of `RX_Roof_Rear_Black` with straight bisect cuts.
+- **Tailgate and boot (`rx_gate.py`).** The shut line (`rx_rear.GATE_EDGE`) now
+  runs on up the cap's side to its top edge, so the cap's sheet is two pieces;
+  `split_tail()` prunes the groove the exact boolean left in the slot (30 mm
+  deep: it tied hatch to body), takes the hatch's piece and joins it with the
+  backlight, black band, blade, spoiler lip, light bar's centre unit and
+  lettering into `RX_Tailgate`, origin on the hinge under the blade's front
+  edge; `rim_wall()` turns the skin's edge in 34 mm, painted. The hull behind it
+  is opened by rays back along -x (`open_hull`). The cabin gets the hatch's liner
+  (`build_liner`: a copy of the skin's sheet 34 mm behind it, flipped, with the
+  backlight's reveal; the node `int_tailgate`) and the boot (`build_boot`,
+  `build_boot_details`: carpeted floor, side walls under a grey trim, sill shelf
+  with brushed plates, a left-hand module with hook, 12 V socket and lamp, a lid
+  pull and a latch cover - photographs 24-38; the plan is a narrow mouth, a bulge
+  behind the wheel arches and a pinch to the arch humps' inner face). A black
+  bead (`build_seal`) runs behind the shut line: it fills the gap when shut and
+  is the aperture's seal when open.
+- **X-ray.** `split_greenhouse()` makes the roof, A-pillars, rails and the
+  panes of glass above the belt one node (HIMA's showroom does it with a
+  pre-split ghost twin). The viewer gives that node one pale ghost material,
+  hides the doors, the dark hull and the headliner, and ghosts the tailgate's
+  glass too (`Vehicle.xray`, `src/components/viewer/Xray.tsx`).
+- **Two bakes.** `bake_cabin()` lights every cabin vertex with the car shut;
+  `prepare_exterior()` then splits the doors, bonnet and hatch, and
+  `bake_cabin_open()` bakes the same vertices again with every door and the
+  tailgate swung open (`carkit.bake` takes an attribute name now). Both ship
+  (`_BAKEDLIGHT`, `_BAKEDLIGHT_OPEN`) and the shader mixes them by the part's
+  swing, so a door card, a seat or the boot floor is lit as the real daylight
+  would light it.
+- **Run it.** `export_rx.web()` (exterior, ~3 min) or `web_full()` (with the
+  cabin and both bakes, ~17 min) call all of it. Nothing about it changes the
+  closed car.
+
+The web side (`src/lib/openings.ts`, `src/components/viewer/Openings.tsx`):
+`OpeningsDriver` follows the store's `openings` (the HMI's door buttons or a tap
+on the part) and tweens one shared swing per opening, asking for frames only
+while it moves; `useHingedNodes` puts the exterior's and the cabin's nodes
+under it; `useOpeningPicks` makes only those nodes pickable (raycasting a
+400k-triangle car on every pointer move would stall the page);
+`useGlass` is the one place that decides every pane's opacity (from "camera
+inside", its door's swing and the X-ray tab: a clear pane goes ~86 % clear as
+its door opens, privacy glass about half); `useStruts` builds the gas struts
+(barrel on the body, rod on the part, each aimed at the other's mount and as
+long as the gap it holds); `useCabinWanted` keeps the cabin mounted while a
+part is open or the X-ray tab is on; `useHiddenWhileOpen` takes the shelf away
+while the tailgate is up. When a part opens from the Colour tab the camera
+flies to the anchor that shows it (`OPENING_ANCHOR` in the store).
+
+Budgets with the moving parts as separate nodes: the RX exterior is about
+390k triangles and ~70 primitives (draw calls), against 383k and 32 before;
+with the cabin mounted about 130 calls.
 
 ### Judging the web result against the photo
 

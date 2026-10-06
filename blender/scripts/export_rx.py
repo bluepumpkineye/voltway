@@ -55,7 +55,14 @@ OUTSIDE = dict(
     strength=1.0, rotation=189.0, clamp=8.0)
 WEB_EXPOSURE = 0.92          # the viewer's toneMappingExposure
 RIG_FILL = 0.5               # the cabin rig as a fill under the daylight (export_gltf)
-PROTECTED = {"screen_main", "int_door_L", "int_door_R"}
+PROTECTED = {"screen_main", "int_door_L", "int_door_R", "int_rdoor_L", "int_rdoor_R",
+             # the hatch's liner swings with it; the shelf and sill under the
+             # backlight go while it is open (rx_gate)
+             "int_tailgate", "int_parcel_shelf", "int_rear_sill",
+             # the X-ray tab takes the headliner away
+             "int_headliner",
+             # the rear pillar trims, whose ragged rear edges show from the open boot
+             "int_cpillar", "int_cpillar_flange", "int_qtr_lower"}
 INTERIOR_GROUPS = [("LuxeedRX_Cabin", "RX_Interior")]
 # between the front seats at head height
 PROBE_AT = (-0.40, 0.0, 1.20)
@@ -105,14 +112,44 @@ def check_transmission():
         raise RuntimeError("transmissive materials left: %s" % sorted(set(bad)))
 
 
-def main(draco=True):
-    """The exterior (the scene must hold a fresh build_rx.main())."""
+def prepare_exterior():
+    """Everything the exterior needs before it is merged and exported: the
+    blackout layer split off, the doors, the bonnet and the hatch made hinged
+    nodes, the hull opened behind them, the greenhouse its own node. Once per
+    build (RX_Tailgate marks it done); the cabin's open-state bake wants the
+    parts split, so web_full() calls it before that bake."""
+    if bpy.data.objects.get("RX_Tailgate") is not None:
+        return
     from carkit import materials as MB
     MB.export_safe()
     split_blackout()
     check_transmission()
-    _X.merge_for_export(GROUPS)
-    return _X.export(DEST, GROUPS, "LuxeedRX_Body", draco=draco)
+    import rx_openings as OP
+    import rx_bays as BY
+    import rx_gate as RG
+    BY.build_frunk()          # the bay under the bonnet, then the bonnet as a hinged node
+    BY.split_bonnet()
+    BY.open_hull()
+    OP.build_sill()           # the painted sill, RX plates and seal bead of the doorways
+    OP.cut_underlay()         # the windows out of the black underlay: it must not stay behind
+    RG.cut_underlay()         # the backlight's footprint too
+    RG.build_seal()           # a black bead behind the hatch's shut line
+    OP.split_doors()          # a hinged node per door (the cabin's cards: join_doors)
+    OP.open_hull()            # the hull behind them, so the cabin shows when one is open
+    RG.split_tail()           # the hatch: skin, backlight, light bar, lettering - one node
+    RG.open_hull()            # the hull behind it
+    RG.split_greenhouse()     # roof, rails and glass above the belt: the X-ray's ghost
+
+
+def main(draco=True):
+    """The exterior (the scene must hold a fresh build_rx.main())."""
+    prepare_exterior()
+    import rx_openings as OP
+    import rx_bays as BY
+    import rx_gate as RG
+    groups = GROUPS + OP.door_groups() + BY.bonnet_groups() + [RG.GROUP, RG.GREENHOUSE_GROUP]
+    _X.merge_for_export(groups)
+    return _X.export(DEST, groups, "LuxeedRX_Body", draco=draco)
 
 
 def web(draco=True):
@@ -161,19 +198,10 @@ def cabin_lighting():
 
 
 def join_doors(collection="RX_Interior"):
-    """Each front door card's parts -> one object, origin on the hinge."""
-    from mathutils import Matrix, Vector
-    col = bpy.data.collections[collection]
-    hx, hy, hz = hinge()
-    for tag, sign in (("L", 1.0), ("R", -1.0)):
-        names = [o.name for o in col.objects
-                 if o.type == 'MESH' and o.name.startswith("int_door_%s_" % tag)]
-        ob = _X.join("int_door_" + tag, names)
-        if ob is None:
-            continue
-        h = Vector((hx, sign * hy, hz))
-        ob.data.transform(Matrix.Translation(ob.matrix_world.translation - h))
-        ob.matrix_world = Matrix.Translation(h)
+    """Each door card's parts (front and rear) -> one object, origin on the
+    hinge (rx_openings)."""
+    import rx_openings as OP
+    OP.join_cards(collection)
 
 
 def bake_cabin(samples=256, probe_samples=384):
@@ -193,6 +221,35 @@ def bake_cabin(samples=256, probe_samples=384):
     finally:
         for ob in hidden:
             ob.hide_render = False
+    return stats
+
+
+def bake_cabin_open(samples=256):
+    """The same vertex lighting with every door and the tailgate open: the
+    second set of light the viewer blends in as a part swings open (the
+    cabin is lit by the doorways, the boot by the sky). Needs
+    prepare_exterior() first, so the parts are split and hinged."""
+    from carkit import bake as BK
+    import rx_openings as OP
+    import rx_gate as RG
+    col = bpy.data.collections["RX_Interior"]
+    OP.join_cards()
+    for key, d in OP.DOORS.items():
+        OP.set_angle(key, d["deg"])
+    RG.set_hatch(RG.OPEN_DEG)
+    hidden = cabin_lighting()
+    try:
+        with BK.thin_glass():
+            objs = BK.prepare(col, attr=BK.ATTR_OPEN)
+            stats = BK.vertex_lighting(objs, samples=samples, attr=BK.ATTR_OPEN)
+            BK.smooth(objs, attr=BK.ATTR_OPEN)
+            BK.to_generic(objs, BK.ATTR_OPEN, BK.EXPORT_ATTR_OPEN)
+    finally:
+        for ob in hidden:
+            ob.hide_render = False
+        for key in OP.DOORS:
+            OP.set_angle(key, 0.0)
+        RG.set_hatch(0.0)
     return stats
 
 
@@ -235,10 +292,17 @@ def web_full(samples=256, probe_samples=384, draco=True):
     out = build_rx.main(reset=True, scene=True)
     import rx_interior as RI
     RI.main()
+    import rx_gate as RG
+    RG.build_boot()           # the boot behind the hatch, and the hatch's liner
+    RG.build_boot_details()
+    RG.build_liner()
     print("build: %d exterior tris, %.0f s" % (out["tris"], time.time() - t))
     stats = bake_cabin(samples, probe_samples)
     print("bake: %.0f s" % (time.time() - t))
-    res = {"bake": stats, "interior": export_interior(draco=draco)}
+    prepare_exterior()
+    stats_open = bake_cabin_open(samples)
+    print("bake open: %.0f s" % (time.time() - t))
+    res = {"bake": stats, "bake_open": stats_open, "interior": export_interior(draco=draco)}
     res["exterior"] = main(draco=draco)
     res["outside"] = export_outside()
     print("web_full: %.0f s" % (time.time() - t))

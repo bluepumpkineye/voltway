@@ -72,8 +72,20 @@ interface Shot {
 // The side and front views carry the Dimensions tab's floor rulers, whose text
 // lies on the floor: a little elevation opens it up, and the front view lifts
 // the car further so the rulers ahead of the nose clear the dock.
-const SHOTS: Record<'hero' | 'side' | 'front' | 'rear' | 'rear34', Shot> = {
+const SHOTS: Record<
+  'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'frunk' | 'trunk',
+  Shot
+> = {
   hero: { az: 36, el: 11, fov: 30, margin: 1.3, lift: 1 },
+  // an open door's card faces the tail, so a door is seen from behind it: the
+  // rear three-quarter of its own side
+  doorsL: { az: 124, el: 10, fov: 28, margin: 1.2, lift: 1 },
+  doorsR: { az: -124, el: 10, fov: 28, margin: 1.2, lift: 1 },
+  // an open bonnet and an open tailgate each want a higher, closer look
+  frunk: { az: 28, el: 24, fov: 28, margin: 1.2, lift: 1 },
+  trunk: { az: 150, el: 22, fov: 28, margin: 1.15, lift: 1 },
+  // higher, so the cabin shows through the ghosted roof
+  xray: { az: 40, el: 24, fov: 30, margin: 1.3, lift: 1 },
   side: { az: 90, el: 8, fov: 20, margin: 1.4, lift: 1.15 },
   front: { az: 0, el: 9, fov: 26, margin: 1.85, lift: 1.5 },
   rear: { az: 180, el: 9, fov: 26, margin: 1.85, lift: 1.5 },

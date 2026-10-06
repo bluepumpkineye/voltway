@@ -28,6 +28,7 @@ import math
 import os
 
 import bpy
+from mathutils import Vector
 
 import rx_surface as S
 import rx_nose as N
@@ -52,6 +53,9 @@ GATE_EDGE = [(0.000, 0.682), (0.150, 0.683), (0.276, 0.686), (0.380, 0.698),
              (0.441, 0.712), (0.505, 0.730), (0.551, 0.753), (0.590, 0.780),
              (0.607, 0.807), (0.618, 0.850), (GATE_Y, 0.930), (GATE_Y, 1.010),
              (GATE_Y, 1.100)]
+# on up the cap's side edge to its top and past it (z, rear view): the shut
+# line is a closed run, so the hatch's skin is a piece of its own
+GATE_TOP = (1.135, 1.170, 1.205, 1.240)
 
 # The light bar's edges in rear elevation (y, z) on the tail cap, to the outer
 # unit's tip. Rear photo: level across, 1.03 over 0.93 at the outer units, and
@@ -185,6 +189,11 @@ def gate_path():
     ring = geom.polyline([(0.0, y, z) for (y, z) in [(-0.02, 0.682)] + GATE_EDGE], 70)
     for (_x, y, z) in ring:
         p, n = on_tail(y, z)
+        pts.append(p)
+        nrm.append(n)
+    # the cap's chart fails at its top corner: the rear view's rays do not
+    for z in GATE_TOP:
+        p, n = on_rear(GATE_Y, z)
         pts.append(p)
         nrm.append(n)
     return pts, nrm

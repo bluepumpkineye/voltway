@@ -15,6 +15,7 @@ const TABS: { id: ShowroomTab; label: string }[] = [
   { id: 'colour', label: 'Colour' },
   { id: 'interior', label: 'Interior' },
   { id: 'dimensions', label: 'Dimensions' },
+  { id: 'xray', label: 'X-ray' },
 ];
 
 /** The bottom pill. A tab without what it needs (no cabin built) is disabled. */
@@ -22,14 +23,17 @@ export function TabBar({
   tab,
   onTab,
   disabled,
+  hidden = [],
 }: {
   tab: ShowroomTab;
   onTab: (t: ShowroomTab) => void;
   disabled: Partial<Record<ShowroomTab, string>>;
+  /** tabs this car does not offer at all (no X-ray model) */
+  hidden?: ShowroomTab[];
 }) {
   return (
     <div role="tablist" aria-label="Showroom" className={`flex rounded-full p-1 ${GLASS}`}>
-      {TABS.map((t) => {
+      {TABS.filter((t) => !hidden.includes(t.id)).map((t) => {
         const off = disabled[t.id];
         const active = tab === t.id;
         return (
@@ -41,7 +45,7 @@ export function TabBar({
             disabled={Boolean(off)}
             title={off}
             onClick={() => onTab(t.id)}
-            className={`rounded-full px-5 py-2 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${FOCUS} ${
+            className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 sm:px-5 ${FOCUS} ${
               active ? 'bg-neutral-900 text-white shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
             }`}
           >

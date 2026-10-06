@@ -8,6 +8,7 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
+import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
 import { StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
 import { ShowroomCameraRig, useCarFrame } from './ShowroomCameraRig';
@@ -37,7 +38,7 @@ export function ShowroomViewer({
 }) {
   const modelUrl = vehicle.assets.modelUrl!;
   const { interiorModelUrl, interiorProbeUrl } = vehicle.assets;
-  const cameraMode = useVehicleStore((s) => s.cameraMode);
+  const cabinWanted = useCabinWanted();
   const reflections = useMirrorTier();
 
   // stream the cabin in behind the exterior, so sitting inside is instant
@@ -66,13 +67,14 @@ export function ShowroomViewer({
         }}
       >
         <Invalidator />
+        <OpeningsDriver vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <React.Suspense fallback={<Loading />}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />
           <Preload all />
         </React.Suspense>
         {/* its own boundary: the cabin streaming in never blanks the car */}
-        {interiorModelUrl && cameraMode !== 'exterior' && (
+        {interiorModelUrl && cabinWanted && (
           <React.Suspense fallback={null}>
             <CabinModel
               vehicle={vehicle}
@@ -141,7 +143,9 @@ function Stage({
 function DebugHandle() {
   const state = useThree();
   React.useEffect(() => {
-    (window as unknown as { __viewer?: unknown }).__viewer = state;
+    const w = window as unknown as { __viewer?: unknown; __store?: unknown };
+    w.__viewer = state;
+    w.__store = useVehicleStore;
   }, [state]);
   return null;
 }

@@ -28,7 +28,7 @@ const ShowroomViewer = dynamic(
   },
 );
 
-const TABS: ShowroomTab[] = ['colour', 'interior', 'dimensions'];
+const TABS: ShowroomTab[] = ['colour', 'interior', 'dimensions', 'xray'];
 const DIMS: DimensionFocus[] = ['length', 'width', 'height'];
 
 const NOTES: Record<ShowroomTab, string> = {
@@ -37,6 +37,7 @@ const NOTES: Record<ShowroomTab, string> = {
   interior:
     "Cabin colourways follow the maker's options; which panel takes which colour is our model's, so colours are approximate. Drag to look around; the centre screen is live.",
   dimensions: "Figures are the manufacturer's published dimensions.",
+  xray: "The upper body is shown as a see-through shell, with the doors removed, so the cabin reads through it. A modelled view, not the maker's.",
 };
 
 export function Showroom({
@@ -67,7 +68,13 @@ export function Showroom({
     reset(flagshipVariant(vehicle).id);
     const q = new URLSearchParams(window.location.search);
     const wantTab = q.get('tab') as ShowroomTab | null;
-    if (wantTab && TABS.includes(wantTab) && (wantTab !== 'interior' || hasCabin)) setTab(wantTab);
+    if (
+      wantTab &&
+      TABS.includes(wantTab) &&
+      (wantTab !== 'interior' || hasCabin) &&
+      (wantTab !== 'xray' || (hasCabin && vehicle.xray))
+    )
+      setTab(wantTab);
     const wantDim = q.get('dim') as DimensionFocus | null;
     if (wantDim && DIMS.includes(wantDim)) setDimension(wantDim);
     const wantPaint = q.get('paint');
@@ -123,11 +130,15 @@ export function Showroom({
           <TabBar
             tab={tab}
             onTab={setTab}
-            disabled={hasCabin ? {} : { interior: 'The interior is not built yet' }}
+            disabled={hasCabin ? {} : { interior: 'The interior is not built yet', xray: 'The interior is not built yet' }}
+            hidden={vehicle.xray ? [] : ['xray']}
           />
         </div>
         <p className={`max-w-[620px] rounded-2xl px-3.5 py-1.5 text-center text-[11px] leading-snug text-neutral-600 ${GLASS}`}>
-          {NOTES[tab]}{' '}
+          {NOTES[tab]}
+          {tab !== 'dimensions' && tab !== 'xray' && vehicle.openings?.length
+            ? ' Tap a door, the bonnet or the tailgate to open it.'
+            : ''}{' '}
           <a
             href={`/vehicles/${vehicle.slug}#sources`}
             className="pointer-events-auto underline decoration-neutral-300 underline-offset-2 hover:text-neutral-800"

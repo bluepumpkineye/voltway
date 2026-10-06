@@ -5,11 +5,14 @@ import * as THREE from 'three';
 import { useGLTF, Html } from '@react-three/drei';
 import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
-import type { Vehicle, Variant } from '@/data/vehicles/schema';
+import type { OpeningId, Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { usePaint, useTrim } from './configurator';
+import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
+import { useXray, useXrayCabin } from './Xray';
+import { hingesOf } from '@/lib/openings';
 
 /**
  * Blender exports with +Y up, so the car's axes arrive as:
@@ -67,6 +70,15 @@ export function CarModel({ vehicle, variant, url }: Props) {
   // the showroom's paint swatches (the first option is the car as exported)
   usePaint(model, vehicle.configurator, paintId);
 
+  // the doors swing on their hinge nodes (vehicle.openings) and open on a tap
+  useHingedNodes(model, vehicle, 'node');
+  useHingedNodes(model, vehicle, 'frameNode');
+  const xray = useVehicleStore((s) => s.tab === 'xray') && Boolean(vehicle.xray) && hasCabin;
+  useGlass(model, vehicle, inside, hasCabin, xray);
+  useXray(model, vehicle, xray);
+  useStruts(model, vehicle);
+  const picks = useOpeningPicks(model, vehicle, 'node');
+
   /*
    * The export merges the build down to a handful of meshes to hold draw calls,
    * so live surfaces are found by MATERIAL name. Two nodes are addressed by
@@ -76,8 +88,8 @@ export function CarModel({ vehicle, variant, url }: Props) {
    */
   const refs = React.useMemo(() => {
     const headlamps: THREE.MeshStandardMaterial[] = [];
-    const glass: THREE.MeshStandardMaterial[] = [];
     const blackout: THREE.Object3D[] = [];
+    const shadow: THREE.Object3D[] = [];
     const shell: THREE.Object3D[] = [];
     model.traverse((o) => {
       // A node with several materials arrives as a Group of "<mesh>_N"
@@ -94,10 +106,11 @@ export function CarModel({ vehicle, variant, url }: Props) {
         // Only the light-pipe meshes emit; the housings and lenses around them
         // stay inert, which is what stops a lamp reading as a glowing blob.
         if (mn.includes('led_white')) headlamps.push(m);
-        if (mn.startsWith('m_glass')) glass.push(m);
+        // the dark backing of a pane that is not in the blackout node (the tailgate's)
+        if (mn === 'm_shadow') shadow.push(o);
       }
     });
-    return { headlamps, glass, blackout, shell };
+    return { headlamps, blackout, shadow, shell };
   }, [model]);
 
   React.useEffect(() => {
@@ -110,41 +123,31 @@ export function CarModel({ vehicle, variant, url }: Props) {
     invalidate();
   }, [refs.headlamps, headlightsOn, invalidate]);
 
-  // Inside the cabin: drop the blackout layer and see out through the glass.
-  // Glass ships as dark opaque (KHR_materials_transmission blanks the three.js
-  // frame), so from inside it becomes a tint that passes what the bake let in
-  // (carkit.bake.GLASS_VLT): ~80 % through the windscreen and front door
-  // glass, ~25 % through the privacy glass behind the B-pillar. Blending
-  // happens on display values, not linear light, so the opacities are lower
-  // than 1 - transmission (matched to the Cycles render through the same
-  // camera). No reflection: the only environment it could mirror is the
-  // outside, as a haze.
+  // Inside the cabin: drop the blackout layer and see out through the glass
+  // (useGlass tints it: ~80 % through the windscreen and front door glass,
+  // ~25 % through the privacy glass behind the B-pillar, matched to the Cycles
+  // render through the same camera - carkit.bake.GLASS_VLT - with no
+  // reflection: the only environment it could mirror is the outside, as a haze).
   React.useEffect(() => {
     if (!hasCabin) {
       // single-file cars: the old behaviour, hide the bodywork inside
       for (const o of refs.shell) o.visible = !inside;
       return;
     }
-    for (const o of refs.blackout) o.visible = !inside;
-    for (const m of refs.glass) {
-      const privacy = m.name.toLowerCase().includes('privacy');
-      m.transparent = inside;
-      m.opacity = inside ? (privacy ? 0.5 : 0.12) : 1;
-      m.depthWrite = !inside;
-      m.envMapIntensity = inside ? 0 : 1;
-      m.needsUpdate = true;
-    }
+    const clear = inside || xray;
+    for (const o of refs.blackout) o.visible = !clear;
+    for (const o of refs.shadow) o.visible = !clear;
     model.traverse((o) => {
-      if (o instanceof THREE.Mesh && materialsOf(o).some((m) => refs.glass.includes(m as THREE.MeshStandardMaterial))) {
+      if (o instanceof THREE.Mesh && materialsOf(o).some((m) => m.name.toLowerCase().startsWith('m_glass'))) {
         o.castShadow = !inside;
       }
     });
     invalidate();
-  }, [refs, inside, hasCabin, model, invalidate]);
+  }, [refs, inside, xray, hasCabin, model, invalidate]);
 
   return (
     <group>
-      <primitive object={model} />
+      <primitive object={model} {...picks} />
       {!hasCabin && <LiveScreen model={model} vehicle={vehicle} variant={variant} />}
     </group>
   );
@@ -186,8 +189,31 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
   const invalidate = useThree((s) => s.invalidate);
 
+  // each door card gets materials of its own: its light follows its swing
+  React.useMemo(() => {
+    for (const s of vehicle.openings ?? []) {
+      const card = s.cardNode ? model.getObjectByName(s.cardNode) : undefined;
+      card?.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const own = materialsOf(mesh).map((m) => {
+          const c = m.clone();
+          c.userData = { ...m.userData, baked: false, opening: s.id };
+          return c;
+        });
+        mesh.material = Array.isArray(mesh.material) ? own : own[0];
+      });
+    }
+  }, [model, vehicle]);
+
   // the showroom's cabin colourways (the first option is the cabin as built)
   useTrim(model, vehicle.configurator, trimId);
+
+  // the door cards turn about the same hinges as the exterior doors
+  useHingedNodes(model, vehicle, 'cardNode');
+  useHiddenWhileOpen(model, vehicle, useVehicleStore((s) => s.cameraMode !== 'exterior'));
+  useXrayCabin(model, vehicle, useVehicleStore((s) => s.tab === 'xray'));
+  const picks = useOpeningPicks(model, vehicle, 'cardNode');
 
   const refs = React.useMemo(() => {
     const ambient: THREE.MeshStandardMaterial[] = [];
@@ -197,24 +223,32 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
       // the bake already holds every shadow
       o.castShadow = false;
       o.receiveShadow = false;
-      // "_BAKEDLIGHT" arrives lower-cased; give it a GLSL-friendly name
+      // "_BAKEDLIGHT" arrives lower-cased; give it a GLSL-friendly name. The
+      // second set (_BAKEDLIGHT_OPEN, the cabin baked with its doors and
+      // tailgate open) falls back to the first for a car that has none.
       const g = o.geometry;
       const raw = g.getAttribute('_bakedlight');
       if (raw) {
         g.setAttribute('bakedLight', raw);
+        g.setAttribute('bakedLightOpen', g.getAttribute('_bakedlight_open') ?? raw);
         g.deleteAttribute('_bakedlight');
+        g.deleteAttribute('_bakedlight_open');
       }
       const baked = Boolean(g.getAttribute('bakedLight'));
       for (const m of materialsOf(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
-        if (baked) bakedLighting(m, probe);
+        if (baked) {
+          const id = m.userData.opening as OpeningId | undefined;
+          const hinges = hingesOf(vehicle);
+          bakedLighting(m, probe, id && hinges ? hinges.liftOf(id) : hinges?.lift.cabin);
+        }
         const mn = m.name.toLowerCase();
         if (mn.includes('ambient')) ambient.push(m);
         else if (mn.includes('int_screen')) screens.push(m);
       }
     });
     return { ambient, screens };
-  }, [model, probe]);
+  }, [model, probe, vehicle]);
 
   // ---- live material state, driven by the HMI
   React.useEffect(() => {
@@ -240,14 +274,9 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
     invalidate();
   }, [refs.screens, invalidate]);
 
-  // The door cards (int_door_L/R, origin on the hinge) stay shut: the painted
-  // doors are merged into the body, so a card swinging alone would pass
-  // through its own door skin. Swinging both needs the exterior doors split
-  // out as their own nodes (docs/3d-pipeline.md, "Openings").
-
   return (
     <group>
-      <primitive object={model} />
+      <primitive object={model} {...picks} />
       <LiveScreen model={model} vehicle={vehicle} variant={variant} />
     </group>
   );
@@ -264,7 +293,12 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as unknown as { __specOcc?: THREE.Vector2 }).__specOcc = SPEC_OCC.value;
 }
 
-function bakedLighting(m: THREE.MeshStandardMaterial, probe: THREE.Texture | null) {
+
+function bakedLighting(
+  m: THREE.MeshStandardMaterial,
+  probe: THREE.Texture | null,
+  open: { value: number } = { value: 0 },
+) {
   if (m.userData.baked) return;
   m.userData.baked = true;
   if (probe) {
@@ -274,22 +308,29 @@ function bakedLighting(m: THREE.MeshStandardMaterial, probe: THREE.Texture | nul
   const gain = Math.PI / BAKE_STORE_SCALE;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uBakeGain = { value: gain };
+    shader.uniforms.uOpen = open;
     // open trim (dash top, seat backs, wheel) keeps its full reflection, a
     // footwell a small part of it (SPEC_OCC)
     shader.uniforms.uSpecOcc = SPEC_OCC;
     shader.vertexShader = shader.vertexShader
-      .replace('void main() {', 'attribute vec3 bakedLight;\nvarying vec3 vBakedLight;\nvoid main() {')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvBakedLight = bakedLight;');
+      .replace(
+        'void main() {',
+        'attribute vec3 bakedLight;\nattribute vec3 bakedLightOpen;\nvarying vec3 vBakedLight;\nvarying vec3 vBakedLightOpen;\nvoid main() {',
+      )
+      .replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n\tvBakedLight = bakedLight;\n\tvBakedLightOpen = bakedLightOpen;',
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        'uniform float uBakeGain;\nuniform vec2 uSpecOcc;\nvarying vec3 vBakedLight;\nvoid main() {',
+        'uniform float uBakeGain;\nuniform float uOpen;\nuniform vec2 uSpecOcc;\nvarying vec3 vBakedLight;\nvarying vec3 vBakedLightOpen;\nvoid main() {',
       )
       .replace(
         '#include <lights_fragment_maps>',
         `#include <lights_fragment_maps>
         {
-          vec3 bakedE = vBakedLight * uBakeGain;
+          vec3 bakedE = mix( vBakedLight, vBakedLightOpen, uOpen ) * uBakeGain;
           float bakedL = dot( bakedE, vec3( 0.2126, 0.7152, 0.0722 ) );
           float specOcc = clamp( pow( bakedL * uSpecOcc.x, 1.5 ), uSpecOcc.y, 1.0 );
           iblIrradiance = bakedE;
@@ -313,7 +354,7 @@ function bakedLighting(m: THREE.MeshStandardMaterial, probe: THREE.Texture | nul
         #endif`,
       );
   };
-  m.customProgramCacheKey = () => 'cabin-baked-v3';
+  m.customProgramCacheKey = () => 'cabin-baked-v5';
   m.needsUpdate = true;
 }
 

@@ -316,14 +316,18 @@ The app loads Draco through the local decoder in `public/draco/`.
 - The cabin's lighting is baked, so it is static. The ambient light guides
   glow but do not light the trim, and reflections come from one probe shot
   between the front seats.
-- Door toggles change the status graphic only. The painted doors are merged
-  into the body, so a door card swinging alone would pass through its own
-  door; opening both needs the exterior doors split into their own nodes
-  (Phase 3 of the showroom roadmap).
-- The showroom changes paint and cabin colour only. Wheel designs, caliper
-  colours, opening doors and boot, an x-ray view, the frunk and the cargo bay
-  need new geometry or reference photos (Phases 3 and 4). The cabin is still
-  baked under the city HDRI, so its light does not change with the studio.
+- The Luxeed RX's four doors, bonnet and tailgate open (tap them in the
+  showroom or use the car screen's buttons) and its X-ray tab shows the cabin
+  through a ghosted roof and glass; the SU7 Ultra's openings do not exist yet
+  (its reference photos are waiting for approval). The cabin is baked twice,
+  shut and with everything open, and the light follows how far a part is open.
+- The showroom changes paint and cabin colour, opens the RX's doors, bonnet and
+  tailgate and shows its X-ray. Wheel designs and caliper colours still need
+  new geometry or reference photos (Phase 3). The cabin is still baked under
+  the city HDRI, so its light does not change with the studio.
+- The tailgate's inside is a plain liner and the boot a simple carpeted bay
+  (floor, walls, sill plates, a lamp module); the under-floor compartment, the
+  hatch's hinges and its sensor strip are not modelled.
 - Navigation and media content is illustrative, not a live service. The
   playlist and album art are invented, and Track Master's circuit, lap times
   and temperatures are a demo session, not real track data.

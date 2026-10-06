@@ -215,7 +215,19 @@ export interface TrimOption {
 }
 
 /** The named camera poses the showroom flies between. */
-export type AnchorId = 'hero' | 'side' | 'front' | 'rear' | 'rear34' | 'wheel' | 'driver';
+export type AnchorId =
+  | 'hero'
+  | 'doorsL'
+  | 'doorsR'
+  | 'side'
+  | 'front'
+  | 'rear'
+  | 'rear34'
+  | 'wheel'
+  | 'xray'
+  | 'frunk'
+  | 'trunk'
+  | 'driver';
 
 /**
  * What a car offers the showroom. Colour values are matched by eye to the
@@ -229,6 +241,55 @@ export interface ConfiguratorSpec {
   trims: TrimOption[];
   /** Where the options come from, cited on the vehicle page. */
   sources: Source[];
+}
+
+/** The parts that swing open. */
+export type OpeningId = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
+
+/** A gas strut holding a part open: fixed on the body, moving with the part. */
+export interface StrutSpec {
+  /** Body-side mount, in the exterior model's space (glTF, y up). */
+  body: [number, number, number];
+  /** Mount on the moving part, as it sits when the part is shut. */
+  moving: [number, number, number];
+}
+
+/** One hinged part and the glTF nodes that carry it (nodes sit on the hinge). */
+export interface OpeningSpec {
+  id: OpeningId;
+  /** The exterior GLB's node for the part, its origin on the hinge. */
+  node: string;
+  /** The cabin GLB's matching node (the door card), on the same hinge. */
+  cardNode?: string;
+  /** An exterior node shown only while the part is open (a door's painted frame). */
+  frameNode?: string;
+  /** Cabin nodes that go while the part is open (the shelf under the tailgate's glass). */
+  hides?: string[];
+  /** Cabin nodes that go while the part is open and the camera is outside (trims seen from inside). */
+  hidesOutside?: string[];
+  /** The part is not drawn while the X-ray tab is on (the doors). */
+  xrayHide?: boolean;
+  /** The node-local axis the hinge turns about (glTF, y up). Default 'y'. */
+  axis?: 'x' | 'y' | 'z';
+  /** How far it swings when open, in degrees; the sign is the direction. */
+  deg: number;
+  /** Gas struts that follow the swing (the bonnet's, the tailgate's). */
+  struts?: StrutSpec[];
+}
+
+/**
+ * The X-ray tab: the greenhouse (glass, roof, pillars) turns to one pale ghost,
+ * the doors and the dark hull go, and the cabin shows through (the way the
+ * HIMA showroom does it: a pre-split ghost twin of the upper body).
+ */
+export interface XraySpec {
+  /** The exterior node that becomes the ghost. */
+  node: string;
+  /** Its colour (sRGB hex) and opacity. */
+  color: string;
+  opacity: number;
+  /** Cabin nodes that go while it is on (the headliner shuts the view from above). */
+  hideCabin?: string[];
 }
 
 export interface Vehicle {
@@ -248,6 +309,10 @@ export interface Vehicle {
   assets: VehicleAssets;
   /** Paint and trim options for the showroom (see ConfiguratorSpec). */
   configurator?: ConfiguratorSpec;
+  /** Parts that open in 3D (doors, bonnet, tailgate), see OpeningSpec. */
+  openings?: OpeningSpec[];
+  /** What the X-ray tab does to this car's model, see XraySpec. */
+  xray?: XraySpec;
   sources: Source[];
   /** Set when a car is too new for reliable data on some fields. */
   dataCaveat?: string;

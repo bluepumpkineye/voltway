@@ -12,6 +12,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type CameraMode } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
+import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
 
 type V3 = [number, number, number];
@@ -52,6 +53,7 @@ export function VehicleViewer({
   const { interiorModelUrl, interiorProbeUrl, outside } = vehicle.assets;
   const cameraMode = useVehicleStore((s) => s.cameraMode);
   const inside = cameraMode === 'interior';
+  const cabinWanted = useCabinWanted();
   // the world around the car in the exterior view too, or only through the
   // cabin's glass (outside.exterior === false: the studio stays outside)
   const worldOutside = Boolean(outside && outside.exterior !== false);
@@ -94,6 +96,7 @@ export function VehicleViewer({
       >
         <AdaptiveDpr pixelated />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
+        <OpeningsDriver vehicle={vehicle} />
         {fixedShot ? <LockedCamera shot={fixedShot} /> : <Rig interior={interiorShot(vehicle)} />}
         {!worldOutside && <StudioEnvironment intensity={1.05} inside={inside} />}
 
@@ -124,7 +127,7 @@ export function VehicleViewer({
         </React.Suspense>
 
         {/* its own boundary: the cabin streaming in never blanks the car */}
-        {interiorModelUrl && cameraMode !== 'exterior' && (
+        {interiorModelUrl && cabinWanted && (
           <React.Suspense fallback={null}>
             <CabinModel
               vehicle={vehicle}
@@ -249,7 +252,9 @@ function StudioLights({ inside }: { inside: boolean }) {
 function DebugHandle() {
   const state = useThree();
   React.useEffect(() => {
-    (window as unknown as { __viewer?: unknown }).__viewer = state;
+    const w = window as unknown as { __viewer?: unknown; __store?: unknown };
+    w.__viewer = state;
+    w.__store = useVehicleStore;
   }, [state]);
   return null;
 }

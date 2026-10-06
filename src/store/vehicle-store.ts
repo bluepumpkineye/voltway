@@ -35,7 +35,7 @@ export type Gear = 'P' | 'D';
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
 
 /** The showroom's bottom tabs (/showroom/[slug]). */
-export type ShowroomTab = 'colour' | 'interior' | 'dimensions';
+export type ShowroomTab = 'colour' | 'interior' | 'dimensions' | 'xray';
 
 /** Studio is the default; city is the HDRI world the car was baked under. */
 export type ShowroomScene = 'studio' | 'city';
@@ -48,6 +48,16 @@ const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   colour: 'hero',
   interior: 'driver',
   dimensions: 'side',
+  xray: 'xray',
+};
+/** Where the camera goes to see a part open: the side its hinge is on. */
+const OPENING_ANCHOR: Record<Opening, AnchorId> = {
+  doorFL: 'doorsL',
+  doorRL: 'doorsL',
+  doorFR: 'doorsR',
+  doorRR: 'doorsR',
+  frunk: 'frunk',
+  boot: 'trunk',
 };
 // Height uses the front view: beside the car it has free space for the ruler
 // and its label, which the side view (nose and roof up to the screen edge) lacks.
@@ -243,7 +253,15 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setAmbient: (p) => set((s) => ({ ...s, ...p })),
 
   toggleOpening: (o) =>
-    set((s) => ({ openings: { ...s.openings, [o]: !s.openings[o] } })),
+    set((s) => {
+      const openings = { ...s.openings, [o]: !s.openings[o] };
+      // opening a part from outside brings it into frame (as HIMA's showroom
+      // does); from the seat, or on another tab, the camera stays where it is
+      if (!s.openings[o] && s.cameraMode === 'exterior' && s.tab === 'colour') {
+        return { openings, ...anchorState(OPENING_ANCHOR[o]) };
+      }
+      return { openings };
+    }),
 
   closeAllOpenings: () => set({ openings: { ...initialOpenings } }),
 
