@@ -110,7 +110,7 @@ class DoorCard:
         return ob
 
     def belt_cap(self, name, collection, mat, x0, x1, z_top, glass_gap=-0.001, nx=48,
-                 mirror=True):
+                 mirror=True, lift=0.0):
         """The window-sill cap along the card's top edge, out to the glass.
 
         The card stands 5-7 cm inboard of the skin at the belt; without a cap
@@ -125,7 +125,7 @@ class DoorCard:
             zt = z_top(x)
             y_in = self.skin_y(x, zt - 0.002) - self.th(zt - 0.002) + 0.004
             y_out = self.skin_y(x, zt) - glass_gap
-            rows.append([(x, self.side * (y_in + (y_out - y_in) * a), zt + dz)
+            rows.append([(x, self.side * (y_in + (y_out - y_in) * a), zt + dz + lift * a)
                          for (a, dz) in prof])
         ob = grid_mesh(name, rows, collection, mat)
         M.orient(ob.data, lambda c: (0.0, 0.0, 1.0))

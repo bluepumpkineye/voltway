@@ -84,4 +84,23 @@ def build_library():
     m, nt, b = _M.mat("M_Alu_Machined")
     _M.set_inputs(b, base=(0.78, 0.78, 0.80), metallic=1.0, roughness=0.20)
     lib["machined"] = m
+    # the Yufeng's star: glossy graphite with a blue cast. The photographs' mid-tones
+    # are sRGB ~62/64/70, but those are reflections of an outdoor sky; under the
+    # showroom's white studio a lighter base (#424449) read as gunmetal, so the base
+    # is #1d1e22 and the clearcoat carries the rest
+    m, nt, b = _M.mat("M_Wheel_Graphite")
+    _M.set_inputs(b, base=(0.0123, 0.0130, 0.0159), metallic=0.0, roughness=0.22,
+                  coat=1.0, coat_rough=0.03, ior=1.45)
+    lib["graphite"] = m
+    # the Sport's accent - the tops of its legs and its lip: gloss black as
+    # standard; the viewer paints the blue variant on this one material
+    m, nt, b = _M.mat("M_Wheel_Accent")
+    _M.set_inputs(b, base=(0.013, 0.013, 0.014), metallic=0.0, roughness=0.12,
+                  coat=1.0, coat_rough=0.03, ior=1.45)
+    lib["accent"] = m
+    # the brake discs: cast iron, a dull grey-brown (every photograph), not the
+    # SU7's carbon-ceramic
+    m, nt, b = _M.mat("M_Disc_Iron")
+    _M.set_inputs(b, base=(0.135, 0.118, 0.102), metallic=0.0, roughness=0.55)
+    lib["iron"] = m
     return lib

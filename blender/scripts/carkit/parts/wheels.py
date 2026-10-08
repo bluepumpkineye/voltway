@@ -343,6 +343,174 @@ def _aero_face(name, collection, mat, d_face, rim_r, count, phase, depth, params
     return ob
 
 
+# ------------------------------------------------------------ traced faces
+def _polar(a_deg, r, big_r):
+    a = math.radians(a_deg)
+    return (big_r * r * math.cos(a), big_r * r * math.sin(a))
+
+
+def _densify(pts, step_deg=1.5, step_r=0.02):
+    """The straight edges of a closed polygon in (angle, radius) space cut into
+    short pieces, so an outline traced in polar coordinates stays curved - an
+    edge between two points of one radius is an arc - once it is x, y."""
+    out = []
+    n = len(pts)
+    for i in range(n):
+        a0, r0 = pts[i]
+        a1, r1 = pts[(i + 1) % n]
+        k = max(1, int(math.ceil(max(abs(a1 - a0) / step_deg, abs(r1 - r0) / step_r))))
+        out += [(a0 + (a1 - a0) * j / k, r0 + (r1 - r0) * j / k) for j in range(k)]
+    return out
+
+
+def _prisms(name, loops, z0, z1):
+    """One cutter object holding a closed prism per (x, y) loop, from z0 to z1.
+    The loops may be concave but must not cross themselves, and the prisms must
+    not touch each other (one operand: an overlap empties the cut)."""
+    import bmesh
+    verts, faces = [], []
+    for loop in loops:
+        n = len(loop)
+        b = len(verts)
+        verts += [(x, y, z1) for (x, y) in loop] + [(x, y, z0) for (x, y) in loop]
+        faces += [[b + i, b + n + i, b + n + (i + 1) % n, b + (i + 1) % n] for i in range(n)]
+        faces.append(list(range(b, b + n)))
+        faces.append(list(range(b + 2 * n - 1, b + n - 1, -1)))
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
+def _traced_face(name, collection, mat, d_face, big_r, sp, accent=None):
+    """A dished closed face with windows cut through it, the outlines traced
+    from photographs of the real wheel.
+
+    sp is the spec's "spokes": count; depth (the face's thickness, metres);
+    r_in, r_out (metres); windows and notches - closed polygons of ONE repeat
+    in (angle in degrees, radius / big_r), turned `count` times round the
+    wheel (windows are holes, notches take the edge of the face away between
+    its tabs); lug_holes (deg, pcd, radius, count) - the nuts' counterbores;
+    rings - extra radii (metres) to put a ring of vertices on; accent_r - the
+    radius / big_r from which the top faces take the accent material; inlay -
+    {mat, polys, lift}: outlines of one repeat that take another material (see
+    _traced_inlay), built as a skin of their own.
+    Angles count counter-clockwise, seen from outside, from 3 o'clock.
+    """
+    count = sp["count"]
+    r_in, r_out = sp["r_in"], sp["r_out"]
+    nr = sp.get("nr", 24)
+    rings = sorted(set([r_in, r_out] + [r_in + (r_out - r_in) * i / float(nr) for i in range(nr + 1)]
+                       + [r * big_r for r in sp.get("rings", ())]))
+    prof = [(r, d_face(r)) for r in rings]
+    v, f = M.revolve(prof, sp.get("seg", 72))
+    ob = M.obj(name, v, f, collection, None)
+    M.orient(ob.data, lambda c: (0.0, 0.0, 1.0))
+    M.solidify(ob, sp["depth"], -1.0)
+    step = 360.0 / count
+    loops = []
+    for k in range(count):
+        a = step * k
+        for poly in list(sp.get("windows", ())) + list(sp.get("notches", ())):
+            pts = _densify([(t + a, r) for (t, r) in poly], sp.get("step_deg", 1.5), sp.get("step_r", 0.02))
+            loops.append([_polar(t, r, big_r) for (t, r) in pts])
+    lh = sp.get("lug_holes")
+    if lh:
+        deg, pcd, rad, n = lh["deg"], lh["pcd"], lh["r"], lh["count"]
+        for k in range(n):
+            a = math.radians(deg + 360.0 * k / n)
+            cx, cy = pcd * math.cos(a), pcd * math.sin(a)
+            loops.append([(cx + rad * math.cos(2 * math.pi * i / 20.0), cy + rad * math.sin(2 * math.pi * i / 20.0))
+                          for i in range(20)])
+    zs = [d for (_, d) in prof]
+    cutter = _prisms("_cut_" + name, loops, min(zs) - sp["depth"] - 0.03, max(zs) + 0.03)
+    C.difference(ob, [cutter], "win_", reset_materials=True)
+    if not sp.get("solid"):
+        # the back is never seen from outside: keep the face and the walls the cut made
+        import bmesh
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.normal.z < -0.3], context='FACES')
+        bm.to_mesh(ob.data)
+        bm.free()
+        ob.data.update()
+    ob.data.materials.append(mat)
+    for p in ob.data.polygons:
+        p.use_smooth = True
+    if accent is not None and sp.get("accent_r"):
+        ob.data.materials.append(accent)
+        r_acc = sp["accent_r"] * big_r
+        for p in ob.data.polygons:
+            c = p.center
+            if p.normal.z > 0.45 and math.hypot(c.x, c.y) >= r_acc - 1e-6:
+                p.material_index = 1
+    return ob
+
+
+def _traced_inlay(name, collection, mat, d_face, big_r, sp, inl):
+    """A skin of the traced face's top surface inside some outlines, in another
+    material: the machined wedges of a two-tone face. The outlines are polygons of
+    one repeat like the windows (turned `count` times); they may run past the
+    face's edge, where the skin stops, but must not touch a window. The skin is
+    `lift` above the face so the two never fight over a pixel; nothing else of
+    the solid is kept."""
+    import bmesh
+    count = sp["count"]
+    r_in, r_out = sp["r_in"], sp["r_out"]
+    nr = sp.get("nr", 24)
+    rings = sorted(set([r_in, r_out] + [r_in + (r_out - r_in) * i / float(nr) for i in range(nr + 1)]
+                       + [r * big_r for r in sp.get("rings", ())]))
+    prof = [(r, d_face(r)) for r in rings]
+    v, f = M.revolve(prof, sp.get("seg", 72))
+    ob = M.obj(name, v, f, collection, None)
+    M.orient(ob.data, lambda c: (0.0, 0.0, 1.0))
+    M.solidify(ob, sp["depth"], -1.0)
+    step = 360.0 / count
+    loops = []
+    for k in range(count):
+        for poly in inl["polys"]:
+            pts = _densify([(t + step * k, r) for (t, r) in poly], sp.get("step_deg", 1.5), sp.get("step_r", 0.02))
+            loops.append([_polar(t, r, big_r) for (t, r) in pts])
+    zs = [d for (_, d) in prof]
+    cutter = _prisms("_inl_" + name, loops, min(zs) - sp["depth"] - 0.03, max(zs) + 0.03)
+    b = ob.modifiers.new("inlay", 'BOOLEAN')
+    b.operation = 'INTERSECT'
+    b.solver = 'EXACT'
+    try:
+        b.use_hole_tolerant = True
+    except Exception:
+        pass
+    b.object = cutter
+    M.apply_modifiers(ob)
+    C.weld(ob)
+    cd = cutter.data
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    if cd.users == 0:
+        bpy.data.meshes.remove(cd)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.normal.z < 0.3], context='FACES')
+    lift = inl.get("lift", 0.0004)
+    for vt in bm.verts:
+        vt.co.z += lift
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.update()
+    ob.data.materials.clear()
+    ob.data.materials.append(mat)
+    for p in ob.data.polygons:
+        p.material_index = 0
+        p.use_smooth = True
+    return ob
+
+
 # ------------------------------------------------------------------ wheel
 def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius,
                 disc_r, caliper_deg):
@@ -359,6 +527,10 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     fa, fb, fc = spec["flange"]
     d_flange = fa + (hw - fb) * fc            # wider rims sit further out
     dish = spec["dish"]
+    # the face a left wheel shows from outside is the right wheel's turned half a revolution
+    # (the local frame is): a design whose clocking is photographed sets roll_left
+    roll = spec.get("roll_left", 0.0) if sign > 0 else 0.0
+    ff = spec.get("flange_face", 0.011)         # radial width of the flange's visible face
 
     def d_face(r):
         return d_flange - dish(r)
@@ -377,20 +549,21 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
         (rim_r - 0.030, hw * 0.35), (rim_r - 0.022, d_flange - 0.040),
         (rim_r - 0.014, d_flange - 0.018),          # rim landing, spokes meet it
         (rim_r - 0.010, d_flange - 0.004),
-        (rim_r - 0.011, d_flange),                  # flange face, inner edge
+        (rim_r - ff, d_flange),                     # flange face, inner edge
     ]
     v, f = M.revolve(barrel, seg)
-    parts.append(M.obj(prefix + "RimBarrel_" + tag, v, f, collection, lib[mats["rim"]]))
+    parts.append(M.obj(prefix + "RimBarrel_" + tag, v, f, collection, lib[mats.get("barrel", mats["rim"])]))
 
     flange = [
-        (rim_r - 0.011, d_flange), (rim_r - 0.0005, d_flange),
+        (rim_r - ff, d_flange), (rim_r - 0.0005, d_flange),
         (rim_r + 0.0015, d_flange - 0.004), (rim_r + 0.0005, d_flange - 0.012),
     ]
     v, f = M.revolve(flange, seg)
-    parts.append(M.obj(prefix + "RimFlange_" + tag, v, f, collection, lib[mats["rim"]]))
+    parts.append(M.obj(prefix + "RimFlange_" + tag, v, f, collection, lib[mats.get("lip", mats["rim"])]))
 
     if spec.get("pinstripe"):
-        stripe = [(rim_r - 0.0070, d_flange + 0.0004), (rim_r - 0.0030, d_flange + 0.0004)]
+        sr = spec.get("stripe_r", (0.0070, 0.0030))     # radial extent, metres inside the lip
+        stripe = [(rim_r - sr[0], d_flange + 0.0004), (rim_r - sr[1], d_flange + 0.0004)]
         v, f = M.revolve(stripe, seg)
         parts.append(M.obj(prefix + "RimStripe_" + tag, v, f, collection,
                            lib[mats["stripe"]]))
@@ -399,7 +572,50 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     sp = spec["spokes"]
     style = sp["style"]
     mat_sp = lib[sp.get("mat", mats["rim"])]
-    if style == "aero":
+    if style == "traced":
+        # the same face for all four corners: built once, copied, turned by roll
+        cache = spec.setdefault("_faces", {})
+        src = cache.get("spokes")
+        if src is None or bpy.data.objects.get(src.name) is not src:
+            acc = lib[mats["accent"]] if "accent" in mats else None
+            face = _traced_face(prefix + "Spokes_" + tag, collection, mat_sp, d_face, rim_r, sp, acc)
+            M.bevel(face, sp.get("bevel", 0.0020), sp.get("bevel_segs", 1), 30, harden=True)
+            cache["spokes"] = face
+        else:
+            face = src.copy()
+            face.data = src.data.copy()
+            face.name = prefix + "Spokes_" + tag
+            face.parent = None
+            collection.objects.link(face)
+        face.rotation_euler = (0.0, 0.0, roll)
+        parts.append(face)
+        inl = sp.get("inlay")
+        if inl:
+            src = cache.get("inlay")
+            if src is None or bpy.data.objects.get(src.name) is not src:
+                skin = _traced_inlay(prefix + "Inlay_" + tag, collection, lib[inl["mat"]], d_face, rim_r, sp, inl)
+                cache["inlay"] = skin
+            else:
+                skin = src.copy()
+                skin.data = src.data.copy()
+                skin.name = prefix + "Inlay_" + tag
+                skin.parent = None
+                collection.objects.link(skin)
+            skin.rotation_euler = (0.0, 0.0, roll)
+            parts.append(skin)
+        rg = sp.get("ring")
+        if rg:
+            r0, r1 = rg["r_in"], rim_r - ff
+            nrg = rg.get("rings", 6)
+            prof = [(r0 + (r1 - r0) * i / float(nrg), d_flange - rg["dish"](r0 + (r1 - r0) * i / float(nrg)))
+                    for i in range(nrg + 1)]
+            v, f = M.revolve(prof, seg)
+            ring = M.obj(prefix + "Ring_" + tag, v, f, collection, lib[rg.get("mat", "machined")])
+            M.orient(ring.data, lambda c: (0.0, 0.0, 1.0))
+            if rg.get("depth", 0.006) > 0.0:
+                M.solidify(ring, rg.get("depth", 0.006), -1.0)
+            parts.append(ring)
+    elif style == "aero":
         face = _aero_face(prefix + "Spokes_" + tag, collection, mat_sp, d_face, rim_r,
                           sp["count"], sp["phase"], sp["depth"], sp.get("params", {}),
                           seg=seg)
@@ -440,8 +656,10 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     v, f = M.revolve(hub, 40)
     parts.append(M.obj(prefix + "Hub_" + tag, v, f, collection, lib[mats["rim"]]))
 
-    cap = [(0.0, d_hub + 0.0055), (0.026, d_hub + 0.0055), (0.029, d_hub + 0.003),
-           (0.029, d_hub)]
+    cr = hub_spec.get("cap_rise", 0.0)
+    kc = hub_spec.get("cap_r", 0.029) / 0.029
+    cap = [(0.0, d_hub + 0.0055 + cr), (0.026 * kc, d_hub + 0.0055 + cr), (0.029 * kc, d_hub + 0.003 + cr),
+           (0.029 * kc, d_hub)]
     v, f = M.revolve(cap, 32)
     parts.append(M.obj(prefix + "HubCap_" + tag, v, f, collection, lib[mats["cap"]]))
 
@@ -451,19 +669,32 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     lugs = []
     for k in range(nl):
         a = 2.0 * math.pi * k / nl + sp["phase"] + math.pi / nl
+        if "deg" in lg:
+            a = math.radians(lg["deg"]) + 2.0 * math.pi * k / nl + roll
         cx, cy = lg["pcd_r"] * math.cos(a), lg["pcd_r"] * math.sin(a)
         ring = []
         for i in range(6):
             b = 2 * math.pi * i / 6
             ring.append((cx + lg["r"] * math.cos(b), cy + lg["r"] * math.sin(b)))
-        vv = [(p[0], p[1], d_hub - 0.001) for p in ring] + \
-             [(p[0], p[1], d_hub - 0.012) for p in ring] + [(cx, cy, d_hub - 0.001)]
+        z0 = d_hub - 0.001 + lg.get("rise", 0.0)
+        if lg.get("dome"):
+            # a round cap, domed: the SU7's black locking nuts
+            h = lg["dome"] if isinstance(lg["dome"], float) else 0.0085
+            rr = lg["r"]
+            prof = [(0.0, h), (0.40 * rr, 0.97 * h), (0.70 * rr, 0.84 * h), (0.88 * rr, 0.58 * h),
+                    (0.97 * rr, 0.22 * h), (rr, 0.0), (rr, -0.011)]
+            vv, ff = M.revolve([(r_, z_) for (r_, z_) in prof], 20)
+            vv = [(x + cx, y + cy, z + z0) for (x, y, z) in vv]
+            lugs.append((vv, ff))
+            continue
+        vv = [(p[0], p[1], z0) for p in ring] + \
+             [(p[0], p[1], z0 - 0.011) for p in ring] + [(cx, cy, z0)]
         ff = [[i, (i + 1) % 6, 6 + (i + 1) % 6, 6 + i] for i in range(6)]
         ff += [[12, i, (i + 1) % 6] for i in range(6)]
         lugs.append((vv, ff))
     v, f = M.merge_parts(lugs)
     parts.append(M.obj(prefix + "Lugs_" + tag, v, f, collection, lib[mats["lugs"]],
-                       smooth=False))
+                       smooth=bool(lg.get("dome"))))
 
     # ------------------------------------------------------ disc and caliper
     dk = spec["disc"]
@@ -513,8 +744,12 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
 
     cs = spec["caliper"]
     ca = math.radians(caliper_deg)
-    span = math.radians(cs.get("span_deg", 30.0))
-    r0 = disc_r - cs.get("r_in", 0.058)
+    # the rear calipers are smaller (4 pistons against 6): span_rear. r_inner is an
+    # absolute inner radius - where the caliper's top, bulge and all, stays clear of
+    # the face's top surface - instead of one hung from the disc's edge
+    span = math.radians(cs.get("span_rear", cs.get("span_deg", 30.0)) if tag.startswith("R")
+                        else cs.get("span_deg", 30.0))
+    r0 = cs["r_inner"] if "r_inner" in cs else disc_r - cs.get("r_in", 0.058)
     r1 = min(disc_r + cs.get("r_out", 0.020), rim_r - cs.get("rim_clear", 0.034))
     d_out = d_disc + cs.get("d_out", 0.046)
     d_in = d_disc - cs.get("d_in", 0.080)
@@ -535,6 +770,9 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     cfaces.append([0, 2, 3, 1])
     last = steps * 4
     cfaces.append([last + 0, last + 1, last + 3, last + 2])
+    # wound outwards: the first version came out inside-out, which a double-sided
+    # material hides and an ambient-occlusion bake (carkit.bake) does not
+    cfaces = [f[::-1] for f in cfaces]
     cal = M.obj(prefix + "Caliper_" + tag, cverts, cfaces, collection,
                 lib[mats["caliper"]], smooth=True)
     M.bevel(cal, cs.get("bevel", 0.008), 3, 30, harden=True)
@@ -567,6 +805,7 @@ def build_set(collection, prefix, lib, spec, corners):
     so its outer sidewall sits at that y - about 20 mm inside the arch lip.
     """
     made = []
+    spec.pop("_faces", None)
     for tag, axle, sign, w, r, dr, cal, outer in corners:
         cy = sign * (outer - w / 2.0)
         made.append(build_wheel(collection, prefix, tag, (axle, cy, r), sign, lib,

@@ -14,6 +14,7 @@ const FOCUS =
 const TABS: { id: ShowroomTab; label: string }[] = [
   { id: 'colour', label: 'Colour' },
   { id: 'interior', label: 'Interior' },
+  { id: 'wheels', label: 'Wheels' },
   { id: 'dimensions', label: 'Dimensions' },
   { id: 'xray', label: 'X-ray' },
 ];

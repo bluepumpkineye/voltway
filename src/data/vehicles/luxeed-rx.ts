@@ -36,6 +36,15 @@ export const luxeedRx: Vehicle = {
     skin: 'harmonyos',
     accentColor: '#C8102E',
     ambientLighting: true,
+    // as the Control Centre and Settings > Driving list them (Autohome's photographs
+    // of the screens; 运动+ is the strongest street mode, shown as Sport in the model)
+    driveModes: [
+      { id: 'eco', label: 'Eco', native: '节能', group: 'street', model: 'eco' },
+      { id: 'comfort', label: 'Comfort', native: '舒适', group: 'street', model: 'comfort' },
+      { id: 'sport', label: 'Sport', native: '运动', group: 'street', model: 'sport' },
+      { id: 'sport-plus', label: 'Sport+', native: '运动+', group: 'street', model: 'sport' },
+      { id: 'custom', label: 'Custom', native: '定制个性化', group: 'special', model: 'comfort' },
+    ],
     screens: [
       { id: 'center', label: 'Rotating centre screen', diagonalIn: 16.1, role: 'center', interactive: true },
       { id: 'cluster', label: 'Instrument cluster', diagonalIn: 8.88, role: 'cluster' },
@@ -67,6 +76,9 @@ export const luxeedRx: Vehicle = {
       sun: { direction: [0.5785, 0.6134, 0.5376], color: '#fffbd2', intensity: 4.31 },
       ground: { height: 1.7, radius: 45 },
     },
+    // its shadow on the studio floor: blender/scripts/export_rx.py bake_ground_shadow(),
+    // which prints the size and centre (the build's axes, metres)
+    studioShadow: { url: '/models/luxeed-rx-shadow.webp', size: [8.069, 5.195], centre: [-0.028, 0] },
     heroColor: '#1B4D8F',
     // over the driver's seat, from the camera-matched cabin build
     driverEye: [-0.32, 0.41, 1.19],
@@ -75,8 +87,8 @@ export const luxeedRx: Vehicle = {
   // colours. The build is Blue Morpho with the Red Shadow White cabin, so those
   // two are "as built"; every other value is matched by eye to the maker's
   // press images under our studio rig (hence "approximate" in the interface).
-  // The wheels (21-inch double five-spoke is one of several), caliper colours
-  // and the frunk are not selectable yet: they need new geometry (Phase 3).
+  // The wheels and the caliper colours are selectable (Wheels tab); the frunk
+  // is a part that opens (openings), not an option.
   configurator: {
     paintMaterial: 'M_Paint_RX_ShiftBlue',
     paints: [
@@ -153,8 +165,56 @@ export const luxeedRx: Vehicle = {
         colors: { INT_Leather_White: '#c1621f', INT_Leather_Accent: '#2b1b14', INT_Thread_Accent: '#3a2318' },
       },
     ],
+    // The maker says the calipers come in "red, grey, yellow and other colours"
+    // (the launch reports below). Orange is the colour the show cars wear in
+    // the photographs, and the build's own. The values are the build's caliper
+    // palette (carkit.materials.CALIPERS) as sRGB, so they are approximate.
+    caliperMaterial: 'M_Caliper_Orange',
+    calipers: [
+      { id: 'orange', name: 'Orange', nameZh: '橙色', color: '#e56f1d' },
+      { id: 'red', name: 'Red', nameZh: '红色', color: '#bf2724' },
+      { id: 'grey', name: 'Grey', nameZh: '灰色', color: '#7c7d7e' },
+      { id: 'yellow', name: 'Yellow', nameZh: '黄色', color: '#e2bf19' },
+    ],
+    // The maker's configuration page (hima.auto/zhijie/rx/configuration) lists four
+    // wheels: the 20 in 'Starlight' (no photograph of it exists, so it is not built),
+    // the 21 in 'Yufeng' and 'Sport' double five-spokes and the 22 in 'Fengying'
+    // five-spoke. The first is what the model is built with; the others are nodes of
+    // the same file. Traced from the Autohome photographs, which show the Yufeng
+    // with red calipers and the Sport (also in a blue-accent finish) with
+    // yellow-gold and orange ones.
+    wheels: [
+      { id: 'fengying', name: 'Fengying', size: '22"', tyres: '255/40 R22 front · 275/40 R22 rear', node: 'LuxeedRX_Fengying_Wheels', caliper: 'orange' },
+      { id: 'yufeng', name: 'Yufeng', size: '21"', tyres: '255/45 R21 front · 275/45 R21 rear', node: 'LuxeedRX_Yufeng_Wheels', caliper: 'red' },
+      {
+        id: 'sport',
+        name: 'Sport',
+        size: '21"',
+        tyres: '255/45 R21 front · 275/45 R21 rear',
+        node: 'LuxeedRX_Sport_Wheels',
+        accent: { material: 'M_Wheel_Accent', color: '#0c0c0e' },
+        caliper: 'orange',
+      },
+      {
+        id: 'sport-blue',
+        name: 'Sport, blue accent',
+        size: '21"',
+        tyres: '255/45 R21 front · 275/45 R21 rear',
+        node: 'LuxeedRX_Sport_Wheels',
+        accent: { material: 'M_Wheel_Accent', color: '#1c58e8' },
+        caliper: 'orange',
+      },
+    ],
     sources: [
       { label: 'HIMA - Luxeed RX: six paints, four interior colours', url: 'https://hima.auto/zhijie/rx/' },
+      {
+        label: 'IT之家 (30 Jul 2026) - RX road-test car: calipers in red, grey, yellow and other colours; 20-22 in wheels',
+        url: 'https://www.ithome.com/0/983/889.htm',
+      },
+      {
+        label: 'Phoenix Tech (9 Jul 2026) - over 20 colours planned; calipers in red, grey, yellow; 255/50 R20 to 275/40 R22 tyres',
+        url: 'https://tech.ifeng.com/c/8ucC3FOGpbe',
+      },
     ],
   },
   // The four doors swing on their leading edge (the hinge: mid height, on the

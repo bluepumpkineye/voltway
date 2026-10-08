@@ -147,7 +147,7 @@ The templates in `carkit/templates/` are skeletons for the first two. `carkit.bo
 | `parts.aero` | rear wing, ducktail, splitter, diffuser, corner fin, side skirt |
 | `parts.grilles` | diamond, hexagon, slats and dots meshes |
 | `parts.fittings` | mirrors, flush handles, vents, badges, plate, lidar |
-| `parts.wheels` | presets: `su7_ultra_hairpin`, `aero_5window`, `turbine_10`, `y_spoke_5`, `twin_5`, `multi_10` |
+| `parts.wheels` | presets: `su7_ultra_hairpin`, `aero_5window`, `turbine_10`, `y_spoke_5`, `twin_5`, `blade_5`, `multi_10`; and the `traced` spoke style, a dished face with outlines read off a photograph (see "Wheel designs") |
 
 - **Placement:** anything that wraps a corner is ray-cast onto the built meshes (`Placer.radial`). Nearest-point projection spans the corner as a chord.
   - On a tail face, place analytically at a rear-elevation (y, z) (`TAIL.wv_at`): a radial cast from inside the corner shifts centreline points sideways by 5 cm.
@@ -421,6 +421,8 @@ Driving this from the Blender MCP:
 | `INT_Screen` | material | screen backing |
 | `M_Glass`, `M_Glass_Privacy` | material | a clear or privacy tint from inside |
 | `*_Wheels` | node, origin on the front-left wheel centre | the showroom's wheel pose and the wheelbase ruler |
+| `LuxeedRX_Fengying_Wheels`, `LuxeedRX_Yufeng_Wheels`, `LuxeedRX_Sport_Wheels` | node, the same origin | the RX's three wheel designs, four wheels each; the viewer shows the one `configurator.wheels[].node` names and hides the others |
+| `M_Wheel_Accent` | material | the Sport's gloss-black edging (leg tops and lip); its blue variant paints it (`wheels[].accent`) |
 | the car's paint material (`configurator.paintMaterial`, e.g. `M_Paint_Yellow`) | material | showroom paint swatches |
 | the cabin trim materials a colourway names (`INT_Leather_Accent`, `INT_Leather_White`, `INT_Thread_Accent`, ...) | material | showroom cabin colourways |
 
@@ -456,11 +458,49 @@ Driving this from the Blender MCP:
   - drei's `<Html transform>` builds a CSS 3D camera in *world units*. In metres, Chrome's float32 compositor drew the HMI a full screen-height above where layout and hit-testing put it.
   - `LiveScreen` instead projects the quad's four corners each frame and applies a 2D homography (`quadToCss`). It is exact, and clicks land.
 - **Seated shot:** built from `assets.driverEye`, which is in Blender axes and mapped to glTF (x, z, −y). The camera pivots 15 cm ahead of the eye, so dragging turns the head.
-- **The HMI itself** (`src/components/hmi`): one DOM tree at 1280×800, shown flat on the Dashboard view and warped onto `screen_main` in the cabin. A car whose OS has been rebuilt from its maker's screens gets its own skin (`cockpit.skin`); `hyperos/` is the SU7's, the others share the generic one. Build a skin from the maker's own screen images, not memory:
+- **The HMI itself** (`src/components/hmi`): one DOM tree at 1280×800, shown flat on the Dashboard view and warped onto `screen_main` in the cabin. A car whose OS has been rebuilt from its maker's screens gets its own skin (`cockpit.skin`); `hyperos/` is the SU7's, `harmonyos/` the Luxeed RX's, the others share the generic one. Build a skin from the maker's own screen images, not memory:
   - list what the real screens show (status bar, dock, desktops, settings pages, the car's own apps) and the names it uses, with sources in the vehicle data
   - the car's drive modes go in `cockpit.driveModes`, with published outputs where there are any (the page's power readout uses them)
   - images of the car inside the HMI are rendered from the build (`blender/renders/hmi`, `public/hmi/<car>/`); fade shadow-catcher alpha away from the car, or the studio rig's broad shadows reach the image edge as a hard rectangle
-  - `/capture/hmi/<slug>?screen=&gear=&page=&mode=&climate=1` shows the HMI alone in a given state; `qa.hmi_capture.capture(slug, query={...})` screenshots it
+  - `/capture/hmi/<slug>?screen=&gear=&page=&mode=&climate=1&theme=&apps=1` shows the HMI alone in a given state; `qa.hmi_capture.capture(slug, query={...})` screenshots it
+
+#### The Luxeed RX's HarmonyOS skin (`src/components/hmi/harmonyos`)
+
+Built from 143 of Autohome's photographs of the car's screens (series 8684, category 10,
+the dashboard gallery; see `blender/reference/luxeed-rx/hmi/_sources.md`), the owner having
+approved the set. General web search finds only articles with a few press images; the
+gallery is where every screen is photographed, in the light and the dark theme and in four
+interiors.
+
+- Layout is read off the photographs by cropping the screen (`hmicrop`: a fraction of the
+  3840 x 2880 photo) and measuring in the 1280 x 800 space: the status bar's icons at fixed
+  x, the clock centred at y 227, 197-wide card columns 43 apart, the bottom bar's seventeen
+  items at fixed x (the assistant, vehicle control, apps, navigation, climate and the
+  driver's seat; the temperatures and the home ring; the passenger's seat, music, the
+  lights, the demister and the volume).
+- Files: `theme` (the two palettes), `shared` (clock, wallpapers, the local switches and
+  the toast), `icons` and `appicons` (drawn here, not the maker's artwork), `Bars`,
+  `Desktop` (two pages of cards), `AppCentre`, `ControlCentre`, `Climate`, `Seats`,
+  `Media` (radio and music), `MapNav` (a made-up draggable city map with a route, and the
+  360-degree camera), `Settings` (the menu of thirteen and its pages), `HarmonyOsSurface`.
+- The UI text is English, as the SU7's is; the maker's Chinese names are in the code
+  comments. Nothing of the maker's is shipped: the wallpapers, the map, the camera feeds
+  and the app icons are drawn, the playlist is the demo one, the weather place is the
+  cabin's Beijing.
+- What is live in the 3D car: the drive mode (`setCarMode`, the car's own list in
+  `cockpit.driveModes`: Eco, Comfort, Sport, Sport+, Custom), the tailgate, bonnet and
+  door tiles (`toggleOpening`), the door lock, the headlamps (the lights button on the
+  bottom bar and the Control Centre), the ambient light's colour and brightness (Settings >
+  Lights > Interior writes the store the cabin's strip follows), the temperatures, the fan,
+  the seat heating, the media state, and the light/dark mode (`hmiTheme`). The rest keep
+  their state in `HaProvider` and say so when a showroom car cannot do the thing.
+- The car pictures are renders from the build (`export_rx.hmi_art()`: a cut-out, a top view
+  for the camera page; `export_rx.hmi_cabin()`: clay renders of the cabin on a transparent
+  ground, light and dark, for the climate and seat pages) in `public/hmi/luxeed-rx/`.
+- Not in any photograph, so not built: driving-state screens (route guidance, the
+  assisted-driving view), the charging flow, phone, the voice assistant's overlay, the
+  BOOST three-screen display. The cluster and passenger screens in the 3D cabin are still
+  the cabin build's own textures (they need a cabin re-bake to change).
 
 ### The showroom (`/showroom/[slug]`)
 
@@ -500,6 +540,69 @@ works:
   finishes asynchronously (HDR decode, PMREM, shader compile) is covered by the
   invalidator's few seconds of frames. New code that mutates a material outside
   those paths must call `invalidate()`.
+
+### The studio look: baked occlusion, ground shadow, Cycles stills
+
+Three things make the showroom's car sit in its room instead of floating in a
+light probe. All are built in Blender and shipped as data; none costs a frame.
+
+- **Exterior occlusion, `_BAKEDAO`** (`carkit.bake.ambient_occlusion`, called by
+  `export_rx.bake_exterior_ao` / `export_gltf.bake_exterior_ao` from `main()`).
+  A float per vertex, 1 open to the sky and 0 shut in, from Cycles' AO bake out
+  to 1 m. The bake runs on the unmerged parts (they still have their own names)
+  with **every opening posed open** (`open_all`), because the jambs, the bay
+  under the bonnet and the boot are inside a closed car and would bake black;
+  the outer skins are the same either way. Left out of the bake: the floor
+  (the studio floor is as bright as its ceiling), the cabin (so the result does
+  not depend on whether this build made one) and objects made only of glass (the
+  sky shines through a windscreen; those ship 1). Neighbour smoothing, 3 passes.
+  `export(attributes=True)` ships it, and `carkit.export.strip_attributes` drops
+  every other `_`-prefixed attribute (the build's own `_butt` marks leaked into
+  the GLB before). Web: `bakedOcclusion()` in `CarModel.tsx` multiplies the
+  environment's light the way three.js does for an aoMap (indirect diffuse, clear
+  coat, sheen, and reflections through specular occlusion); direct light keeps
+  its shadow map. Glass, lenses, lamps and the blackout layer are skipped
+  (`NO_OCCLUSION`). A mesh the bake did not reach gets 1, so a shared material
+  never reads the attribute's default of 0. In development `window.__ao.strength`
+  (0 is off) and `window.__ao.view` (1 shows the occlusion itself) tune it.
+- **Ground shadow** (`carkit/studio.py`, `ground_shadow`). Ambient occlusion of
+  the *floor* from the merged car: a broad soft shade (1.3 m) times a contact
+  shade (0.25 m), 125 px to the metre, blurred, faded to nothing at the edge. An
+  RGBA PNG whose alpha is the shade, turned into a WebP by
+  `scripts/to-webp.mjs` (sharp, from Next.js's install; alpha lossless, about
+  45 KB). The build prints the image's size and centre in metres; they go into
+  `vehicle.assets.studioShadow`, and `StudioShowroom.GroundShadow` lays it as one
+  quad. The city scene and any car without one keep the projected
+  `ContactShadows`.
+- **Cycles stills of the same studio** (`carkit/rig.py`, `export_*.stills()`).
+  `read_rig()` parses `src/data/studio/rig.ts`, the single source, and
+  `build_studio()` makes its panels emissive planes over a dark world (STUDIO_VOID
+  x STUDIO_GAIN, panels at intensity x gain: the same scene-linear radiance the
+  web's cube map holds), a floor that emits the web's two floor radiances to the
+  car but reads as the web's flat `#e9eaed` to the camera, and the baked shadow
+  multiplied in. `anchor_pose()` ports `anchors.ts` (azimuth, elevation, vertical
+  field of view, margin, lift), so a still and a screenshot of the same anchor
+  frame alike. Khronos PBR Neutral at the viewer's exposure. Checked 2026-10-06:
+  web and Cycles agree on paint hue, the bright lower body over a dark upper
+  body, the arch and sill shading and the glare patches; the web's bonnet is a
+  little brighter. `blender -b --factory-startup --python-expr "import sys;
+  sys.path.append(r'<repo>/blender/scripts'); import export_rx; export_rx.stills()"`
+  writes `blender/renders/studio/<slug>_<shot>.png` (about 30 s a still at 256
+  samples).
+
+Found on the way, worth knowing:
+
+- The brake calipers were wound inside-out (`carkit/parts/wheels.py`). A
+  double-sided material hides that and an AO bake does not: every caliper vertex
+  came out 0. Closed solids must be wound outward.
+- A bound box read from an unevaluated object can lie (the SU7's trunk arms
+  report x = -3.9 m); the shadow's footprint is therefore measured on the merged
+  export.
+- The exterior glass is green-tinted like real glazing and read as olive against
+  the white studio; `coolGlass()` in `Openings.tsx` keeps its darkness and drops
+  the tint.
+- Caliper colours (`useCaliper`, the Wheels tab) are a tween of one material's
+  colour, like the paint; the first option is the car as built.
 
 ### Openings: doors, bonnet and tailgate (`rx_openings.py`, `rx_bays.py`, `rx_gate.py`)
 
@@ -642,6 +745,197 @@ The same machinery, fitted to the SU7 from the 42 approved photographs
 Budgets: the SU7 exterior is now about 403k triangles in 82 primitives (375k and
 32 before) and 2.7 MB; the cabin is 5.3 MB with both bakes (4.4 MB before), 54
 primitives.
+
+### The Zeekr 7X (`zx_*`): built straight into the showroom
+
+The fourth car, built from the RX's modules and shown only in `/showroom/zeekr-7x`
+(`assets.showroomOnly` hides it from the home page's 3D pill and the vehicle page's
+viewer: `VehicleExperience.hasModel`). References are Autohome series 7777
+(`blender/reference/zeekr-7x`, local only): the studio set of the 涧石蓝 Ultra for the
+exterior, category 3 (cabin, 419 photos of the built spec) and 10 (dashboard and screens)
+for the cabin, category 12 (details: the frunk) for the bay; the harvest numbering is in
+the memory notes. What is different from the RX:
+
+- **Exterior from turntable photographs.** The studio's camera stands ~20.8 m from a
+  turntable, so every photograph was solved separately (`zx_camsolve.py`, registered in
+  `zx_ref_match.py`) and the flank, panels and parts were read in pixels and turned into
+  metres on the built surface. The 21 in wheel is a six-spoke Y, traced.
+- **Cabin** (`zx_interior.py`, `zx_interior_doors.py`, `zx_interior_shell.py`). Cream
+  perforated leather over taupe, a taupe dash with a visor hood over a curved cluster, a
+  floating 16 in screen over a row of knurled keys, a squircle wheel with taupe hub and
+  pods, the console with its black-framed wireless pad, door cards with a rose-gold line,
+  cream suede headliner with big visors. The cabin cameras could not be solved (the depth
+  and focal length trade off when only A-pillars are in view), so hardpoints are ergonomic
+  numbers checked by overlay.
+- **Leak QA from the eyes the viewer looks out of** (`zx_leakqa.py`): rays from the
+  driver's, passenger's and rear seats' eyes at 96 degrees across, in eight yaws and three
+  pitches. Run it on a FRESH build, before `prepare_exterior()`: once a door is split its
+  glass is inside the door object and the name-based see-through test flags it. It found
+  what the old seat-view list never looked at: the A-pillar trim stopped at x 0.70 and left
+  the painted rail as a black band from x 0.7 to 1.15; the belt cap stopped 5 mm under the
+  door glass (the glass sits 20 mm above the belt) and the slit showed the mirror's stalk;
+  the front wheelhouse's inner wall stands at |y| 0.675, inside the kick panel.
+- **Doors** (`zx_openings.py`, a port of `rx_openings.py`). Frameless glass, hinged at the
+  leading edge: front doors at `_DOOR_F_EDGE(0.6)` 72 degrees, rear doors at the B-pillar
+  shut line minus 12 mm, 66 degrees. The painted inner frame's bead smoothed its gap to the
+  skin by distance to the skin's SEGMENTS (distance to the nearest vertex alternates along
+  an edge parallel to the card and made a saw), averaged round the loop. The brushed
+  sill plates with the maker's name are cabin parts (`build_sill_plates`).
+- **Two more things the open doors showed.** The hull behind a door is cut with an exact
+  boolean of the door skin's outline swept across the car (`open_hull`; the skin's outline is
+  stored on the door node as `outline`): the ray test of the RX and SU7 left ragged fans of the
+  hull's long thin triangles at the sill and the arch. And the rear door's lower rear corner is
+  cut away by the wheel opening (c3_0020): its card's rear edge follows the arch's front edge
+  (`zx_interior_doors._arch_front`), or the frame's bead zigzags round a notch the card does
+  not have.
+- **Bonnet and frunk** (`zx_bays.py`). One clamshell hood hinged at the cowl (1.215, 1.083),
+  60 degrees on two struts the viewer draws from `struts` anchors. Under it, from
+  c12_0001-6: the wiper well with a ribbed vent strip and the two wipers parked, a wide
+  black tray with a thick rim seal, a deep tub with a divider, the blue washer cap, a
+  pocket with a slot at each front corner; the bonnet's underside is a black pad inside
+  its painted frame.
+- **Tailgate and boot** (`zx_gate.py`, a port of `rx_gate.py`). The hatch hangs from the
+  roof's trailing edge (hinge (-1.93, 0, 1.385)) and lifts 80 degrees (c3_0047). Three
+  things were new: the shut line (`zx_rear.GATE_PX`) had to run on up past the lamp bar
+  to the cap's top edge, or the sheet is never separated and `_gate_faces` finds one piece;
+  the lamp bar sweeps round each corner onto the quarter panels, so `split_lamp()` cuts
+  its four parts at |y| 0.795 and only the middle goes with the hatch; the dark glass
+  wedge runs on forward of the hinge under the roof rail, so `split_wedge()` cuts it at the
+  hinge's x. The cabin gets the boot (`build_boot`: black loop-pile carpet on the floor,
+  the walls and the rear seat backs' rear faces, found by ray; the ribbed sill plate; a bag
+  hook, 12 V socket and lamp; speaker grilles; tie-down hooks; the lid pull) and the hatch's
+  liner (`int_tailgate`); the old parcel shelf and bulkhead are gone.
+- **Colourways and brightness.** The four cabin colourways of `zeekr-7x.ts` recolour the cream
+  leather, taupe, dash top, carpet, headliner and stitching by material name, with values read
+  off the orange, grey and orchid cars' photographs. The cream cabin is lit by the daylight that
+  comes through the glass, so it reads darker than the studio photographs (cream ~185 against
+  ~210 sRGB): `assets.cabinGain` multiplies the baked light in the viewer's shader
+  (`CABIN_GAIN` in `CarModel.tsx`; `window.__cabinGain` in development) so that is tuned by
+  eye without a new bake.
+- **X-ray** (`zx_gate.split_greenhouse`): roof, rail, roof glass, windscreen, quarter glass
+  and the wedge's front part become `Zeekr7X_Greenhouse`.
+- **Black lens-shaped slits on the door cards** (found in the web viewer after the final
+  bake, not by the leak QA: nothing exterior shows). The black moulded carrier behind the
+  upholstered bands (`carkit.interior.door.DoorCard.carrier`) had 12 rows over 70 cm; at the
+  shoulder, where the card's section turns sharply, a 6 cm chord of it cut through the rail's
+  curved surface and showed as thin tapering black slits and star-shaped bursts at the rail's
+  corners. `__ids` named the mesh (the taupe primitive) and a raycast showed the carrier 0-1 mm
+  behind it. The 7X's carriers are now 48 rows and 16 mm behind (`zx_interior_doors`). A thing
+  that is "black on the surface" in a vertex-baked cabin is as likely to be a hidden second
+  surface poking through as it is a bad bake: hide the primitive in the scene and look.
+- **Windows left standing when a door opens** (the RX's bug again; owner, 2026-10-08). The
+  door glass is 12 % (front) and 50 % (rear) opaque: what makes a closed window dark is the
+  black layer behind it, the greenhouse underlay and the inner shadow shell in the Blackout
+  node, which stays on the body. `cut_underlay()` had taken the windows out of the underlay
+  only; the shell, 1.5-3 cm behind the glass, stayed and stood in each doorway as a dark pane
+  (found with `__ids`: the pixels were `Zeekr7X_Blackout_mesh001 [M_Shadow]`, and hiding that
+  node showed the cabin). Now the same windows are cut out of the shell (`_glass_cutter`) and
+  `add_window_panes()` gives each door a copy of its glass 4 mm behind it in M_Shadow, so the
+  dark travels with the door. It runs from `export_zx.main()`, AFTER the cabin's bakes: they
+  hide the blackout layer so daylight comes in through the glass, and a pane in the door is
+  opaque to it. The viewer already hides every `m_shadow` mesh inside the cabin and in X-ray.
+  `winqa`-style check: build, `prepare_exterior()`, `add_window_panes()`, open two doors and
+  render (about 70 s).
+- **The steering wheel and the visor** (owner: the top "smashed", too close to the screen).
+  Measured on c10_0001, the centre camera behind the console, where the wheel and the screen
+  are both ~1.7 m away so the screen's known width (16 in = 0.345 m + bezel) is the ruler: the
+  wheel is 0.39 wide and 0.37 tall (a squircle, ratio 1.06), its top 7 cm above the screen's
+  top edge and its right edge 3 cm farther from the centre line than the build had it. The
+  first wheel was a circle sliced flat top and bottom (0.39 x 0.32, corners where the slice
+  meets the arc, 3 cm too low) under a visor whose lip hung 4 cm in front of the display and
+  whose end ran past the screen's left edge; the cluster stood 3 cm too high, so only a black
+  sliver of it showed above the wheel. `carkit.interior.steering` takes `loop=dict(a, b, n)`
+  now (a superellipse centreline); the 7X wheel is a=0.179, b=0.1685, n=3 with a 35 mm rim, at
+  y 0.392 and z 1.006; the cluster sits at z 1.062, the visor is a thin horn standing 3 cm
+  above the display's top edge, ending 2 cm short of the screen (`_hood`, `dash_section`).
+  What made it quick: `zx_cabincmp.py` builds the cabin without the exterior (15 s) and
+  renders it from the photographs' cameras, and the 800 px side-by-side with the photograph
+  (`sbs`) shows a wrong size or height at a glance. From the viewer's driver eye (0.71 m from
+  the wheel) the wheel's right rim still covers a little of the screen's edge, as in a real
+  car; it now leaves a visible gap there instead of overlapping.
+- **ZEEKR OS skin** (`src/components/hmi/zeekros/`, `cockpit.skin === 'zeekros'`). Read off
+  the maker's screens (category 10, #16-80): the home screen is a 3D showroom scene (a white
+  ribbon over a sunset wall, a pale floor) with the car standing in it and its doors, bonnet,
+  tailgate, mirrors and charge flap as white chips (orange while open), a rail of shortcuts
+  down the left, four cards along the bottom; every other page is a lavender sheet that
+  slides up from y 211 over the scene, above a bottom bar (home, controls, 360, demist, seat,
+  each side's temperature, the fan, music, apps, volume) and under a status bar. Navigation,
+  the 360 camera and the App Centre take the whole screen. Measure a page against its photograph
+  by scanning a column for the screen's edges (`px3`-style sampling gave screen x 269-1696, sheet
+  top at y 571 of a 893 px tall screen = 209 HMI px); the first scene was drawn 150 px too low
+  because its heights were guessed from another photograph's frame. The car and the cabin
+  drawings are renders from the build: `export_zx.hmi_art()` (the studio rig's card shot and
+  the top view: `public/hmi/zeekr-7x/car34.webp`, `car-top.webp`) and `export_zx.hmi_cabin()`
+  (clay drawings of the cabin for the climate and seat pages, light and dark:
+  `cabin-climate-*.webp`, `cabin-seats-*.webp`; cameras in `HMI_CABIN_SHOTS`), each in a
+  background Blender; the page falls back to a plain schematic where a picture is missing.
+- **Run it.** `export_zx.prepare_exterior()` runs the whole opening chain in ~5 s;
+  `export_zx.web()` is the exterior, `web_full()` builds body and cabin, splits the parts,
+  bakes the cabin shut and then open, and writes both GLBs, the probe and the outside
+  world (about 15 minutes at 256 samples, 512 for the AO), in a background Blender;
+  `web_cabin()` is the same without the exterior, the probe and the outside world (about
+  12 minutes) for a change that touches only the cabin's own geometry:
+  `blender -b --factory-startup --python-expr "import sys; sys.path.append(r'<repo>/blender/scripts'); import export_zx; export_zx.web_full()"`.
+  The two Blender MCP servers are not the same: only `mcp__blender__*` (the add-on on port
+  9876) answered; each call starts a fresh Python namespace, so helpers live in a module
+  (`zx_leakqa.py`, `zx_lookdev.py`).
+
+### Wheel designs (`rx_wheels.py`, `su7_wheels.py`, `carkit.parts.wheels`, `wheel_preview.py`)
+
+The Luxeed RX is built with its 22 in Fengying and carries two more designs, the
+21 in Yufeng and the 21 in Sport (gloss black, and a blue-accent finish that shares
+its geometry); the 20 in Starlight has no photograph and is not built. The SU7 Ultra
+has one design, the standard 21 in double-five-spoke U (its forged option is
+reservation-only, with no photograph). Every face is TRACED from Autohome photographs
+the owner approved (`blender/reference/*/wheels`, local only); the method, with its four
+small tools, is in [`scripts/wheel-trace/README.md`](../scripts/wheel-trace/README.md):
+unwarp the photograph so the lip is a circle, unroll it into (angle, radius) strips
+with a labelled grid, read one repeat's outlines as polygons, and lay the built face
+back over the photograph (`wheel_preview.face_on(design, out, only=('Spokes',),
+flat=True)` and `maskedge.cjs`) until the outlines agree. Lift the shadows of the
+unwarped photograph first (gamma 2 to 2.6): dark windows and flanks are unreadable
+otherwise. Pick the photograph with ellipse ratio above 0.99.
+
+- **The `traced` spoke style** revolves the dish curve, solidifies it, cuts every
+  window, notch and lug counterbore with ONE exact boolean (the cutters are one object),
+  drops the back faces and bevels. An `inlay` is a second material on the same surface
+  (the Fengying's machined wedges): the same solid intersected with the wedge prisms,
+  only its top faces kept, lifted 0.4 mm. Pitfalls found: prisms inside one cutter
+  object must not touch or overlap (a half-degree overlap emptied the result); the
+  cutters must span the whole dished face in z; window bottoms must clear the lug
+  counterbores by their radius plus a few mm; an edge traced in (angle, radius) is
+  densified so a constant-radius edge stays an arc; a notch in a traced corner is cut
+  as a notch, so round corners by hand.
+- **Outlines are silhouettes.** A forged leg's flanks slope and the camera sees them: the
+  SU7's legs are 16 mm wide at the lip, 25 at 0.8 of the radius and 30 to 34 mm round
+  the bend, 25 to 35 % wider than the parametric hairpins that stood in for them. The
+  face's walls are vertical (no draft); a rounded top edge (the bevel) carries the
+  slope. A symmetric wheel's asymmetric trace (perspective) is reduced to half-widths
+  by radius and mirrored about the hairpin's axis (`su7_wheels._outline`).
+- **Nodes and the viewer.** A design is a glTF node of its four wheels, hidden until
+  chosen; `Vehicle.configurator.wheels[]` (`WheelOption`: node, size, tyres, accent,
+  caliper) lists them in the Wheels tab's order, and `useWheels`
+  (`viewer/configurator.ts`) shows one node and paints the accent material, so the Sport
+  and its blue variant share a node. A design comes with the caliper colour it is
+  photographed in unless the caliper was picked on purpose. The extra designs sit exactly
+  where the default's wheels do, so the exterior's AO is baked once with only the default
+  wheels and once per extra design alone (`export_rx.bake_exterior_ao`); the ground shadow
+  uses the default only.
+- **Calipers** are a sector with a bulge, sized from the photographs: the RX's 43
+  degrees each side of the centre on the front axle and 39 on the rear, the SU7's 57 and
+  41 (6 and 4 pistons), centred 3 to 4 degrees below the horizontal (the SU7's rear 22
+  above); `r_inner` is where the bulged top stays clear of the face's top surface.
+- **Budgets.** The RX's wheel nodes are about 48 k (Fengying), 52 k (Yufeng) and 51 k (Sport)
+  triangles for four wheels; the exterior GLB is 3.3 MB. The SU7's wheels are about 17 k
+  triangles each.
+
+Assumptions and gaps, so nobody mistakes them for measurements: every photograph shows the
+car's left side, so the right wheels are the same non-mirrored wheel (an OEM wheel is not
+handed); the dish depth is not visible face-on and is the SU7's measured profile (the
+face 12 mm below the lip at the rim, 72 mm at the hub) for the RX too; the Sport's blue is
+"the leg tops from 0.395 of the lip radius out, and the lip", as its photographs show;
+caliper lettering (LUXEED, xiaomi), the hub emblem and the Ultra script, valve holes and
+tyre stickers are not modelled.
 
 ### Judging the web result against the photo
 

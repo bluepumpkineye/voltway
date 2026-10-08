@@ -9,7 +9,7 @@ import type { OpeningId, Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
-import { usePaint, useTrim } from './configurator';
+import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
 import { useXray, useXrayCabin } from './Xray';
 import { hingesOf } from '@/lib/openings';
@@ -51,6 +51,95 @@ function materialsOf(o: THREE.Mesh): THREE.Material[] {
   return Array.isArray(o.material) ? o.material : [o.material];
 }
 
+// --------------------------------------------------------- exterior occlusion
+
+/**
+ * The exterior's baked ambient occlusion (carkit.bake.ambient_occlusion): a
+ * float per vertex, 1 open to the sky and 0 shut in. A studio lights a car from
+ * every side, so what shades a surface is what the car itself shuts out: the
+ * arches, the cavities behind the bumpers, the cowl. Image-based light has no
+ * occlusion of its own and floods all of them like the roof, so the patch
+ * below multiplies the environment's light by this value, as three.js does
+ * for an aoMap (aomap_fragment): indirect diffuse, clear coat and sheen, and
+ * the reflections with specular occlusion. Direct light (the city's sun) has
+ * its shadow map and is left alone.
+ *
+ * Exposed as window.__ao in development: `strength.value` 0..1 (0 = off),
+ * `view.value` 1 shows the occlusion itself.
+ */
+const OCCLUSION = { value: 1 };
+const OCCLUSION_VIEW = { value: 0 };
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  (window as unknown as { __ao?: unknown }).__ao = { strength: OCCLUSION, view: OCCLUSION_VIEW };
+}
+
+/** Surfaces that are not shaded by what is around them: glazing and lenses, lamps, the blackout layer. */
+const NO_OCCLUSION = /glass|lamp_clear|lamp_smoked|led_|m_shadow/;
+
+function takesOcclusion(m: THREE.Material): boolean {
+  return !NO_OCCLUSION.test(m.name.toLowerCase());
+}
+
+/**
+ * Give the geometry the GLSL-friendly attribute the patch reads. GLTFLoader
+ * lower-cases a custom attribute ("_BAKEDAO" arrives as "_bakedao"); a mesh
+ * the bake did not reach gets 1 (a patched material shared with it would
+ * otherwise read the attribute's default, 0, and go black).
+ */
+function bindOcclusion(g: THREE.BufferGeometry) {
+  const raw = g.getAttribute('_bakedao');
+  if (raw) {
+    g.setAttribute('bakedAO', raw);
+    g.deleteAttribute('_bakedao');
+  } else if (!g.getAttribute('bakedAO')) {
+    const n = g.getAttribute('position').count;
+    g.setAttribute('bakedAO', new THREE.BufferAttribute(new Float32Array(n).fill(1), 1));
+  }
+}
+
+function bakedOcclusion(m: THREE.Material) {
+  if (m.userData.occluded) return;
+  m.userData.occluded = true;
+  const chained = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    chained.call(m, shader, renderer);
+    shader.uniforms.uOcclusion = OCCLUSION;
+    shader.uniforms.uOcclusionView = OCCLUSION_VIEW;
+    shader.vertexShader = shader.vertexShader
+      .replace('void main() {', 'attribute float bakedAO;\nvarying float vBakedAO;\nvoid main() {')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvBakedAO = bakedAO;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        'void main() {',
+        'uniform float uOcclusion;\nuniform float uOcclusionView;\nvarying float vBakedAO;\nvoid main() {',
+      )
+      .replace(
+        '#include <aomap_fragment>',
+        `#include <aomap_fragment>
+        {
+          float bakedOcc = mix( 1.0, vBakedAO, uOcclusion );
+          reflectedLight.indirectDiffuse *= bakedOcc;
+          #ifdef USE_CLEARCOAT
+            clearcoatSpecularIndirect *= bakedOcc;
+          #endif
+          #ifdef USE_SHEEN
+            sheenSpecularIndirect *= bakedOcc;
+          #endif
+          #if defined( USE_ENVMAP ) && defined( STANDARD )
+            float dotNVocc = saturate( dot( geometryNormal, geometryViewDir ) );
+            reflectedLight.indirectSpecular *= computeSpecularOcclusion( dotNVocc, bakedOcc, material.roughness );
+          #endif
+        }`,
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        'if ( uOcclusionView > 0.5 ) outgoingLight = vec3( vBakedAO );\n#include <opaque_fragment>',
+      );
+  };
+  m.customProgramCacheKey = () => 'exterior-occlusion-v1';
+  m.needsUpdate = true;
+}
+
 // ------------------------------------------------------------------ exterior
 
 interface Props {
@@ -61,7 +150,7 @@ interface Props {
 
 export function CarModel({ vehicle, variant, url }: Props) {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const { headlightsOn, cameraMode, paintId } = useVehicleStore();
+  const { headlightsOn, cameraMode, paintId, caliperId, wheelId } = useVehicleStore();
   const invalidate = useThree((s) => s.invalidate);
   const model = useClonedScene(scene);
   const inside = cameraMode === 'interior';
@@ -69,6 +158,8 @@ export function CarModel({ vehicle, variant, url }: Props) {
 
   // the showroom's paint swatches (the first option is the car as exported)
   usePaint(model, vehicle.configurator, paintId);
+  useCaliper(model, vehicle.configurator, caliperId);
+  useWheels(model, vehicle.configurator, wheelId);
 
   // the doors swing on their hinge nodes (vehicle.openings) and open on a tap
   useHingedNodes(model, vehicle, 'node');
@@ -91,6 +182,15 @@ export function CarModel({ vehicle, variant, url }: Props) {
     const blackout: THREE.Object3D[] = [];
     const shadow: THREE.Object3D[] = [];
     const shell: THREE.Object3D[] = [];
+    // a car whose exterior was baked with occlusion (the others render as
+    // before). The geometry is shared with useGLTF's cache, so a second mount
+    // finds the attribute already renamed.
+    let baked = false;
+    model.traverse((o) => {
+      if (o instanceof THREE.Mesh && (o.geometry.getAttribute('_bakedao') || o.geometry.getAttribute('bakedAO'))) {
+        baked = true;
+      }
+    });
     model.traverse((o) => {
       // A node with several materials arrives as a Group of "<mesh>_N"
       // meshes, so match the node's own name on any object.
@@ -100,8 +200,10 @@ export function CarModel({ vehicle, variant, url }: Props) {
       if (!(o instanceof THREE.Mesh)) return;
       o.castShadow = true;
       o.receiveShadow = true;
+      if (baked) bindOcclusion(o.geometry);
       for (const m of materialsOf(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
+        if (baked && takesOcclusion(m)) bakedOcclusion(m);
         const mn = m.name.toLowerCase();
         // Only the light-pipe meshes emit; the housings and lenses around them
         // stay inert, which is what stops a lamp reading as a glowing blob.
@@ -216,6 +318,7 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   const picks = useOpeningPicks(model, vehicle, 'cardNode');
 
   const refs = React.useMemo(() => {
+    CABIN_GAIN.value = vehicle.assets.cabinGain ?? 1;
     const ambient: THREE.MeshStandardMaterial[] = [];
     const screens: THREE.MeshStandardMaterial[] = [];
     model.traverse((o) => {
@@ -289,8 +392,21 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
  * the Cycles render through the capture route.
  */
 const SPEC_OCC = { value: new THREE.Vector2(1.25, 0.05) };
+/**
+ * A car's own multiplier on its baked cabin light (`assets.cabinGain`, 1 when unset): a pale
+ * cabin lit by daylight through the glass reads darker than the studio photographs of it, and
+ * this lifts it without re-baking. Exposed as window.__cabinGain in development.
+ */
+const CABIN_GAIN = { value: 1 };
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as unknown as { __specOcc?: THREE.Vector2 }).__specOcc = SPEC_OCC.value;
+  Object.defineProperty(window, '__cabinGain', {
+    configurable: true,
+    get: () => CABIN_GAIN.value,
+    set: (v: number) => {
+      CABIN_GAIN.value = v;
+    },
+  });
 }
 
 
@@ -308,6 +424,7 @@ function bakedLighting(
   const gain = Math.PI / BAKE_STORE_SCALE;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uBakeGain = { value: gain };
+    shader.uniforms.uCabinGain = CABIN_GAIN;
     shader.uniforms.uOpen = open;
     // open trim (dash top, seat backs, wheel) keeps its full reflection, a
     // footwell a small part of it (SPEC_OCC)
@@ -324,13 +441,13 @@ function bakedLighting(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        'uniform float uBakeGain;\nuniform float uOpen;\nuniform vec2 uSpecOcc;\nvarying vec3 vBakedLight;\nvarying vec3 vBakedLightOpen;\nvoid main() {',
+        'uniform float uBakeGain;\nuniform float uCabinGain;\nuniform float uOpen;\nuniform vec2 uSpecOcc;\nvarying vec3 vBakedLight;\nvarying vec3 vBakedLightOpen;\nvoid main() {',
       )
       .replace(
         '#include <lights_fragment_maps>',
         `#include <lights_fragment_maps>
         {
-          vec3 bakedE = mix( vBakedLight, vBakedLightOpen, uOpen ) * uBakeGain;
+          vec3 bakedE = mix( vBakedLight, vBakedLightOpen, uOpen ) * uBakeGain * uCabinGain;
           float bakedL = dot( bakedE, vec3( 0.2126, 0.7152, 0.0722 ) );
           float specOcc = clamp( pow( bakedL * uSpecOcc.x, 1.5 ), uSpecOcc.y, 1.0 );
           iblIrradiance = bakedE;
@@ -354,7 +471,7 @@ function bakedLighting(
         #endif`,
       );
   };
-  m.customProgramCacheKey = () => 'cabin-baked-v5';
+  m.customProgramCacheKey = () => 'cabin-baked-v6';
   m.needsUpdate = true;
 }
 

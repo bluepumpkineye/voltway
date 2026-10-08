@@ -104,6 +104,8 @@ export interface Cockpit {
   /** Named accent used by the in-car UI and the ambient lighting in 3D. */
   accentColor: string;
   ambientLighting?: boolean;
+  /** The theme the in-car UI opens in, where the maker's own is not the dark one (ZEEKR OS opens light). */
+  defaultTheme?: 'dark' | 'light';
   /** The car's drive modes as its HMI lists them; the generic four otherwise. */
   driveModes?: CarDriveMode[];
 }
@@ -142,6 +144,17 @@ export interface VehicleAssets {
   /** Path under /public/models, omitted until the model is built. */
   modelUrl?: string;
   /**
+   * The model is built for the showroom only (/showroom/[slug]): the vehicle page
+   * and the home page do not draw it in their own 3D viewer or call it ready.
+   */
+  showroomOnly?: boolean;
+  /**
+   * A multiplier on the cabin's baked light, 1 when unset (CarModel.tsx `CABIN_GAIN`): a pale
+   * cabin lit by daylight through the glass reads darker than the studio photographs of it, and
+   * this lifts it without re-baking.
+   */
+  cabinGain?: number;
+  /**
    * The cabin as its own GLB, streamed in behind the exterior. Its lighting is
    * baked in Blender (Cycles) into COLOR_0, see blender/scripts/carkit/bake.py.
    */
@@ -156,6 +169,13 @@ export interface VehicleAssets {
    * (Blender); the viewer maps it to glTF's [x, z, -y].
    */
   driverEye?: [number, number, number];
+  /**
+   * The car's shadow on the studio floor, baked in Blender
+   * (carkit.studio.ground_shadow): a WebP whose alpha is the shade. `size` and
+   * `centre` are what the build printed, in the build's axes (x forward, y
+   * left); without it the studio falls back to a projected contact shadow.
+   */
+  studioShadow?: { url: string; size: [number, number]; centre: [number, number] };
   heroColor: string;
 }
 
@@ -214,6 +234,41 @@ export interface TrimOption {
   colors?: Record<string, string>;
 }
 
+/**
+ * One colour the brake calipers are offered in. The first entry of `calipers`
+ * is the colour the Blender build is painted in: choosing it restores the
+ * material exactly as exported.
+ */
+export interface CaliperOption {
+  id: string;
+  /** English display name; `nameZh` is the maker's own. */
+  name: string;
+  nameZh?: string;
+  /** The painted colour in daylight, sRGB hex: the swatch, and what the material takes. */
+  color: string;
+}
+
+/**
+ * One wheel design the car is offered with. Each is a node of the exterior GLB that
+ * holds all four wheels; the viewer shows the chosen one and hides the rest. The first
+ * entry of `wheels` is the design the model shows to begin with.
+ */
+export interface WheelOption {
+  id: string;
+  /** English display name; `nameZh` is the maker's own. */
+  name: string;
+  nameZh?: string;
+  /** Rim diameter, and the tyres on it as the maker lists them. */
+  size: string;
+  tyres: string;
+  /** The exterior GLB's node for the design. Designs that differ only in paint share one. */
+  node: string;
+  /** The design's accent paint: a material of the exterior and the colour it takes (sRGB hex). */
+  accent?: { material: string; color: string };
+  /** The caliper colour it is shown with first (an id of `calipers`), as on the photographed cars. */
+  caliper?: string;
+}
+
 /** The named camera poses the showroom flies between. */
 export type AnchorId =
   | 'hero'
@@ -239,6 +294,12 @@ export interface ConfiguratorSpec {
   paintMaterial: string;
   paints: PaintOption[];
   trims: TrimOption[];
+  /** Exact name of the caliper material in the exterior GLB (case-insensitive). */
+  caliperMaterial?: string;
+  /** The colours the calipers come in, when the maker offers a choice. */
+  calipers?: CaliperOption[];
+  /** The wheel designs the car can be had with, when the model carries more than one. */
+  wheels?: WheelOption[];
   /** Where the options come from, cited on the vehicle page. */
   sources: Source[];
 }

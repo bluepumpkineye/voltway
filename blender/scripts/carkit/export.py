@@ -117,12 +117,27 @@ def merge_for_export(groups, protected=()):
     return after
 
 
+# the custom "_NAME" attributes that ship (the baked light and occlusion); the
+# build's own working attributes (panels' "_butt" marks) are not for the viewer
+SHIPPED_ATTRIBUTES = ("_BAKEDLIGHT", "_BAKEDLIGHT_OPEN", "_BAKEDAO")
+
+
+def strip_attributes(objects, keep=SHIPPED_ATTRIBUTES):
+    """Drop every "_"-prefixed attribute that is not in `keep`: the glTF
+    exporter ships them all, at 4 bytes a vertex a piece."""
+    for o in objects:
+        if o.type != 'MESH':
+            continue
+        for a in [a for a in o.data.attributes if a.name.startswith("_") and a.name not in keep]:
+            o.data.attributes.remove(a)
+
+
 def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=None,
            attributes=False):
     """Export the groups' meshes as GLB. draco=None: only if over 20 MB.
     vertex_color: a colour attribute to ship as COLOR_0 (first primitive only
     in Blender 5.2 - see carkit.bake.EXPORT_ATTR); attributes: ship custom
-    "_NAME" attributes (the baked lighting)."""
+    "_NAME" attributes (SHIPPED_ATTRIBUTES: the baked light and occlusion)."""
     bpy.ops.object.select_all(action='DESELECT')
     n = 0
     for _, cname in groups:
@@ -135,6 +150,8 @@ def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=No
             o.hide_render = False
             o.hide_set(False)
             o.select_set(True)
+            if attributes:
+                strip_attributes([o])
             n += 1
     if n == 0:
         raise RuntimeError("nothing selected to export")

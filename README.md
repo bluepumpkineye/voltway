@@ -30,7 +30,7 @@ Each vehicle page has three views:
 
 - **Exterior** — orbit the car, contact shadows, clamped so the camera can't go under the floor
 - **Interior** — seated at the driver's eye point in a full cabin (its own GLB, streamed in behind the exterior), parked on the Shanghai riverside at golden hour: the cabin is lit by a Cycles bake of that daylight through the glass, you look out at the skyline, and the centre screen runs the live HMI at true 16.1″ scale
-- **Dashboard** — the same HMI, flat and full size. The SU7 Ultra's is rebuilt from Xiaomi's own HyperOS screens: the parked desktop with the car, the three-card driving desktop, the dock with both climate zones, Settings with the car's real drive modes (Eco, Standard, Sport, M1 Slippery, M2 Novice, Drag race, Super power saving) and the Ultra's Track Master app
+- **Dashboard** — the same HMI, flat and full size. The SU7 Ultra's is rebuilt from Xiaomi's own HyperOS screens: the parked desktop with the car, the three-card driving desktop, the dock with both climate zones, Settings with the car's real drive modes (Eco, Standard, Sport, M1 Slippery, M2 Novice, Drag race, Super power saving) and the Ultra's Track Master app. The Luxeed RX's is rebuilt from photographs of its HarmonyOS screens: two desktop pages, the App Centre, the Control Centre with the car's five drive modes, climate and seats, a draggable demo map, radio and music, and a Settings app of thirteen pages; its tiles open the 3D car's tailgate, bonnet and doors, set the headlamps and drive the cabin's ambient light
 
 All three read one Zustand store, so switching to Sport updates the in-car
 readout, the external metrics panel and the cabin lighting together.
@@ -50,6 +50,10 @@ bottom tab bar, in the manner of the HIMA 3D hall.
   correctly.
 - **Dimensions:** length with wheelbase, width and height, as floor rulers
   carrying the published figures.
+- **Wheels:** the Luxeed RX's three photographed designs (22 in Fengying, 21 in
+  Yufeng, 21 in Sport and its blue-accent finish, each traced from approved
+  photographs) and its caliper colours. The SU7 Ultra has one wheel and one
+  caliper colour, so its showroom has no Wheels tab.
 - **Studio / City:** the studio is the default; the city is the HDRI world the
   cabin was baked under.
 - The address always links to what is on screen (`?tab=&paint=&trim=&scene=&dim=`).
@@ -119,7 +123,10 @@ blender/scripts/
   su7_rear.py        light bar, wing, ducktail, diffuser, wordmark
   su7_side.py        mirrors, flush handles, carbon skirts, side stripe and
                      script, fender vent, charge-flap shut line
-  su7_wheels.py      forged five-hairpin wheels, carbon-ceramic brakes
+  su7_wheels.py      the forged five-hairpin wheel, traced from photographs;
+                     carbon-ceramic brakes, Akebono calipers
+  rx_wheels.py       the Luxeed RX's three wheel designs, traced the same way
+  wheel_preview.py   one wheel face-on or oblique, to lay over its photograph
   su7_materials.py   material library (+ export_safe() for the glTF path)
   su7_textures.py    carbon weave baked to real pixels
   scene_setup.py     studio light rig, floor, camera book, Cycles, colour
@@ -324,10 +331,11 @@ The app loads Draco through the local decoder in `public/draco/`.
   trunk lid that lifts on two gooseneck arms over a carpeted boot. The cabin is
   baked twice, shut and with everything open, and the light follows how far a
   part is open.
-- The showroom changes paint and cabin colour, opens the doors, bonnet and boot
-  and shows the X-ray. Wheel designs and caliper colours still need new geometry
-  or reference photos (Phase 3). The cabin is still baked under
-  the city HDRI, so its light does not change with the studio.
+- The showroom changes paint and cabin colour, opens the doors, bonnet and boot,
+  shows the X-ray and (on the RX) swaps wheel designs and caliper colours. The
+  wheels' faces are traced from photographs with vertical walls, their dish depth
+  is estimated, and the calipers are plain blocks without lettering. The cabin is
+  still baked under the city HDRI, so its light does not change with the studio.
 - The RX tailgate's inside is a plain liner and its boot a simple carpeted bay
   (floor, walls, sill plates, a lamp module); the SU7's lid hangs on a modelled
   gooseneck pair but swings on a single virtual axis (the real linkage is a
@@ -336,8 +344,9 @@ The app loads Draco through the local decoder in `public/draco/`.
 - Navigation and media content is illustrative, not a live service. The
   playlist and album art are invented, and Track Master's circuit, lap times
   and temperatures are a demo session, not real track data.
-- Only the SU7 Ultra's HMI is rebuilt from its maker's screens (HyperOS). The
-  other cars share a generic skin until theirs are built.
+- Only the SU7 Ultra's HMI (HyperOS) and the Luxeed RX's (HarmonyOS) are rebuilt
+  from their makers' screens. The other cars share a generic skin until theirs are
+  built.
 - From inside, the mirror housings reflect the sky where Cycles shows the car's
   own flank: image-based light has no local reflections.
 

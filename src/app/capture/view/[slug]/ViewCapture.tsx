@@ -24,7 +24,7 @@ export function ViewCapture({ vehicle }: { vehicle: Vehicle }) {
   const [shot, setShot] = React.useState<FixedShot | null>(null);
 
   React.useEffect(() => {
-    reset(flagshipVariant(vehicle).id);
+    reset(flagshipVariant(vehicle).id, vehicle.cockpit.defaultTheme);
     const q = new URLSearchParams(window.location.search);
     const mode = (q.get('mode') ?? 'interior') as CameraMode;
     setCameraMode(mode);

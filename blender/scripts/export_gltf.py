@@ -57,6 +57,7 @@ DEST_INTERIOR = os.path.join(MODELS, "su7-ultra-interior.glb")
 DEST_PROBE = os.path.join(MODELS, "su7-ultra-cabin.hdr")
 DEST_OUTSIDE = os.path.join(MODELS, "su7-ultra-outside.jpg")
 DEST_OUTSIDE_LIGHT = os.path.join(MODELS, "su7-ultra-outside-light.hdr")
+DEST_SHADOW = os.path.join(MODELS, "su7-ultra-shadow.webp")
 
 # What the parked car stands in: the daylight the cabin is baked under and,
 # as the same image, the view out of it (the viewer's backdrop). Poly Haven
@@ -85,6 +86,11 @@ BLACKOUT = ("SU7Ultra_Shell_Shadow", "SU7Ultra_Greenhouse_Black", "SU7Ultra_Roof
 GREENHOUSE = ("SU7Ultra_Roof_Rail", "SU7Ultra_Glass_Windshield", "SU7Ultra_Glass_Quarter",
               "SU7Ultra_Glass_Rear")
 GREENHOUSE_GROUP = ("SU7Ultra_Greenhouse", "SU7_GreenhouseGrp")
+# the exterior's ambient occlusion (carkit.bake.ambient_occlusion): how far a
+# surface looks for shade
+AO_DISTANCE = 1.0
+# the published size in metres (length, width, height): the studio stills' framing
+DIMS = (5.070, 1.970, 1.465)
 
 # joined name -> collection
 GROUPS = [
@@ -186,19 +192,112 @@ def exterior_groups():
     return GROUPS + OP.door_groups() + BY.bonnet_groups() + TR.trunk_groups() + [GREENHOUSE_GROUP]
 
 
+def open_all(on=True):
+    """Every door, the bonnet and the trunk lid swung open (or shut again)."""
+    import su7_bays as BY
+    import su7_openings as OP
+    import su7_trunk as TR
+    for key, d in OP.DOORS.items():
+        OP.set_angle(key, d["deg"] if on else 0.0, card=False)
+    BY.set_bonnet(BY.OPEN_DEG if on else 0.0)
+    TR.set_lid(TR.OPEN_DEG if on else 0.0, card=False)
+
+
+def bake_exterior_ao(samples=512):
+    """Ambient occlusion per vertex on every exterior mesh (_BAKEDAO).
+
+    With every opening OPEN: the jambs, the frunk and the boot are inside a
+    closed car and would bake black, and the outer skins do not change. The
+    cabin is left out so the result does not depend on whether this build made
+    it. Before the merge, where the parts have their own names."""
+    from carkit import bake as BK
+    prepare_exterior()
+    objs = []
+    for _, cname in exterior_groups():
+        col = bpy.data.collections.get(cname)
+        objs += [o for o in (col.objects if col else ()) if o.type == 'MESH']
+    hide = [o for cname in ("SU7_Interior",)
+            for o in (bpy.data.collections[cname].all_objects if cname in bpy.data.collections else ())]
+    ground = bpy.data.objects.get("Ground")
+    if ground is not None:
+        hide.append(ground)
+    open_all(True)
+    try:
+        return BK.ambient_occlusion(objs, samples=samples, distance=AO_DISTANCE, hide=hide)
+    finally:
+        open_all(False)
+
+
 def merge_for_export():
     prepare_exterior()
     return _X.merge_for_export(exterior_groups(), PROTECTED)
 
 
-def export(path=DEST, draco=True):
-    return _X.export(path, exterior_groups(), "SU7Ultra_Body", draco=draco)
+def export(path=DEST, draco=True, attributes=True):
+    return _X.export(path, exterior_groups(), "SU7Ultra_Body", draco=draco, attributes=attributes)
 
 
-def main(draco=True):
+def bake_ground_shadow():
+    """The car's shadow on the studio floor (carkit.studio), as the WebP the
+    showroom lays under it. Its size and centre are printed: they go in the
+    vehicle data (assets.studioShadow). Run on the merged exterior, shut."""
+    from carkit import studio
+    car = []
+    for _, cname in exterior_groups():
+        col = bpy.data.collections.get(cname)
+        car += [o for o in (col.objects if col else ()) if o.type == 'MESH']
+    hide = [o for o in (bpy.data.collections["SU7_Interior"].all_objects
+                        if "SU7_Interior" in bpy.data.collections else ())]
+    png = os.path.normpath(os.path.join(os.path.dirname(DEST_SHADOW), "..", "..", "blender", "renders",
+                                        "su7-ultra-shadow.png"))
+    os.makedirs(os.path.dirname(png), exist_ok=True)
+    info = studio.ground_shadow(png, car, hide=hide)
+    studio.to_webp(png, DEST_SHADOW)
+    return info
+
+
+def stills(shots=("hero", "side", "front", "rear34"), samples=256, res=(1920, 1080), out_dir=None):
+    """Cycles stills of the car in the web's studio (carkit.rig): the rig in
+    src/data/studio/rig.ts as emissive panels, the white floor with the baked
+    ground shadow, the camera at each of the showroom's named poses. The
+    reference the web view is checked against (docs/3d-pipeline.md, studio
+    stills). Fresh build, exterior only, as the web ships it:
+
+        blender -b --factory-startup --python-expr "import sys;
+            sys.path.append(r'<repo>/blender/scripts'); import export_gltf as X; X.stills()"
+
+    Written to blender/renders/studio/su7-ultra_<shot>.png (gitignored)."""
+    for m in [m for m in sys.modules if m.startswith("su7_") or m == "build_su7"]:
+        sys.modules.pop(m, None)
+    import build_su7
+    from carkit import materials as MB
+    from carkit import rig, studio
+    build_su7.main(interior=False)
+    MB.export_safe()
+    prepare_exterior()
+    open_all(False)
+    rig.drop_lookdev()
+    car = [o for _, cname in exterior_groups() for o in
+           (bpy.data.collections[cname].objects if cname in bpy.data.collections else ()) if o.type == 'MESH']
+    png = os.path.join(rig.RENDER_DIR, "su7-ultra-shadow.png")
+    os.makedirs(rig.RENDER_DIR, exist_ok=True)
+    info = studio.ground_shadow(png, car)
+    rig.build_studio(shadow=(png, info["size"], info["centre"]))
+    d = out_dir or rig.RENDER_DIR
+    return [rig.still(s, os.path.join(d, "su7-ultra_%s.png" % s), dims=DIMS, res=res, samples=samples)
+            for s in shots]
+
+
+def main(draco=True, ao=True, ao_samples=512, shadow=True):
     """The exterior only (the scene must hold a fresh build_su7.main())."""
+    prepare_exterior()
+    open_all(False)           # every part at its hinge, as the closed car (the arms start elsewhere)
+    if ao:
+        bake_exterior_ao(ao_samples)
     merge_for_export()
-    return export(draco=draco)
+    if shadow:
+        bake_ground_shadow()
+    return export(draco=draco, attributes=ao)
 
 
 def web_ext(draco=True):

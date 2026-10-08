@@ -5,7 +5,7 @@ import type { Vehicle } from '@/data/vehicles/schema';
 import { flagshipVariant } from '@/data/vehicles/schema';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
-import { useVehicleStore, type Gear, type HmiScreen, type SettingsPage } from '@/store/vehicle-store';
+import { useVehicleStore, type Gear, type HmiScreen, type HmiTheme, type SettingsPage } from '@/store/vehicle-store';
 
 /**
  * The HMI alone, at native size, pinned to the top-left corner over the site
@@ -16,13 +16,14 @@ import { useVehicleStore, type Gear, type HmiScreen, type SettingsPage } from '@
  * Query parameters put the HMI in a given state for a capture:
  *   screen=home|nav|media|settings|track   gear=P|D   page=<settings page>
  *   mode=<car drive mode id>   climate=1
+ *   theme=dark|light   apps=1 (the App Centre)   (HarmonyOS: screen also takes seats|camera|controls)
  */
 export function HmiCapture({ vehicle }: { vehicle: Vehicle }) {
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const s = useVehicleStore.getState();
-    s.reset(flagshipVariant(vehicle).id);
+    s.reset(flagshipVariant(vehicle).id, vehicle.cockpit.defaultTheme);
     const gear = q.get('gear');
     if (gear === 'P' || gear === 'D') s.setGear(gear as Gear);
     const page = q.get('page');
@@ -32,6 +33,9 @@ export function HmiCapture({ vehicle }: { vehicle: Vehicle }) {
     const mode = vehicle.cockpit.driveModes?.find((m) => m.id === q.get('mode'));
     if (mode) s.setCarMode(mode.id, mode.model);
     if (q.get('climate') === '1') s.setClimateOpen(true);
+    const theme = q.get('theme');
+    if (theme === 'dark' || theme === 'light') s.setHmiTheme(theme as HmiTheme);
+    if (q.get('apps') === '1') s.setAppCentreOpen(true);
     setReady(true);
   }, [vehicle]);
 

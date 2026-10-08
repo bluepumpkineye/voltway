@@ -360,14 +360,15 @@ def set_angle(key, deg, card=True):
     `deg` open about its hinge's vertical axis."""
     d = DOORS[key]
     rot = Matrix.Rotation(math.radians(-d["side"] * deg), 4, 'Z')
-    names = ["RX_Door_" + key]
+    # the door, the frame that shows when it is open, and its cabin card
+    names = ["RX_Door_" + key, "RX_DoorFrame_" + key]
     if card:
         names.append(d["card"].rstrip("_"))
     for n in names:
         ob = bpy.data.objects.get(n)
         if ob is None:
             continue
-        h = Vector(ob.matrix_world.translation) if n.startswith("RX_Door_") else hinge(key)
+        h = Vector(ob.matrix_world.translation) if n.startswith(("RX_Door_", "RX_DoorFrame_")) else hinge(key)
         ob.matrix_world = Matrix.Translation(h) @ rot
 
 

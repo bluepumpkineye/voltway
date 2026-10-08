@@ -23,7 +23,8 @@ const MENU: { id: SettingsPage; label: string; icon: React.ReactNode }[] = [
 /** HyperOS Settings (设置): the side menu in the car's order, a page beside it. */
 export function SettingsApp({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
   const { settingsPage, openSettings } = useVehicleStore();
-  const Page = {
+  // (the store's page ids also cover HarmonyOS' menu: anything else opens Vehicle)
+  const pages: Partial<Record<SettingsPage, React.ComponentType<PageProps>>> = {
     vehicle: VehiclePage,
     lights: LightsPage,
     doors: DoorsPage,
@@ -32,7 +33,8 @@ export function SettingsApp({ vehicle, variant }: { vehicle: Vehicle; variant: V
     charging: ChargingPage,
     connection: ConnectionPage,
     display: DisplayPage,
-  }[settingsPage];
+  };
+  const Page = pages[settingsPage] ?? VehiclePage;
 
   return (
     <div className="absolute inset-0 flex gap-6 px-6 pb-2 pt-2" style={{ color: HY.text }}>

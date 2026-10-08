@@ -22,6 +22,7 @@ spec (all metres/degrees; defaults: SU7 Ultra):
     radius          rim centreline radius
     flat_bottom     v of the flat bottom (None = round)
     flat_top        v of a flat top (None = round)
+    loop            dict(a, b, n): a superellipse centreline instead (a squircle rim)
     section         (radial half-thickness, axial half-depth)
     segments        [(from_deg, to_deg, material role), ...] - angles
                     counter-clockwise from 3 o'clock, as the driver sees it
@@ -67,8 +68,19 @@ LUXEED_RX = dict(
 )
 
 
-def _loop_ctrl(R, flat_bottom, flat_top, n=48):
+def _loop_ctrl(R, flat_bottom, flat_top, n=48, shape=None):
+    """The rim's centreline as control points: a circle clamped flat at the bottom (and the
+    top), or, with `shape` = dict(a, b, n), a superellipse |u/a|^n + |v/b|^n = 1 (a rounded
+    square for n > 2: a squircle rim with a flat top and bottom and full corners)."""
     pts = []
+    if shape:
+        a, b, e = shape["a"], shape["b"], shape.get("n", 2.0)
+        for k in range(shape.get("ctrl", 72)):
+            t = 2.0 * math.pi * k / shape.get("ctrl", 72)
+            c, s_ = math.cos(t), math.sin(t)
+            pts.append((a * math.copysign(abs(c) ** (2.0 / e), c),
+                        b * math.copysign(abs(s_) ** (2.0 / e), s_)))
+        return pts
     for k in range(n):
         a = 2.0 * math.pi * k / n
         u, v = R * math.cos(a), R * math.sin(a)
@@ -96,7 +108,7 @@ class WheelFrame:
 
 def rim(fr, spec, collection, lib, name="int_wheel_rim", ns=192):
     R = spec["radius"]
-    ctrl = _loop_ctrl(R, spec.get("flat_bottom"), spec.get("flat_top"))
+    ctrl = _loop_ctrl(R, spec.get("flat_bottom"), spec.get("flat_top"), shape=spec.get("loop"))
     loop2d = smooth_path([(u, v, 0.0) for (u, v) in ctrl], ns, closed=True)
     ang = [math.degrees(math.atan2(p[1], p[0])) % 360.0 for p in loop2d]
     rr, dd = spec["section"]
@@ -133,11 +145,14 @@ def rim(fr, spec, collection, lib, name="int_wheel_rim", ns=192):
         mc, mw, role = spec["marker"]
         idx = [i for i in range(ns) if abs(((ang[i] - mc + 180.0) % 360.0) - 180.0) <= mw]
         idx.sort()
-        rows = [[tuple(Vector(p) + (Vector(p) - Vector(path[i])).normalized() * 0.0007)
-                 for p in sw.pts[i]] for i in idx]
-        ob = grid_mesh(name + "_marker", rows, collection, lib[role], wrap_t=True)
-        _outward(ob, path)
-        made.append(ob)
+        # a flat top spaces its samples widely in angle: a band narrower than two samples has
+        # no faces (and stops the bake), so it is not made
+        if len(idx) >= 2:
+            rows = [[tuple(Vector(p) + (Vector(p) - Vector(path[i])).normalized() * 0.0007)
+                     for p in sw.pts[i]] for i in idx]
+            ob = grid_mesh(name + "_marker", rows, collection, lib[role], wrap_t=True)
+            _outward(ob, path)
+            made.append(ob)
     return made
 
 
@@ -176,7 +191,8 @@ def hub(fr, spec, collection, lib, name="int_wheel_hub", logo_mat=None):
         dome = h["dome"] * (1.0 - s ** 2.2)
         rings.append([fr.p(u * s, v * s, 0.020 + dome) for (u, v) in outline])
     rings[-1] = [fr.p(0.0, 0.0, 0.020 + h["dome"])] * len(outline)
-    pad = grid_mesh(name + "_pad", rings, collection, lib["leather_black"], wrap_t=True)
+    pad = grid_mesh(name + "_pad", rings, collection, lib[h.get("pad_role", "leather_black")],
+                    wrap_t=True)
     M.orient(pad.data, lambda c: tuple(fr.A))
     made.append(pad)
     # the housing behind the pad, stepping back to the column
@@ -184,7 +200,8 @@ def hub(fr, spec, collection, lib, name="int_wheel_hub", logo_mat=None):
     for k, (s, w) in enumerate(((1.0, 0.020), (1.04, 0.012), (1.06, -0.004), (0.9, -0.030),
                                 (0.55, -h["depth"]))):
         back.append([fr.p(u * s, v * s, w) for (u, v) in outline])
-    hs = grid_mesh(name + "_housing", back, collection, lib["piano"], wrap_t=True)
+    hs = grid_mesh(name + "_housing", back, collection, lib[h.get("housing_role", "piano")],
+                     wrap_t=True)
     _outward(hs, [fr.p(0, 0, w) for w in (0.02, 0.0, -0.03, -0.05)])
     made.append(hs)
     if h.get("ring"):
@@ -210,7 +227,8 @@ def spokes(fr, spec, collection, lib, name="int_wheel_spoke"):
             prof = [(-hh, -0.004), (-hh * 0.9, 0.010), (0.0, 0.014), (hh * 0.9, 0.010),
                     (hh, -0.004), (hh * 0.8, -sp["t"]), (-hh * 0.8, -sp["t"])]
             rows.append([fr.p(u, sp["v"] + a, 0.004 + b) for (a, b) in prof])
-        ob = grid_mesh("%s_%s" % (name, tag), rows, collection, lib["piano"], wrap_t=True)
+        ob = grid_mesh("%s_%s" % (name, tag), rows, collection, lib[sp.get("body_role", "piano")],
+                       wrap_t=True)
         M.orient(ob.data, lambda c: tuple(fr.A))
         made.append(ob)
         # the button pad on the spoke face, and its centre toggle

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { PaintOption, TrimOption } from '@/data/vehicles/schema';
+import type { CaliperOption, PaintOption, TrimOption, WheelOption } from '@/data/vehicles/schema';
 import type { DimensionFocus } from '@/store/vehicle-store';
 import { GLASS } from './Chrome';
 
@@ -113,6 +113,73 @@ export function TrimSwatches({
         />
       ))}
     </Row>
+  );
+}
+
+/** The brake calipers' colours, as dots like the paints. */
+export function CaliperSwatches({
+  calipers,
+  selected,
+  onSelect,
+}: {
+  calipers: CaliperOption[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const cur = calipers.find((c) => c.id === selected) ?? calipers[0];
+  return (
+    <Row name={`${cur.name} calipers`} nameZh={cur.nameZh}>
+      {calipers.map((c) => (
+        <Dot
+          key={c.id}
+          label={`${c.name} calipers`}
+          selected={c.id === cur.id}
+          onClick={() => onSelect(c.id)}
+          background={c.color}
+        />
+      ))}
+    </Row>
+  );
+}
+
+/** The wheel designs, as chips with the rim size; the tyres are named beside them. */
+export function WheelChips({
+  wheels,
+  selected,
+  onSelect,
+}: {
+  wheels: WheelOption[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  const cur = wheels.find((w) => w.id === selected) ?? wheels[0];
+  return (
+    <div className="pointer-events-auto relative flex max-w-full flex-col items-center gap-2 md:block">
+      <div role="group" aria-label="Wheel design" className={`flex w-fit max-w-full overflow-x-auto rounded-full p-1 ${GLASS}`}>
+        {wheels.map((w) => (
+          <button
+            key={w.id}
+            type="button"
+            aria-pressed={w.id === cur.id}
+            onClick={() => onSelect(w.id)}
+            className={`flex shrink-0 items-baseline gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-[12px] font-medium transition-colors ${FOCUS} ${
+              w.id === cur.id ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            {w.name}
+            <span className={`tnum text-[11px] font-normal ${w.id === cur.id ? 'text-white/70' : 'text-neutral-400'}`}>
+              {w.size}
+            </span>
+          </button>
+        ))}
+      </div>
+      <div
+        aria-live="polite"
+        className={`whitespace-nowrap rounded-full px-3.5 py-2 text-[12px] font-medium text-neutral-900 md:absolute md:left-full md:top-1/2 md:ml-2 md:-translate-y-1/2 ${GLASS}`}
+      >
+        {cur.tyres}
+      </div>
+    </div>
   );
 }
 

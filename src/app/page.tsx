@@ -103,7 +103,7 @@ export default function HomePage() {
                   </div>
                 </dl>
 
-                {v.assets.modelUrl && (
+                {v.assets.modelUrl && !v.assets.showroomOnly && (
                   <span className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-signal-500/10 px-2.5 py-1 text-[11px] font-medium text-signal-400 ring-1 ring-signal-500/25">
                     <span className="h-1 w-1 rounded-full bg-signal-500" />
                     {v.assets.interiorModelUrl ? '3D cockpit ready' : '3D exterior ready'}

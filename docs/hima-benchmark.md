@@ -122,18 +122,22 @@ sRGB curve) and the studio stills. Web and Cycles then agree by construction.
 - Dimension labels are drawn into canvas textures with the site font. drei
   `Text` is not used because troika fetches its default font from a CDN.
 
-**In Blender** (Phase 2, a new `carkit/studio.py` extending `bake.py` and
-`scene.py`)
+**In Blender** (Phase 2: `carkit/bake.py`, `carkit/studio.py`, `carkit/rig.py`;
+how it works is in `docs/3d-pipeline.md`, "The studio look")
 
-- Per-vertex `_BAKEDAO` for the exterior from the existing machinery
-  (`prepare`, `vertex_lighting`, `smooth`, `to_generic`) under a uniform white
-  world; UV2 textures only where a triptych shows banding.
-- A white cyclorama with a baked lightmap, exported as `showroom.glb`; a baked
-  ground-shadow quad per car.
-- The cabin re-baked under the studio, with the doors open once they open.
-- `scene.studio_white()` for Cycles stills (384+ samples, adaptive threshold
-  0.005, OptiX denoise, Khronos PBR Neutral) from the same camera anchors as
-  the web, so photo, web and Cycles line up in the triptych QA.
+- Built (2026-10-06, both cars): per-vertex `_BAKEDAO` for the exterior (Cycles
+  AO, every opening posed open) with a shader patch that multiplies the
+  environment's light by it; a baked ground-shadow quad per car in place of
+  `ContactShadows`; Cycles studio stills from the web's own rig
+  (`src/data/studio/rig.ts` parsed into emissive panels) and camera anchors,
+  which agree with the web view.
+- Not built, on purpose: a baked cyclorama (the procedural cove already reads as
+  a white room and costs no texture); a cabin re-bake under the studio (the
+  daylight bake reads naturally through the windows, and a studio bake would
+  need a second set of vertex light, +1 MB per cabin, and a lighting design for
+  an interior the rig hardly reaches); per-material environment rules (the one
+  rig serves paint, rims and glass; revisit if a triptych shows a rim or a
+  lens going black).
 
 **Decisions not taken, and why**
 
@@ -154,8 +158,8 @@ owner before any modelling**.
 |---|---|---|
 | 0 | This document | done |
 | 1 | **Showroom shell** at `/showroom/[slug]`: both cars, today's GLBs. Bottom tab bar, camera anchors, paint and cabin-trim swatches (official palettes, sourced), dimension rulers, Studio / City toggle, URL state | done (2026-10-05) |
-| 2 | **Studio look**: light-rig HDRs, studio set, exterior `_BAKEDAO`, ground shadow, cabin re-bake, Cycles studio stills and triptych QA. RX first, then SU7 | queued: after Phases 3 and 4, because the cabin re-bake wants the doors open |
-| 3 | **Openings and wheels** (RX pilot): split doors and tailgate, jambs, sills, a modelled boot and frunk, wheel designs and caliper colours. References first | openings done for both cars: the four doors, the bonnet with its frunk and the tailgate or trunk lid with its boot open in the showroom (RX 2026-10-06; SU7, from 42 approved photographs, 2026-10-06); the cabins are baked shut and open; the wheels and caliper colours are next |
+| 2 | **Studio look**: light-rig HDRs, studio set, exterior `_BAKEDAO`, ground shadow, cabin re-bake, Cycles studio stills and triptych QA. RX first, then SU7 | exterior occlusion, baked ground shadow and Cycles studio stills done for both cars (2026-10-06); cyclorama lightmap, cabin re-bake and per-material environments deliberately not built (see section 5) |
+| 3 | **Openings and wheels** (RX pilot): split doors and tailgate, jambs, sills, a modelled boot and frunk, wheel designs and caliper colours. References first | openings done for both cars: the four doors, the bonnet with its frunk and the tailgate or trunk lid with its boot open in the showroom (RX 2026-10-06; SU7, from 42 approved photographs, 2026-10-06); the cabins are baked shut and open; the RX's three wheel designs (22 in Fengying, 21 in Yufeng, 21 in Sport and its blue accent) and its caliper colours are in the Wheels tab, and both cars' wheel faces are traced from the approved photographs (2026-10-07) |
 | 4 | **X-ray, hotspots, space**: beltline split, ghost greenhouse, seat hotspots, mannequins, luggage, boot dimensions | the ghost greenhouse is built (the RX's X-ray tab, 2026-10-06); hotspots, mannequins, luggage and boot dimensions are still to do |
 | 5 | **Compare, mobile, payload**: split-screen compare, portrait anchors, quality tier, meshopt / KTX2 export, ≤ 20 MB per car | planned |
 

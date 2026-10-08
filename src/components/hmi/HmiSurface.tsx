@@ -12,6 +12,8 @@ import {
   HomeScreen, ClimateScreen, DriveScreen, NavScreen, MediaScreen, AdasScreen, ControlsScreen,
 } from './screens';
 import { HyperOsSurface } from './hyperos/HyperOsSurface';
+import { HarmonyOsSurface } from './harmonyos/HarmonyOsSurface';
+import { ZeekrOsSurface } from './zeekros/ZeekrOsSurface';
 
 const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon /> },
@@ -29,7 +31,7 @@ const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
  * Authored at a fixed 1280x800 and scaled by the caller, so the same component
  * renders identically whether it is mounted flat on the page or projected onto
  * the screen quad inside the 3D cabin. A car whose OS has been rebuilt from its
- * maker's own screens gets that skin (HyperOS so far); the rest share the
+ * maker's own screens gets that skin (HyperOS, HarmonyOS, ZEEKR OS); the rest share the
  * generic one below.
  */
 export function HmiSurface({
@@ -42,6 +44,8 @@ export function HmiSurface({
   className?: string;
 }) {
   if (vehicle.cockpit.skin === 'hyperos') return <HyperOsSurface vehicle={vehicle} variant={variant} />;
+  if (vehicle.cockpit.skin === 'harmonyos') return <HarmonyOsSurface vehicle={vehicle} variant={variant} />;
+  if (vehicle.cockpit.skin === 'zeekros') return <ZeekrOsSurface vehicle={vehicle} variant={variant} />;
   return <GenericSurface vehicle={vehicle} variant={variant} className={className} />;
 }
 
@@ -67,9 +71,11 @@ function GenericSurface({
     media: MediaScreen,
     adas: AdasScreen,
     controls: ControlsScreen,
-    // HyperOS apps, as their nearest generic screen
+    // HyperOS and HarmonyOS apps, as their nearest generic screen
     settings: ControlsScreen,
     track: DriveScreen,
+    seats: ClimateScreen,
+    camera: NavScreen,
   }[hmiScreen];
 
   return (

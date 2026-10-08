@@ -10,7 +10,7 @@ import { useVehicleStore } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
 import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
-import { StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
+import { GroundShadow, StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
 import { ShowroomCameraRig, useCarFrame } from './ShowroomCameraRig';
 import { DimensionRulers } from './DimensionRulers';
 
@@ -106,6 +106,7 @@ function Stage({
   const inside = cameraMode === 'interior';
   const frame = useCarFrame(vehicle);
   const outside = vehicle.assets.outside;
+  const studioShadow = vehicle.assets.studioShadow;
   const city = sceneKind === 'city' && Boolean(outside);
   // the seat's eye point, from the build's axes to the viewer's (x, z, -y)
   const eye = React.useMemo<V3>(() => {
@@ -122,17 +123,23 @@ function Stage({
         <StudioShowroom reflections={reflections} inside={inside} />
       )}
       <CarModel vehicle={vehicle} variant={variant} url={url} />
-      {!inside && (
-        <ContactShadows
-          key={city ? 'city' : 'studio'}
-          position={[0, 0.002, 0]}
-          opacity={city ? 0.62 : 0.5}
-          scale={14}
-          blur={city ? 2.4 : 2.8}
-          far={3.2}
-          resolution={1024}
-          frames={1}
-        />
+      {/* the studio lays the car's baked shadow under it; the city (and a car
+          without one) projects a contact shadow from the car */}
+      {!inside && !city && studioShadow ? (
+        <GroundShadow shadow={studioShadow} />
+      ) : (
+        !inside && (
+          <ContactShadows
+            key={city ? 'city' : 'studio'}
+            position={[0, 0.002, 0]}
+            opacity={city ? 0.62 : 0.5}
+            scale={14}
+            blur={city ? 2.4 : 2.8}
+            far={3.2}
+            resolution={1024}
+            frames={1}
+          />
+        )
       )}
       <DimensionRulers vehicle={vehicle} frame={frame} />
     </>

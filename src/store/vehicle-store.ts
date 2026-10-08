@@ -14,7 +14,10 @@ export type HmiScreen =
   | 'controls'
   // HyperOS apps
   | 'settings'
-  | 'track';
+  | 'track'
+  // HarmonyOS apps (the Luxeed RX)
+  | 'seats'
+  | 'camera';
 
 /** The Settings app's side menu (HyperOS 设置, in the car's own order). */
 export type SettingsPage =
@@ -25,7 +28,18 @@ export type SettingsPage =
   | 'assist'
   | 'charging'
   | 'connection'
-  | 'display';
+  | 'display'
+  // HarmonyOS Settings (the Luxeed RX): its own menu
+  | 'energy'
+  | 'status'
+  | 'scenes'
+  | 'personalise'
+  | 'sound'
+  | 'assistant'
+  | 'system';
+
+/** Light or dark UI, for the skins that have both (HarmonyOS). */
+export type HmiTheme = 'dark' | 'light';
 
 export type CameraMode = 'exterior' | 'transition' | 'interior';
 
@@ -35,7 +49,7 @@ export type Gear = 'P' | 'D';
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
 
 /** The showroom's bottom tabs (/showroom/[slug]). */
-export type ShowroomTab = 'colour' | 'interior' | 'dimensions' | 'xray';
+export type ShowroomTab = 'colour' | 'interior' | 'wheels' | 'dimensions' | 'xray';
 
 /** Studio is the default; city is the HDRI world the car was baked under. */
 export type ShowroomScene = 'studio' | 'city';
@@ -47,6 +61,7 @@ export type DimensionFocus = 'length' | 'width' | 'height';
 const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   colour: 'hero',
   interior: 'driver',
+  wheels: 'wheel',
   dimensions: 'side',
   xray: 'xray',
 };
@@ -96,6 +111,9 @@ export interface VehicleUiState {
   hmiScreen: HmiScreen;
   settingsPage: SettingsPage;
   climateOpen: boolean;
+  /** HarmonyOS: the App Centre overlay over the current screen */
+  appCentreOpen: boolean;
+  hmiTheme: HmiTheme;
   gear: Gear;
   cameraMode: CameraMode;
 
@@ -121,6 +139,8 @@ export interface VehicleUiState {
   /** '' means the first option: the car as built */
   paintId: string;
   trimId: string;
+  caliperId: string;
+  wheelId: string;
   anchorId: AnchorId;
   sceneKind: ShowroomScene;
   dimension: DimensionFocus;
@@ -133,6 +153,8 @@ export interface VehicleUiState {
   setHmiScreen: (s: HmiScreen) => void;
   openSettings: (p: SettingsPage) => void;
   setClimateOpen: (v: boolean) => void;
+  setAppCentreOpen: (v: boolean) => void;
+  setHmiTheme: (t: HmiTheme) => void;
   setGear: (g: Gear) => void;
   setRegen: (v: VehicleUiState['regen']) => void;
   setSportSound: (v: VehicleUiState['sportSound']) => void;
@@ -149,11 +171,13 @@ export interface VehicleUiState {
   setTab: (t: ShowroomTab) => void;
   setPaint: (id: string) => void;
   setTrim: (id: string) => void;
+  setCaliper: (id: string) => void;
+  setWheel: (id: string) => void;
   /** Fly to a pose. The camera mode follows, so the cabin mounts and the glass clears. */
   setAnchor: (id: AnchorId) => void;
   setSceneKind: (s: ShowroomScene) => void;
   setDimension: (d: DimensionFocus) => void;
-  reset: (variantId: string) => void;
+  reset: (variantId: string, hmiTheme?: HmiTheme) => void;
 }
 
 const anchorState = (anchorId: AnchorId) => ({
@@ -196,6 +220,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   hmiScreen: 'home',
   settingsPage: 'driving',
   climateOpen: false,
+  appCentreOpen: false,
+  hmiTheme: 'dark',
   gear: 'P',
   cameraMode: 'exterior',
 
@@ -218,6 +244,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   tab: 'colour',
   paintId: '',
   trimId: '',
+  caliperId: '',
+  wheelId: '',
   anchorId: 'hero',
   sceneKind: 'studio',
   dimension: 'length',
@@ -226,9 +254,12 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setDriveMode: (driveMode) => set({ driveMode, modeId: null }),
   setCarMode: (modeId, driveMode) => set({ modeId, driveMode }),
   setSoc: (soc) => set({ soc: Math.min(1, Math.max(0, soc)) }),
-  setHmiScreen: (hmiScreen) => set({ hmiScreen, climateOpen: false }),
-  openSettings: (settingsPage) => set({ hmiScreen: 'settings', settingsPage, climateOpen: false }),
+  setHmiScreen: (hmiScreen) => set({ hmiScreen, climateOpen: false, appCentreOpen: false }),
+  openSettings: (settingsPage) =>
+    set({ hmiScreen: 'settings', settingsPage, climateOpen: false, appCentreOpen: false }),
   setClimateOpen: (climateOpen) => set({ climateOpen }),
+  setAppCentreOpen: (appCentreOpen) => set({ appCentreOpen }),
+  setHmiTheme: (hmiTheme) => set({ hmiTheme }),
   setGear: (gear) => set({ gear }),
   setRegen: (regen) => set({ regen }),
   setSportSound: (sportSound) => set({ sportSound }),
@@ -272,11 +303,13 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setTab: (tab) => set({ tab, dimension: 'length', ...anchorState(TAB_ANCHOR[tab]) }),
   setPaint: (paintId) => set({ paintId }),
   setTrim: (trimId) => set({ trimId }),
+  setCaliper: (caliperId) => set({ caliperId }),
+  setWheel: (wheelId) => set({ wheelId }),
   setAnchor: (id) => set(anchorState(id)),
   setSceneKind: (sceneKind) => set({ sceneKind }),
   setDimension: (dimension) => set({ dimension, ...anchorState(DIMENSION_ANCHOR[dimension]) }),
 
-  reset: (variantId) =>
+  reset: (variantId, theme) =>
     set({
       variantId,
       driveMode: 'comfort',
@@ -285,6 +318,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       hmiScreen: 'home',
       settingsPage: 'driving',
       climateOpen: false,
+      appCentreOpen: false,
+      hmiTheme: theme ?? 'dark',
       gear: 'P',
       regen: 'standard',
       sportSound: 'off',
@@ -302,6 +337,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       tab: 'colour',
       paintId: '',
       trimId: '',
+      caliperId: '',
+      wheelId: '',
       anchorId: 'hero',
       sceneKind: 'studio',
       dimension: 'length',

@@ -29,7 +29,7 @@ import carkit; carkit.reload()          # after editing any carkit module
 | `parts.aero` | `rear_wing`, `roof_spoiler`, `ducktail`, `splitter`, `diffuser`, `corner_fin`, `side_skirt` |
 | `parts.grilles` | `diamond`, `hexagon`, `slats`, `dots` |
 | `parts.fittings` | `mirror_head`, `mirror_cap` (big rear glass face, tapered nose, painted cap over a black underside), `flush_handle`, `vent`, `lidar_pod`, `text_badge`, `plate`, stripes and patches |
-| `parts.wheels` | `PRESETS` (`su7_ultra_hairpin`, `aero_5window`, `turbine_10`, `y_spoke_5`, `twin_5`, `blade_5`, `multi_10`), `build_wheel`, `build_set`; `blade(split_hub=)` for a machined face that narrows to the hub. `rim_d` is the VISIBLE lip diameter (~17 mm radius over the bead seat) |
+| `parts.wheels` | `PRESETS` (`su7_ultra_hairpin`, `aero_5window`, `turbine_10`, `y_spoke_5`, `twin_5`, `blade_5`, `multi_10`), `build_wheel`, `build_set`; `blade(split_hub=)` for a machined face that narrows to the hub; the `traced` spoke style (windows, notches, lug counterbores and an `inlay` skin read off a photograph: `rx_wheels.py`, `su7_wheels.py`, `scripts/wheel-trace`), with `roll_left`, `flange_face`, `stripe_r`, `hub.cap_r`, dome `lugs` and per-axle `caliper` spans. `rim_d` is the VISIBLE lip diameter (~17 mm radius over the bead seat) |
 | `materials` | `build_library(paint=, rim=, caliper=)` with `PAINTS`, `RIMS`, `CALIPERS`; `export_safe()` (glass → opaque for glTF) |
 | `textures` / `surfacemaps` | baked carbon weave; tileable leather, Alcantara, carpet, brushed and perforation maps (`TILE` sizes in metres) |
 | `interior.sweep` | `Sweep` (sectioned sweeps with panels on section columns), `grid_mesh`, `tube`, `piping`, `stitches`, `smooth_path` |

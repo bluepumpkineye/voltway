@@ -40,10 +40,11 @@ export function VehicleExperience({ vehicle }: { vehicle: Vehicle }) {
 
   // Reset when the visitor moves to a different car.
   React.useEffect(() => {
-    reset(flagshipVariant(vehicle).id);
+    reset(flagshipVariant(vehicle).id, vehicle.cockpit.defaultTheme);
   }, [vehicle.slug, reset, vehicle]);
 
-  const hasModel = Boolean(vehicle.assets.modelUrl);
+  // a showroom-only car has its model in /showroom/[slug], not in this viewer
+  const hasModel = Boolean(vehicle.assets.modelUrl) && !vehicle.assets.showroomOnly;
   // an exterior-only model (no cabin built yet) has nothing to sit in
   const hasCabin = Boolean(vehicle.assets.interiorModelUrl);
   const available = (m: ViewMode) =>
@@ -114,7 +115,8 @@ export function VehicleExperience({ vehicle }: { vehicle: Vehicle }) {
         )}
 
         <div className="ml-auto flex gap-1.5">
-          {DRIVE_MODES.map((m) => (
+          {/* only the modelled modes the car has a mode for (the RX has no track mode) */}
+          {DRIVE_MODES.filter((m) => !vehicle.cockpit.driveModes || vehicle.cockpit.driveModes.some((c) => c.model === m.id)).map((m) => (
             <button
               key={m.id}
               type="button"

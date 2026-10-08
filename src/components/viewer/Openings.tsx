@@ -130,6 +130,17 @@ const PANE = {
   privacy: { open: 0.55, inside: 0.5 },
 };
 
+/**
+ * The pane's colour as the viewer shows it. The build's glass is tinted green,
+ * as real glazing is, and with only the studio's whites around it that read as
+ * olive (sRGB 15, 26, 10). The same darkness, kept cool and neutral, reads as glass.
+ */
+function coolGlass(hex: string): THREE.Color {
+  const c = new THREE.Color(hex);
+  const l = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+  return c.setRGB(l * 0.92, l * 0.98, l * 1.12);
+}
+
 interface Pane {
   m: THREE.MeshStandardMaterial;
   privacy: boolean;
@@ -232,7 +243,7 @@ export function useGlass(
           privacy: name.includes('privacy'),
           frit,
           door,
-          color: new THREE.Color(own.userData.paneHex as string),
+          color: coolGlass(own.userData.paneHex as string),
         });
         return c;
       });

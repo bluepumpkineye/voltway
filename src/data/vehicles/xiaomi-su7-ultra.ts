@@ -83,6 +83,9 @@ export const xiaomiSu7Ultra: Vehicle = {
       sun: { direction: [0.6959, 0.3477, 0.6284], color: '#ffdfae', intensity: 1.96 },
       ground: { height: 1.7, radius: 45 },
     },
+    // its shadow on the studio floor: blender/scripts/export_gltf.py bake_ground_shadow(),
+    // which prints the size and centre (the build's axes, metres)
+    studioShadow: { url: '/models/su7-ultra-shadow.webp', size: [8.071, 5.105], centre: [0.021, 0] },
     heroColor: '#F5C518',
     // over the driver's seat, from the camera-matched cabin build
     driverEye: [-0.30, 0.395, 1.14],

@@ -2,9 +2,10 @@
 
 import React from 'react';
 import * as THREE from 'three';
-import { Environment, Lightformer, MeshReflectorMaterial } from '@react-three/drei';
+import { Environment, Lightformer, MeshReflectorMaterial, useTexture } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { STUDIO_GAIN, STUDIO_RIG, STUDIO_VOID } from '@/data/studio/rig';
+import type { VehicleAssets } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 
 /**
@@ -213,5 +214,29 @@ function Rings() {
         </mesh>
       ))}
     </group>
+  );
+}
+
+/**
+ * The car's shadow on the floor, baked in Blender (carkit.studio.ground_shadow):
+ * one textured quad whose alpha is the shade, in place of a shadow rendered
+ * from the car every time. It shows what a projected shadow cannot: the dark
+ * core under the sills, the tyres' contact and the soft fall-off of a white room,
+ * all from the car's real geometry. The image's u runs along the car (x), its v
+ * to the build's +y, which is the viewer's -z.
+ */
+export function GroundShadow({ shadow }: { shadow: NonNullable<VehicleAssets['studioShadow']> }) {
+  const map = useTexture(shadow.url);
+  React.useLayoutEffect(() => {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 8;
+    map.needsUpdate = true;
+  }, [map]);
+  const [cx, cy] = shadow.centre;
+  return (
+    <mesh position={[cx, 0.003, -cy]} rotation-x={-Math.PI / 2}>
+      <planeGeometry args={shadow.size} />
+      <meshBasicMaterial map={map} transparent depthWrite={false} toneMapped={false} />
+    </mesh>
   );
 }

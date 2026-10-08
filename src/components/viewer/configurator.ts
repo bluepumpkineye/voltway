@@ -148,6 +148,146 @@ export function usePaint(model: THREE.Object3D, spec: ConfiguratorSpec | undefin
   });
 }
 
+// -------------------------------------------------------------------- caliper
+
+/**
+ * The brake calipers' paint, by material name: a colour swap on the exterior's
+ * caliper material, tweened like the body paint. The first option is the car as
+ * built and restores the material exactly as exported.
+ */
+export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undefined, caliperId: string) {
+  const invalidate = useThree((s) => s.invalidate);
+
+  const slots = React.useMemo(() => {
+    const found: { m: THREE.MeshStandardMaterial; built: THREE.Color }[] = [];
+    if (!spec?.caliperMaterial) return found;
+    const want = spec.caliperMaterial.toLowerCase();
+    const seen = new Set<THREE.Material>();
+    model.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      for (const m of materialsOf(o)) {
+        if (seen.has(m) || m.name.toLowerCase() !== want || !(m instanceof THREE.MeshStandardMaterial)) continue;
+        seen.add(m);
+        found.push({ m, built: m.color.clone() });
+      }
+    });
+    return found;
+  }, [model, spec]);
+
+  const option = spec?.calipers?.find((c) => c.id === caliperId) ?? spec?.calipers?.[0];
+  const optionKey = option?.id;
+  const anim = React.useRef<{ from: THREE.Color; to: THREE.Color; t: number } | null>(null);
+  const touched = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!slots.length || !option || !spec?.calipers) return;
+    const asBuilt = option.id === spec.calipers[0].id;
+    // as built on first mount: leave the material exactly as exported
+    if (!touched.current && asBuilt) return;
+    touched.current = true;
+    anim.current = {
+      from: slots[0].m.color.clone(),
+      to: asBuilt ? slots[0].built.clone() : new THREE.Color(option.color),
+      t: motionOk() ? 0 : 1,
+    };
+    invalidate();
+    // keyed on the option id, as in usePaint
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots, optionKey, invalidate]);
+
+  useFrame((_, dt) => {
+    const a = anim.current;
+    if (!a) return;
+    a.t = Math.min(1, a.t + dt / DURATION);
+    const k = ease(a.t);
+    for (const s of slots) s.m.color.copy(a.from).lerp(a.to, k);
+    if (a.t >= 1) anim.current = null;
+    else invalidate();
+  });
+}
+
+// --------------------------------------------------------------------- wheels
+
+/**
+ * The wheel designs, as nodes of the exterior: the chosen one is shown and the
+ * others hidden (each design is a node holding all four wheels, so a change is a
+ * handful of visibility flags). A design with an accent paint (the Sport's edges)
+ * also sets that material's colour, tweened like the caliper's. The first option
+ * is the car as built, and is shown on first mount without touching the material.
+ */
+export function useWheels(model: THREE.Object3D, spec: ConfiguratorSpec | undefined, wheelId: string) {
+  const invalidate = useThree((s) => s.invalidate);
+
+  const option = spec?.wheels?.find((w) => w.id === wheelId) ?? spec?.wheels?.[0];
+  const optionKey = option?.id;
+
+  // each design's node (by name, case-insensitive), found once
+  const nodes = React.useMemo(() => {
+    const found = new Map<string, THREE.Object3D>();
+    if (!spec?.wheels) return found;
+    const want = new Set(spec.wheels.map((w) => w.node.toLowerCase()));
+    model.traverse((o) => {
+      const n = o.name.toLowerCase();
+      if (want.has(n) && !found.has(n)) found.set(n, o);
+    });
+    return found;
+  }, [model, spec]);
+
+  // the accent materials, by name, and their colour as built
+  const accents = React.useMemo(() => {
+    const out = new Map<string, { m: THREE.MeshStandardMaterial; built: THREE.Color }[]>();
+    if (!spec?.wheels) return out;
+    const want = new Set(spec.wheels.flatMap((w) => (w.accent ? [w.accent.material.toLowerCase()] : [])));
+    if (!want.size) return out;
+    const seen = new Set<THREE.Material>();
+    model.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      for (const m of materialsOf(o)) {
+        const n = m.name.toLowerCase();
+        if (!want.has(n) || seen.has(m) || !(m instanceof THREE.MeshStandardMaterial)) continue;
+        seen.add(m);
+        const list = out.get(n) ?? [];
+        list.push({ m, built: m.color.clone() });
+        out.set(n, list);
+      }
+    });
+    return out;
+  }, [model, spec]);
+
+  const anim = React.useRef<{ slots: { m: THREE.MeshStandardMaterial }[]; from: THREE.Color; to: THREE.Color; t: number } | null>(null);
+
+  React.useEffect(() => {
+    if (!spec?.wheels || !option) return;
+    const shown = nodes.get(option.node.toLowerCase());
+    for (const w of spec.wheels) {
+      const o = nodes.get(w.node.toLowerCase());
+      if (o) o.visible = o === shown;
+    }
+    const slots = option.accent ? accents.get(option.accent.material.toLowerCase()) : undefined;
+    if (slots?.length && option.accent) {
+      anim.current = {
+        slots,
+        from: slots[0].m.color.clone(),
+        to: new THREE.Color(option.accent.color),
+        t: motionOk() ? 0 : 1,
+      };
+    }
+    invalidate();
+    // keyed on the option id, as in useCaliper
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, accents, optionKey, invalidate]);
+
+  useFrame((_, dt) => {
+    const a = anim.current;
+    if (!a) return;
+    a.t = Math.min(1, a.t + dt / DURATION);
+    const k = ease(a.t);
+    for (const s of a.slots) s.m.color.copy(a.from).lerp(a.to, k);
+    if (a.t >= 1) anim.current = null;
+    else invalidate();
+  });
+}
+
 // ----------------------------------------------------------------------- trim
 
 interface TrimSlot {

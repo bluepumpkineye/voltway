@@ -44,14 +44,22 @@ EXPORT_ATTR_OPEN = "_BAKEDLIGHT_OPEN"
 # stored = lighting * STORE_SCALE; the viewer multiplies back
 # (uBakeGain = pi / STORE_SCALE)
 STORE_SCALE = 0.25
+# The exterior's ambient occlusion: a float per vertex, 1 = open to the sky,
+# 0 = shut in (ambient_occlusion below). GLTFLoader names it "_bakedao".
+ATTR_AO = "BakedAO"
+EXPORT_ATTR_AO = "_BAKEDAO"
 
 
 def prepare(collection, skip=(), attr=ATTR):
     """Apply modifiers on the collection's meshes and give each a float
     colour attribute to bake into. Returns the meshes."""
+    return prepare_objects([o for o in collection.all_objects if o.type == 'MESH'
+                            and not any(s in o.name for s in skip)], attr)
+
+
+def prepare_objects(objs, attr=ATTR):
+    """prepare() for a list of mesh objects."""
     from .export import bake_modifiers
-    objs = [o for o in collection.all_objects if o.type == 'MESH'
-            and not any(s in o.name for s in skip)]
     for o in objs:
         bake_modifiers(o)
         me = o.data
@@ -242,6 +250,101 @@ def smooth(objects, iterations=2, keep=0.5, attr=ATTR):
             has = deg > 0
             col[has, :3] = keep * col[has, :3] + (1.0 - keep) * nb[has]
         ca.data.foreach_set("color", col.ravel())
+
+
+def glass_only(ob):
+    """True for an object whose every material is glazing."""
+    mats = [m for m in ob.data.materials if m]
+    return bool(mats) and all("glass" in m.name.lower() for m in mats)
+
+
+def ambient_occlusion(objects, samples=512, distance=1.0, hide=(), see_through=glass_only,
+                      smoothing=3, attr=ATTR_AO, export=EXPORT_ATTR_AO):
+    """Bake the exterior's ambient occlusion into a float per vertex.
+
+    A studio lights a car from every side at once, so what shades a surface is
+    how much of that light the car itself shuts out: the wheel arches, the
+    cavity behind a bumper, the cowl under the windscreen. The viewer's
+    image-based light has no such occlusion and floods the arches like the
+    roof; it multiplies the environment's light by this value instead
+    (CarModel.tsx, bakedOcclusion).
+
+    Cycles' AO bake: cosine-weighted visibility out to `distance` metres,
+    independent of materials and lights. The floor is left out (the studio's
+    floor is as bright as its ceiling; the contact shadow is a quad of its
+    own), as is everything in `hide`, and so is glazing (`see_through`: an
+    object made only of glass): the sky shines through a windscreen, which
+    would otherwise shade the bonnet at the cowl. Those objects ship 1.
+
+    The bake wants final topology, so modifiers are applied (prepare_objects).
+    Per-vertex estimates are smoothed over their neighbours as the cabin's are.
+    Returns stats."""
+    scn = bpy.context.scene
+    try:
+        scn.render.engine = 'CYCLES'
+    except TypeError:
+        pass
+    scn.cycles.samples = samples
+    world = scn.world
+    made = None
+    if world is None:
+        made = world = bpy.data.worlds.new("W_AO")
+        scn.world = world
+    prev_distance = world.light_settings.distance
+    world.light_settings.distance = distance
+
+    objects = list(objects)
+    clear = [o for o in objects if see_through(o)]
+    baked = [o for o in objects if o not in clear]
+    hidden = []
+    for o in list(clear) + list(hide):
+        if not o.hide_render:
+            o.hide_render = True
+            hidden.append(o)
+    try:
+        prepare_objects(baked, attr)
+        for o in bpy.context.view_layer.objects:
+            o.select_set(False)
+        for o in baked:
+            o.hide_set(False)
+            o.select_set(True)
+            o.data.color_attributes.active_color = o.data.color_attributes[attr]
+        active = baked[0]
+        bpy.context.view_layer.objects.active = active
+        with bpy.context.temp_override(active_object=active, object=active,
+                                       selected_objects=baked,
+                                       selected_editable_objects=baked):
+            bpy.ops.object.bake(type='AO', target='VERTEX_COLORS', use_clear=True)
+        smooth(baked, iterations=smoothing, attr=attr)
+    finally:
+        for o in hidden:
+            o.hide_render = False
+        world.light_settings.distance = prev_distance
+        if made is not None:
+            scn.world = None
+            bpy.data.worlds.remove(made)
+
+    values = []
+    for o in baked:
+        me = o.data
+        ca = me.color_attributes[attr]
+        a = np.empty(len(ca.data) * 4, np.float32)
+        ca.data.foreach_get("color", a)
+        ao = np.clip(a.reshape(-1, 4)[:, :3].mean(axis=1), 0.0, 1.0)
+        at = me.attributes.get(export) or me.attributes.new(export, 'FLOAT', 'POINT')
+        at.data.foreach_set("value", ao)
+        values.append(ao)
+    for o in clear:
+        me = o.data
+        at = me.attributes.get(export) or me.attributes.new(export, 'FLOAT', 'POINT')
+        at.data.foreach_set("value", np.ones(len(me.vertices), np.float32))
+    allv = np.concatenate(values)
+    stats = {"objects": len(baked), "clear": len(clear), "verts": int(allv.size),
+             "min": float(allv.min()), "p5": float(np.percentile(allv, 5)),
+             "p50": float(np.percentile(allv, 50)), "mean": float(allv.mean()),
+             "distance": distance}
+    print("ambient occlusion:", stats)
+    return stats
 
 
 def probe_mix(location, path, lights, mix=0.3, **kw):
