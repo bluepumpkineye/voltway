@@ -13,6 +13,8 @@ import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
 import { useXray, useXrayCabin } from './Xray';
 import { hingesOf } from '@/lib/openings';
+import { prepareRig } from '@/lib/tech/rig';
+import { useRigBinding } from './techRig';
 
 /**
  * Blender exports with +Y up, so the car's axes arrive as:
@@ -27,7 +29,7 @@ const BAKE_STORE_SCALE = 0.25;
  * Object.clone() shares materials with the cached glTF, so mutating emissive
  * would leak across mounts and persist in useGLTF's cache. Clone them too.
  */
-function useClonedScene(scene: THREE.Object3D) {
+function useClonedScene(scene: THREE.Object3D, prepare?: (root: THREE.Object3D) => unknown) {
   return React.useMemo(() => {
     const root = scene.clone(true);
     const seen = new Map<THREE.Material, THREE.Material>();
@@ -43,8 +45,10 @@ function useClonedScene(scene: THREE.Object3D) {
       });
       o.material = Array.isArray(o.material) ? cloned : cloned[0];
     });
+    // the tech demos' rig (wheels that steer, a body on springs): a pure rebuild of this clone
+    prepare?.(root);
     return root;
-  }, [scene]);
+  }, [scene, prepare]);
 }
 
 function materialsOf(o: THREE.Mesh): THREE.Material[] {
@@ -152,7 +156,8 @@ export function CarModel({ vehicle, variant, url }: Props) {
   const { scene } = useGLTF(url, DRACO_PATH);
   const { headlightsOn, cameraMode, paintId, caliperId, wheelId } = useVehicleStore();
   const invalidate = useThree((s) => s.invalidate);
-  const model = useClonedScene(scene);
+  const model = useClonedScene(scene, prepareRig);
+  useRigBinding(model, vehicle);
   const inside = cameraMode === 'interior';
   const hasCabin = Boolean(vehicle.assets.interiorModelUrl);
 

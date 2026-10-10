@@ -1,0 +1,136 @@
+'use client';
+
+import React from 'react';
+import * as THREE from 'three';
+import { useFrame, useThree } from '@react-three/fiber';
+import type { Vehicle } from '@/data/vehicles/schema';
+import { useVehicleStore } from '@/store/vehicle-store';
+import { techClock } from '@/lib/tech/clock';
+import { DRIVERS, visibleDemos } from '@/lib/tech/demos';
+import type { Track } from '@/lib/tech/kinematics';
+import { rigOf } from '@/lib/tech/rig';
+import { techSession } from '@/lib/tech/session';
+import { motionOk } from './configurator';
+
+/**
+ * Plays the Tech tab's demo: builds the motion for the chosen demo from the
+ * car's measured wheels, runs the demo's clock, and writes each frame to the
+ * car's rig (src/lib/tech/rig.ts). Mount once inside the Canvas.
+ *
+ * Like the openings' driver it renders on demand: it asks for a frame only while
+ * the clock runs or has just been moved, so an idle showroom still draws nothing.
+ *
+ * It also publishes the running demo to the devices (src/lib/tech/session.ts) and the
+ * lot the car drives in (the store's `techScene`, which TechStage draws).
+ */
+export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
+  const invalidate = useThree((s) => s.invalidate);
+  const rig = rigOf(vehicle);
+  const rigged = React.useSyncExternalStore(rig.subscribe, () => rig.ready, () => false);
+  const tab = useVehicleStore((s) => s.tab);
+  const demoId = useVehicleStore((s) => s.techDemoId);
+  const parkSpeed = useVehicleStore((s) => s.parkSpeed);
+
+  const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
+  const spec = tab === 'tech' ? (demos.find((d) => d.id === demoId) ?? demos[0]) : undefined;
+
+  const built = React.useMemo(() => {
+    const driver = spec ? DRIVERS[spec.driver] : undefined;
+    const layout = rig.layout;
+    if (!spec || !driver || !rigged || !layout) return null;
+    // the published width is the body's: the mirrors fold in to park
+    const body = { ...rig.body, halfWidth: vehicle.dimensions.widthMm / 2000 };
+    const b = driver.build({
+      vehicle,
+      layout,
+      body,
+      start: { x: rig.rac.x, y: rig.rac.y, yaw: 0 },
+      speed: parkSpeed,
+    });
+    return { spec, body, ...b, trailLine: b.trail ? trailOf(b.track) : null };
+    // the rig is the same object for the car's life; `rigged` says when its wheels arrive
+  }, [spec, rigged, rig, parkSpeed, vehicle]);
+
+  // a demo starts from the top (or waits for a device to start it), and the camera takes in its floor
+  React.useEffect(() => {
+    if (!built) return;
+    const { track, stage } = built;
+    const st = useVehicleStore.getState();
+    const intent = st.techIntent;
+    techClock.load(track.duration, { play: intent || (built.autoplay && motionOk()), stops: built.stops });
+    if (intent) st.clearTechIntent();
+
+    const { bounds } = stage ?? track.stats;
+    const reach = stage ? 1.0 : Math.max(vehicle.dimensions.lengthMm / 1000, 4) * 0.6;
+    const cx = (bounds.min.x + bounds.max.x) / 2;
+    const cy = (bounds.min.y + bounds.max.y) / 2;
+    const framing = {
+      // the path is in the floor frame, which is the viewer's with y left = -z
+      cx,
+      cz: -cy,
+      radius: Math.hypot(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y) / 2 + reach,
+      camera: stage?.camera,
+    };
+    st.setTechStage(framing);
+    st.setTechScene(stage);
+    techSession.set({
+      demoId: built.spec.id,
+      stage,
+      sample: (t) => track.sample(t),
+      body: built.body,
+    });
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(
+        `[tech] ${built.spec.id}: ${track.duration.toFixed(1)} s, widest steer ${((track.stats.maxSteer * 180) / Math.PI).toFixed(1)} deg` +
+          (stage ? `, clearance ${stage.clearance.toFixed(2)} m` : `, stage r ${framing.radius.toFixed(1)} m`),
+      );
+    }
+    invalidate();
+    return () => {
+      techClock.load(0, false);
+      techSession.set(null);
+      const s = useVehicleStore.getState();
+      s.setTechStage(null);
+      s.setTechScene(null);
+      rig.reset();
+      invalidate();
+    };
+  }, [built, rig, vehicle.dimensions.lengthMm, invalidate]);
+
+  // a seek or a press of play asks for the next frame
+  React.useEffect(() => techClock.subscribe(() => invalidate()), [invalidate]);
+
+  useFrame((_, dt) => {
+    if (!built) return;
+    if (techClock.playing) {
+      const speed = useVehicleStore.getState().techSpeed;
+      techClock.advance(Math.min(built.track.duration, techClock.t + Math.min(dt, 0.1) * speed), performance.now());
+    }
+    rig.setSample(built.track.sample(techClock.t));
+    rig.apply();
+    if (techClock.playing) invalidate();
+  });
+
+  // window.__tech: poke the rig from the console (set steer / spin / heave, read the track)
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    (globalThis as unknown as { __tech?: unknown }).__tech = { rig, clock: techClock, built, invalidate, session: techSession };
+  }, [rig, built, invalidate]);
+
+  return built?.trailLine ? <primitive object={built.trailLine} /> : null;
+}
+
+/** The path of the rear axle's middle as a line on the floor. */
+function trailOf(track: Track): THREE.Line {
+  const pts = track.trace(0.15);
+  const pos = new Float32Array(pts.length * 3);
+  pts.forEach((p, i) => pos.set([p.x, 0.007, -p.y], i * 3));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const line = new THREE.Line(
+    g,
+    new THREE.LineBasicMaterial({ color: '#2563eb', transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false }),
+  );
+  line.raycast = () => {};
+  return line;
+}

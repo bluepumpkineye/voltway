@@ -79,6 +79,8 @@ export const luxeedRx: Vehicle = {
     // its shadow on the studio floor: blender/scripts/export_rx.py bake_ground_shadow(),
     // which prints the size and centre (the build's axes, metres)
     studioShadow: { url: '/models/luxeed-rx-shadow.webp', size: [8.069, 5.195], centre: [-0.028, 0] },
+    // scripts/make-proxy.mjs: the neighbour in another car's parking stage
+    proxyUrl: '/models/luxeed-rx-proxy.glb',
     heroColor: '#1B4D8F',
     // over the driver's seat, from the camera-matched cabin build
     driverEye: [-0.32, 0.41, 1.19],
@@ -261,6 +263,44 @@ export const luxeedRx: Vehicle = {
   // blender/scripts/rx_gate.py), the doors and the dark hull are not drawn, and
   // the cabin shows through with its headliner removed.
   xray: { node: 'LuxeedRX_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
+  // The Tech tab (docs/tech-showcase.md). "Park from your phone" first; the rig test drives the
+  // wheels through every steering mode and is left out of a production build.
+  tech: [
+    {
+      id: 'park',
+      title: 'Park from your phone',
+      blurb:
+        'Step out, open the app and the car backs itself into a tight bay between two parked cars, then drives out again. Or start it from the car’s own screen.',
+      driver: 'park',
+      devices: ['phone', 'dashboard'],
+      claims: [
+        {
+          text: 'Remote parking is standard equipment on the Luxeed RX.',
+          source: { label: 'Autohome configuration table', url: 'https://car.autohome.com.cn/config/series/8684.html' },
+        },
+        {
+          text: 'Huawei’s remote parking assist is driven from the phone app and copes with extremely narrow slots, in over 160 parking scenarios (stated for the AITO M9, the same Huawei system).',
+          source: { label: 'MyDrivers (快科技), 5 June 2024', url: 'https://news.mydrivers.com/1/984/984237.htm' },
+        },
+        {
+          text: 'The HIMA app’s remote control module lists remote parking among its functions.',
+          source: { label: 'MyDrivers (快科技), 28 February 2025', url: 'https://news.mydrivers.com/1/1033/1033033.htm' },
+        },
+      ],
+      simulated:
+        'A simulation: the path, the speeds and the screens are ours, drawn from the maker’s published description of the function, not its footage or its software.',
+    },
+    {
+      id: 'rig-test',
+      title: 'Rig test',
+      blurb:
+        'Front-wheel steering, a reverse, a crab walk, a compass turn about a front wheel and a four-wheel-steer turn, on the car’s own wheelbase and track.',
+      driver: 'rig-test',
+      claims: [],
+      simulated: 'A kinematic test of the wheel rig, not a feature of the car.',
+      devOnly: true,
+    },
+  ],
   sources: [
     { label: 'CnEVPost - Luxeed opens RX pre-orders', url: 'https://cnevpost.com/2026/08/20/luxeed-opens-pre-orders-rx-suv/' },
     { label: 'CarNewsChina - 586 hp, pre-orders Aug 20', url: 'https://carnewschina.com/2026/08/18/cherys-luxeed-rx-from-ex-ferrari-designer-586-hp-to-start-pre-orders-on-august-20/' },

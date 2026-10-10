@@ -17,6 +17,7 @@ const TABS: { id: ShowroomTab; label: string }[] = [
   { id: 'wheels', label: 'Wheels' },
   { id: 'dimensions', label: 'Dimensions' },
   { id: 'xray', label: 'X-ray' },
+  { id: 'tech', label: 'Tech' },
 ];
 
 /** The bottom pill. A tab without what it needs (no cabin built) is disabled. */
@@ -33,7 +34,7 @@ export function TabBar({
   hidden?: ShowroomTab[];
 }) {
   return (
-    <div role="tablist" aria-label="Showroom" className={`flex rounded-full p-1 ${GLASS}`}>
+    <div role="tablist" aria-label="Showroom" className={`flex max-w-full overflow-x-auto rounded-full p-1 ${GLASS}`}>
       {TABS.filter((t) => !hidden.includes(t.id)).map((t) => {
         const off = disabled[t.id];
         const active = tab === t.id;

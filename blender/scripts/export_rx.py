@@ -11,8 +11,10 @@ Machinery in carkit.export, as for the SU7 (export_gltf.py). Nodes:
 
     LuxeedRX_Body            the painted shell, glass, lamps' surrounds
     LuxeedRX_Details         fascia, lamps, trim, mirrors, badges
-    LuxeedRX_Fengying_Wheels the four wheels (22 in, the default); LuxeedRX_Yufeng_Wheels and
-    LuxeedRX_Sport_Wheels    the 21 in designs (rx_wheels), hidden until chosen
+    LuxeedRX_Fengying_Wheels_<FL|FR|RL|RR>  the wheels (22 in, the default), one node per corner
+    LuxeedRX_Fengying_Wheels_Caliper_<tag>  and their calipers (these steer, they do not spin);
+    LuxeedRX_Yufeng_Wheels_*, _Sport_Wheels_*  the 21 in designs (rx_wheels), hidden until chosen.
+                                            See CORNERS and split_wheels.
     LuxeedRX_Blackout        the black glass underlay and inner shadow shell
                              (the viewer hides any "*_blackout" node inside)
 
@@ -93,6 +95,60 @@ WHEEL_GROUPS = [
     ("LuxeedRX_Sport_Wheels", "RX_Wheels_Sport"),
 ]
 
+# The wheels ship one NODE PER CORNER, so the showroom's tech demos can steer and
+# roll them (src/lib/tech/rig.ts). Per design: <node>_<tag> holds everything that
+# turns with the wheel (tyre, rim, face, disc) and <node>_Caliper_<tag> the caliper,
+# which steers but does not spin. Each node's origin is the hub centre, its local
+# frame the wheel's own (the build's wheel empty carries the placement), so a node
+# spins about its axle. The viewer groups the four of a design back under <node>.
+CORNERS = ("FL", "FR", "RL", "RR")
+
+
+def _corner_col(cname, kind, tag):
+    """The collection of one corner's wheel ('W') or caliper ('C') parts."""
+    return "%s_%s_%s" % (cname, kind, tag)
+
+
+def wheels_split():
+    return bpy.data.collections.get(_corner_col(GROUPS[1][1], "W", "FL")) is not None
+
+
+def split_wheels():
+    """Re-collect every wheel design's parts by corner (see CORNERS). Once, after
+    the ambient occlusion has been baked (it is per design, with the four wheels
+    together) and before the merge."""
+    if wheels_split():
+        return
+    for _, cname in [GROUPS[1]] + WHEEL_GROUPS:
+        src = bpy.data.collections.get(cname)
+        if src is None:
+            continue
+        for ob in list(src.objects):
+            if ob.type != 'MESH':
+                continue
+            # a part is named <prefix><Part>_<tag> and parented to the corner's empty
+            who = (ob.parent.name if ob.parent is not None else ob.name).split(".")[0]
+            tag = who.rsplit("_", 1)[-1]
+            if tag not in CORNERS:
+                raise RuntimeError("wheel part %s has no corner (%s)" % (ob.name, who))
+            kind = "C" if "_Caliper_" in ob.name else "W"
+            name = _corner_col(cname, kind, tag)
+            dst = bpy.data.collections.get(name) or bpy.data.collections.new(name)
+            if dst.name not in bpy.context.scene.collection.children:
+                bpy.context.scene.collection.children.link(dst)
+            src.objects.unlink(ob)
+            dst.objects.link(ob)
+
+
+def wheel_corner_groups(options=True):
+    """(node, collection) per corner of the default design, and of the others."""
+    out = []
+    for node, cname in [GROUPS[1]] + (WHEEL_GROUPS if options else []):
+        for tag in CORNERS:
+            out.append(("%s_%s" % (node, tag), _corner_col(cname, "W", tag)))
+            out.append(("%s_Caliper_%s" % (node, tag), _corner_col(cname, "C", tag)))
+    return out
+
 
 def split_blackout():
     """Move the blackout layer into its own collection (its own glTF node)."""
@@ -161,6 +217,10 @@ def exterior_groups(options=True):
     import rx_openings as OP
     import rx_bays as BY
     import rx_gate as RG
+    if wheels_split():
+        core = [g for g in GROUPS if g != GROUPS[1]]
+        return (core + wheel_corner_groups(options) + OP.door_groups() + BY.bonnet_groups()
+                + [RG.GROUP, RG.GREENHOUSE_GROUP])
     return (GROUPS + OP.door_groups() + BY.bonnet_groups() + [RG.GROUP, RG.GREENHOUSE_GROUP]
             + (WHEEL_GROUPS if options else []))
 
@@ -402,6 +462,7 @@ def main(draco=True, ao=True, ao_samples=512, shadow=True):
     open_all(False)           # every part at its hinge, as the closed car
     if ao:
         bake_exterior_ao(ao_samples)
+    split_wheels()            # one node per corner, after the per-design AO bake
     groups = exterior_groups()
     _X.merge_for_export(groups)
     if shadow:

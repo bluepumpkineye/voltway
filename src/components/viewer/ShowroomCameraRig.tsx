@@ -12,9 +12,10 @@ import { motionOk } from './configurator';
 
 /**
  * What the showroom needs from the loaded exterior: how far along the car it
- * extends and where the front-left wheel is (the `*_Wheels` node's origin is
- * that wheel's centre). Measured, not assumed, so a car whose origin is not at
- * its centre still frames correctly.
+ * extends and where the front-left wheel is (the origin of the `*_Wheels` node of a
+ * car with one merged wheel node, or of its `*_Wheels_FL` node when the wheels are
+ * one node per corner, is that wheel's centre). Measured, not assumed, so a car
+ * whose origin is not at its centre still frames correctly.
  */
 export function useCarFrame(vehicle: Vehicle): CarFrame {
   const { scene } = useGLTF(vehicle.assets.modelUrl!, DRACO_PATH);
@@ -23,7 +24,8 @@ export function useCarFrame(vehicle: Vehicle): CarFrame {
     const box = new THREE.Box3().setFromObject(scene);
     let wheelFL: V3 | undefined;
     scene.traverse((o) => {
-      if (wheelFL || !o.name.toLowerCase().endsWith('_wheels')) return;
+      const n = o.name.toLowerCase();
+      if (wheelFL || !(n.endsWith('_wheels') || n.endsWith('_wheels_fl'))) return;
       const p = o.getWorldPosition(new THREE.Vector3());
       wheelFL = [p.x, p.y, p.z];
     });
@@ -38,6 +40,10 @@ export function useCarFrame(vehicle: Vehicle): CarFrame {
   }, [scene, vehicle]);
 }
 
+/** The pixels a pose lifts the picture by: its own, and what a device at the bottom of the window covers. */
+const liftOf = (p: { liftPx: number; liftFrac?: number }, windowHeight: number) =>
+  p.liftPx + (p.liftFrac ?? 0) * windowHeight;
+
 /**
  * Flies the camera between the showroom's anchors (src/lib/showroom/anchors).
  *
@@ -51,17 +57,26 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const controls = React.useRef<CameraControlsImpl>(null);
   const anchorId = useVehicleStore((s) => s.anchorId);
   const { camera, size, invalidate } = useThree();
-  const frame = useCarFrame(vehicle);
+  const carFrame = useCarFrame(vehicle);
+  // the floor a tech demo drives on: the wide shot keeps all of it in view
+  const stage = useVehicleStore((s) => s.techStage);
+  const inset = useVehicleStore((s) => s.techInset);
+  const frame = React.useMemo(
+    () => (stage ? { ...carFrame, stage: { ...stage, inset } } : carFrame),
+    [carFrame, stage, inset],
+  );
   const aspect = Math.round((size.width / Math.max(size.height, 1)) * 10) / 10;
   const pose = React.useMemo(
     () => resolveAnchor(anchorId, vehicle, frame, aspect),
     [anchorId, vehicle, frame, aspect],
   );
 
+  const height = React.useRef(size.height);
+  height.current = size.height;
   const fovGoal = React.useRef(pose.fov);
-  const liftGoal = React.useRef(pose.liftPx);
-  const lift = React.useRef(pose.liftPx);
-  const shown = React.useRef({ fov: NaN, lift: NaN, w: 0, h: 0 });
+  const liftGoal = React.useRef(liftOf(pose, size.height));
+  const lift = React.useRef(liftOf(pose, size.height));
+  const shown = React.useRef({ fov: NaN, lift: NaN, w: 0, h: 0, near: NaN });
   const flight = React.useRef(0);
   const first = React.useRef(true);
   const moved = React.useRef(false);
@@ -98,7 +113,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     c.azimuthRotateSpeed = pose.rotateSpeed;
     c.polarRotateSpeed = pose.rotateSpeed;
     fovGoal.current = pose.fov;
-    liftGoal.current = pose.liftPx;
+    liftGoal.current = liftOf(pose, height.current);
     moved.current = false;
 
     const lock = () => {
@@ -112,7 +127,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       first.current = false;
       const cam = camera as THREE.PerspectiveCamera;
       cam.fov = pose.fov;
-      lift.current = pose.liftPx;
+      lift.current = liftOf(pose, height.current);
       void c.setLookAt(...pose.pos, ...pose.target, false);
       lock();
       invalidate();
@@ -152,12 +167,19 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       busy = true;
     } else lift.current = liftGoal.current;
 
+    // The near plane follows the distance: the cabin needs 2 cm, but the exterior's panels sit 3 mm over
+    // their underlays, and a 24-bit depth buffer cannot tell them apart from 25 m with a near plane that close
+    // (the Tech tab's wide shots stand that far back). One sixtieth of the distance, between 2 and 50 cm.
+    const dist = controls.current?.distance ?? 10;
+    const near = Math.min(0.5, Math.max(0.02, Math.round(dist / 0.6) / 100));
+
     const s = shown.current;
-    if (cam.fov !== s.fov || lift.current !== s.lift || size.width !== s.w || size.height !== s.h) {
+    if (cam.fov !== s.fov || lift.current !== s.lift || size.width !== s.w || size.height !== s.h || near !== s.near) {
+      cam.near = near;
       if (lift.current > 0.01) cam.setViewOffset(size.width, size.height, 0, lift.current, size.width, size.height);
       else cam.clearViewOffset();
       cam.updateProjectionMatrix();
-      shown.current = { fov: cam.fov, lift: lift.current, w: size.width, h: size.height };
+      shown.current = { fov: cam.fov, lift: lift.current, w: size.width, h: size.height, near };
     }
     if (busy) invalidate();
   });

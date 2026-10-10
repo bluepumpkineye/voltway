@@ -14,6 +14,7 @@ import { ClimatePage } from './Climate';
 import { SeatsPage } from './Seats';
 import { MediaPage } from './Media';
 import { CameraPage, NavPage } from './MapNav';
+import { ParkAssistDialog, ParkPage } from './Park';
 import { SettingsApp } from './Settings';
 
 /**
@@ -36,7 +37,7 @@ export function HarmonyOsSurface({ vehicle, variant }: { vehicle: Vehicle; varia
 
 function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
   const t = useHa();
-  const { val } = useHaLocal();
+  const { val, on, set } = useHaLocal();
   const { hmiScreen, setHmiScreen, appCentreOpen, openSettings } = useVehicleStore();
 
   // the generic screens that have no page of their own here open the Settings page they belong to
@@ -71,6 +72,9 @@ function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
     case 'camera':
       body = <CameraPage />;
       break;
+    case 'park':
+      body = <ParkPage vehicle={vehicle} />;
+      break;
     case 'settings':
     case 'drive':
     case 'track':
@@ -100,8 +104,9 @@ function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
     >
       {body}
       {/* the climate and seat pages run to the top of the screen, as the car's do */}
-      {!['climate', 'seats', 'camera'].includes(hmiScreen) && <StatusBar over={over} />}
+      {!['climate', 'seats', 'camera', 'park'].includes(hmiScreen) && <StatusBar over={over} />}
       {appCentreOpen && <AppCentre />}
+      {on.parkDialog && <ParkAssistDialog onClose={() => set('parkDialog', false)} />}
       <BottomBar over={over} screen={hmiScreen} onHome={() => setHmiScreen('home')} />
       {/* the Control Centre's brightness slider dims the whole screen */}
       {val.brightness < 100 && (

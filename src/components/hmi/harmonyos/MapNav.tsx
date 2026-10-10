@@ -231,7 +231,7 @@ export function CameraPage() {
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.35))' }} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/hmi/luxeed-rx/car-top.webp" alt="" draggable={false} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ height: 600 }} />
-        <button type="button" className="absolute left-[16px] top-[16px] flex h-[72px] w-[62px] flex-col items-center justify-center gap-1 rounded-[18px] bg-black/60 text-[13px] text-white outline-none" onClick={() => setHmiScreen('home')} aria-label="Park"><Ic.MenuAssist size={24} />Park</button>
+        <button type="button" className="absolute left-[16px] top-[16px] flex h-[72px] w-[62px] flex-col items-center justify-center gap-1 rounded-[18px] bg-black/60 text-[13px] text-white outline-none" onClick={() => setHmiScreen('park')} aria-label="Parking assist"><Ic.MenuAssist size={24} />Park</button>
         <button type="button" className="absolute left-[16px] top-[98px] flex h-[72px] w-[62px] flex-col items-center justify-center gap-1 rounded-[18px] bg-black/60 text-[13px] text-white outline-none" aria-label="Reverse"><Ic.Recirc size={24} />Reverse</button>
       </div>
 

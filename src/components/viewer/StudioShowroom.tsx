@@ -236,7 +236,8 @@ export function GroundShadow({ shadow }: { shadow: NonNullable<VehicleAssets['st
   return (
     <mesh position={[cx, 0.003, -cy]} rotation-x={-Math.PI / 2}>
       <planeGeometry args={shadow.size} />
-      <meshBasicMaterial map={map} transparent depthWrite={false} toneMapped={false} />
+      {/* a slight bias toward the camera, so the shadow stays over the floor at the Tech stage's distance too */}
+      <meshBasicMaterial map={map} transparent depthWrite={false} toneMapped={false} polygonOffset polygonOffsetFactor={-6} polygonOffsetUnits={-6} />
     </mesh>
   );
 }

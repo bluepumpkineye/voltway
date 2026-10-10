@@ -75,6 +75,8 @@ export const zeekr7x: Vehicle = {
     // its shadow on the studio floor: export_zx.bake_ground_shadow() prints the size and
     // centre (the build's axes, metres)
     studioShadow: { url: '/models/zeekr-7x-shadow.webp', size: [7.846, 5.05], centre: [0, 0] },
+    // scripts/make-proxy.mjs: the neighbour in another car's parking stage
+    proxyUrl: '/models/zeekr-7x-proxy.glb',
     heroColor: '#49749C',
     // over the driver's seat (the cabin's H-point (0.22, 0.37, 0.585) + 0.64 up, a little back)
     driverEye: [0.16, 0.385, 1.22],

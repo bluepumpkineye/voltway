@@ -176,6 +176,12 @@ export interface VehicleAssets {
    * left); without it the studio falls back to a projected contact shadow.
    */
   studioShadow?: { url: string; size: [number, number]; centre: [number, number] };
+  /**
+   * A stand-in of the exterior for a stage in which another car's demo parks it as a neighbour
+   * (scripts/make-proxy.mjs): about 12k triangles, paint, glass, trim, tyres and rims under plain
+   * material names.
+   */
+  proxyUrl?: string;
   heroColor: string;
 }
 
@@ -282,6 +288,7 @@ export type AnchorId =
   | 'xray'
   | 'frunk'
   | 'trunk'
+  | 'techWide'
   | 'driver';
 
 /**
@@ -353,6 +360,43 @@ export interface XraySpec {
   hideCabin?: string[];
 }
 
+/** A published fact a tech demo shows, with where it comes from. */
+export interface TechClaim {
+  text: string;
+  source: Source;
+}
+
+/**
+ * Where a visitor can start a demonstration from, as the car's owner would: the phone in their hand
+ * (the maker's app), or the car's own screen.
+ */
+export type TechDevice = 'phone' | 'dashboard';
+
+/**
+ * One demonstration in the showroom's Tech tab (docs/tech-showcase.md). The
+ * motion is code, `driver` names it in src/lib/tech/demos.ts; this is what the
+ * visitor reads: the title, the published claims, and what is illustrative.
+ */
+export interface TechDemoSpec {
+  id: string;
+  title: string;
+  /** one line about what the demo shows */
+  blurb: string;
+  /** the motion driver (src/lib/tech/demos.ts) */
+  driver: string;
+  /**
+   * The devices the demo starts from, the first being the one shown to begin with. A demo with none
+   * is started from the playback bar alone (a test of the rig).
+   */
+  devices?: TechDevice[];
+  /** published facts shown with the demo, each cited */
+  claims: TechClaim[];
+  /** what is illustrative, shown with the demo: "A simulated path, not the maker's footage." */
+  simulated: string;
+  /** offered only while developing (a test of the rig, not a feature of the car) */
+  devOnly?: boolean;
+}
+
 export interface Vehicle {
   slug: string;
   brand: string;
@@ -374,6 +418,8 @@ export interface Vehicle {
   openings?: OpeningSpec[];
   /** What the X-ray tab does to this car's model, see XraySpec. */
   xray?: XraySpec;
+  /** The Tech tab's demonstrations, see TechDemoSpec. */
+  tech?: TechDemoSpec[];
   sources: Source[];
   /** Set when a car is too new for reliable data on some fields. */
   dataCaveat?: string;

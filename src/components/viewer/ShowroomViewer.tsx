@@ -13,6 +13,9 @@ import { OutsideWorld } from './OutsideWorld';
 import { GroundShadow, StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
 import { ShowroomCameraRig, useCarFrame } from './ShowroomCameraRig';
 import { DimensionRulers } from './DimensionRulers';
+import { TechDirector } from './TechDirector';
+import { TechStage } from './TechStage';
+import { CarRoot } from './techRig';
 
 /**
  * The showroom's viewer (/showroom/[slug]): the same car and cabin as the
@@ -68,6 +71,7 @@ export function ShowroomViewer({
       >
         <Invalidator />
         <OpeningsDriver vehicle={vehicle} />
+        <TechDirector vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <React.Suspense fallback={<Loading />}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />
@@ -122,24 +126,26 @@ function Stage({
       ) : (
         <StudioShowroom reflections={reflections} inside={inside} />
       )}
-      <CarModel vehicle={vehicle} variant={variant} url={url} />
-      {/* the studio lays the car's baked shadow under it; the city (and a car
-          without one) projects a contact shadow from the car */}
-      {!inside && !city && studioShadow ? (
-        <GroundShadow shadow={studioShadow} />
-      ) : (
-        !inside && (
-          <ContactShadows
-            key={city ? 'city' : 'studio'}
-            position={[0, 0.002, 0]}
-            opacity={city ? 0.62 : 0.5}
-            scale={14}
-            blur={city ? 2.4 : 2.8}
-            far={3.2}
-            resolution={1024}
-            frames={1}
-          />
-        )
+      {/* the lot a tech demo drives in, when it has one */}
+      {!inside && <TechStage />}
+      {/* the car and its baked shadow stand in one group, so a tech demo moves them together */}
+      <CarRoot vehicle={vehicle}>
+        <CarModel vehicle={vehicle} variant={variant} url={url} />
+        {/* the studio lays the car's baked shadow under it; the city (and a car
+            without one) projects a contact shadow from the car */}
+        {!inside && !city && studioShadow && <GroundShadow shadow={studioShadow} />}
+      </CarRoot>
+      {!inside && (city || !studioShadow) && (
+        <ContactShadows
+          key={city ? 'city' : 'studio'}
+          position={[0, 0.002, 0]}
+          opacity={city ? 0.62 : 0.5}
+          scale={14}
+          blur={city ? 2.4 : 2.8}
+          far={3.2}
+          resolution={1024}
+          frames={1}
+        />
       )}
       <DimensionRulers vehicle={vehicle} frame={frame} />
     </>
@@ -200,7 +206,8 @@ function useMirrorTier() {
 
 function Loading() {
   return (
-    <Html center>
+    // under the showroom's own panels (the Tech tab's devices are up before the model is)
+    <Html center zIndexRange={[9, 0]}>
       <div className="flex flex-col items-center gap-3">
         <div className="h-[3px] w-40 overflow-hidden rounded-full bg-black/10">
           <div className="h-full w-1/3 rounded-full bg-neutral-800 animate-sweep" />

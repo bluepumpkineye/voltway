@@ -432,6 +432,7 @@ function DrivingPage({ vehicle }: PageProps) {
 }
 
 function AssistPage() {
+  const { set } = useHaLocal();
   return (
     <div>
       <Hero h={300}>
@@ -442,7 +443,7 @@ function AssistPage() {
       </Hero>
       <Grid2>
         <LinkCard title="Assisted driving" sub="Lead-vehicle and lane-cruise assist settings" />
-        <LinkCard title="Parking assist" sub="Parking assist function settings" />
+        <LinkCard title="Parking assist" sub="Remote parking assist and parking speed" onClick={() => set('parkDialog', true)} />
         <LinkCard title="Active safety" sub="Front, side and rear active safety settings" />
         <LinkCard title="Surround view" sub="360° surround view settings" />
         <LinkCard title="Other settings" />

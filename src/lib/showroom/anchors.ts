@@ -34,6 +34,8 @@ export interface AnchorPose {
    * not by tilting the camera, so perspective is unchanged.
    */
   liftPx: number;
+  /** a further lift, as a fraction of the window's height: what a device at the bottom covers */
+  liftFrac?: number;
 }
 
 /** The bottom dock (swatches, tabs, note) takes about this much of the screen. */
@@ -46,6 +48,18 @@ export interface CarFrame {
   xMax: number;
   /** centre of the front-left wheel */
   wheelFL?: V3;
+  /**
+   * the floor a tech demo uses: its centre and the radius to keep in view, m (viewer axes); the part
+   * of the window a device covers, as fractions (right: of the width, bottom: of the height), which the
+   * stage is framed clear of; and the demo's preferred look (azimuth and elevation, degrees)
+   */
+  stage?: {
+    cx: number;
+    cz: number;
+    radius: number;
+    inset?: { right: number; bottom: number };
+    camera?: { az: number; el: number };
+  };
 }
 
 /** The aspect ratio every exterior pose is composed for; narrower screens pull back. */
@@ -73,10 +87,12 @@ interface Shot {
 // lies on the floor: a little elevation opens it up, and the front view lifts
 // the car further so the rulers ahead of the nose clear the dock.
 const SHOTS: Record<
-  'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'frunk' | 'trunk',
+  'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'frunk' | 'trunk' | 'techWide',
   Shot
 > = {
   hero: { az: 36, el: 11, fov: 30, margin: 1.3, lift: 1 },
+  // the Tech tab: far enough back for a car that drives about, a high three-quarter
+  techWide: { az: 38, el: 26, fov: 30, margin: 3.0, lift: 1 },
   // an open door's card faces the tail, so a door is seen from behind it: the
   // rear three-quarter of its own side
   doorsL: { az: 124, el: 10, fov: 28, margin: 1.2, lift: 1 },
@@ -151,6 +167,41 @@ export function resolveAnchor(
       maxPolar: POLAR_MAX,
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * 0.6,
+    };
+  }
+
+  if (id === 'techWide') {
+    // keep a circle of floor in view: the stage a demo uses, or a few metres round the car
+    const st = frame.stage ?? { cx, cz: 0, radius: L * 0.9 };
+    const s = SHOTS.techWide;
+    const az = st.camera?.az ?? s.az;
+    const el = st.camera?.el ?? s.el;
+    // a device over the right of the window, or the bottom of it, leaves less to frame the stage in
+    const inset = st.inset ?? { right: 0, bottom: 0 };
+    const half = Math.tan((s.fov * D2R) / 2);
+    const elv = el * D2R;
+    // the circle must fit across what is left of the screen, and (foreshortened by the elevation, plus the car's height) up it
+    const fitAcross = st.radius / (half * Math.max(aspect * (1 - inset.right), 0.3));
+    const fitUp = (st.radius * Math.sin(elv) + H) / (half * Math.max(1 - inset.bottom, 0.3));
+    const dist = 1.1 * Math.max(fitAcross, fitUp);
+    const d = dirFrom(az, el);
+    // the stage is centred in the free part of the window: the target goes to the right of it, by the
+    // covered share of the half-width the camera sees at that distance (the camera's right is (dz, 0, -dx))
+    const side = (inset.right * dist * half * Math.max(aspect, 0.3)) / (Math.hypot(d[0], d[2]) || 1);
+    const target: V3 = [st.cx + d[2] * side, H * 0.3, st.cz - d[0] * side];
+    return {
+      id,
+      mode: 'exterior',
+      pos: [target[0] + d[0] * dist, target[1] + d[1] * dist, target[2] + d[2] * dist],
+      target,
+      fov: s.fov,
+      minDistance: dist * 0.5,
+      maxDistance: dist * 1.6,
+      minPolar: POLAR_MIN,
+      maxPolar: POLAR_MAX,
+      rotateSpeed: 0.55,
+      liftPx: LIFT_PX * s.lift,
+      liftFrac: inset.bottom / 2,
     };
   }
 

@@ -86,6 +86,8 @@ export const xiaomiSu7Ultra: Vehicle = {
     // its shadow on the studio floor: blender/scripts/export_gltf.py bake_ground_shadow(),
     // which prints the size and centre (the build's axes, metres)
     studioShadow: { url: '/models/su7-ultra-shadow.webp', size: [8.071, 5.105], centre: [0.021, 0] },
+    // scripts/make-proxy.mjs: the neighbour in another car's parking stage
+    proxyUrl: '/models/su7-ultra-proxy.glb',
     heroColor: '#F5C518',
     // over the driver's seat, from the camera-matched cabin build
     driverEye: [-0.30, 0.395, 1.14],

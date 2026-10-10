@@ -75,6 +75,9 @@ export function useStruts(root: THREE.Object3D, vehicle: Vehicle) {
     const barrelMat = new THREE.MeshStandardMaterial({ color: '#1a1b1e', metalness: 0.55, roughness: 0.38 });
     const rodMat = new THREE.MeshStandardMaterial({ color: '#9a9ea5', metalness: 1, roughness: 0.28 });
     const made: THREE.Object3D[] = [];
+    // a rigged car (src/lib/tech/rig.ts) carries its body on a "Sprung" group, and the
+    // struts ride with it, so the body can heave and pitch without leaving them behind
+    const parent = root.getObjectByName('Sprung') ?? root;
     for (const s of hinges.specs) {
       const node = s.struts?.length ? root.getObjectByName(s.node) : undefined;
       if (!node || !s.struts) continue;
@@ -92,7 +95,7 @@ export function useStruts(root: THREE.Object3D, vehicle: Vehicle) {
         const ROD = 0.54 * reach;
         const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.0135, 0.0135, BARREL, 12), barrelMat);
         const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0058, 0.0058, ROD, 10), rodMat);
-        root.add(barrel, rod);
+        parent.add(barrel, rod);
         made.push(barrel, rod);
         const rot = new THREE.Quaternion();
         const dir = new THREE.Vector3();
@@ -115,7 +118,7 @@ export function useStruts(root: THREE.Object3D, vehicle: Vehicle) {
     return () => {
       undo.forEach((u) => u());
       for (const o of made) {
-        root.remove(o);
+        parent.remove(o);
         (o as THREE.Mesh).geometry.dispose();
       }
       barrelMat.dispose();

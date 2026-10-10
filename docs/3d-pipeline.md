@@ -12,6 +12,11 @@ this pipeline is in [`hima-benchmark.md`](hima-benchmark.md): exporting doors,
 tailgate and wheel designs as their own nodes, a studio light rig shared with
 the web, and baked occlusion and ground shadows.
 
+The showroom's Tech tab (animated demonstrations of what a car's technology does) asks
+one more thing of the export: wheels that steer and roll, shipped one node per corner
+with a caliper node that does not spin. That contract, the demo template and the
+verified equipment tables are in [`tech-showcase.md`](tech-showcase.md).
+
 ---
 
 ## 0. What a finished car is

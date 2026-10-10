@@ -2,7 +2,8 @@
 
 import { create } from 'zustand';
 import type { DriveMode } from '@/lib/performance';
-import type { AnchorId } from '@/data/vehicles/schema';
+import type { AnchorId, TechDevice } from '@/data/vehicles/schema';
+import type { ParkSpeed, ParkStage } from '@/lib/tech/park';
 
 export type HmiScreen =
   | 'home'
@@ -17,7 +18,8 @@ export type HmiScreen =
   | 'track'
   // HarmonyOS apps (the Luxeed RX)
   | 'seats'
-  | 'camera';
+  | 'camera'
+  | 'park';
 
 /** The Settings app's side menu (HyperOS 设置, in the car's own order). */
 export type SettingsPage =
@@ -49,7 +51,7 @@ export type Gear = 'P' | 'D';
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
 
 /** The showroom's bottom tabs (/showroom/[slug]). */
-export type ShowroomTab = 'colour' | 'interior' | 'wheels' | 'dimensions' | 'xray';
+export type ShowroomTab = 'colour' | 'interior' | 'wheels' | 'dimensions' | 'xray' | 'tech';
 
 /** Studio is the default; city is the HDRI world the car was baked under. */
 export type ShowroomScene = 'studio' | 'city';
@@ -64,6 +66,7 @@ const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   wheels: 'wheel',
   dimensions: 'side',
   xray: 'xray',
+  tech: 'techWide',
 };
 /** Where the camera goes to see a part open: the side its hinge is on. */
 const OPENING_ANCHOR: Record<Opening, AnchorId> = {
@@ -144,6 +147,30 @@ export interface VehicleUiState {
   anchorId: AnchorId;
   sceneKind: ShowroomScene;
   dimension: DimensionFocus;
+  /** the Tech tab's demo ('' means the car's first); its clock lives in src/lib/tech/clock.ts */
+  techDemoId: string;
+  /** playback speed of the demo's clock */
+  techSpeed: number;
+  /**
+   * the floor the running demo uses (viewer axes, m): the camera keeps it in view; `camera` is the
+   * demo's preferred look (azimuth and elevation, degrees)
+   */
+  techStage: { cx: number; cz: number; radius: number; camera?: { az: number; el: number } } | null;
+  /** the part of the window the Tech tab's devices cover, as fractions (right: of the width, bottom: of the height) */
+  techInset: { right: number; bottom: number };
+  /** the parking lot (or other staged floor) of the running demo, which the viewer draws round the car */
+  techScene: ParkStage | null;
+  /** whether the mounted exterior has the per-corner wheels the demos drive */
+  techStatus: 'loading' | 'ready' | 'none';
+  /** the device of the Tech tab on show: the phone, or the car's screen */
+  techDevice: TechDevice;
+  /** a device asked for the demo to start as soon as it is built (from another tab, or a link) */
+  techIntent: boolean;
+  /** the showroom is mounted, so the car's screen can start demos (the vehicle page has none) */
+  techAvailable: boolean;
+  /** the car's own parking settings (Settings > Assisted driving > Parking assist) */
+  rpaEnabled: boolean;
+  parkSpeed: ParkSpeed;
 
   setVariant: (id: string) => void;
   setDriveMode: (m: DriveMode) => void;
@@ -177,6 +204,24 @@ export interface VehicleUiState {
   setAnchor: (id: AnchorId) => void;
   setSceneKind: (s: ShowroomScene) => void;
   setDimension: (d: DimensionFocus) => void;
+  setTechDemo: (id: string) => void;
+  setTechSpeed: (speed: number) => void;
+  setTechStage: (stage: VehicleUiState['techStage']) => void;
+  setTechScene: (scene: ParkStage | null) => void;
+  setTechInset: (inset: VehicleUiState['techInset']) => void;
+  setTechStatus: (status: VehicleUiState['techStatus']) => void;
+  setTechDevice: (device: TechDevice) => void;
+  setTechAvailable: (v: boolean) => void;
+  setRpaEnabled: (v: boolean) => void;
+  setParkSpeed: (v: ParkSpeed) => void;
+  /**
+   * Open a demonstration from a device and start it as soon as it is built: the car screen's Start
+   * button in the cabin takes the visitor out to the stage, and the Tech tab's own devices (already
+   * there) just play.
+   */
+  startTech: (demoId: string, device: TechDevice) => void;
+  /** The director took the request. */
+  clearTechIntent: () => void;
   reset: (variantId: string, hmiTheme?: HmiTheme) => void;
 }
 
@@ -203,6 +248,9 @@ const initialOpenings: Record<Opening, boolean> = {
   frunk: false,
   boot: false,
 };
+
+/** What opening the Tech tab changes elsewhere: a shut car, in the studio. */
+const techTab = { openings: { ...initialOpenings }, sceneKind: 'studio' as const };
 
 /**
  * One store behind the HMI, the 3D scene and the metrics panel.
@@ -249,6 +297,17 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   anchorId: 'hero',
   sceneKind: 'studio',
   dimension: 'length',
+  techDemoId: '',
+  techSpeed: 1,
+  techStage: null,
+  techInset: { right: 0, bottom: 0 },
+  techScene: null,
+  techStatus: 'loading',
+  techDevice: 'phone',
+  techIntent: false,
+  techAvailable: false,
+  rpaEnabled: true,
+  parkSpeed: 'medium',
 
   setVariant: (variantId) => set({ variantId }),
   setDriveMode: (driveMode) => set({ driveMode, modeId: null }),
@@ -285,6 +344,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
 
   toggleOpening: (o) =>
     set((s) => {
+      // the car is on the move in the Tech tab: its doors stay shut
+      if (s.tab === 'tech') return {};
       const openings = { ...s.openings, [o]: !s.openings[o] };
       // opening a part from outside brings it into frame (as HIMA's showroom
       // does); from the seat, or on another tab, the camera stays where it is
@@ -300,7 +361,14 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setLocked: (locked) => set({ locked }),
   setAdas: (adasActive) => set({ adasActive }),
 
-  setTab: (tab) => set({ tab, dimension: 'length', ...anchorState(TAB_ANCHOR[tab]) }),
+  setTab: (tab) =>
+    set({
+      tab,
+      dimension: 'length',
+      ...anchorState(TAB_ANCHOR[tab]),
+      // the tech demos stage a shut car in the studio: nothing hangs open, the city's sun is not on its floor
+      ...(tab === 'tech' ? techTab : {}),
+    }),
   setPaint: (paintId) => set({ paintId }),
   setTrim: (trimId) => set({ trimId }),
   setCaliper: (caliperId) => set({ caliperId }),
@@ -308,6 +376,30 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setAnchor: (id) => set(anchorState(id)),
   setSceneKind: (sceneKind) => set({ sceneKind }),
   setDimension: (dimension) => set({ dimension, ...anchorState(DIMENSION_ANCHOR[dimension]) }),
+  setTechDemo: (techDemoId) => set({ techDemoId }),
+  setTechSpeed: (techSpeed) => set({ techSpeed }),
+  setTechStage: (techStage) => set({ techStage }),
+  setTechScene: (techScene) => set({ techScene }),
+  setTechInset: (techInset) =>
+    set((s) =>
+      s.techInset.right === techInset.right && s.techInset.bottom === techInset.bottom ? {} : { techInset },
+    ),
+  setTechStatus: (techStatus) => set({ techStatus }),
+  setTechDevice: (techDevice) => set({ techDevice }),
+  setTechAvailable: (techAvailable) => set({ techAvailable }),
+  setRpaEnabled: (rpaEnabled) => set({ rpaEnabled }),
+  setParkSpeed: (parkSpeed) => set({ parkSpeed }),
+  startTech: (techDemoId, techDevice) =>
+    set({
+      tab: 'tech',
+      dimension: 'length',
+      ...anchorState(TAB_ANCHOR.tech),
+      ...techTab,
+      techDemoId,
+      techDevice,
+      techIntent: true,
+    }),
+  clearTechIntent: () => set({ techIntent: false }),
 
   reset: (variantId, theme) =>
     set({
@@ -342,5 +434,13 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       anchorId: 'hero',
       sceneKind: 'studio',
       dimension: 'length',
+      techDemoId: '',
+      techSpeed: 1,
+      techStage: null,
+      techScene: null,
+      techDevice: 'phone',
+      techIntent: false,
+      rpaEnabled: true,
+      parkSpeed: 'medium',
     }),
 }));
