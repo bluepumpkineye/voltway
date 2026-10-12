@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import type { DriveMode } from '@/lib/performance';
 import type { AnchorId, TechDevice } from '@/data/vehicles/schema';
+import { isLowBeam, type LightMode } from '@/lib/lights';
 import type { ParkSpeed, ParkStage } from '@/lib/tech/park';
 
 export type HmiScreen =
@@ -51,7 +52,10 @@ export type Gear = 'P' | 'D';
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
 
 /** The showroom's bottom tabs (/showroom/[slug]). */
-export type ShowroomTab = 'colour' | 'interior' | 'wheels' | 'dimensions' | 'xray' | 'tech';
+export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dimensions' | 'xray' | 'tech';
+
+/** Which end of the car the Dashboard tab looks at: the lamps are at both. */
+export type LightsView = 'front' | 'rear';
 
 /** Studio is the default; city is the HDRI world the car was baked under. */
 export type ShowroomScene = 'studio' | 'city';
@@ -63,6 +67,7 @@ export type DimensionFocus = 'length' | 'width' | 'height';
 const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   colour: 'hero',
   interior: 'driver',
+  dashboard: 'dashFront',
   wheels: 'wheel',
   dimensions: 'side',
   xray: 'xray',
@@ -132,6 +137,14 @@ export interface VehicleUiState {
   ambientBrightness: number; // 0-1
 
   openings: Record<Opening, boolean>;
+  /**
+   * The lamps (src/lib/lights.ts): the headlamp switch of the car's screen, the high beam on top of the
+   * low beam, and the brake pedal. `headlightsOn` is the low beam or better, kept for the screens that
+   * only know on and off.
+   */
+  lightMode: LightMode;
+  highBeam: boolean;
+  braking: boolean;
   headlightsOn: boolean;
   locked: boolean;
 
@@ -145,6 +158,11 @@ export interface VehicleUiState {
   caliperId: string;
   wheelId: string;
   anchorId: AnchorId;
+  /**
+   * counts the times a control asked for its pose again (the Dashboard's Front and Rear), so a camera the
+   * visitor has turned goes back to it even when the pose is the one it was last sent to
+   */
+  anchorTick: number;
   sceneKind: ShowroomScene;
   dimension: DimensionFocus;
   /** the Tech tab's demo ('' means the car's first); its clock lives in src/lib/tech/clock.ts */
@@ -156,8 +174,13 @@ export interface VehicleUiState {
    * demo's preferred look (azimuth and elevation, degrees)
    */
   techStage: { cx: number; cz: number; radius: number; camera?: { az: number; el: number } } | null;
-  /** the part of the window the Tech tab's devices cover, as fractions (right: of the width, bottom: of the height) */
-  techInset: { right: number; bottom: number };
+  /**
+   * the part of the window the devices of the Tech and Dashboard tabs cover, as fractions (right: of
+   * the width, bottom: of the height); the camera frames the car clear of it
+   */
+  deviceInset: { right: number; bottom: number };
+  /** which end of the car the Dashboard tab looks at */
+  lightsView: LightsView;
   /** the parking lot (or other staged floor) of the running demo, which the viewer draws round the car */
   techScene: ParkStage | null;
   /** whether the mounted exterior has the per-corner wheels the demos drive */
@@ -192,7 +215,16 @@ export interface VehicleUiState {
   setAmbient: (p: Partial<Pick<VehicleUiState, 'ambientOn' | 'ambientHue' | 'ambientBrightness'>>) => void;
   toggleOpening: (o: Opening) => void;
   closeAllOpenings: () => void;
+  /** Low beam on or off, for the screens that only have a switch. */
   setHeadlights: (on: boolean) => void;
+  setLightMode: (m: LightMode) => void;
+  /** The high beam rides on the low beam: it comes on only with it. */
+  setHighBeam: (on: boolean) => void;
+  setBraking: (on: boolean) => void;
+  /** Fly the camera to one end of the car. */
+  setLightsView: (v: LightsView) => void;
+  /** Note which end of the car the camera is at after the visitor turned it, without moving it. */
+  syncLightsView: (v: LightsView) => void;
   setLocked: (v: boolean) => void;
   setAdas: (v: boolean) => void;
   setTab: (t: ShowroomTab) => void;
@@ -208,7 +240,7 @@ export interface VehicleUiState {
   setTechSpeed: (speed: number) => void;
   setTechStage: (stage: VehicleUiState['techStage']) => void;
   setTechScene: (scene: ParkStage | null) => void;
-  setTechInset: (inset: VehicleUiState['techInset']) => void;
+  setDeviceInset: (inset: VehicleUiState['deviceInset']) => void;
   setTechStatus: (status: VehicleUiState['techStatus']) => void;
   setTechDevice: (device: TechDevice) => void;
   setTechAvailable: (v: boolean) => void;
@@ -252,6 +284,13 @@ const initialOpenings: Record<Opening, boolean> = {
 /** What opening the Tech tab changes elsewhere: a shut car, in the studio. */
 const techTab = { openings: { ...initialOpenings }, sceneKind: 'studio' as const };
 
+/** The lamps' state from the switch: `headlightsOn` is the low beam or better, and the high beam rides on it. */
+const lampState = (lightMode: LightMode, highBeam: boolean) => ({
+  lightMode,
+  highBeam: highBeam && isLowBeam(lightMode),
+  headlightsOn: isLowBeam(lightMode),
+});
+
 /**
  * One store behind the HMI, the 3D scene and the metrics panel.
  *
@@ -285,6 +324,9 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   ambientBrightness: 0.7,
 
   openings: { ...initialOpenings },
+  lightMode: 'off',
+  highBeam: false,
+  braking: false,
   headlightsOn: false,
   locked: true,
   adasActive: false,
@@ -295,12 +337,14 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   caliperId: '',
   wheelId: '',
   anchorId: 'hero',
+  anchorTick: 0,
   sceneKind: 'studio',
   dimension: 'length',
   techDemoId: '',
   techSpeed: 1,
   techStage: null,
-  techInset: { right: 0, bottom: 0 },
+  deviceInset: { right: 0, bottom: 0 },
+  lightsView: 'front',
   techScene: null,
   techStatus: 'loading',
   techDevice: 'phone',
@@ -357,18 +401,31 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
 
   closeAllOpenings: () => set({ openings: { ...initialOpenings } }),
 
-  setHeadlights: (headlightsOn) => set({ headlightsOn }),
+  setHeadlights: (on) =>
+    set((s) => lampState(on ? (isLowBeam(s.lightMode) ? s.lightMode : 'low') : 'off', s.highBeam)),
+  setLightMode: (mode) => set((s) => lampState(mode, s.highBeam)),
+  setHighBeam: (on) => set((s) => lampState(s.lightMode, on)),
+  setBraking: (braking) => set({ braking }),
+  setLightsView: (lightsView) =>
+    set((s) => ({
+      lightsView,
+      anchorTick: s.anchorTick + 1,
+      ...anchorState(lightsView === 'rear' ? 'dashRear' : 'dashFront'),
+    })),
+  syncLightsView: (lightsView) => set({ lightsView }),
   setLocked: (locked) => set({ locked }),
   setAdas: (adasActive) => set({ adasActive }),
 
   setTab: (tab) =>
-    set({
+    set((s) => ({
       tab,
       dimension: 'length',
-      ...anchorState(TAB_ANCHOR[tab]),
+      ...anchorState(tab === 'dashboard' && s.lightsView === 'rear' ? 'dashRear' : TAB_ANCHOR[tab]),
       // the tech demos stage a shut car in the studio: nothing hangs open, the city's sun is not on its floor
       ...(tab === 'tech' ? techTab : {}),
-    }),
+      // the Dashboard tab opens on the car's home screen, whatever page the last tab left it on
+      ...(tab === 'dashboard' ? { hmiScreen: 'home' as const, climateOpen: false, appCentreOpen: false } : {}),
+    })),
   setPaint: (paintId) => set({ paintId }),
   setTrim: (trimId) => set({ trimId }),
   setCaliper: (caliperId) => set({ caliperId }),
@@ -380,9 +437,9 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setTechSpeed: (techSpeed) => set({ techSpeed }),
   setTechStage: (techStage) => set({ techStage }),
   setTechScene: (techScene) => set({ techScene }),
-  setTechInset: (techInset) =>
+  setDeviceInset: (deviceInset) =>
     set((s) =>
-      s.techInset.right === techInset.right && s.techInset.bottom === techInset.bottom ? {} : { techInset },
+      s.deviceInset.right === deviceInset.right && s.deviceInset.bottom === deviceInset.bottom ? {} : { deviceInset },
     ),
   setTechStatus: (techStatus) => set({ techStatus }),
   setTechDevice: (techDevice) => set({ techDevice }),
@@ -423,6 +480,10 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       ambientHue: 28,
       ambientBrightness: 0.7,
       openings: { ...initialOpenings },
+      lightMode: 'off',
+      highBeam: false,
+      braking: false,
+      lightsView: 'front',
       headlightsOn: false,
       locked: true,
       adasActive: false,

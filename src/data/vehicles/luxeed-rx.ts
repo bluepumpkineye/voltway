@@ -263,6 +263,9 @@ export const luxeedRx: Vehicle = {
   // blender/scripts/rx_gate.py), the doors and the dark hull are not drawn, and
   // the cabin shows through with its headliner removed.
   xray: { node: 'LuxeedRX_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
+  // The lamps (docs/lights.md): the usual LED materials, and the headlamp's two projector lenses
+  // (M_Lamp_Reflector at the front only) light with the low beam.
+  lights: { projector: {} },
   // The Tech tab (docs/tech-showcase.md). "Park from your phone" first; the rig test drives the
   // wheels through every steering mode and is left out of a production build.
   tech: [

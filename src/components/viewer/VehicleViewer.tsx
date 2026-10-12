@@ -12,6 +12,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type CameraMode } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
+import { LightsDriver } from './Lights';
 import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
 
@@ -97,6 +98,7 @@ export function VehicleViewer({
         <AdaptiveDpr pixelated />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <OpeningsDriver vehicle={vehicle} />
+        <LightsDriver />
         {fixedShot ? <LockedCamera shot={fixedShot} /> : <Rig interior={interiorShot(vehicle)} />}
         {!worldOutside && <StudioEnvironment intensity={1.05} inside={inside} />}
 

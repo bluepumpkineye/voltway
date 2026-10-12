@@ -106,8 +106,9 @@ vehicle.tech[] --driver--> DRIVERS[...].build(ctx) --> BuiltDemo { track, stops,
   (`store.startTech` / `techIntent`).
 - `src/lib/tech/preview.ts`: the same build, for a screen shown while no demo runs (the cabin's parking
   page, the vehicle page).
-- Camera: `techStage` frames the stage circle, `techInset` keeps it clear of the devices (a column at the
-  right of a wide window, a bar at the bottom of a narrow one); the near plane follows the camera's
+- Camera: `techStage` frames the stage circle, `deviceInset` keeps it clear of the devices (a column at the
+  right of a wide window, a bar at the bottom of a narrow one) by sliding the picture (a view offset), so the
+  visitor orbits about the stage and it stays in the free part of the window; the near plane follows the camera's
   distance (`ShowroomCameraRig`), because the exterior's 3 mm underlays z-fight from 25 m with a 2 cm near plane.
 
 ## 5. Park from your phone (Luxeed RX)

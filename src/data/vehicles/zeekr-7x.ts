@@ -226,6 +226,9 @@ export const zeekr7x: Vehicle = {
   // pale ghost (the Zeekr7X_Greenhouse node, split out in blender/scripts/zx_gate.py), the doors
   // and the dark hull are not drawn, and the cabin shows through with its headliner removed.
   xray: { node: 'Zeekr7X_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
+  // The lamps (docs/lights.md). The front LED is the usual M_LED_White. The tail lamp is one red lens
+  // bar with no LED material under it, so the lens is the lit part, and it is dark as built.
+  lights: { rear: { material: 'M_Lamp_RedLens', off: 0 } },
   sources: [
     { label: 'Paul Tan - 7X facelift, 900 V, 802 km', url: 'https://paultan.org/2025/10/22/zeekr-7x-facelift-revealed-900v-architecture-6c-dc-charging-802-km-cltc-795-ps-0-100-km-h-2-98-secs/' },
     { label: 'Wikipedia - Zeekr 7X', url: 'https://en.wikipedia.org/wiki/Zeekr_7X' },

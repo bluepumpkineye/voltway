@@ -36,6 +36,13 @@ export interface AnchorPose {
   liftPx: number;
   /** a further lift, as a fraction of the window's height: what a device at the bottom covers */
   liftFrac?: number;
+  /**
+   * How far to slide the picture toward the left, as a fraction of the window's width, so the car centres in
+   * the part of the window a device at the right leaves free. A view offset like the lift, never a target
+   * moved off the car: the visitor orbits about the car itself, which stays where it is in the free part
+   * however it is turned.
+   */
+  shiftFrac?: number;
 }
 
 /** The bottom dock (swatches, tabs, note) takes about this much of the screen. */
@@ -48,6 +55,11 @@ export interface CarFrame {
   xMax: number;
   /** centre of the front-left wheel */
   wheelFL?: V3;
+  /**
+   * the part of the window a device covers, as fractions (right: of the width, bottom: of the height):
+   * the poses frame the car in what is left, as the car's screen stands beside it (Dashboard tab)
+   */
+  inset?: { right: number; bottom: number };
   /**
    * the floor a tech demo uses: its centre and the radius to keep in view, m (viewer axes); the part
    * of the window a device covers, as fractions (right: of the width, bottom: of the height), which the
@@ -81,16 +93,24 @@ interface Shot {
   margin: number;
   /** picture lift, as a multiple of the dock's height (see AnchorPose.liftPx) */
   lift: number;
+  /** stand closer than the whole car needs, by this factor */
+  close?: number;
 }
 
 // The side and front views carry the Dimensions tab's floor rulers, whose text
 // lies on the floor: a little elevation opens it up, and the front view lifts
 // the car further so the rulers ahead of the nose clear the dock.
 const SHOTS: Record<
-  'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'frunk' | 'trunk' | 'techWide',
+  | 'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'frunk' | 'trunk' | 'techWide'
+  | 'dashFront' | 'dashRear',
   Shot
 > = {
   hero: { az: 36, el: 11, fov: 30, margin: 1.3, lift: 1 },
+  // the Dashboard tab: a three-quarter of one end, near enough to read the lamps, with the car's screen
+  // standing beside it (the frame's inset leaves its column clear); the visitor then orbits the car as on
+  // any other tab
+  dashFront: { az: 26, el: 7, fov: 28, margin: 1.06, lift: 1, close: 0.84 },
+  dashRear: { az: 154, el: 7, fov: 28, margin: 1.06, lift: 1, close: 0.84 },
   // the Tech tab: far enough back for a car that drives about, a high three-quarter
   techWide: { az: 38, el: 26, fov: 30, margin: 3.0, lift: 1 },
   // an open door's card faces the tail, so a door is seen from behind it: the
@@ -185,10 +205,9 @@ export function resolveAnchor(
     const fitUp = (st.radius * Math.sin(elv) + H) / (half * Math.max(1 - inset.bottom, 0.3));
     const dist = 1.1 * Math.max(fitAcross, fitUp);
     const d = dirFrom(az, el);
-    // the stage is centred in the free part of the window: the target goes to the right of it, by the
-    // covered share of the half-width the camera sees at that distance (the camera's right is (dz, 0, -dx))
-    const side = (inset.right * dist * half * Math.max(aspect, 0.3)) / (Math.hypot(d[0], d[2]) || 1);
-    const target: V3 = [st.cx + d[2] * side, H * 0.3, st.cz - d[0] * side];
+    // the camera looks at the middle of the stage, and the picture is slid into the free part of the window
+    // (shiftFrac), so the visitor orbits about the stage and it stays in view
+    const target: V3 = [st.cx, H * 0.3, st.cz];
     return {
       id,
       mode: 'exterior',
@@ -202,6 +221,7 @@ export function resolveAnchor(
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * s.lift,
       liftFrac: inset.bottom / 2,
+      shiftFrac: inset.right / 2,
     };
   }
 
@@ -217,23 +237,31 @@ export function resolveAnchor(
   const fitX = (across * s.margin) / (2 * half * REF_ASPECT);
   const fitY = (tall * s.margin) / (2 * half);
   // nearer parts of the car read bigger, so stand back by part of its half depth
-  let dist = Math.max(fitX, fitY) + depth * 0.25;
-  // a narrow window cannot hold the composed width: stand further back
-  dist *= Math.max(1, REF_ASPECT / Math.max(aspect, 0.2));
+  const near = (Math.max(fitX, fitY) + depth * 0.25) * (s.close ?? 1);
+  // a narrow window leaves the car less to stand in: stand further back; a device beside the car leaves it
+  // less of the window still. Zooming in is limited by the first, not the second: the visitor may come as
+  // close to the lamps as on a tab with no device.
+  const inset = frame.inset ?? { right: 0, bottom: 0 };
+  const open = near * Math.max(1, REF_ASPECT / Math.max(aspect, 0.2));
+  const dist = near * Math.max(1, REF_ASPECT / Math.max(aspect * (1 - inset.right), 0.2));
 
-  const target: V3 = [cx, H * 0.4, 0];
   const d = dirFrom(s.az, s.el);
+  // the camera looks at the middle of the car, so a drag turns the car in place; with a device beside it the
+  // picture is slid into the free part of the window (shiftFrac) instead of the target being moved off the car
+  const target: V3 = [cx, H * 0.4, 0];
   return {
     id,
     mode: 'exterior',
     pos: [target[0] + d[0] * dist, target[1] + d[1] * dist, target[2] + d[2] * dist],
     target,
     fov: s.fov,
-    minDistance: dist * 0.62,
+    minDistance: open * 0.62,
     maxDistance: dist * 1.45,
     minPolar: POLAR_MIN,
     maxPolar: POLAR_MAX,
     rotateSpeed: 0.55,
     liftPx: LIFT_PX * s.lift,
+    liftFrac: inset.bottom / 2,
+    shiftFrac: inset.right / 2,
   };
 }

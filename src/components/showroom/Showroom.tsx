@@ -10,8 +10,10 @@ import {
   type ShowroomScene,
   type ShowroomTab,
 } from '@/store/vehicle-store';
+import { LIGHT_MODES, type LightMode } from '@/lib/lights';
 import { visibleDemos } from '@/lib/tech/demos';
 import { CarMenu, GLASS, SceneToggle, TabBar } from './Chrome';
+import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
 import { CaliperSwatches, DimensionChips, PaintSwatches, TrimSwatches, WheelChips } from './Swatches';
 import { TechChips, TechControls, TechFacts } from './Tech';
 import { TechDevices, useDeviceColumn } from '@/components/tech/TechDevices';
@@ -31,7 +33,7 @@ const ShowroomViewer = dynamic(
   },
 );
 
-const TABS: ShowroomTab[] = ['colour', 'interior', 'wheels', 'dimensions', 'xray', 'tech'];
+const TABS: ShowroomTab[] = ['colour', 'interior', 'dashboard', 'wheels', 'dimensions', 'xray', 'tech'];
 const DIMS: DimensionFocus[] = ['length', 'width', 'height'];
 
 const NOTES: Record<ShowroomTab, string> = {
@@ -41,6 +43,8 @@ const NOTES: Record<ShowroomTab, string> = {
     "Cabin colourways follow the maker's options; which panel takes which colour is our model's, so colours are approximate. Drag to look around; the centre screen is live.",
   wheels:
     "Wheel designs and tyre sizes are the maker's, modelled from published photographs. Caliper colours follow its options (red, grey, yellow and others) and are approximate.",
+  dashboard:
+    "The car's own screen, live beside the car. Its headlamp controls switch the lamps; the glow, the beam on the floor and the dusk are our rendering of them, not the maker's footage.",
   dimensions: "Figures are the manufacturer's published dimensions.",
   xray: "The upper body is shown as a see-through shell, with the doors removed, so the cabin reads through it. A modelled view, not the maker's.",
   tech: "What the car's technology does. Each demonstration is a simulation built from the maker's published figures, not its footage.",
@@ -75,10 +79,17 @@ export function Showroom({
   const variantId = useVehicleStore((s) => s.variantId);
   const {
     reset, setTab, setPaint, setTrim, setCaliper, setWheel, setSceneKind, setDimension, setTechDemo, setTechSpeed,
-    setTechAvailable, setTechDevice,
+    setTechAvailable, setTechDevice, setLightMode, setHighBeam, setLightsView,
   } = useVehicleStore.getState();
   const techDevice = useVehicleStore((s) => s.techDevice);
   const demo = demos.find((d) => d.id === techDemoId) ?? demos[0];
+  const lightMode = useVehicleStore((s) => s.lightMode);
+  const highBeam = useVehicleStore((s) => s.highBeam);
+  const lightsView = useVehicleStore((s) => s.lightsView);
+  // the Dashboard tab's screen: a column at the right of a wide window, a sheet over the car on a narrower one
+  const dash = useDashboardLayout();
+  const [screenOpen, setScreenOpen] = React.useState(false);
+  const closeScreen = React.useCallback(() => setScreenOpen(false), []);
 
   const variant = vehicle.variants.find((v) => v.id === variantId) ?? flagshipVariant(vehicle);
 
@@ -110,6 +121,11 @@ export function Showroom({
     if (wantDemo && demos.some((d) => d.id === wantDemo)) setTechDemo(wantDemo);
     const wantDevice = q.get('device');
     if (wantDevice === 'phone' || wantDevice === 'dashboard') setTechDevice(wantDevice);
+    // the lamps: the switch, the high beam, and which end of the car the Dashboard tab looks at
+    const wantLights = q.get('lights') as LightMode | null;
+    if (wantLights && LIGHT_MODES.includes(wantLights)) setLightMode(wantLights);
+    if (q.get('high') === '1') setHighBeam(true);
+    if (wantTab === 'dashboard' && q.get('view') === 'rear') setLightsView('rear');
     const wantDim = q.get('dim') as DimensionFocus | null;
     if (wantDim && DIMS.includes(wantDim)) setDimension(wantDim);
     const wantPaint = q.get('paint');
@@ -132,6 +148,9 @@ export function Showroom({
     if (!ready) return;
     const q = new URLSearchParams();
     if (tab !== 'colour') q.set('tab', tab);
+    if (lightMode !== 'off') q.set('lights', lightMode);
+    if (highBeam) q.set('high', '1');
+    if (tab === 'dashboard' && lightsView === 'rear') q.set('view', 'rear');
     if (tab === 'dimensions' && dimension !== 'length') q.set('dim', dimension);
     if (paintId && paintId !== spec.paints[0].id) q.set('paint', paintId);
     if (trimId && trimId !== spec.trims[0].id) q.set('trim', trimId);
@@ -142,7 +161,7 @@ export function Showroom({
     if (tab === 'tech' && demo?.devices && techDevice !== demo.devices[0]) q.set('device', techDevice);
     const s = q.toString();
     window.history.replaceState(null, '', s ? `?${s}` : window.location.pathname);
-  }, [ready, tab, dimension, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice]);
+  }, [ready, tab, dimension, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView]);
 
   // A design comes with the caliper colour it is photographed in - unless the caliper
   // was chosen on purpose, i.e. is not the colour the design it replaces came with.
@@ -177,11 +196,20 @@ export function Showroom({
       </div>
 
       {ready && tab === 'tech' && demo && <TechDevices vehicle={vehicle} variant={variant} demo={demo} />}
+      {ready && tab === 'dashboard' && (
+        <DashboardScreen vehicle={vehicle} variant={variant} open={screenOpen} onClose={closeScreen} />
+      )}
 
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 pb-3 sm:pb-5"
         // on a wide window the devices stand in a column at the right: the dock centres in what is left
-        style={tab === 'tech' && col.active && col.wide ? { paddingRight: col.colW + 40 } : undefined}
+        style={
+          tab === 'tech' && col.active && col.wide
+            ? { paddingRight: col.colW + 40 }
+            : tab === 'dashboard' && dash.wide
+              ? { paddingRight: dash.colW + 40 }
+              : undefined
+        }
       >
         {tab === 'colour' && <PaintSwatches paints={spec.paints} selected={paintId} onSelect={setPaint} />}
         {tab === 'interior' && <TrimSwatches trims={spec.trims} selected={trimId} onSelect={setTrim} />}
@@ -192,6 +220,9 @@ export function Showroom({
           <CaliperSwatches calipers={spec.calipers} selected={caliperId} onSelect={setCaliper} />
         )}
         {tab === 'dimensions' && <DimensionChips items={dims} selected={dimension} onSelect={setDimension} />}
+        {tab === 'dashboard' && (
+          <DashboardControls screenFits={dash.screenFits} wide={dash.wide} screenOpen={screenOpen} onScreen={setScreenOpen} />
+        )}
         {tab === 'tech' && demo && (
           <>
             {(col.wide || !col.active) && <TechFacts spec={demo} />}
@@ -223,7 +254,7 @@ export function Showroom({
         </div>
         <p className={`max-w-[620px] rounded-2xl px-3.5 py-1.5 text-center text-[11px] leading-snug text-neutral-600 ${GLASS} ${tab === 'tech' && col.active && !col.wide ? 'hidden' : ''}`}>
           {NOTES[tab]}
-          {tab !== 'dimensions' && tab !== 'xray' && tab !== 'wheels' && tab !== 'tech' && vehicle.openings?.length
+          {tab !== 'dimensions' && tab !== 'xray' && tab !== 'wheels' && tab !== 'tech' && tab !== 'dashboard' && vehicle.openings?.length
             ? ' Tap a door, the bonnet or the tailgate to open it.'
             : ''}{' '}
           <a

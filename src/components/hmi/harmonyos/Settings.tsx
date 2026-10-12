@@ -260,7 +260,7 @@ function VehiclePage() {
 function LightsPage() {
   const t = useHa();
   const [tab, setTab] = React.useState<'inside' | 'outside'>('outside');
-  const { ambientOn, ambientHue, ambientBrightness, setAmbient, setHeadlights } = useVehicleStore();
+  const { ambientOn, ambientHue, ambientBrightness, setAmbient } = useVehicleStore();
   const { val, setVal, on, set } = useHaLocal();
   const [zone, setZone] = React.useState(0);
   const sq = React.useRef<HTMLDivElement>(null);
@@ -289,7 +289,7 @@ function LightsPage() {
         <Section title="Headlamps">
           <div className="grid gap-[10px]" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr 150px' }}>
             {['Off', 'Position', 'Low beam', 'Auto'].map((l, i) => (
-              <button key={l} type="button" aria-pressed={val.headlamp === i} onClick={() => { setVal('headlamp', i); setHeadlights(i >= 2); }} className="flex h-[58px] items-center justify-center rounded-[18px] text-[17px] outline-none" style={{ background: val.headlamp === i ? t.segOn : t.seg, color: val.headlamp === i ? t.tileOnText : t.text }}>{l}</button>
+              <button key={l} type="button" aria-pressed={val.headlamp === i} onClick={() => setVal('headlamp', i)} className="flex h-[58px] items-center justify-center rounded-[18px] text-[17px] outline-none" style={{ background: val.headlamp === i ? t.segOn : t.seg, color: val.headlamp === i ? t.tileOnText : t.text }}>{l}</button>
             ))}
             <button type="button" aria-pressed={on.rearFog} onClick={() => set('rearFog', !on.rearFog)} className="flex h-[58px] items-center justify-center rounded-[18px] text-[17px] outline-none" style={{ background: on.rearFog ? t.segOn : t.seg, color: on.rearFog ? t.tileOnText : t.text }}>Rear fog</button>
           </div>

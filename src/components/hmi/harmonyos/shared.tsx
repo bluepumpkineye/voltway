@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { LIGHT_MODES } from '@/lib/lights';
+import { useVehicleStore } from '@/store/vehicle-store';
 
 /* ------------------------------------------------------------------- clock */
 
@@ -64,7 +66,7 @@ const DEFAULTS: Record<string, boolean> = {
 const VALUES: Record<string, number> = {
   brightness: 100,
   clusterBrightness: 54,
-  headlamp: 3, // 0 off, 1 position, 2 low beam, 3 auto
+  headlamp: 0, // 0 off, 1 position, 2 low beam, 3 auto: the store's lamp switch holds it (HaProvider)
   screenAim: 1, // 0 driver, 1 centre, 2 passenger
   wallpaper: -1, // the theme's own until the visitor switches it
   media: 0, // 0 music, 1 radio
@@ -82,6 +84,10 @@ export function HaProvider({ children }: { children: React.ReactNode }) {
   const [val, setValState] = React.useState<Record<string, number>>({});
   const [msg, setMsg] = React.useState<string | null>(null);
   const timer = React.useRef<number | undefined>(undefined);
+  // the headlamp selector is the car's own lamp switch: the 3D car's lamps (and the Dashboard tab) follow it
+  const lightMode = useVehicleStore((s) => s.lightMode);
+  const setLightMode = useVehicleStore((s) => s.setLightMode);
+  const lamp = Math.max(0, LIGHT_MODES.indexOf(lightMode));
 
   const api = React.useMemo<HaLocal>(
     () => ({
@@ -89,15 +95,15 @@ export function HaProvider({ children }: { children: React.ReactNode }) {
       toggle: (id, fallback) =>
         setOn((s) => ({ ...s, [id]: !(id in s ? s[id] : fallback ?? DEFAULTS[id] ?? false) })),
       set: (id, v) => setOn((s) => ({ ...s, [id]: v })),
-      val: new Proxy(val, { get: (t, k: string) => (k in t ? t[k] : VALUES[k] ?? 0) }),
-      setVal: (id, v) => setValState((s) => ({ ...s, [id]: v })),
+      val: new Proxy(val, { get: (t, k: string) => (k === 'headlamp' ? lamp : k in t ? t[k] : VALUES[k] ?? 0) }),
+      setVal: (id, v) => (id === 'headlamp' ? setLightMode(LIGHT_MODES[v] ?? 'off') : setValState((s) => ({ ...s, [id]: v }))),
       notify: (m) => {
         setMsg(m);
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => setMsg(null), 1800);
       },
     }),
-    [on, val],
+    [on, val, lamp, setLightMode],
   );
 
   return (

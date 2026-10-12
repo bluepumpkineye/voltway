@@ -422,7 +422,7 @@ Driving this from the Blender MCP:
 | `SU7Ultra_Blackout` (`*_blackout`) | node | hidden in the cabin view |
 | `SU7Ultra_Body`, `SU7Ultra_Wheels` | node | hidden in the cabin view on single-file cars |
 | `*Ambient*` | material | emission driven by the HMI (colour, brightness, on/off) |
-| `*led_white*` | material | headlamps |
+| `*led_white*` | material | headlamps: the front LED lines, lit by the showroom (docs/lights.md; also `M_LED_Red_Tail`, the tail LED, and `M_Lamp_Reflector` where a car lists it as its projector lens; a car whose tail is one lens bar names that material in `Vehicle.lights`) |
 | `INT_Screen` | material | screen backing |
 | `M_Glass`, `M_Glass_Privacy` | material | a clear or privacy tint from inside |
 | `*_Wheels` | node, origin on the front-left wheel centre | the showroom's wheel pose and the wheelbase ruler |

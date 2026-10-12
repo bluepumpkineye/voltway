@@ -289,6 +289,9 @@ export type AnchorId =
   | 'frunk'
   | 'trunk'
   | 'techWide'
+  // the Dashboard tab: the car's screen beside the car, looking at one end of it
+  | 'dashFront'
+  | 'dashRear'
   | 'driver';
 
 /**
@@ -397,6 +400,35 @@ export interface TechDemoSpec {
   devOnly?: boolean;
 }
 
+/**
+ * One lit part of a car, as the showroom lights it (docs/lights.md): which material of the exterior is
+ * the LED the build models, and the light it gives. Anything left out takes the default of its end of the
+ * car (src/lib/lights.ts), so a car whose export follows the usual material names needs none of this.
+ */
+export interface LampSpec {
+  /** the exterior's material that is the lit part (case-insensitive) */
+  material?: string;
+  /** the light of the lamp itself, sRGB */
+  color?: string;
+  /** the glow round it, sRGB */
+  halo?: string;
+  /** emissive strength with the lamp off, when that is not what the build gave the material; fully lit */
+  off?: number;
+  on?: number;
+}
+
+/**
+ * The lamps the showroom can switch on (the headlamp switch of the car's screen, the Dashboard tab). The
+ * cars are built with their LED lines as materials of their own: the front line, the rear one, and where
+ * modelled, the projector lenses. No light is added that the build does not have.
+ */
+export interface LightsSpec {
+  front?: LampSpec;
+  /** the projector lenses, when they are a material of their own that is at the front only */
+  projector?: LampSpec;
+  rear?: LampSpec;
+}
+
 export interface Vehicle {
   slug: string;
   brand: string;
@@ -420,6 +452,8 @@ export interface Vehicle {
   xray?: XraySpec;
   /** The Tech tab's demonstrations, see TechDemoSpec. */
   tech?: TechDemoSpec[];
+  /** Which parts of the exterior are the lamps, see LightsSpec. */
+  lights?: LightsSpec;
   sources: Source[];
   /** Set when a car is too new for reliable data on some fields. */
   dataCaveat?: string;

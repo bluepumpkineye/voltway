@@ -7,6 +7,7 @@ import { getVehicle } from '@/data/vehicles';
 import type { ParkNeighbour, ParkStage, Rect } from '@/lib/tech/park';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { DRACO_PATH } from './CarModel';
+import { useDusk } from './Lights';
 import { GroundShadow, STAGE_LAYER } from './StudioShowroom';
 
 /**
@@ -131,12 +132,15 @@ function Asphalt({ stage }: { stage: ParkStage }) {
     return tex;
   }, [stage, a]);
   React.useEffect(() => () => map.dispose(), [map]);
+  // the lamps take the room toward dusk, and the lot with it
+  const mat = React.useRef<THREE.MeshBasicMaterial>(null);
+  useDusk((d) => mat.current?.color.copy(d.room));
 
   return (
     <mesh position={[a.x, 0.002, -a.y]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStageLayer}>
       <planeGeometry args={[a.length, a.width]} />
       {/* biased toward the camera: 2 mm over the floor is less than the depth buffer resolves at the stage's distance */}
-      <meshBasicMaterial map={map} transparent depthWrite={false} toneMapped={false} polygonOffset polygonOffsetFactor={-4} polygonOffsetUnits={-4} />
+      <meshBasicMaterial ref={mat} map={map} transparent depthWrite={false} toneMapped={false} polygonOffset polygonOffsetFactor={-4} polygonOffsetUnits={-4} />
     </mesh>
   );
 }

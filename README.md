@@ -54,9 +54,20 @@ bottom tab bar, in the manner of the HIMA 3D hall.
   Yufeng, 21 in Sport and its blue-accent finish, each traced from approved
   photographs) and its caliper colours. The SU7 Ultra has one wheel and one
   caliper colour, so its showroom has no Wheels tab.
+- **Dashboard:** the car's own screen, live, beside the car, and the lamps at
+  both ends of it. The screen's headlamp controls (Off, Position, Low beam,
+  Auto) switch the car's LED lines: a glow on the lamps, the beam on the floor
+  ahead, the tail's red wash behind, and the room going to dusk so the light
+  reads. The dock adds Front / Rear, a high beam and a brake pedal; on a narrow
+  window the screen opens as a sheet, on a phone the dock's switch stands in for
+  it ([`docs/lights.md`](docs/lights.md)).
+- **Tech:** what the car's technology does, as simulations built from the
+  makers' published figures (the Luxeed RX parks itself from a phone app or its
+  own screen; [`docs/tech-showcase.md`](docs/tech-showcase.md)).
 - **Studio / City:** the studio is the default; the city is the HDRI world the
   cabin was baked under.
-- The address always links to what is on screen (`?tab=&paint=&trim=&scene=&dim=`).
+- The address always links to what is on screen
+  (`?tab=&paint=&trim=&scene=&dim=&lights=&high=&view=`).
 - It renders on demand (an idle showroom draws no frames), respects
   `prefers-reduced-motion`, and drops the floor mirror on phones.
 
@@ -336,6 +347,12 @@ The app loads Draco through the local decoder in `public/draco/`.
   wheels' faces are traced from photographs with vertical walls, their dish depth
   is estimated, and the calipers are plain blocks without lettering. The cabin is
   still baked under the city HDRI, so its light does not change with the studio.
+- The lamps light what the builds model: the SU7's and RX's LED lines and tail
+  bars, the RX's two projector lenses, the 7X's front bars and red tail bar.
+  The glow, the beam and the dusk are effects added in the viewer, not
+  geometry. The RX's blue upper lamp bar, the 7X's dotted matrix pattern and
+  the amber indicator lamps are not modelled, so they do not light
+  ([`docs/lights.md`](docs/lights.md)).
 - The RX tailgate's inside is a plain liner and its boot a simple carpeted bay
   (floor, walls, sill plates, a lamp module); the SU7's lid hangs on a modelled
   gooseneck pair but swings on a single virtual axis (the real linkage is a

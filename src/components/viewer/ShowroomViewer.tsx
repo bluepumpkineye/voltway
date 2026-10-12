@@ -8,6 +8,7 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
+import { LightsDriver } from './Lights';
 import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
 import { GroundShadow, StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
@@ -71,6 +72,7 @@ export function ShowroomViewer({
       >
         <Invalidator />
         <OpeningsDriver vehicle={vehicle} />
+        <LightsDriver />
         <TechDirector vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <React.Suspense fallback={<Loading />}>

@@ -98,7 +98,7 @@ export function BottomBar({
   const t = useHa();
   const { notify, on, toggle, val, setVal } = useHaLocal();
   const {
-    climate, patchClimate, setHmiScreen, setAppCentreOpen, appCentreOpen, media, patchMedia, setHeadlights,
+    climate, patchClimate, setHmiScreen, setAppCentreOpen, appCentreOpen, media, patchMedia,
   } = useVehicleStore();
   const [vol, setVol] = React.useState(false);
   const wall = over === 'wallpaper';
@@ -188,11 +188,7 @@ export function BottomBar({
           <Ic.CarBeam size={31} />
           {val.headlamp > 0 && <span className="absolute -bottom-[10px] text-[8px] font-bold leading-none tracking-wide">{LAMP_LABEL[val.headlamp]}</span>}
         </span>,
-        () => {
-          const next = (val.headlamp + 1) % 4;
-          setVal('headlamp', next);
-          setHeadlights(next >= 2);
-        },
+        () => setVal('headlamp', (val.headlamp + 1) % 4),
       )}
       {btn(
         1062,

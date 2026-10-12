@@ -14,6 +14,7 @@ import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStrut
 import { useXray, useXrayCabin } from './Xray';
 import { hingesOf } from '@/lib/openings';
 import { prepareRig } from '@/lib/tech/rig';
+import { CarLights } from './Lights';
 import { useRigBinding } from './techRig';
 
 /**
@@ -154,7 +155,7 @@ interface Props {
 
 export function CarModel({ vehicle, variant, url }: Props) {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const { headlightsOn, cameraMode, paintId, caliperId, wheelId } = useVehicleStore();
+  const { cameraMode, paintId, caliperId, wheelId } = useVehicleStore();
   const invalidate = useThree((s) => s.invalidate);
   const model = useClonedScene(scene, prepareRig);
   useRigBinding(model, vehicle);
@@ -183,7 +184,6 @@ export function CarModel({ vehicle, variant, url }: Props) {
    * the camera in) and, on older single-file cars, the whole shell.
    */
   const refs = React.useMemo(() => {
-    const headlamps: THREE.MeshStandardMaterial[] = [];
     const blackout: THREE.Object3D[] = [];
     const shadow: THREE.Object3D[] = [];
     const shell: THREE.Object3D[] = [];
@@ -209,26 +209,12 @@ export function CarModel({ vehicle, variant, url }: Props) {
       for (const m of materialsOf(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
         if (baked && takesOcclusion(m)) bakedOcclusion(m);
-        const mn = m.name.toLowerCase();
-        // Only the light-pipe meshes emit; the housings and lenses around them
-        // stay inert, which is what stops a lamp reading as a glowing blob.
-        if (mn.includes('led_white')) headlamps.push(m);
         // the dark backing of a pane that is not in the blackout node (the tailgate's)
-        if (mn === 'm_shadow') shadow.push(o);
+        if (m.name.toLowerCase() === 'm_shadow') shadow.push(o);
       }
     });
-    return { headlamps, blackout, shadow, shell };
+    return { blackout, shadow, shell };
   }, [model]);
-
-  React.useEffect(() => {
-    for (const m of refs.headlamps) {
-      m.emissive = new THREE.Color('#eaf2ff');
-      m.emissiveIntensity = headlightsOn ? 5.5 : 0.15;
-      m.toneMapped = false;
-      m.needsUpdate = true;
-    }
-    invalidate();
-  }, [refs.headlamps, headlightsOn, invalidate]);
 
   // Inside the cabin: drop the blackout layer and see out through the glass
   // (useGlass tints it: ~80 % through the windscreen and front door glass,
@@ -255,6 +241,8 @@ export function CarModel({ vehicle, variant, url }: Props) {
   return (
     <group>
       <primitive object={model} {...picks} />
+      {/* the LED lamps, their glow and their light on the floor (Lights.tsx) */}
+      <CarLights model={model} vehicle={vehicle} />
       {!hasCabin && <LiveScreen model={model} vehicle={vehicle} variant={variant} />}
     </group>
   );

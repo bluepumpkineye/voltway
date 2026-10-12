@@ -2,7 +2,7 @@
 
 import React from 'react';
 import type { TechDemoSpec, TechDevice, Variant, Vehicle } from '@/data/vehicles/schema';
-import { HmiSurface } from '@/components/hmi/HmiSurface';
+import { CAR_SCREEN_H, CAR_SCREEN_W, CarScreen } from '@/components/hmi/CarScreen';
 import { GLASS } from '@/components/showroom/Chrome';
 import { pauseDemo, resetDemo, startDemo } from '@/lib/tech/actions';
 import { useTechClock } from '@/lib/tech/clock';
@@ -23,8 +23,6 @@ import { DEVICE_H, DEVICE_W, PhoneFrame } from './phone/PhoneFrame';
 
 const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/70 focus-visible:ring-offset-1';
 const LABEL: Record<TechDevice, string> = { phone: 'Phone', dashboard: 'Car screen' };
-const HMI_W = 1280;
-const HMI_H = 800;
 
 /** How wide the device column is, px, and what share of the window that is. */
 export function columnWidth(device: TechDevice, windowWidth: number): number {
@@ -65,7 +63,7 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
   const clock = useTechClock();
   const [screen, setScreen] = React.useState<AppScreen>('home');
   const { active, wide, colW, vw } = useDeviceColumn(demo);
-  const setInset = useVehicleStore((s) => s.setTechInset);
+  const setInset = useVehicleStore((s) => s.setDeviceInset);
   const phase = parkPhase(clock);
   // a phone-sized window has no room for the stage and a device at once: the device opens nearly full
   // screen, and gives way to a slim bar of controls once the car is moving, so the stage can be watched
@@ -172,8 +170,8 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
         </div>
       ) : (
         // the car's screen is wide and short: it takes its own height, so the guidance sits right under it
-        <div className="w-full shrink-0" style={{ aspectRatio: `${HMI_W + 28} / ${HMI_H + 28}`, maxHeight: '100%' }}>
-          <Fit w={HMI_W + 28} h={HMI_H + 28} className="h-full w-full">
+        <div className="w-full shrink-0" style={{ aspectRatio: `${CAR_SCREEN_W} / ${CAR_SCREEN_H}`, maxHeight: '100%' }}>
+          <Fit w={CAR_SCREEN_W} h={CAR_SCREEN_H} className="h-full w-full">
             <CarScreen vehicle={vehicle} variant={variant} />
           </Fit>
         </div>
@@ -256,18 +254,4 @@ export function useWide(): boolean {
     return () => q.removeEventListener('change', f);
   }, []);
   return wide;
-}
-
-/** The car's centre screen with its bezel, at the HMI's own 1280 x 800. */
-function CarScreen({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
-  return (
-    <div
-      className="relative rounded-[30px] bg-[#08090b] p-[14px] shadow-[0_30px_60px_-18px_rgba(10,12,18,0.55),0_0_0_2px_#24262c_inset]"
-      style={{ width: HMI_W + 28, height: HMI_H + 28 }}
-    >
-      <div className="relative overflow-hidden rounded-[18px]" style={{ width: HMI_W, height: HMI_H }}>
-        <HmiSurface vehicle={vehicle} variant={variant} />
-      </div>
-    </div>
-  );
 }

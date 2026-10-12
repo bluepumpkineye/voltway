@@ -18,7 +18,7 @@ import { ComfortBody, COMFORT_BG, useWallpaper } from './Desktop';
 export function ControlCentre({ vehicle }: { vehicle: Vehicle }) {
   const t = useHa();
   const wp = useWallpaper(t.tone);
-  const { modeId, setCarMode, openings, toggleOpening, locked, setLocked, setHeadlights, setHmiTheme, openSettings } =
+  const { modeId, setCarMode, openings, toggleOpening, locked, setLocked, setHmiTheme, openSettings } =
     useVehicleStore();
   const { on, toggle, val, setVal, notify } = useHaLocal();
   const modes = vehicle.cockpit.driveModes ?? [];
@@ -153,7 +153,7 @@ export function ControlCentre({ vehicle }: { vehicle: Vehicle }) {
               key={l}
               type="button"
               aria-pressed={a}
-              onClick={() => { setVal('headlamp', i); setHeadlights(i >= 2); }}
+              onClick={() => setVal('headlamp', i)}
               className="flex flex-col items-center justify-center gap-[6px] rounded-[21px] text-[12px] outline-none"
               style={{ background: a ? GLASS_ON : 'transparent', color: a ? '#17181b' : '#fff' }}
             >

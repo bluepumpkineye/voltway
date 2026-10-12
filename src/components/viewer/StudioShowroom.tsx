@@ -7,6 +7,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { STUDIO_GAIN, STUDIO_RIG, STUDIO_VOID } from '@/data/studio/rig';
 import type { VehicleAssets } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
+import { useDusk } from './Lights';
 
 /**
  * The white studio the showroom stands the car in (Phase 1 of
@@ -35,9 +36,18 @@ const MIRROR = 0.4;
 
 export function StudioShowroom({ reflections, inside }: { reflections: boolean; inside: boolean }) {
   const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
+  const background = React.useRef<THREE.Color>(null);
   React.useEffect(() => {
     camera.layers.enable(STAGE_LAYER);
   }, [camera]);
+
+  // with the lamps on, the room goes toward dusk: the white of the walls, the floor and the light the car
+  // reflects (src/components/viewer/Lights.tsx)
+  useDusk((d) => {
+    background.current?.set(STUDIO_WHITE).multiply(d.room);
+    scene.environmentIntensity = STUDIO_GAIN * d.env;
+  });
 
   return (
     <>
@@ -47,7 +57,7 @@ export function StudioShowroom({ reflections, inside }: { reflections: boolean; 
         mirror's buffer to premultiplied black and darkens the whole floor.
         ContactShadows takes the background off for its own pass.
       */}
-      <color attach="background" args={[STUDIO_WHITE]} />
+      <color ref={background} attach="background" args={[STUDIO_WHITE]} />
       <RigLight />
       <Cove />
       <Rings />
@@ -100,10 +110,12 @@ function useWhiteEnv() {
 }
 
 function PlainFloor() {
+  const mat = React.useRef<THREE.MeshBasicMaterial>(null);
+  useDusk((d) => mat.current?.color.set(FLOOR).multiply(d.room));
   return (
     <mesh rotation-x={-Math.PI / 2}>
       <circleGeometry args={[FLOOR_RADIUS, 128]} />
-      <meshBasicMaterial color={FLOOR} toneMapped={false} />
+      <meshBasicMaterial ref={mat} color={FLOOR} toneMapped={false} />
     </mesh>
   );
 }
@@ -131,6 +143,7 @@ function MirrorFloor() {
       invalidate();
     } else m.mirror = goal;
   });
+  useDusk((d) => mat.current?.color.set(FLOOR).multiply(d.room));
 
   if (!white) return <PlainFloor />;
   return (
@@ -192,9 +205,13 @@ function Cove() {
   }, []);
   React.useEffect(() => () => geometry.dispose(), [geometry]);
 
+  const mat = React.useRef<THREE.MeshBasicMaterial>(null);
+  // the wall's colours are in the vertices; the material's own colour multiplies them
+  useDusk((d) => mat.current?.color.copy(d.room));
+
   return (
     <mesh geometry={geometry} ref={onStage} renderOrder={-1}>
-      <meshBasicMaterial vertexColors side={THREE.DoubleSide} toneMapped={false} depthWrite={false} />
+      <meshBasicMaterial ref={mat} vertexColors side={THREE.DoubleSide} toneMapped={false} depthWrite={false} />
     </mesh>
   );
 }
@@ -205,12 +222,25 @@ function Rings() {
     [4.3, 4.34],
     [7.6, 7.64],
   ];
+  const mats = React.useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  useDusk((d) => {
+    for (const m of mats.current) m?.color.set('#c3c6cc').multiply(d.room);
+  });
   return (
     <group rotation-x={-Math.PI / 2} position-y={0.004}>
-      {rings.map(([a, b]) => (
+      {rings.map(([a, b], i) => (
         <mesh key={a} ref={onStage}>
           <ringGeometry args={[a, b, 192]} />
-          <meshBasicMaterial color="#c3c6cc" transparent opacity={0.75} toneMapped={false} depthWrite={false} />
+          <meshBasicMaterial
+            ref={(m: THREE.MeshBasicMaterial | null) => {
+              mats.current[i] = m;
+            }}
+            color="#c3c6cc"
+            transparent
+            opacity={0.75}
+            toneMapped={false}
+            depthWrite={false}
+          />
         </mesh>
       ))}
     </group>

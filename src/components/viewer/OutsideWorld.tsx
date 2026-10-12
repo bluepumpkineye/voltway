@@ -6,6 +6,8 @@ import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import type { OutsideWorld as World } from '@/data/vehicles/schema';
+import { lightsRig } from '@/lib/lights';
+import { duskOf } from './Lights';
 
 type V3 = [number, number, number];
 
@@ -116,12 +118,15 @@ export function OutsideWorld({
       return;
     }
     owned.current = true;
+    // with the lamps on, the plaza goes toward dusk: its photo, its light and its sun
+    const night = duskOf(lightsRig.now.night);
     scene.environment = light?.texture ?? null;
-    scene.environmentIntensity = 1;
+    scene.environmentIntensity = night.env;
     scene.environmentRotation.set(0, cabin ? 0 : turn, 0);
     scene.background = cabin ? view : null;
-    scene.backgroundIntensity = cabin ? THREE.MathUtils.smoothstep(CABIN_RADIUS - d, 0, 0.6) : 1;
-    if (sun.current) sun.current.intensity = cabin ? 0 : world.sun.intensity;
+    scene.backgroundIntensity = (cabin ? THREE.MathUtils.smoothstep(CABIN_RADIUS - d, 0, 0.6) : 1) * night.env;
+    (dome.material as THREE.MeshBasicMaterial).color.copy(night.room);
+    if (sun.current) sun.current.intensity = cabin ? 0 : world.sun.intensity * night.sun;
   });
   React.useEffect(
     () => () => {
