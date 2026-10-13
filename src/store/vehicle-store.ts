@@ -5,6 +5,7 @@ import type { DriveMode } from '@/lib/performance';
 import type { AnchorId, TechDevice } from '@/data/vehicles/schema';
 import { isLowBeam, type LightMode } from '@/lib/lights';
 import type { ParkSpeed, ParkStage } from '@/lib/tech/park';
+import type { Slide as ScreenSlide, Turn as ScreenTurn } from '@/lib/tech/swivel';
 
 export type HmiScreen =
   | 'home'
@@ -14,6 +15,8 @@ export type HmiScreen =
   | 'media'
   | 'adas'
   | 'controls'
+  // the 7X's charging page (Energy management > Vehicle charging)
+  | 'charge'
   // HyperOS apps
   | 'settings'
   | 'track'
@@ -49,7 +52,7 @@ export type CameraMode = 'exterior' | 'transition' | 'interior';
 /** Parked shows the parked desktop, drive the three-card driving desktop. */
 export type Gear = 'P' | 'D';
 
-export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
+export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot' | 'charge';
 
 /** The showroom's bottom tabs (/showroom/[slug]). */
 export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dimensions' | 'xray' | 'tech';
@@ -81,6 +84,7 @@ const OPENING_ANCHOR: Record<Opening, AnchorId> = {
   doorRR: 'doorsR',
   frunk: 'frunk',
   boot: 'trunk',
+  charge: 'doorsL',
 };
 // Height uses the front view: beside the car it has free space for the ruler
 // and its label, which the side view (nose and roof up to the screen edge) lacks.
@@ -128,6 +132,19 @@ export interface VehicleUiState {
   regen: 'gentle' | 'standard' | 'custom';
   sportSound: 'off' | 'electronic' | 'classic' | 'scifi';
   rideHeight: 'low' | 'standard' | 'high';
+  /**
+   * The 7X's five-level air suspension (src/lib/tech/ride.ts): 0 very low .. 4 very high, 2 Standard. The car's
+   * screen sets it; the Tech tab's Magic Carpet demo (and the stage's idle car) shows it.
+   */
+  rideLevel: number;
+  /** The Magic Carpet comparison: on, the car reads the road ahead; off, a passive suspension (the car has no such switch) */
+  carpetOn: boolean;
+  /**
+   * "Suspension easy entry" (the 7X's Driving settings): once the car is parked and a seat belt is unbuckled the body
+   * lowers by itself. `beltOn` is the showroom's stand-in for the belt (the Tech tab's seat-belt switch).
+   */
+  easyEntry: boolean;
+  beltOn: boolean;
 
   climate: ClimateState;
   media: MediaState;
@@ -181,6 +198,15 @@ export interface VehicleUiState {
   deviceInset: { right: number; bottom: number };
   /** which end of the car the Dashboard tab looks at */
   lightsView: LightsView;
+  /** the swivel screen's goal (the car's direction dialog, or the Tech tab's demo) and the dialog being open */
+  screenTurn: ScreenTurn;
+  screenSlide: ScreenSlide;
+  screenDialog: boolean;
+  /** the RX's BOOST: on, and how many of its steps the car's screen has shown (the Tech tab's demo, or a press of the knob) */
+  boostOn: boolean;
+  boostStep: number;
+  /** the car's screen enlarged beside the cabin (the BOOST demo opens it with the press, the visitor can close it) */
+  boostPopup: boolean;
   /** the parking lot (or other staged floor) of the running demo, which the viewer draws round the car */
   techScene: ParkStage | null;
   /** whether the mounted exterior has the per-corner wheels the demos drive */
@@ -209,11 +235,17 @@ export interface VehicleUiState {
   setRegen: (v: VehicleUiState['regen']) => void;
   setSportSound: (v: VehicleUiState['sportSound']) => void;
   setRideHeight: (v: VehicleUiState['rideHeight']) => void;
+  setRideLevel: (n: number) => void;
+  setCarpetOn: (on: boolean) => void;
+  setEasyEntry: (on: boolean) => void;
+  setBeltOn: (on: boolean) => void;
   setCameraMode: (m: CameraMode) => void;
   patchClimate: (p: Partial<ClimateState>) => void;
   patchMedia: (p: Partial<MediaState>) => void;
   setAmbient: (p: Partial<Pick<VehicleUiState, 'ambientOn' | 'ambientHue' | 'ambientBrightness'>>) => void;
   toggleOpening: (o: Opening) => void;
+  /** set a part open or shut without moving the camera (a tech demo's own flap) */
+  setOpening: (o: Opening, on: boolean) => void;
   closeAllOpenings: () => void;
   /** Low beam on or off, for the screens that only have a switch. */
   setHeadlights: (on: boolean) => void;
@@ -244,6 +276,10 @@ export interface VehicleUiState {
   setTechStatus: (status: VehicleUiState['techStatus']) => void;
   setTechDevice: (device: TechDevice) => void;
   setTechAvailable: (v: boolean) => void;
+  setScreenPose: (turn: ScreenTurn, slide: ScreenSlide) => void;
+  setScreenDialog: (open: boolean) => void;
+  setBoost: (on: boolean, step: number) => void;
+  setBoostPopup: (open: boolean) => void;
   setRpaEnabled: (v: boolean) => void;
   setParkSpeed: (v: ParkSpeed) => void;
   /**
@@ -279,6 +315,7 @@ const initialOpenings: Record<Opening, boolean> = {
   doorRR: false,
   frunk: false,
   boot: false,
+  charge: false,
 };
 
 /** What opening the Tech tab changes elsewhere: a shut car, in the studio. */
@@ -315,6 +352,10 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   regen: 'standard',
   sportSound: 'off',
   rideHeight: 'standard',
+  rideLevel: 2,
+  carpetOn: true,
+  easyEntry: true,
+  beltOn: true,
 
   climate: initialClimate,
   media: { playing: true, trackIndex: 0, volume: 42 },
@@ -345,6 +386,12 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   techStage: null,
   deviceInset: { right: 0, bottom: 0 },
   lightsView: 'front',
+  screenTurn: 'centre',
+  screenSlide: 'rear',
+  screenDialog: false,
+  boostOn: false,
+  boostStep: 0,
+  boostPopup: false,
   techScene: null,
   techStatus: 'loading',
   techDevice: 'phone',
@@ -367,6 +414,10 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setRegen: (regen) => set({ regen }),
   setSportSound: (sportSound) => set({ sportSound }),
   setRideHeight: (rideHeight) => set({ rideHeight }),
+  setRideLevel: (n) => set({ rideLevel: Math.min(4, Math.max(0, Math.round(n))) }),
+  setCarpetOn: (carpetOn) => set({ carpetOn }),
+  setEasyEntry: (easyEntry) => set({ easyEntry }),
+  setBeltOn: (beltOn) => set({ beltOn }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
 
   patchClimate: (p) =>
@@ -388,7 +439,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
 
   toggleOpening: (o) =>
     set((s) => {
-      // the car is on the move in the Tech tab: its doors stay shut
+      // the car is on the move in the Tech tab: its doors stay shut (the charge demo opens its own flap: setOpening)
       if (s.tab === 'tech') return {};
       const openings = { ...s.openings, [o]: !s.openings[o] };
       // opening a part from outside brings it into frame (as HIMA's showroom
@@ -398,6 +449,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       }
       return { openings };
     }),
+
+  setOpening: (o, on) => set((s) => (s.openings[o] === on ? s : { openings: { ...s.openings, [o]: on } })),
 
   closeAllOpenings: () => set({ openings: { ...initialOpenings } }),
 
@@ -444,6 +497,15 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setTechStatus: (techStatus) => set({ techStatus }),
   setTechDevice: (techDevice) => set({ techDevice }),
   setTechAvailable: (techAvailable) => set({ techAvailable }),
+  setScreenPose: (screenTurn, screenSlide) =>
+    set((s) => (s.screenTurn === screenTurn && s.screenSlide === screenSlide ? s : { screenTurn, screenSlide })),
+  setScreenDialog: (screenDialog) => set({ screenDialog }),
+  // the press that turns BOOST on brings the enlarged screen up; closing it stays closed until the next press
+  setBoost: (boostOn, boostStep) =>
+    set((s) =>
+      s.boostOn === boostOn && s.boostStep === boostStep ? s : { boostOn, boostStep, ...(boostOn && !s.boostOn ? { boostPopup: true } : {}) },
+    ),
+  setBoostPopup: (boostPopup) => set((s) => (s.boostPopup === boostPopup ? s : { boostPopup })),
   setRpaEnabled: (rpaEnabled) => set({ rpaEnabled }),
   setParkSpeed: (parkSpeed) => set({ parkSpeed }),
   startTech: (techDemoId, techDevice) =>
@@ -473,6 +535,10 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       regen: 'standard',
       sportSound: 'off',
       rideHeight: 'standard',
+      rideLevel: 2,
+      carpetOn: true,
+      easyEntry: true,
+      beltOn: true,
       cameraMode: 'exterior',
       climate: { ...initialClimate },
       media: { playing: true, trackIndex: 0, volume: 42 },
@@ -484,6 +550,12 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       highBeam: false,
       braking: false,
       lightsView: 'front',
+      screenTurn: 'centre',
+      screenSlide: 'rear',
+      screenDialog: false,
+      boostOn: false,
+      boostStep: 0,
+      boostPopup: false,
       headlightsOn: false,
       locked: true,
       adasActive: false,

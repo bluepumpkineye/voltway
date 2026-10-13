@@ -92,6 +92,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const moved = React.useRef(false);
   const lastId = React.useRef(pose.id);
   const lastTick = React.useRef(tick);
+  const lastFloor = React.useRef('');
 
   // buttons: drag orbits, wheel and pinch zoom, nothing pans the car off-centre
   React.useEffect(() => {
@@ -133,9 +134,13 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   React.useEffect(() => {
     const c = controls.current;
     if (!c) return;
-    const changed = lastId.current !== pose.id || lastTick.current !== tick;
+    // a tech demo with another floor to frame (its centre, size or preferred look) is a new pose even though the
+    // anchor is still the wide shot: the visitor's own turns and zoom belonged to the last one
+    const floor = stage ? [stage.cx, stage.cz, stage.radius, stage.camera?.az, stage.camera?.el].join() : '';
+    const changed = lastId.current !== pose.id || lastTick.current !== tick || lastFloor.current !== floor;
     lastId.current = pose.id;
     lastTick.current = tick;
+    lastFloor.current = floor;
     // a device that came or went moves the picture's lift and slide even where the camera is left alone
     invalidate();
     // a resize only changes the fit: leave a camera the visitor has moved alone
@@ -178,7 +183,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       lock();
     });
     invalidate();
-  }, [pose, tick, camera, invalidate]);
+  }, [pose, tick, stage, camera, invalidate]);
 
   // The field of view, the lift and the slide ease toward the pose's own (64 and
   // none in the cabin; 20-30, a lift, and a slide clear of a device outside). The

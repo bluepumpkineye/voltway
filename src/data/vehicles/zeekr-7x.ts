@@ -44,6 +44,15 @@ export const zeekr7x: Vehicle = {
     defaultTheme: 'light',
     accentColor: '#00B3A4',
     ambientLighting: true,
+    // as Quick settings lists them (Autohome's photographs of the car's screen, c10_0033)
+    driveModes: [
+      { id: 'comfort', label: 'Comfort', native: '舒适', group: 'street', model: 'comfort' },
+      { id: 'economy', label: 'Economy', native: '经济', group: 'street', model: 'eco' },
+      { id: 'sport', label: 'Sport', native: '运动', group: 'street', model: 'sport' },
+      { id: 'snow', label: 'Snow', native: '雪地', group: 'street', model: 'comfort' },
+      { id: 'off-road', label: 'Off-road', native: '越野', group: 'street', model: 'comfort' },
+      { id: 'custom', label: 'Custom', native: '个性化', group: 'special', model: 'comfort' },
+    ],
     screens: [
       { id: 'center', label: 'Centre touchscreen', diagonalIn: 16, role: 'center', interactive: true },
       { id: 'hud', label: 'AR head-up display', diagonalIn: 13, role: 'hud' },
@@ -236,6 +245,10 @@ export const zeekr7x: Vehicle = {
         { body: [1.25, 1.0, 0.73], moving: [1.52, 1.05, 0.73] },
       ],
     },
+    // The charge flap on the left rear quarter hinges at its front edge and swings out about 105 degrees
+    // (c12_0048; zx_charge.py). The pocket behind it, the light strip, the badge and the dust caps are one
+    // node, shown only while it is open.
+    { id: 'charge', node: 'Zeekr7X_ChargeFlap', frameNode: 'Zeekr7X_ChargePort', deg: -105 },
     // The tailgate hangs from the roof's trailing edge (zx_gate.py: the hinge at the glass's top
     // edge) and swings up ~80 deg (c3_0047) on two gas struts at its sides. The cabin's liner
     // turns with it.
@@ -260,6 +273,77 @@ export const zeekr7x: Vehicle = {
   // The lamps (docs/lights.md). The front LED is the usual M_LED_White. The tail lamp is one red lens
   // bar with no LED material under it, so the lens is the lit part, and it is dark as built.
   lights: { rear: { material: 'M_Lamp_RedLens', off: 0 } },
+  // The Tech tab (docs/tech-showcase.md). Sources read 2026-10-12; the board is blender/reference/zeekr-7x/tech.
+  tech: [
+    {
+      id: 'magic-carpet',
+      title: 'Magic Carpet',
+      blurb:
+        'Three speed humps at 16 km/h. Choose the ride height, then watch a passive suspension bob over them and the Magic Carpet float.',
+      driver: 'carpet',
+      claims: [
+        {
+          text: 'The Zeekr Magic Carpet air suspension package is air suspension, CCD electromagnetic dampers and a smart Magic Carpet: the 4WD 7X carries it, rear-drive versions can add it (CNY 20,000 on the 75 kWh and 103 kWh MAX).',
+          source: { label: 'Autohome launch article, 23 September 2024', url: 'https://chejiahao.autohome.com.cn/info/17026490' },
+        },
+        {
+          text: 'The smart Magic Carpet is a perception system (front camera and lidar) with the suspension system, adjusting the suspension from the road ahead within milliseconds.',
+          source: { label: 'Yiche, 25 September 2024', url: 'https://www.yiche.com/zhai/2126677/' },
+        },
+        {
+          text: 'The refreshed 7X’s closed air suspension has five ride heights that follow speed, with geofencing, and up to 230 mm of ground clearance.',
+          source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
+        },
+        {
+          text: 'The ride height can be changed by about 70 mm.',
+          source: { label: 'Tencent News, 22 September 2024', url: 'https://news.qq.com/rain/a/20240922A05JVD00' },
+        },
+        {
+          text: 'The car’s own screen names the five heights Very high, High, Standard, Low and Very low, next to the drive mode.',
+          source: { label: 'Autohome photo of the 7X’s screen', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-10-x/12708776.html' },
+        },
+        {
+          text: 'Suspension easy entry lowers the body by itself once the car is parked and a seat belt is unbuckled.',
+          source: { label: 'Autohome photo of the 7X’s screen', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-10-x/12708773.html' },
+        },
+      ],
+      simulated:
+        'A simulation. The humps, the speed and the body’s motion are ours: the maker publishes no response curves. The five heights are equal steps over its roughly 70 mm, and “passive” is a plain suspension of our own, not a Zeekr car.',
+      devices: ['dashboard'],
+    },
+    {
+      id: 'fast-charge',
+      title: 'Fast charge',
+      blurb:
+        'The flap opens, a gun goes into the DC socket and the pack charges from 10 to 80 % at up to 620 kW. Ten minutes play in fourteen seconds.',
+      driver: 'charge',
+      devices: ['dashboard'],
+      params: { packKwh: 103 },
+      claims: [
+        {
+          text: 'The refreshed 7X carries 900 V motors, controllers and thermal management across the range, with 5.5C or 6C ultra-fast charging as standard.',
+          source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
+        },
+        {
+          text: 'The 103 kWh 6C Kirin pack charges at up to 620 kW, and from 10 to 80 % in 10 minutes at best. The 75 kWh 5.5C pack adds 425 km in 10 minutes.',
+          source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
+        },
+        {
+          text: 'The charge port is on the left rear quarter under one flap: a DC socket and an AC socket in one housing, a light strip above them and two dust caps on cords.',
+          source: { label: 'Autohome photo of the 7X, flap open', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-12-x/12781350.html' },
+        },
+        {
+          text: 'The car’s own screen has a “Charge port cover” tile for the flap, and a Vehicle charging page with the charge limit, the charge left and the range.',
+          source: { label: 'Autohome photo of the 7X’s screen', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-10-x/12161296.html' },
+        },
+      ],
+      simulated:
+        'A simulation. Only the 620 kW peak and the ten minutes are published, and the ten minutes are the best case. The curve between them, the pedestal and the gun (styled on a generic charging connector, not a Zeekr or any maker’s) are ours, and ten minutes play in fourteen seconds.',
+    },
+  ],
+  // The DC socket's mouth and the direction pointing out of it, in the viewer's axes (zx_charge.py: the cup centred 3 cm
+  // ahead of the flap's middle, 2 cm under the skin), for the fast-charge demo's gun.
+  chargePort: { mouth: [-1.4583, 0.982, -0.8458], axis: [-0.038, 0.1642, -0.9857], depth: 0.022 },
   sources: [
     { label: 'Paul Tan - 7X facelift, 900 V, 802 km', url: 'https://paultan.org/2025/10/22/zeekr-7x-facelift-revealed-900v-architecture-6c-dc-charging-802-km-cltc-795-ps-0-100-km-h-2-98-secs/' },
     { label: 'Wikipedia - Zeekr 7X', url: 'https://en.wikipedia.org/wiki/Zeekr_7X' },

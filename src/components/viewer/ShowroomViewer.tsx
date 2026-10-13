@@ -8,13 +8,18 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
+import { BoostKnob } from './BoostKnob';
 import { LightsDriver } from './Lights';
 import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
 import { GroundShadow, StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
+import { ScreenDriver } from './ScreenSwivel';
 import { ShowroomCameraRig, useCarFrame } from './ShowroomCameraRig';
 import { DimensionRulers } from './DimensionRulers';
+import { TechCharge } from './TechCharge';
 import { TechDirector } from './TechDirector';
+import { TechRoad } from './TechRoad';
+import { TechSensors } from './TechSensors';
 import { TechStage } from './TechStage';
 import { CarRoot } from './techRig';
 
@@ -73,6 +78,8 @@ export function ShowroomViewer({
         <Invalidator />
         <OpeningsDriver vehicle={vehicle} />
         <LightsDriver />
+        <ScreenDriver vehicle={vehicle} />
+        <BoostKnob vehicle={vehicle} />
         <TechDirector vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <React.Suspense fallback={<Loading />}>
@@ -130,6 +137,9 @@ function Stage({
       )}
       {/* the lot a tech demo drives in, when it has one */}
       {!inside && <TechStage />}
+      {!inside && <TechRoad vehicle={vehicle} />}
+      {!inside && <TechCharge />}
+      {!inside && <TechSensors vehicle={vehicle} />}
       {/* the car and its baked shadow stand in one group, so a tech demo moves them together */}
       <CarRoot vehicle={vehicle}>
         <CarModel vehicle={vehicle} variant={variant} url={url} />

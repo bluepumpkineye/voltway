@@ -15,8 +15,14 @@ import { visibleDemos } from '@/lib/tech/demos';
 import { CarMenu, GLASS, SceneToggle, TabBar } from './Chrome';
 import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
 import { CaliperSwatches, DimensionChips, PaintSwatches, TrimSwatches, WheelChips } from './Swatches';
+import { ChargeTools } from './Charge';
+import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
+import { LaunchTools } from './Launch';
+import { SensorsTools } from './Sensors';
+import { SwivelTools } from './Swivel';
+import { RideTools } from './Ride';
 import { TechChips, TechControls, TechFacts } from './Tech';
-import { TechDevices, useDeviceColumn } from '@/components/tech/TechDevices';
+import { TechDevices, activeDevice, useDeviceColumn } from '@/components/tech/TechDevices';
 
 // three.js has no business in the server bundle
 const ShowroomViewer = dynamic(
@@ -88,6 +94,9 @@ export function Showroom({
   const lightsView = useVehicleStore((s) => s.lightsView);
   // the Dashboard tab's screen: a column at the right of a wide window, a sheet over the car on a narrower one
   const dash = useDashboardLayout();
+  // the BOOST demo's enlarged screen: a column at the right of a wide window, a sheet over the cabin on a narrower one
+  const boostUp = useVehicleStore((s) => s.boostPopup) && demo?.driver === 'boost' && tab === 'tech' && dash.screenFits;
+  const boostSheet = boostUp && !dash.wide;
   const [screenOpen, setScreenOpen] = React.useState(false);
   const closeScreen = React.useCallback(() => setScreenOpen(false), []);
 
@@ -158,7 +167,11 @@ export function Showroom({
     if (caliperId && spec.calipers && caliperId !== spec.calipers[0].id) q.set('caliper', caliperId);
     if (sceneKind !== 'studio') q.set('scene', sceneKind);
     if (tab === 'tech' && demo && demo.id !== demos[0].id) q.set('demo', demo.id);
-    if (tab === 'tech' && demo?.devices && techDevice !== demo.devices[0]) q.set('device', techDevice);
+    // the device on show, not the visitor's last pick (a demo with no phone is not "device=phone")
+    if (tab === 'tech' && demo?.devices) {
+      const on = activeDevice(demo, techDevice);
+      if (on && on !== demo.devices[0]) q.set('device', on);
+    }
     const s = q.toString();
     window.history.replaceState(null, '', s ? `?${s}` : window.location.pathname);
   }, [ready, tab, dimension, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView]);
@@ -196,6 +209,7 @@ export function Showroom({
       </div>
 
       {ready && tab === 'tech' && demo && <TechDevices vehicle={vehicle} variant={variant} demo={demo} />}
+      {ready && tab === 'tech' && demo?.driver === 'boost' && <BoostPopup vehicle={vehicle} variant={variant} />}
       {ready && tab === 'dashboard' && (
         <DashboardScreen vehicle={vehicle} variant={variant} open={screenOpen} onClose={closeScreen} />
       )}
@@ -206,7 +220,9 @@ export function Showroom({
         style={
           tab === 'tech' && col.active && col.wide
             ? { paddingRight: col.colW + 40 }
-            : tab === 'dashboard' && dash.wide
+            : boostUp && dash.wide
+              ? { paddingRight: boostColumnWidth(dash.vw) + 40 }
+              : tab === 'dashboard' && dash.wide
               ? { paddingRight: dash.colW + 40 }
               : undefined
         }
@@ -225,8 +241,14 @@ export function Showroom({
         )}
         {tab === 'tech' && demo && (
           <>
-            {(col.wide || !col.active) && <TechFacts spec={demo} />}
-            {demos.length > 1 && (col.wide || !col.active) && <TechChips demos={demos} selected={demo.id} onSelect={setTechDemo} />}
+            {(col.wide || !col.active) && !boostSheet && <TechFacts spec={demo} />}
+            {demos.length > 1 && (col.wide || !col.active) && !boostSheet && <TechChips demos={demos} selected={demo.id} onSelect={setTechDemo} />}
+            {demo.driver === 'carpet' && <RideTools showHeights={!col.active} />}
+            {demo.driver === 'launch' && <LaunchTools />}
+            {demo.driver === 'charge' && <ChargeTools />}
+            {demo.driver === 'swivel' && <SwivelTools />}
+            {demo.driver === 'sensors' && <SensorsTools />}
+            {demo.driver === 'boost' && !boostSheet && <BoostTools />}
             <TechControls
               speed={techSpeed}
               onSpeed={setTechSpeed}

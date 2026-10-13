@@ -21,6 +21,33 @@ export function startDemo(demoId: string, device: TechDevice) {
   st.startTech(demoId, device);
 }
 
+/**
+ * A tap on the car's own "charge port cover" (the Vehicle charging page's tile, the Home chip). In the fast-charge
+ * demo it is what starts the demo and, at its stop, what sends the gun home; anywhere else it opens or shuts the
+ * flap. Returns nothing: the screens read the demo's clock.
+ */
+export function tapChargeFlap() {
+  const st = useVehicleStore.getState();
+  if (st.tab === 'tech' && techSession.runtime?.charge) {
+    if (!techClock.playing) techClock.play();
+    return;
+  }
+  st.toggleOpening('charge');
+}
+
+/**
+ * A press of the RX's BOOST knob (on the wheel in the cabin, or the demo's own button): the run starts, from the top if it
+ * has finished; a press during the run pauses it.
+ */
+export function pressBoost() {
+  if (techClock.playing) {
+    techClock.pause();
+    return;
+  }
+  if (techClock.duration > 0 && techClock.t >= techClock.duration - 0.02) techClock.seek(0);
+  techClock.play();
+}
+
 /** Stop where the car stands. */
 export function pauseDemo() {
   techClock.pause();

@@ -16,6 +16,7 @@ import { hingesOf } from '@/lib/openings';
 import { prepareRig } from '@/lib/tech/rig';
 import { CarLights } from './Lights';
 import { useRigBinding } from './techRig';
+import { rigSwivel } from './ScreenSwivel';
 
 /**
  * Blender exports with +Y up, so the car's axes arrive as:
@@ -284,6 +285,12 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
   const invalidate = useThree((s) => s.invalidate);
 
+  // a car with a motorised centre screen: its frame is cut out of the merged cabin mesh and hung with the picture on a
+  // pivot (ScreenDriver turns it). Done while rendering, so the live HMI below finds the picture under its pivot.
+  React.useMemo(() => {
+    if (vehicle.swivel) rigSwivel(model, vehicle.swivel);
+  }, [model, vehicle]);
+
   // each door card gets materials of its own: its light follows its swing
   React.useMemo(() => {
     for (const s of vehicle.openings ?? []) {
@@ -507,17 +514,29 @@ function LiveScreen({
     const hh = (b.width * HMI_H) / HMI_W / 2;
     const at = (sx: number, sy: number) =>
       b.position.clone().addScaledVector(across, sx * hw).addScaledVector(up, sy * hh);
-    // top-left, top-right, bottom-right, bottom-left as the driver sees it
-    return { corners: [at(-1, 1), at(1, 1), at(1, -1), at(-1, -1)], centre: b.position };
+    // top-left, top-right, bottom-right, bottom-left as the driver sees it. Each is pinned to the picture's parent,
+    // so a screen that turns and slides (the RX's) carries the corners with it.
+    const parent = (found as THREE.Mesh).parent ?? model;
+    parent.updateWorldMatrix(true, false);
+    const inverse = parent.matrixWorld.clone().invert();
+    const corners = [at(-1, 1), at(1, 1), at(1, -1), at(-1, -1)].map((c) => {
+      const o = new THREE.Object3D();
+      o.position.copy(c).applyMatrix4(inverse);
+      parent.add(o);
+      return o;
+    });
+    return { corners };
   }, [model]);
 
   const tmp = React.useMemo(() => new THREE.Vector3(), []);
+  const world = React.useMemo(() => new THREE.Vector3(), []);
   useFrame(() => {
     const el = surface.current;
     if (!el || !quad) return;
     camera.updateMatrixWorld();
     const pts: [number, number][] = [];
-    for (const c of quad.corners) {
+    for (const o of quad.corners) {
+      const c = o.getWorldPosition(world);
       tmp.copy(c).applyMatrix4(camera.matrixWorldInverse);
       if (tmp.z > -0.02) {
         el.style.visibility = 'hidden'; // a corner is behind the eye

@@ -266,6 +266,30 @@ export const luxeedRx: Vehicle = {
   // The lamps (docs/lights.md): the usual LED materials, and the headlamp's two projector lenses
   // (M_Lamp_Reflector at the front only) light with the low beam.
   lights: { projector: {} },
+  // The 16.1 in centre screen is on a motor: 55 mm forward and back, up to 30 degrees to either side (the maker's
+  // page, some trims only). It turns about the hub behind its middle (rx_interior.py: SCREEN_C, the arm's end).
+  swivel: { cabinNode: 'LuxeedRX_Cabin', turnDeg: 30, travelM: 0.055, hub: [0.47, 0] },
+  // Where the sensors are, for the sensor demo, in the exterior model's space. The roof lidar's window, the cameras and the
+  // ultrasonic sensors are read off Autohome's photographs of the detail (board T3d); the solid-state lidars at the sides
+  // are put at the fender gill, where one secondary source reports them (the photographs show cameras and a slot there),
+  // and the rear one at the tail, where nothing says it is. The count of cameras is not published.
+  sensors: {
+    lidar: [0.16, 1.47, 0],
+    sideLidar: [0.93, 0.86, 0.95],
+    rearLidar: [-2.49, 0.95, 0],
+    cameras: [
+      { at: [0.2, 1.41, 0.045], mirror: true },
+      { at: [0.93, 0.9, 0.95], mirror: true },
+      { at: [2.42, 0.7, 0] },
+      { at: [0.62, 1.02, 1.0], mirror: true },
+      { at: [-2.49, 1.02, 0] },
+      { at: [-2.49, 0.86, 0] },
+    ],
+    ultrasonic: [{ at: [2.32, 0.48, 0.74], mirror: true }],
+  },
+  // The BOOST knob on the wheel's lower right, in the cabin model's space: found by casting a ray at the knob (a satin black
+  // cap in a chrome ring, about 32 mm across) from the driver's eye.
+  boost: { knob: [0.287, 0.953, -0.328] },
   // The Tech tab (docs/tech-showcase.md). "Park from your phone" first; the rig test drives the
   // wheels through every steering mode and is left out of a production build.
   tech: [
@@ -292,6 +316,77 @@ export const luxeedRx: Vehicle = {
       ],
       simulated:
         'A simulation: the path, the speeds and the screens are ours, drawn from the maker’s published description of the function, not its footage or its software.',
+    },
+    {
+      id: 'sensors',
+      title: 'What the car sees',
+      blurb:
+        'The car’s lidars and ultrasonic sensors, drawn from where they sit, as a pedestrian steps off the kerb ahead and the car brakes to a stop.',
+      driver: 'sensors',
+      claims: [
+        {
+          text: 'The RX carries 38 sensors, among them the world’s highest-spec mass-produced 896-line dual-optical-path image-grade lidar and three high-precision solid-state lidars.',
+          source: { label: 'HIMA, the Luxeed RX page', url: 'https://hima.auto/zhijie/rx/' },
+        },
+        {
+          text: 'On the Ultra trims: one forward lidar in the roof housing, two solid-state lidars at the sides and one at the rear, five millimetre-wave radars and twelve ultrasonic sensors.',
+          source: { label: 'Autohome (Chejiahao) and its configuration table', url: 'https://chejiahao.m.autohome.com.cn/info/25677033' },
+        },
+        {
+          text: 'The 896-line lidar has a wide and a tele light path under independent control, and recognises a 14 cm box at 120 m.',
+          source: { label: 'Huawei Qiankun, 4 March 2026', url: 'https://auto.huawei.com/cn/news/2026/2026-3-4-lidar' },
+        },
+        {
+          text: 'The lidar’s window is in the black housing at the top of the windscreen, beside a pair of cameras; the front fender’s black gill carries cameras and a dark slot; a dual-lens unit sits under the tail badge.',
+          source: { label: 'Autohome photo of the RX’s details', url: 'https://www.autohome.com.cn/cars/imgs-8684-78055-12-x/13535277.html' },
+        },
+      ],
+      simulated:
+        'A simulation. The pedestrian, the speeds and the braking are ours, and so is every cone’s angle and the reach it is drawn to: no field of view is published (the real lidar recognises a 14 cm box at 120 m). The side lidars are drawn from the fender gill, where one source reports them, and the rear one from where nothing says it is; the five radars are not drawn.',
+    },
+    {
+      id: 'boost',
+      title: 'BOOST',
+      blurb:
+        'From the driver’s seat: press the BOOST knob on the wheel. Its ring lights and the car’s screen shows what the maker says BOOST changes, one step at a time.',
+      driver: 'boost',
+      view: 'cabin',
+      claims: [
+        {
+          text: 'One press of BOOST raises instantaneous torque by 10 %, with its own throttle calibration, its own chassis tune, a three-screen linkage with a sport sound, and the seat belts and seat bolsters tightening at once. Some trims only.',
+          source: { label: 'HIMA, the Luxeed RX page', url: 'https://hima.auto/zhijie/rx/' },
+        },
+        {
+          text: 'The motor turns up to 21,000 rpm, the car reaches 251 km/h, the motor is 98.2 % efficient and its torque responds within 1 ms.',
+          source: { label: 'HIMA, the Luxeed RX page', url: 'https://hima.auto/zhijie/rx/' },
+        },
+        {
+          text: 'The BOOST knob is a round button at the lower right of the steering wheel; its ring is lit blue when BOOST is on.',
+          source: { label: 'Autohome photos of the RX’s wheel (lit, and not)', url: 'https://www.autohome.com.cn/cars/imgs-8684-78916-10-x/13373093.html' },
+        },
+      ],
+      simulated:
+        'A simulation. The steps are the maker’s list; their order and timing are ours, and so is the screen the cabin shows: a stand-in, because the maker’s BOOST screens (the cluster, the centre screen and the head-up display change together) are not photographed. The lit ring is drawn over the model’s knob.',
+    },
+    {
+      id: 'swivel',
+      title: 'Swivel screen',
+      blurb:
+        'From the driver’s seat: the 16.1 in centre screen turns toward you, toward the passenger, and slides forward and back, as the four buttons of its direction dialog ask.',
+      driver: 'swivel',
+      view: 'cabin',
+      claims: [
+        {
+          text: 'The 16.1 in centre screen moves four ways on a motor: 55 mm forward and back, and up to 30° to the left and right, so the driver and the front passenger are each in the best seat for it. Some trims only.',
+          source: { label: 'HIMA, the Luxeed RX page', url: 'https://hima.auto/zhijie/rx/' },
+        },
+        {
+          text: 'Its settings dialog has four buttons (centre and back, centre and forward, toward the driver, toward the passenger), a “follow on boarding” switch that turns it by who is in the seats, and the steering wheel’s right scroll wheel sets the angle.',
+          source: { label: 'Autohome photo of the RX’s screen', url: 'https://www.autohome.com.cn/cars/imgs-8684-78916-10-x/13373056.html' },
+        },
+      ],
+      simulated:
+        'A simulation: the order of the presses and how fast the screen moves are ours (the maker publishes the 55 mm and the 30°, not a speed). The dialog is drawn from Autohome’s photograph, and the screen turns about a hub behind its middle.',
     },
     {
       id: 'rig-test',

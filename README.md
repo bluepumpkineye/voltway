@@ -64,8 +64,11 @@ bottom tab bar, in the manner of the HIMA 3D hall.
   window the screen opens as a sheet, on a phone the dock's switch stands in for
   it ([`docs/lights.md`](docs/lights.md)).
 - **Tech:** what the car's technology does, as simulations built from the
-  makers' published figures (the Luxeed RX parks itself from a phone app or its
-  own screen; [`docs/tech-showcase.md`](docs/tech-showcase.md)).
+  makers' published figures: the Luxeed RX parks itself from a phone app or its
+  own screen, sees a pedestrian and brakes, turns its centre screen toward the
+  driver and presses BOOST; the Zeekr 7X floats over speed humps on its Magic
+  Carpet suspension and fast-charges; the Xiaomi SU7 Ultra launches to 100 km/h
+  in 1.98 s ([`docs/tech-showcase.md`](docs/tech-showcase.md)).
 - **Studio / City:** the studio is the default; the city is the HDRI world the
   cabin was baked under.
 - The address always links to what is on screen

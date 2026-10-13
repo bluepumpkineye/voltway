@@ -3,7 +3,10 @@
 import React from 'react';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type Opening } from '@/store/vehicle-store';
-import { DRIVE_MODES, effectiveRange } from '@/lib/performance';
+import { effectiveRange } from '@/lib/performance';
+import { tapChargeFlap } from '@/lib/tech/actions';
+import { useChargeReadout } from '@/lib/tech/session';
+import { RIDE_LEVELS } from '@/lib/tech/ride';
 import { useZk } from './theme';
 import * as Ic from './icons';
 import { useZkLocal } from './shared';
@@ -59,7 +62,7 @@ function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; labe
 function Row({ label, children, sub }: { label: string; sub?: string; children: React.ReactNode }) {
   const t = useZk();
   return (
-    <div className="flex items-center justify-between rounded-[4px] px-5" style={{ height: 58, background: t.card }}>
+    <div className="flex items-center justify-between gap-6 rounded-[4px] px-5 py-[7px]" style={{ minHeight: 58, background: t.card }}>
       <div>
         <div className="text-[17px] leading-tight">{label}</div>
         {sub && (
@@ -73,7 +76,7 @@ function Row({ label, children, sub }: { label: string; sub?: string; children: 
   );
 }
 
-function Segment({ options, value, onPick }: { options: string[]; value: number; onPick: (i: number) => void }) {
+function Segment({ options, value, onPick, minW = 84 }: { options: string[]; value: number; onPick: (i: number) => void; minW?: number }) {
   const t = useZk();
   return (
     <div className="flex overflow-hidden rounded-[4px]" style={{ background: t.tone === 'light' ? '#dfe3f3' : 'rgba(255,255,255,0.10)' }}>
@@ -82,11 +85,12 @@ function Segment({ options, value, onPick }: { options: string[]; value: number;
           key={o}
           type="button"
           onClick={() => onPick(i)}
-          className="h-[38px] min-w-[84px] px-3 text-[15px] focus:outline-none"
+          className="h-[38px] px-3 text-[15px] focus:outline-none"
           style={{
             background: value === i ? (t.tone === 'light' ? '#fff' : 'rgba(255,255,255,0.18)') : 'transparent',
             boxShadow: value === i ? `inset 0 0 0 1.5px ${t.red}` : undefined,
             color: t.text,
+            minWidth: minW,
           }}
         >
           {o}
@@ -279,7 +283,9 @@ export function ClimatePage({ vehicle }: { vehicle: Vehicle }) {
 
 /* ----------------------------------------------------------------- controls */
 
-const PAGES = ['Vehicle', 'Lights', 'Driving', 'Charging', 'Display', 'System'] as const;
+// the car's own settings rail starts with Quick settings (c10_0033), then Vehicle, Lights, Driving ... Energy
+// management; Display and System are the showroom's own
+const PAGES = ['Quick settings', 'Vehicle', 'Lights', 'Driving', 'Energy management', 'Display', 'System'] as const;
 
 const CLOSURES: { id: Opening; label: string }[] = [
   { id: 'doorFL', label: 'Front left door' },
@@ -290,19 +296,26 @@ const CLOSURES: { id: Opening; label: string }[] = [
   { id: 'boot', label: 'Tailgate' },
 ];
 
-export function ControlsPage({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
+export function ControlsPage({ vehicle, variant, forcePage }: { vehicle: Vehicle; variant: Variant; forcePage?: (typeof PAGES)[number] }) {
   const t = useZk();
   const { val, setVal, on, toggle } = useZkLocal();
+  // opened on a page of its own (the charging page the fast-charge demo shows), once, when it is mounted
+  React.useEffect(() => {
+    if (forcePage) setVal('setPage', PAGES.indexOf(forcePage));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forcePage]);
   const {
     openings, toggleOpening, closeAllOpenings, locked, setLocked, headlightsOn, setHeadlights, ambientOn, ambientHue,
-    ambientBrightness, setAmbient, driveMode, setDriveMode, rideHeight, setRideHeight, regen, setRegen, soc, setSoc, climate,
-    hmiTheme, setHmiTheme, adasActive, setAdas,
+    ambientBrightness, setAmbient,
+    hmiTheme, setHmiTheme,
   } = useVehicleStore();
   const page = val.setPage;
-  const range = effectiveRange(variant, driveMode, soc, climate);
 
   let body: React.ReactNode;
   switch (PAGES[page]) {
+    case 'Quick settings':
+      body = <QuickSettings vehicle={vehicle} />;
+      break;
     case 'Vehicle':
       body = (
         <div className="grid grid-cols-2 gap-[10px]">
@@ -322,8 +335,8 @@ export function ControlsPage({ vehicle, variant }: { vehicle: Vehicle; variant: 
           <Row label="Fold mirrors">
             <Switch on={on.mirrorsFold} onClick={() => toggle('mirrorsFold')} label="Fold mirrors" />
           </Row>
-          <Row label="Charge flap">
-            <Switch on={on.chargeFlap} onClick={() => toggle('chargeFlap')} label="Charge flap" />
+          <Row label="Charge flap" sub={openings.charge ? 'Open' : 'Closed'}>
+            <Switch on={openings.charge} onClick={tapChargeFlap} label="Charge flap" />
           </Row>
         </div>
       );
@@ -353,44 +366,10 @@ export function ControlsPage({ vehicle, variant }: { vehicle: Vehicle; variant: 
       );
       break;
     case 'Driving':
-      body = (
-        <div className="flex flex-col gap-[10px]">
-          <Row label="Drive mode" sub={DRIVE_MODES.find((m) => m.id === driveMode)?.blurb}>
-            <Segment options={DRIVE_MODES.map((m) => m.label)} value={DRIVE_MODES.findIndex((m) => m.id === driveMode)} onPick={(i) => setDriveMode(DRIVE_MODES[i].id)} />
-          </Row>
-          <Row label="Suspension height">
-            <Segment options={['Low', 'Standard', 'High']} value={['low', 'standard', 'high'].indexOf(rideHeight)} onPick={(i) => setRideHeight((['low', 'standard', 'high'] as const)[i])} />
-          </Row>
-          <Row label="Energy recovery">
-            <Segment options={['Gentle', 'Standard']} value={regen === 'gentle' ? 0 : 1} onPick={(i) => setRegen(i === 0 ? 'gentle' : 'standard')} />
-          </Row>
-          <Row label="Driver assistance" sub="Adaptive cruise and lane centring">
-            <Switch on={adasActive} onClick={() => setAdas(!adasActive)} label="Driver assistance" />
-          </Row>
-          <Row label="Auto hold">
-            <Switch on={on.autoHold} onClick={() => toggle('autoHold')} label="Auto hold" />
-          </Row>
-        </div>
-      );
+      body = <DrivingPage />;
       break;
-    case 'Charging':
-      body = (
-        <div className="flex flex-col gap-[10px]">
-          <Row label="Battery" sub={`${variant.battery.capacityKwh} kWh, ${variant.battery.chemistry}, ${variant.battery.architectureV} V`}>
-            <span className="tnum text-[26px] font-light">{Math.round(soc * 100)}%</span>
-          </Row>
-          <Row label="Estimated range" sub={range ? `${range.cycle}` : undefined}>
-            <span className="tnum text-[26px] font-light">{range ? `${range.km} km` : 'n/a'}</span>
-          </Row>
-          <div className="rounded-[4px] px-5 py-4" style={{ background: t.card }}>
-            <div className="mb-3 text-[16px]">Charge level (demo)</div>
-            <input type="range" min={5} max={100} value={Math.round(soc * 100)} aria-label="Battery level" onChange={(e) => setSoc(Number(e.target.value) / 100)} className="w-full cursor-pointer" style={{ accentColor: t.accent }} />
-          </div>
-          <Row label="Charge limit" sub="Stop at 80 % for daily use">
-            <Switch on={on.limit80 || false} onClick={() => toggle('limit80')} label="Charge limit" />
-          </Row>
-        </div>
-      );
+    case 'Energy management':
+      body = <ChargePage vehicle={vehicle} variant={variant} />;
       break;
     case 'Display':
       body = (
@@ -455,6 +434,266 @@ export function ControlsPage({ vehicle, variant }: { vehicle: Vehicle; variant: 
       <div className="absolute overflow-hidden" style={{ left: 270, right: 60, top: 30, bottom: 24 }}>
         {body}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- vehicle charging */
+
+/**
+ * Energy management > Vehicle charging, as the 7X draws it (c10_0101): the car with a battery graphic, the charge
+ * limit, the charge left and the range it gives, the "Charge port cover" tile on the left, the schedule rows below.
+ * While the Tech tab's fast-charge demo runs the page shows its numbers (the car's own page for a charge in progress
+ * was not photographed: the live part is ours, said so on the demo's panel).
+ */
+function ChargePage({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
+  const t = useZk();
+  const { on, toggle, notify } = useZkLocal();
+  const { driveMode, soc, climate, openings } = useVehicleStore();
+  const live = useChargeReadout();
+  const range = effectiveRange(variant, driveMode, soc, climate);
+  const charging = live?.phase === 'charging';
+  const limit = live ? 80 : 100;
+  const pct = Math.round(soc * 100);
+  const left = live ? Math.max(0, Math.round(live.left / 60)) : 0;
+  const tab = (label: string, active?: boolean) => (
+    <button
+      key={label}
+      type="button"
+      onClick={active ? undefined : () => notify(`${label} (showroom demo)`)}
+      className="relative h-[44px] text-[18px] focus:outline-none"
+      style={{ color: active ? t.text : t.text2 }}
+    >
+      {label}
+      {active && <span className="absolute inset-x-0 bottom-0 mx-auto h-[3px] w-[28px] rounded-full" style={{ background: t.red }} />}
+    </button>
+  );
+  return (
+    <div className="relative h-full">
+      <div className="absolute flex items-center gap-[36px]" style={{ left: 40, top: 0 }}>
+        {tab('Vehicle charging', true)}
+        {tab('Power out')}
+        {tab('Trip statistics')}
+      </div>
+      <button
+        type="button"
+        onClick={() => notify('Battery temperature control (showroom demo)')}
+        className="absolute rounded-[4px] px-4 text-[14px] focus:outline-none"
+        style={{ right: 0, top: 4, height: 36, background: t.card, color: t.text2 }}
+      >
+        Battery temperature control
+      </button>
+      {/* the Charge port cover tile: the car's own way to open the flap */}
+      <button
+        type="button"
+        aria-pressed={openings.charge}
+        onClick={tapChargeFlap}
+        className="absolute flex flex-col items-center justify-center gap-[8px] rounded-[4px] text-[15px] focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+        style={{
+          left: 0, top: 150, width: 128, height: 96,
+          background: openings.charge ? t.cardOn : t.card,
+          color: openings.charge ? t.text : t.text2,
+          boxShadow: openings.charge ? `inset 0 0 0 1.5px ${t.red}` : undefined,
+        }}
+      >
+        <Ic.HsCharge size={28} />
+        Charge port cover
+      </button>
+      {/* the car, side on, and the battery under it */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/hmi/${vehicle.slug}/car-side.webp`}
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="pointer-events-none absolute"
+        style={{ left: 170, top: 56, width: 520, opacity: 0.4, filter: 'grayscale(0.6)' }}
+      />
+      <div
+        className="absolute rounded-[10px]"
+        style={{ left: 250, top: 196, width: 340, height: 62, background: 'rgba(120,125,150,0.22)', boxShadow: `inset 0 0 0 2px ${t.line}` }}
+        aria-label={`Battery ${pct} %`}
+      >
+        <span
+          className="absolute inset-y-[5px] left-[5px] rounded-[6px]"
+          style={{ width: `calc(${Math.max(0, Math.min(1, soc))} * (100% - 10px))`, background: t.green, transition: 'width 120ms linear' }}
+        />
+        <span className="absolute inset-0 flex items-center justify-center text-[22px] font-medium" style={{ color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.35)' }}>
+          {charging ? `${pct} %  ·  ${Math.round(live?.kw ?? 0)} kW` : `${pct} %`}
+        </span>
+      </div>
+      <span className="absolute rounded-[3px] px-3 py-[3px] text-[13px]" style={{ left: 380, top: 164, background: t.card, color: t.text2 }}>
+        Charge limit {limit}%
+      </span>
+      {/* what is left, and the range it gives */}
+      <div className="absolute" style={{ left: 720, top: 150, width: 230 }}>
+        {live && live.phase !== 'ready' ? (
+          <>
+            <div className="text-[15px]" style={{ color: t.text2 }}>
+              {live.phase === 'charged' || live.phase === 'unplugging' || live.phase === 'done' ? 'Charged to the limit' : charging ? 'Charging' : 'Connecting'}
+            </div>
+            <div className="tnum mt-[6px] text-[40px] font-light leading-none">{charging || live.phase === 'charged' ? `${Math.round(live.kw)} kW` : '- kW'}</div>
+            <div className="tnum mt-[8px] text-[15px]" style={{ color: t.text2 }}>
+              {charging ? `${left} min to ${limit} %` : `${live.kwh.toFixed(1)} kWh added`}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-[15px]" style={{ color: t.text2 }}>
+              Remaining charge
+            </div>
+            <div className="tnum mt-[6px] text-[40px] font-light leading-none">{pct}%</div>
+          </>
+        )}
+        <div className="tnum mt-[14px] text-[28px] font-light leading-none">{range ? `${range.km} km` : 'n/a'}</div>
+        <div className="mt-[4px] text-[13px]" style={{ color: t.text3 }}>
+          Estimated range
+        </div>
+      </div>
+      <div className="absolute flex gap-[14px]" style={{ left: 0, right: 0, bottom: 0 }}>
+        <div className="flex flex-1 items-center justify-between rounded-[4px] px-5" style={{ height: 62, background: t.card }}>
+          <div>
+            <div className="text-[16px]">Scheduled charging</div>
+            <div className="text-[13px]" style={{ color: t.text3 }}>
+              Every day 22:00 - 06:00
+            </div>
+          </div>
+          <Switch on={on.scheduled} onClick={() => toggle('scheduled')} label="Scheduled charging" />
+        </div>
+        <div className="flex flex-1 items-center justify-between rounded-[4px] px-5" style={{ height: 62, background: t.card }}>
+          <div>
+            <div className="text-[16px]">Planned departure</div>
+            <div className="text-[13px]" style={{ color: t.text3 }}>
+              Not set
+            </div>
+          </div>
+          <span style={{ color: t.text3 }}>›</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ quick settings */
+
+/** What the car's screen lists, top to bottom: Very high ... Very low. */
+const RIDE_TOP_DOWN = [...RIDE_LEVELS].map((l, i) => ({ ...l, index: i })).reverse();
+
+/**
+ * Settings > Quick settings, as the 7X draws it (c10_0033, c10_0091): the drive modes in a row, the five
+ * suspension heights in a column beside the car in side view, four shortcuts and Parking comfort below.
+ * The height is the store's `rideLevel`, which the Tech tab's Magic Carpet demo shows on the 3D car.
+ */
+function QuickSettings({ vehicle }: { vehicle: Vehicle }) {
+  const t = useZk();
+  const { on, toggle, notify } = useZkLocal();
+  const { driveMode, modeId, setCarMode, rideLevel, setRideLevel } = useVehicleStore();
+  const modes = vehicle.cockpit.driveModes ?? [];
+  const current = modes.findIndex((m) => (modeId ? m.id === modeId : m.model === driveMode));
+  const label = (s: string) => (
+    <div className="text-[15px]" style={{ color: t.text2 }}>
+      {s}
+    </div>
+  );
+  const shortcuts = [
+    { id: 'mirrors', label: 'Rear-view mirrors', icon: <Ic.HsMirror size={26} />, run: () => notify('Mirror adjustment (showroom demo)') },
+    { id: 'hud', label: 'Head-up display', icon: <Ic.Hud size={26} />, run: () => toggle('hud') },
+    { id: 'wheel', label: 'Steering wheel', icon: <Ic.WheelP size={26} />, run: () => notify('Steering wheel adjustment (showroom demo)') },
+    { id: 'stream', label: 'Streaming mirror', icon: <Ic.HsMirror size={26} />, run: () => notify('Streaming mirror (showroom demo)') },
+  ];
+  return (
+    <div className="relative h-full">
+      {label('Drive mode')}
+      <div className="mt-[8px]">
+        <Segment options={modes.map((m) => m.label)} value={current} onPick={(i) => setCarMode(modes[i].id, modes[i].model)} minW={112} />
+      </div>
+      <div className="absolute" style={{ left: 0, top: 96 }}>
+        {label('Suspension height')}
+        <div className="mt-[8px] flex flex-col gap-[3px]">
+          {RIDE_TOP_DOWN.map((l) => (
+            <Pill key={l.id} on={rideLevel === l.index} onClick={() => setRideLevel(l.index)} w={112} h={42}>
+              {l.label}
+            </Pill>
+          ))}
+        </div>
+      </div>
+      {/* the car, side on, with the floor's reflection */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/hmi/zeekr-7x/car-side.webp"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="pointer-events-none absolute object-contain"
+        style={{ left: 150, top: 70, width: 700, height: 290 }}
+      />
+      <div className="absolute flex items-center gap-[14px]" style={{ left: 0, right: 0, bottom: 4 }}>
+        {shortcuts.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={s.run}
+            className="flex h-[70px] w-[132px] flex-col items-center justify-center gap-[6px] rounded-[4px] text-[13px] focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+            style={{ background: t.card, color: t.text2 }}
+          >
+            {s.icon}
+            {s.label}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center gap-3 text-[15px]" style={{ color: t.text2 }}>
+          <Switch on={on.parkComfort} onClick={() => toggle('parkComfort')} label="Parking comfort" />
+          Parking comfort
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- driving */
+
+/**
+ * Settings > Driving, as the 7X draws it (c10_0036): energy recovery, brake assist, Motion-sickness relief,
+ * Suspension easy entry (the body lowers by itself once parked and a belt is unbuckled: the Tech tab's seat-belt
+ * switch shows it), One-Pedal and Auto hold.
+ */
+function DrivingPage() {
+  const t = useZk();
+  const { val, setVal, on, toggle } = useZkLocal();
+  const { easyEntry, setEasyEntry } = useVehicleStore();
+  return (
+    <div className="relative h-full">
+      <div className="flex h-full flex-col gap-[10px] overflow-y-auto pr-2" style={{ width: 590, scrollbarWidth: 'none' }}>
+        <div className="text-[15px]" style={{ color: t.text3 }}>
+          Driving preferences
+        </div>
+        <Row label="Energy recovery level">
+          <Segment options={['None', 'Low', 'Medium', 'High']} value={val.regenLevel} onPick={(i) => setVal('regenLevel', i)} minW={70} />
+        </Row>
+        <Row label="Brake assist" sub="Set it while the car is stationary">
+          <Segment options={['Comfort', 'Standard', 'Sport']} value={val.brakeAssist} onPick={(i) => setVal('brakeAssist', i)} minW={84} />
+        </Row>
+        <Row label="Motion-sickness relief" sub="Adjusts how the car drives, for a more comfortable ride">
+          <Switch on={on.motionRelief} onClick={() => toggle('motionRelief')} label="Motion-sickness relief" />
+        </Row>
+        <Row label="Suspension easy entry" sub="Once the car is parked and a seat belt is unbuckled, the suspension lowers by itself, so you and your passengers can get in and out easily.">
+          <Switch on={easyEntry} onClick={() => setEasyEntry(!easyEntry)} label="Suspension easy entry" />
+        </Row>
+        <Row label="One-Pedal" sub="The accelerator pedal controls both acceleration and slowing down">
+          <Switch on={on.onePedal} onClick={() => toggle('onePedal')} label="One-Pedal" />
+        </Row>
+        <Row label="Auto hold" sub="Keeps the car still by itself once it has stopped">
+          <Switch on={on.autoHold} onClick={() => toggle('autoHold')} label="Auto hold" />
+        </Row>
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/hmi/zeekr-7x/car34.webp"
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="pointer-events-none absolute object-contain"
+        style={{ right: -40, top: 70, width: 340, opacity: 0.96 }}
+      />
     </div>
   );
 }

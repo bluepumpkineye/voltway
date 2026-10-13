@@ -135,9 +135,31 @@ export function frameFromSpec(vehicle: Vehicle): CarFrame {
 
 const POLAR_MIN = 0.18 * Math.PI;
 const POLAR_MAX = 0.495 * Math.PI;
+/** the Tech tab may look almost straight down */
+const TOP_DOWN = 0.04 * Math.PI;
 
-/** The seated pose, from the camera-matched cabin's eye point (build axes to glTF). */
-function driverPose(vehicle: Vehicle): AnchorPose {
+/** How far a shot stands from the car so that the whole car fits at the reference aspect, m. */
+function exteriorFit(s: Shot, L: number, W: number, H: number): number {
+  const az = s.az * D2R;
+  // the car's footprint projected across and along the line of sight
+  const across = L * Math.abs(Math.sin(az)) + W * Math.abs(Math.cos(az));
+  const depth = L * Math.abs(Math.cos(az)) + W * Math.abs(Math.sin(az));
+  const el = s.el * D2R;
+  const tall = H * Math.cos(el) + depth * Math.sin(el);
+  const half = Math.tan((s.fov * D2R) / 2);
+
+  const fitX = (across * s.margin) / (2 * half * REF_ASPECT);
+  const fitY = (tall * s.margin) / (2 * half);
+  // nearer parts of the car read bigger, so stand back by part of its half depth
+  return (Math.max(fitX, fitY) + depth * 0.25) * (s.close ?? 1);
+}
+
+/**
+ * The seated pose, from the camera-matched cabin's eye point (build axes to glTF). A panel at the foot of the window (a cabin
+ * demo's) lifts the picture clear of it, as the stage's poses are lifted, and on a portrait window it also opens the view
+ * out, so that the centre screen, which is to the right of the seat, is not cut off.
+ */
+function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPose {
   const [x, y, z] = vehicle.assets.driverEye ?? [-0.38, 0.42, 1.18];
   const pos: V3 = [x, z, -y];
   return {
@@ -147,13 +169,16 @@ function driverPose(vehicle: Vehicle): AnchorPose {
     // the camera pivots 15 cm ahead of the eye, so a drag turns the head
     // rather than swinging the eye across the cabin
     target: [pos[0] + 0.142, pos[1] - 0.038, pos[2] + 0.031],
-    fov: 64,
+    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.min(88, 64 * (1 + (0.9 - aspect))) : 64,
     minDistance: 0.05,
     maxDistance: 0.3,
     minPolar: 0.2 * Math.PI,
     maxPolar: 0.74 * Math.PI,
     rotateSpeed: -0.32,
     liftPx: 0,
+    liftFrac: (frame.inset?.bottom ?? 0) / 2,
+    // a screen standing at the right of the window (the BOOST demo's enlarged one) takes the picture to the left of it
+    shiftFrac: (frame.inset?.right ?? 0) / 2,
   };
 }
 
@@ -163,7 +188,7 @@ export function resolveAnchor(
   frame: CarFrame,
   aspect: number,
 ): AnchorPose {
-  if (id === 'driver') return driverPose(vehicle);
+  if (id === 'driver') return driverPose(vehicle, frame, aspect);
 
   const H = vehicle.dimensions.heightMm / 1000;
   const W = vehicle.dimensions.widthMm / 1000;
@@ -208,15 +233,19 @@ export function resolveAnchor(
     // the camera looks at the middle of the stage, and the picture is slid into the free part of the window
     // (shiftFrac), so the visitor orbits about the stage and it stays in view
     const target: V3 = [st.cx, H * 0.3, st.cz];
+    // The visitor is free to leave the wide shot: as close to the car as on any tab (the same limit the other poses
+    // use, so a lamp or a wheel can be read), as far as the whole stage and some floor around it, and from
+    // straight above (a road that scrolls under a still car reads best from there) down to the floor.
+    const closest = exteriorFit(SHOTS.hero, L, W, H) * Math.max(1, REF_ASPECT / Math.max(aspect, 0.2)) * 0.62;
     return {
       id,
       mode: 'exterior',
       pos: [target[0] + d[0] * dist, target[1] + d[1] * dist, target[2] + d[2] * dist],
       target,
       fov: s.fov,
-      minDistance: dist * 0.5,
-      maxDistance: dist * 1.6,
-      minPolar: POLAR_MIN,
+      minDistance: Math.min(closest, dist * 0.5),
+      maxDistance: dist * 2.2,
+      minPolar: TOP_DOWN,
       maxPolar: POLAR_MAX,
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * s.lift,
@@ -226,18 +255,7 @@ export function resolveAnchor(
   }
 
   const s = SHOTS[id];
-  const az = s.az * D2R;
-  // the car's footprint projected across and along the line of sight
-  const across = L * Math.abs(Math.sin(az)) + W * Math.abs(Math.cos(az));
-  const depth = L * Math.abs(Math.cos(az)) + W * Math.abs(Math.sin(az));
-  const el = s.el * D2R;
-  const tall = H * Math.cos(el) + depth * Math.sin(el);
-  const half = Math.tan((s.fov * D2R) / 2);
-
-  const fitX = (across * s.margin) / (2 * half * REF_ASPECT);
-  const fitY = (tall * s.margin) / (2 * half);
-  // nearer parts of the car read bigger, so stand back by part of its half depth
-  const near = (Math.max(fitX, fitY) + depth * 0.25) * (s.close ?? 1);
+  const near = exteriorFit(s, L, W, H);
   // a narrow window leaves the car less to stand in: stand further back; a device beside the car leaves it
   // less of the window still. Zooming in is limited by the first, not the second: the visitor may come as
   // close to the lamps as on a tab with no device.

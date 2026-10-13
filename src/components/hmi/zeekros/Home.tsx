@@ -3,6 +3,7 @@
 import React from 'react';
 import type { Vehicle } from '@/data/vehicles/schema';
 import { useVehicleStore, type Opening } from '@/store/vehicle-store';
+import { tapChargeFlap } from '@/lib/tech/actions';
 import * as Ic from './icons';
 import { useZkLocal } from './shared';
 
@@ -222,8 +223,7 @@ const ARTS = {
 
 export function HomeScene({ vehicle, hidden = false }: { vehicle: Vehicle; hidden?: boolean }) {
   const { notify, on, toggle } = useZkLocal();
-  const { openings, toggleOpening, rideHeight, setRideHeight, ambientOn, setAmbient, setHmiScreen } =
-    useVehicleStore();
+  const { openings, toggleOpening, ambientOn, setAmbient, setHmiScreen } = useVehicleStore();
   const open = (id: Opening) => () => toggleOpening(id);
 
   return (
@@ -253,7 +253,7 @@ export function HomeScene({ vehicle, hidden = false }: { vehicle: Vehicle; hidde
       <Chip x={618} y={190} label="Front door" icon={<Ic.HsDoor size={26} />} active={openings.doorFL} onClick={open('doorFL')} />
       <Chip x={752} y={204} label="Rear door" icon={<Ic.HsDoorRear size={26} />} active={openings.doorRL} onClick={open('doorRL')} />
       <Chip x={896} y={214} label="Tailgate" icon={<Ic.HsBoot size={26} />} active={openings.boot} onClick={open('boot')} />
-      <Chip x={890} y={288} label="Charge flap" icon={<Ic.HsCharge size={24} />} active={on.chargeFlap} onClick={() => toggle('chargeFlap')} />
+      <Chip x={890} y={288} label="Charge flap" icon={<Ic.HsCharge size={24} />} active={openings.charge} onClick={tapChargeFlap} />
 
       <Card
         x={126}
@@ -268,11 +268,8 @@ export function HomeScene({ vehicle, hidden = false }: { vehicle: Vehicle; hidde
         x={382}
         label="Suspension"
         art={ARTS.susp}
-        onClick={() => {
-          const next = rideHeight === 'standard' ? 'high' : rideHeight === 'high' ? 'low' : 'standard';
-          setRideHeight(next);
-          notify(`Ride height: ${next}`);
-        }}
+        // the car's suspension control is on Settings > Quick settings (five heights, c10_0033)
+        onClick={() => setHmiScreen('controls')}
       />
       <Card x={642} label="Health pod" art={ARTS.pod} onClick={() => setHmiScreen('seats')} />
       <Card x={905} label="Camping mode" art={ARTS.tent} onClick={() => notify('Camping mode (showroom demo)')} />

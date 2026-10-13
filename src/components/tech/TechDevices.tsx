@@ -4,9 +4,11 @@ import React from 'react';
 import type { TechDemoSpec, TechDevice, Variant, Vehicle } from '@/data/vehicles/schema';
 import { CAR_SCREEN_H, CAR_SCREEN_W, CarScreen } from '@/components/hmi/CarScreen';
 import { GLASS } from '@/components/showroom/Chrome';
-import { pauseDemo, resetDemo, startDemo } from '@/lib/tech/actions';
-import { useTechClock } from '@/lib/tech/clock';
-import { parkPhase, type ParkPhase } from '@/lib/tech/phase';
+import { pauseDemo, resetDemo, startDemo, tapChargeFlap } from '@/lib/tech/actions';
+import { techClock, useTechClock, type ClockSnapshot } from '@/lib/tech/clock';
+import type { ChargeReadout } from '@/lib/tech/charge';
+import { useChargeReadout } from '@/lib/tech/session';
+import { parkPhase, runPhase, type ParkPhase, type RunPhase } from '@/lib/tech/phase';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { Fit } from './Fit';
 import { HimaApp, type AppScreen } from './phone/HimaApp';
@@ -65,17 +67,27 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
   const { active, wide, colW, vw } = useDeviceColumn(demo);
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   const phase = parkPhase(clock);
+  // the Magic Carpet demo has no stops: it is ready, driving, paused or done (and the car's screen opens on
+  // Settings, where the suspension height is, not on the parking page)
+  const carpet = demo.driver === 'carpet';
+  const charge = demo.driver === 'charge';
+  // these have no stops to speak of and no pages of their own to carry a Start: one button in the pill does it
+  const kit = carpet || charge;
+  const chargeR = useChargeReadout();
+  const run = runPhase(clock);
+  const homeScreen = carpet ? 'controls' : charge ? 'charge' : 'park';
   // a phone-sized window has no room for the stage and a device at once: the device opens nearly full
   // screen, and gives way to a slim bar of controls once the car is moving, so the stage can be watched
   const [sheet, setSheet] = React.useState<'open' | 'bar'>('open');
-  const moving = phase === 'parking' || phase === 'leaving';
+  const moving = carpet ? run === 'driving' : charge ? clock.playing : phase === 'parking' || phase === 'leaving';
+  const ready = carpet || charge ? run === 'ready' : phase === 'ready';
   const wasMoving = React.useRef(false);
   React.useEffect(() => {
     if (wide) return;
     if (moving && !wasMoving.current) setSheet('bar');
-    if (phase === 'ready') setSheet('open');
+    if (ready) setSheet('open');
     wasMoving.current = moving;
-  }, [phase, moving, wide]);
+  }, [ready, moving, wide]);
   // a window with no room for the car's wide screen offers the phone alone
   const devices = (demo.devices ?? []).filter((d) => wide || vw >= 700 || d === 'phone');
 
@@ -91,16 +103,44 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
   // picks it, and when the tab opens on it (a link, or the Start button of the cabin's screen)
   const choose = (d: TechDevice) => {
     setDevice(d);
-    if (d === 'dashboard') setHmiScreen('park');
+    if (d === 'dashboard') setHmiScreen(homeScreen);
   };
   React.useEffect(() => {
-    if (useVehicleStore.getState().techDevice === 'dashboard') setHmiScreen('park');
-  }, [setHmiScreen]);
+    if (active === 'dashboard') setHmiScreen(homeScreen);
+  }, [setHmiScreen, homeScreen, active]);
 
   if (!active) return null;
 
+  // what the one button under the screen does, when the demo is not the parking one (its own pages carry theirs)
+  const go = () => startDemo(demo.id, active);
+  const carpetAction =
+    run === 'driving'
+      ? { label: 'Pause', run: pauseDemo }
+      : run === 'paused'
+        ? { label: 'Resume', run: go }
+        : run === 'done'
+          ? { label: 'Drive again', run: go }
+          : { label: 'Drive', run: go };
+
+  // the fast-charge demo: Open the flap (the car's own tile does the same), Pause, Resume, Unplug at its stop, again
+  const chargeAction =
+    run === 'driving'
+      ? { label: 'Pause', run: pauseDemo }
+      : run === 'done'
+        ? { label: 'Charge again', run: () => techClock.play() }
+        : chargeR?.phase === 'charged'
+          ? { label: 'Unplug', run: () => techClock.play() }
+          : run === 'ready'
+            ? { label: 'Open the flap', run: tapChargeFlap }
+            : { label: 'Resume', run: () => techClock.play() };
+  const kitAction = charge ? chargeAction : carpetAction;
+
   const coach =
-    active === 'phone'
+    kit
+      ? charge
+        ? chargeCoach(chargeR, clock)
+        : carpetCoach(run)
+      : active === 'phone'
       ? screen === 'home'
         ? phase === 'ready'
           ? 'Tap “Remote parking” in the app.'
@@ -176,10 +216,15 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
           </Fit>
         </div>
       )}
-      <div className={`pointer-events-auto ${wide ? 'flex' : 'hidden'} min-h-[34px] max-w-full shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-[12px] text-neutral-700 ${GLASS}`} role="status" aria-live="polite">
+      <div className={`pointer-events-auto ${wide || kit ? 'flex' : 'hidden'} min-h-[34px] max-w-full shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-[12px] text-neutral-700 ${GLASS}`} role="status" aria-live="polite">
         <span className="h-[7px] w-[7px] shrink-0 animate-pulse rounded-full bg-[#2f6bff]" aria-hidden />
         <span>{coach}</span>
-        {active === 'dashboard' && hmiScreen !== 'park' && (
+        {kit && (
+          <button type="button" onClick={kitAction.run} className={`shrink-0 rounded-full bg-neutral-900 px-3.5 py-1 text-[11px] font-medium text-white ${FOCUS}`}>
+            {kitAction.label}
+          </button>
+        )}
+        {!kit && active === 'dashboard' && hmiScreen !== 'park' && (
           <button type="button" onClick={() => setHmiScreen('park')} className={`shrink-0 rounded-full bg-neutral-900 px-3 py-1 text-[11px] font-medium text-white ${FOCUS}`}>
             Open
           </button>
@@ -204,21 +249,70 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
       </aside>
     );
   }
+  // the Magic Carpet's chart panel stands in the dock, where the bar sits for the other demos: it goes to the top
   return (
-    <aside className="pointer-events-none absolute inset-x-3 bottom-[120px] z-10" aria-label={LABEL[active]}>
-      <Bar active={active} phase={phase} coach={coach} onOpen={() => setSheet('open')} />
+    <aside className={`pointer-events-none absolute inset-x-3 z-10 ${kit ? 'top-[64px]' : 'bottom-[120px]'}`} aria-label={LABEL[active]}>
+      <Bar active={active} demoId={demo.id} phase={phase} carpet={kit ? kitAction : null} coach={coach} onOpen={() => setSheet('open')} />
     </aside>
   );
+}
+
+/** What the fast-charge demo's guidance says, by where its run is. */
+function chargeCoach(r: ChargeReadout | null, c: ClockSnapshot): string {
+  if (!r) return 'Loading the car…';
+  if (c.duration > 0 && c.t >= c.duration - 0.02) return 'Done. Charge again from the top.';
+  if (r.phase === 'charged' && !c.playing) return 'Charged to 80 %. Unplug when you are ready.';
+  if (!c.playing && c.t >= 0.02) return 'Paused. Resume, or charge again from the top.';
+  switch (r.phase) {
+    case 'ready':
+      return 'Tap “Charge port cover” on the car’s screen.';
+    case 'opening':
+      return 'The flap opens and the charger’s gun comes off its pedestal.';
+    case 'connecting':
+      return 'The gun goes into the DC socket.';
+    case 'charging':
+      return 'Charging: ten minutes play in fourteen seconds.';
+    default:
+      return 'The gun goes home and the flap shuts.';
+  }
+}
+
+/** What the Magic Carpet demo's guidance says, by where its run is. */
+function carpetCoach(run: RunPhase): string {
+  switch (run) {
+    case 'driving':
+      return 'Three humps at 16 km/h. Watch the wheels and the body.';
+    case 'paused':
+      return 'Paused. Resume, or drive again from the top.';
+    case 'done':
+      return 'Done. Switch to Passive to compare, or drive again.';
+    default:
+      return 'Pick a ride height and a drive mode on the car’s screen, then Drive.';
+  }
 }
 
 /**
  * The slim bar of a narrow window while the device is put away: what is happening, the one control
  * that matters now (pause, resume, drive out), and a way back to the device.
  */
-function Bar({ active, phase, coach, onOpen }: { active: TechDevice; phase: ParkPhase; coach: string; onOpen: () => void }) {
-  const go = () => startDemo('park', active);
-  const action =
-    phase === 'parking' || phase === 'leaving'
+function Bar({
+  active,
+  demoId,
+  phase,
+  carpet,
+  coach,
+  onOpen,
+}: {
+  active: TechDevice;
+  demoId: string;
+  phase: ParkPhase;
+  carpet: { label: string; run: () => void } | null;
+  coach: string;
+  onOpen: () => void;
+}) {
+  const go = () => startDemo(demoId, active);
+  const action = carpet ??
+    (phase === 'parking' || phase === 'leaving'
       ? { label: 'Pause', run: pauseDemo }
       : phase === 'paused-in' || phase === 'paused-out'
         ? { label: 'Resume', run: go }
@@ -226,7 +320,7 @@ function Bar({ active, phase, coach, onOpen }: { active: TechDevice; phase: Park
           ? { label: 'Park out', run: go }
           : phase === 'done'
             ? { label: 'Park again', run: resetDemo }
-            : null;
+            : null);
   return (
     <div className={`pointer-events-auto flex items-center gap-2 rounded-full py-1.5 pl-4 pr-1.5 text-[12px] text-neutral-700 ${GLASS}`} role="status" aria-live="polite">
       <span className="h-[7px] w-[7px] shrink-0 animate-pulse rounded-full bg-[#2f6bff]" aria-hidden />

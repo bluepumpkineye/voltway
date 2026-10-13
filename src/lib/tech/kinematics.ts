@@ -367,6 +367,9 @@ export class Track {
   }
 }
 
+/** What the director needs of a run: a `Track`, or any other plan with its own speed profile (the launch's). */
+export type PlannedRun = Pick<Track, 'duration' | 'stats' | 'sample' | 'trace'>;
+
 /** The pose of the rear axle's middle after the fraction f of a segment that began at `p0`. */
 export function poseAt(p0: { x: number; y: number; yaw: number }, seg: Segment, f: number) {
   const c0 = Math.cos(p0.yaw);

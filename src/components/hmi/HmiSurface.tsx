@@ -77,6 +77,7 @@ function GenericSurface({
     seats: ClimateScreen,
     camera: NavScreen,
     park: NavScreen,
+    charge: ControlsScreen,
   }[hmiScreen];
 
   return (

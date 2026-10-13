@@ -15,6 +15,8 @@ import { SeatsPage } from './Seats';
 import { MediaPage } from './Media';
 import { CameraPage, NavPage } from './MapNav';
 import { ParkAssistDialog, ParkPage } from './Park';
+import { BoostScreen } from './Boost';
+import { ScreenDirectionDialog } from './ScreenDirection';
 import { SettingsApp } from './Settings';
 
 /**
@@ -38,7 +40,8 @@ export function HarmonyOsSurface({ vehicle, variant }: { vehicle: Vehicle; varia
 function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
   const t = useHa();
   const { val, on, set } = useHaLocal();
-  const { hmiScreen, setHmiScreen, appCentreOpen, openSettings } = useVehicleStore();
+  const { hmiScreen, setHmiScreen, appCentreOpen, openSettings, screenDialog, setScreenDialog } = useVehicleStore();
+  const boostOn = useVehicleStore((s) => s.boostOn);
 
   // the generic screens that have no page of their own here open the Settings page they belong to
   React.useEffect(() => {
@@ -107,6 +110,8 @@ function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
       {!['climate', 'seats', 'camera', 'park'].includes(hmiScreen) && <StatusBar over={over} />}
       {appCentreOpen && <AppCentre />}
       {on.parkDialog && <ParkAssistDialog onClose={() => set('parkDialog', false)} />}
+      {screenDialog && <ScreenDirectionDialog onClose={() => setScreenDialog(false)} />}
+      {boostOn && <BoostScreen />}
       <BottomBar over={over} screen={hmiScreen} onHome={() => setHmiScreen('home')} />
       {/* the Control Centre's brightness slider dims the whole screen */}
       {val.brightness < 100 && (

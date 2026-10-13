@@ -8,6 +8,12 @@
  * frame, and only the devices that draw it should wake.
  */
 import React from 'react';
+import { useTechClock } from './clock';
+import type { RoadStage } from './carpet';
+import type { ChargeReadout, ChargeRun } from './charge';
+import type { LaunchRun } from './launch';
+import type { SensorsRun } from './sensors';
+import type { RideMode, RideRun } from './ride';
 import type { Sample } from './kinematics';
 import type { BodyBox, ParkStage } from './park';
 
@@ -19,6 +25,16 @@ export interface Runtime {
   sample: (t: number) => Sample;
   /** the car's body from the rear axle, the published width */
   body: BodyBox;
+  /** the road a treadmill demo rolls under the car (the Magic Carpet's humps), drawn by TechRoad */
+  road?: RoadStage | null;
+  /** the ride of a treadmill demo with each suspension (for the chart), and the one on show */
+  ride?: { modes: Record<RideMode, RideRun>; mode: RideMode } | null;
+  /** the launch's speed, pull and stopwatch at time t, and the published times it is checked against (its readout) */
+  launch?: LaunchRun['launch'] | null;
+  /** the fast-charge demo: the gun, the readout and the curve (the car's charging page, the pedestal, the chart) */
+  charge?: Pick<ChargeRun, 'readout' | 'gun' | 'curve' | 'pedestal' | 'cableOut' | 'gunExit'> | null;
+  /** the sensor demo: the pedestrian and the readout at time t, and the car's nose */
+  sensors?: (SensorsRun['scenario'] & { frontX: number }) | null;
 }
 
 type Listener = () => void;
@@ -47,4 +63,18 @@ export const techSession = new TechSession();
 /** The running demo, or null while there is none (no demo chosen, the model still loading). */
 export function useRuntime(): Runtime | null {
   return React.useSyncExternalStore(techSession.subscribe, techSession.snapshot, () => null);
+}
+
+/** The sensor demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
+export function useSensorsReadout(): ReturnType<NonNullable<Runtime['sensors']>['readout']> | null {
+  const sensors = useRuntime()?.sensors;
+  const clock = useTechClock();
+  return sensors ? sensors.readout(clock.t) : null;
+}
+
+/** The fast-charge demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
+export function useChargeReadout(): ChargeReadout | null {
+  const charge = useRuntime()?.charge;
+  const clock = useTechClock();
+  return charge ? charge.readout(clock.t) : null;
 }

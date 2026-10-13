@@ -535,7 +535,7 @@ function PersonalisePage() {
 
 function DisplayPage() {
   const t: HaTheme = useHa();
-  const { setHmiTheme } = useVehicleStore();
+  const { setHmiTheme, setScreenDialog } = useVehicleStore();
   const { on, set, val, setVal } = useHaLocal();
   const mode = val.dispMode;
   const choose = (i: number) => {
@@ -574,7 +574,7 @@ function DisplayPage() {
       <Section title="Advanced display settings">
         <Grid2>
           <ToggleCard title="Head-up display" on={on.hud} onChange={(v) => set('hud', v)} />
-          <LinkCard title="Centre screen angle" sub="Turns toward the driver or the passenger" />
+          <LinkCard title="Centre screen angle" sub="Turns toward the driver or the passenger" onClick={() => setScreenDialog(true)} />
           <ToggleCard title="Eye comfort" sub="Off" on={on.eye} onChange={(v) => set('eye', v)} />
           <ToggleCard title="Lyrics on the cluster" sub="Where the app supports it" on={on.lyrics} onChange={(v) => set('lyrics', v)} />
         </Grid2>

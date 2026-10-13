@@ -44,6 +44,9 @@ const DEFAULTS: Record<string, boolean> = {
   lyrics: true,
   hud: true,
   adaptiveBrightness: true,
+  motionRelief: true, // Driving settings: on in c10_0036
+  onePedal: false,
+  parkComfort: false,
 };
 
 const VALUES: Record<string, number> = {
@@ -59,7 +62,8 @@ const VALUES: Record<string, number> = {
   seatTab: 0,
   setPage: 0,
   brightness: 100,
-  suspension: 1, // 0 low, 1 standard, 2 high
+  regenLevel: 1, // Driving settings: 0 none, 1 low, 2 medium, 3 high
+  brakeAssist: 0, // 0 comfort, 1 standard, 2 sport
   soundFx: 1,
   mediaSource: 0,
 };

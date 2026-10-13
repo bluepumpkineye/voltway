@@ -71,6 +71,9 @@ function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
     case 'controls':
       page = <ControlsPage vehicle={vehicle} variant={variant} />;
       break;
+    case 'charge':
+      page = <ControlsPage vehicle={vehicle} variant={variant} forcePage="Energy management" />;
+      break;
     case 'nav':
       page = <NavPage />;
       full = true;

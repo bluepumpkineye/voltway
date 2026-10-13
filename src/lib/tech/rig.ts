@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { Vehicle } from '@/data/vehicles/schema';
 import { CORNERS, layoutFrom, type Corner, type Layout, type Sample } from './kinematics';
 import type { BodyBox } from './park';
+import type { Chassis } from './ride';
+import { splitMergedWheels } from './splitWheels';
 
 /**
  * The car as a machine the tech demos can drive: wheels that steer and roll, a
@@ -21,8 +23,9 @@ import type { BodyBox } from './park';
  *            |- the wheel node        spins about its axle
  *            `- the caliper node      steers with the wheel, does not spin
  *
- * so the Wheels tab, which addresses `<design>_Wheels` by name, keeps working
- * and a car whose wheels are still one merged node is simply not rigged.
+ * so the Wheels tab, which addresses `<design>_Wheels` by name, keeps working.
+ * A car whose export merged the four wheels into one node (the SU7's) is cut into
+ * the same corners in the browser (splitWheels.ts); a car with neither is not rigged.
  *
  * Frames: the viewer's (x forward, y up, z toward the passenger side). The
  * kinematics' frame (x forward, y left) differs by y = -z. Yaw is rotation about
@@ -39,6 +42,8 @@ export interface RigWheel {
   wheel: THREE.Object3D;
   q0: THREE.Quaternion;
   caliper?: THREE.Object3D;
+  /** where the hub stands on a level road: the wheel's travel (`RigState.lift`) is added to its height */
+  hub0: THREE.Vector3;
 }
 
 export interface PreparedRig {
@@ -63,21 +68,27 @@ const INDEX: Record<Corner, number> = { FL: 0, FR: 1, RL: 2, RR: 3 };
  * nodes. Pure on its input apart from that: safe in a memo.
  */
 export function prepareRig(root: THREE.Object3D): PreparedRig | null {
-  const designs = new Map<string, Map<Corner, { wheel?: THREE.Object3D; caliper?: THREE.Object3D }>>();
-  root.traverse((o) => {
-    const m = NODE.exec(o.name);
-    if (!m) return;
-    const corner = m[3].toUpperCase() as Corner;
-    const design = m[1];
-    const byCorner = designs.get(design) ?? new Map();
-    const slot = byCorner.get(corner) ?? {};
-    if (m[2]) slot.caliper = o;
-    else slot.wheel = o;
-    byCorner.set(corner, slot);
-    designs.set(design, byCorner);
-  });
+  type Slot = { wheel?: THREE.Object3D; caliper?: THREE.Object3D };
+  const scan = () => {
+    const found = new Map<string, Map<Corner, Slot>>();
+    root.traverse((o) => {
+      const m = NODE.exec(o.name);
+      if (!m) return;
+      const corner = m[3].toUpperCase() as Corner;
+      const design = m[1];
+      const byCorner = found.get(design) ?? new Map();
+      const slot = byCorner.get(corner) ?? {};
+      if (m[2]) slot.caliper = o;
+      else slot.wheel = o;
+      byCorner.set(corner, slot);
+      found.set(design, byCorner);
+    });
+    return [...found].filter(([, c]) => CORNERS.every((k) => c.get(k)?.wheel));
+  };
 
-  const complete = [...designs].filter(([, c]) => CORNERS.every((k) => c.get(k)?.wheel));
+  let complete = scan();
+  // an export that merged the four wheels into one node (the SU7's) is cut here (splitWheels.ts)
+  if (!complete.length && splitMergedWheels(root)) complete = scan();
   if (!complete.length) return null;
 
   // the first design measures the car: every design stands on the same four hubs
@@ -110,7 +121,7 @@ export function prepareRig(root: THREE.Object3D): PreparedRig | null {
         caliper.position.sub(steer.position);
       }
       group.add(steer);
-      wheels.push({ corner: k, steer, wheel: wheel!, q0: wheel!.quaternion.clone(), caliper });
+      wheels.push({ corner: k, steer, wheel: wheel!, q0: wheel!.quaternion.clone(), caliper, hub0: steer.position.clone() });
     }
     unsprung.add(group);
   }
@@ -147,6 +158,12 @@ export interface RigState {
   heave: number;
   pitch: number;
   roll: number;
+  /** the ride height: the whole body's lift over its Standard height, m (the air suspension) */
+  ride: number;
+  /** each hub's lift over the level road, m: the wheel following a bump under the body */
+  lift: [number, number, number, number];
+  /** a demo that keeps the car still and rolls the road under it: how far the road has gone, m */
+  scroll: number;
   steer: [number, number, number, number];
   spin: [number, number, number, number];
 }
@@ -162,11 +179,14 @@ const _off = new THREE.Vector3();
 /** One car's rig, shared by everything that draws it (the exterior, the shadow). */
 export class CarRig {
   readonly state: RigState = {
-    x: 0, z: 0, yaw: 0, heave: 0, pitch: 0, roll: 0, steer: [0, 0, 0, 0], spin: [0, 0, 0, 0],
+    x: 0, z: 0, yaw: 0, heave: 0, pitch: 0, roll: 0, ride: 0, lift: [0, 0, 0, 0], scroll: 0,
+    steer: [0, 0, 0, 0], spin: [0, 0, 0, 0],
   };
   private prepared: PreparedRig | null = null;
   /** groups that carry the car's place on the floor (the exterior's wrapper, the baked shadow) */
   private roots = new Set<THREE.Object3D>();
+  /** roads that roll under the car (`RigState.scroll`), each with where it stands when it has not rolled */
+  private roads = new Map<THREE.Object3D, number>();
 
   /** The measured wheels, once an exterior with a rig is mounted. */
   get layout(): Layout | null {
@@ -221,6 +241,23 @@ export class CarRig {
     };
   }
 
+  /** A road that rolls under the car as the demo says (`RigState.scroll`); `baseX` is where it lies at rest. */
+  attachRoad(g: THREE.Object3D, baseX: number): () => void {
+    this.roads.set(g, baseX);
+    this.apply();
+    return () => {
+      this.roads.delete(g);
+    };
+  }
+
+  /** The body's motion on its springs and the wheels following the road (src/lib/tech/ride.ts). */
+  setChassis(c: Chassis | null) {
+    const st = this.state;
+    st.heave = c?.heave ?? 0;
+    st.pitch = c?.pitch ?? 0;
+    for (let i = 0; i < 4; i++) st.lift[i] = c?.lift[i] ?? 0;
+  }
+
   /** Put the car where a sample of a plan says. */
   setSample(s: Sample) {
     const { rac } = this;
@@ -242,7 +279,8 @@ export class CarRig {
   /** Back to the car standing still, as the showroom shows it. */
   reset() {
     const st = this.state;
-    st.x = st.z = st.yaw = st.heave = st.pitch = st.roll = 0;
+    st.x = st.z = st.yaw = st.heave = st.pitch = st.roll = st.ride = st.scroll = 0;
+    st.lift.fill(0);
     st.steer.fill(0);
     st.spin.fill(0);
     this.apply();
@@ -255,6 +293,7 @@ export class CarRig {
       g.position.set(st.x, 0, st.z);
       g.rotation.set(0, st.yaw, 0);
     }
+    for (const [g, baseX] of this.roads) g.position.x = baseX - st.scroll;
     const p = this.prepared;
     if (!p) return;
 
@@ -265,11 +304,12 @@ export class CarRig {
     _off.copy(p.pivot).applyQuaternion(_qBody);
     p.sprung.quaternion.copy(_qBody);
     p.sprung.position.copy(p.pivot).sub(_off);
-    p.sprung.position.y += st.heave;
+    p.sprung.position.y += st.heave + st.ride;
 
     for (const w of p.wheels) {
       const i = INDEX[w.corner];
       w.steer.rotation.set(0, st.steer[i], 0);
+      w.steer.position.y = w.hub0.y + st.lift[i];
       // rolling forward turns the top of the tyre forward: that is negative about +z
       w.wheel.quaternion.copy(_qSpin.setFromAxisAngle(AXLE, -st.spin[i])).multiply(w.q0);
     }

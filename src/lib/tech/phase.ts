@@ -26,6 +26,18 @@ export function parkPhase(c: ClockSnapshot): ParkPhase {
   return leg.index === 0 ? 'paused-in' : 'paused-out';
 }
 
+/**
+ * Where a demonstration with no stops is (the Magic Carpet's run): standing at the top, driving, paused on the way,
+ * or at the end.
+ */
+export type RunPhase = 'ready' | 'driving' | 'paused' | 'done';
+
+export function runPhase(c: ClockSnapshot): RunPhase {
+  if (c.playing) return 'driving';
+  if (c.duration > 0 && c.t >= c.duration - 0.02) return 'done';
+  return c.t < 0.02 ? 'ready' : 'paused';
+}
+
 /** How far through the current way (in or out), 0 to 1. */
 export function parkProgress(c: ClockSnapshot): number {
   return legOf(c).frac;

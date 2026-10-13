@@ -42,6 +42,8 @@ export interface Performance {
   torqueNm?: number;
   /** 0-100 km/h in seconds. */
   zeroTo100S?: number;
+  /** 0-200 km/h in seconds, when the maker publishes it. */
+  zeroTo200S?: number;
   topSpeedKmh?: number;
   motorCount: 1 | 2 | 3;
 }
@@ -320,7 +322,7 @@ export interface ConfiguratorSpec {
 }
 
 /** The parts that swing open. */
-export type OpeningId = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot';
+export type OpeningId = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot' | 'charge';
 
 /** A gas strut holding a part open: fixed on the body, moving with the part. */
 export interface StrutSpec {
@@ -403,6 +405,48 @@ export interface TechDemoSpec {
   simulated: string;
   /** offered only while developing (a test of the rig, not a feature of the car) */
   devOnly?: boolean;
+  /** numbers the demo's driver takes (the pack's size for the charge demo) */
+  params?: Record<string, number>;
+  /**
+   * Where the camera is for the demo: the Tech tab's wide shot of the car on its stage when left out; 'cabin' puts
+   * it in the driver's seat (the swivel screen's demo, whose subject is a part of the cabin).
+   */
+  view?: 'cabin';
+}
+
+/**
+ * Where a car's sensors sit, for the sensor demo (docs/tech-showcase.md section 12), in the exterior model's space (glTF:
+ * x forward, y up, z toward the passenger side). `mirror` puts a second one on the other side (z negated).
+ */
+export interface SensorSpec {
+  /** the forward lidar's window, in the roof housing (photographed) */
+  lidar: [number, number, number];
+  /**
+   * Where the solid-state lidars are drawn from, the passenger side's (mirrored for the driver's side). Reported at the
+   * fenders by one secondary source; the photographs show cameras and a slot there, no marked lidar.
+   */
+  sideLidar: [number, number, number];
+  /** the rear solid-state lidar: the maker does not say where it is */
+  rearLidar: [number, number, number];
+  /** cameras and ultrasonic sensors that the photographs show, as far as they could be read off them */
+  cameras: { at: [number, number, number]; mirror?: boolean }[];
+  ultrasonic: { at: [number, number, number]; mirror?: boolean }[];
+}
+
+/**
+ * A centre screen on a motorised mount (the Luxeed RX's): how it moves. The figures are the maker's
+ * (docs/tech-showcase.md section 13); the hub is where the model's screen turns, and the cabin node is the mesh
+ * the screen's frame is cut out of (the cabin is one merged mesh per material).
+ */
+export interface SwivelSpec {
+  /** the cabin GLB's node whose meshes hold the screen's frame */
+  cabinNode: string;
+  /** how far it turns to either side, degrees */
+  turnDeg: number;
+  /** how far it slides forward and back, m */
+  travelM: number;
+  /** the vertical axis it turns about, as x and z in the cabin model's space (glTF: x forward, z toward the passenger side) */
+  hub: [number, number];
 }
 
 /**
@@ -457,8 +501,19 @@ export interface Vehicle {
   xray?: XraySpec;
   /** The Tech tab's demonstrations, see TechDemoSpec. */
   tech?: TechDemoSpec[];
+  /**
+   * The DC charge port, for the fast-charge demo: the mouth of the DC socket in the viewer's axes (x forward, y up,
+   * z toward the passenger side), the direction pointing out of it, and how far a gun's nose goes in, m.
+   */
+  chargePort?: { mouth: [number, number, number]; axis: [number, number, number]; depth: number };
   /** Which parts of the exterior are the lamps, see LightsSpec. */
   lights?: LightsSpec;
+  /** The BOOST knob on the steering wheel, in the cabin model's space (glTF), for the BOOST demo. */
+  boost?: { knob: [number, number, number] };
+  /** Where the sensors sit, when the car has a sensor demo, see SensorSpec. */
+  sensors?: SensorSpec;
+  /** The centre screen's mount, when it moves (the cabin's `screen_main` and its frame turn about the hub). */
+  swivel?: SwivelSpec;
   sources: Source[];
   /** Set when a car is too new for reliable data on some fields. */
   dataCaveat?: string;

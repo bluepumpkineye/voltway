@@ -21,7 +21,15 @@ export function usePreviewRuntime(vehicle: Vehicle, demoId: string): Runtime | n
     const layout = rig.layout;
     if (!spec || !driver || !rigged || !layout) return null;
     const body = { ...rig.body, halfWidth: vehicle.dimensions.widthMm / 2000 };
-    const built = driver.build({ vehicle, layout, body, start: { x: rig.rac.x, y: rig.rac.y, yaw: 0 }, speed });
+    const built = driver.build({
+      vehicle,
+      layout,
+      body,
+      start: { x: rig.rac.x, y: rig.rac.y, yaw: 0 },
+      speed,
+      ride: { carpet: true, modeId: null },
+      params: spec?.params ?? {},
+    });
     return { demoId, stage: built.stage, sample: (t: number) => built.track.sample(t), body };
   }, [vehicle, demoId, rig, rigged, speed]);
 }
