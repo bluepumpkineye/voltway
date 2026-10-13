@@ -14,7 +14,8 @@ the web, and baked occlusion and ground shadows.
 
 The showroom's Tech tab (animated demonstrations of what a car's technology does) asks
 one more thing of the export: wheels that steer and roll, shipped one node per corner
-with a caliper node that does not spin. That contract, the demo template and the
+with a caliper node that does not spin (`export_rx.split_wheels`; the 7X has the same
+in `export_zx.split_wheels`, since 2026-10-12; the SU7 does not yet). That contract, the demo template and the
 verified equipment tables are in [`tech-showcase.md`](tech-showcase.md).
 
 ---
@@ -810,6 +811,22 @@ the memory notes. What is different from the RX:
   the walls and the rear seat backs' rear faces, found by ray; the ribbed sill plate; a bag
   hook, 12 V socket and lamp; speaker grilles; tie-down hooks; the lid pull) and the hatch's
   liner (`int_tailgate`); the old parcel shelf and bulkhead are gone.
+- **Charge flap and port** (`zx_charge.py`, 2026-10-12, from c12_0046/48/49/50, board T3c). The flap is a
+  rounded oblong on the left rear quarter (x -1.620..-1.358, z 0.903..1.075, from the side photograph's
+  solve) hinged at its FRONT edge (it swings out and forward, 105 degrees): node `Zeekr7X_ChargeFlap`, origin on
+  the hinge, opening `charge` (a negative turn, like the left doors). Behind it, `Zeekr7X_ChargePort` (the
+  opening's `frameNode`, drawn only while it is open): a rubber seal and a black tub, a housing with the DC cup (two
+  big power sleeves, an earth sleeve and six signal sockets) and the AC cup (three power sleeves, two signal
+  sockets, two empty rings) each under a hinged cover, the light strip across the top (`M_Charge_LED`, emissive:
+  lit, as in the photographs), the Z badge on the skin behind the opening, and the two dust caps on their cord
+  hanging below. Depths are ours (no side photograph); sizes and places are read off c12_0048/49. **Three
+  traps.** (1) An exact boolean on the quarter's thin solid (mirror, solidify, bevel, weighted normals) took
+  half the panel with it: cut the mirrored SHEET (`_boolean`, hole tolerant) and thicken it afterwards. (2) The
+  quarter's grid pinches into a band of sliver faces a few centimetres inside the flap's rear edge (the
+  loft's tail seam), and a boolean-cut flap came out with a crack along it: the flap is built from the flank's own
+  surface (`BODY.side_point`) with a liner and a rim. (3) The tail-lamp bar's tip reached into the opening, and the
+  hull (`ZX_Shell_Shadow`) closed it: both are cut with the same outline (`trim_neighbours`, `open_hull`); the old
+  painted outline `ZX_Charge_Line` is removed. `export_zx.prepare_exterior` calls `zx_charge.build()`.
 - **Colourways and brightness.** The four cabin colourways of `zeekr-7x.ts` recolour the cream
   leather, taupe, dash top, carpet, headliner and stitching by material name, with values read
   off the orange, grey and orchid cars' photographs. The cream cabin is lit by the daylight that
@@ -828,19 +845,47 @@ the memory notes. What is different from the RX:
   behind it. The 7X's carriers are now 48 rows and 16 mm behind (`zx_interior_doors`). A thing
   that is "black on the surface" in a vertex-baked cabin is as likely to be a hidden second
   surface poking through as it is a bad bake: hide the primitive in the scene and look.
-- **Windows left standing when a door opens** (the RX's bug again; owner, 2026-10-08). The
-  door glass is 12 % (front) and 50 % (rear) opaque: what makes a closed window dark is the
-  black layer behind it, the greenhouse underlay and the inner shadow shell in the Blackout
-  node, which stays on the body. `cut_underlay()` had taken the windows out of the underlay
-  only; the shell, 1.5-3 cm behind the glass, stayed and stood in each doorway as a dark pane
-  (found with `__ids`: the pixels were `Zeekr7X_Blackout_mesh001 [M_Shadow]`, and hiding that
-  node showed the cabin). Now the same windows are cut out of the shell (`_glass_cutter`) and
-  `add_window_panes()` gives each door a copy of its glass 4 mm behind it in M_Shadow, so the
-  dark travels with the door. It runs from `export_zx.main()`, AFTER the cabin's bakes: they
-  hide the blackout layer so daylight comes in through the glass, and a pane in the door is
-  opaque to it. The viewer already hides every `m_shadow` mesh inside the cabin and in X-ray.
-  `winqa`-style check: build, `prepare_exterior()`, `add_window_panes()`, open two doors and
-  render (about 70 s).
+- **Windows left standing when a door opens** (the RX's bug again; owner, 2026-10-08, and a
+  second time the same day: a black wedge was still left). A door's glass is fully opaque dark
+  when the door is shut and clears as it swings (`Openings.tsx` `useGlass`: opacity 1, then 0.14
+  front / 0.55 rear; 0.12 / 0.5 are the cabin's and the open door's, NOT the shut one's: I read
+  them as the shut values and built the fix on that). What stood in each doorway was the black
+  layer behind the glass, the greenhouse underlay and the inner shadow shell in the Blackout
+  node, which stays on the body: `cut_underlay()` had taken the windows out of the underlay only;
+  the shell, 1.5-3 cm behind the glass, stayed (found with `__ids`: the pixels were
+  `Zeekr7X_Blackout_mesh001 [M_Shadow]`, and hiding that node showed the cabin). The same windows
+  are now cut out of the shell too (`_glass_cutter`): that is the whole fix. The first version
+  also gave each door an opaque dark copy of its glass 4 mm behind it (`add_window_panes`,
+  M_Shadow) "so the dark travels with the door"; it was redundant shut (the glass is already
+  dark) and on an open door it stayed black and opaque while the glass cleared, a black sheet
+  hanging in the window. It is gone. Check: open each door in the viewer and read the door's
+  material opacities (`M_Shadow` must not be among the door's materials); from outside the open
+  door's window shows the cabin through 14 % (front) or 55 % (rear) dark glass.
+  The owner reported it a third time (2026-10-09, "a fragment of the black part is still left"):
+  the cuts only take out what is under the glass OUTLINE, and the front door glass stopped at an
+  upright edge (x 0.66, copied from the RX) where the real glass runs forward up the A-pillar, so a
+  53 x 23 cm triangle of underlay between the upright and the pillar was never cut and stood in the
+  doorway (black on black when shut, which is why nobody saw it). The ID pass of the open-door view
+  named it (`Blackout_mesh001_1 [M_Black_Gloss]`; the same pixels were that mesh shut). The glass now
+  runs to the door's leading edge (`zx_panels.X_GLASS_F`), `V_GT` eases the glass's top edge over
+  the 15 mm the roof-side and A-pillar readings missed by, and `ZX_Pillar_Foot` paints the pillar's
+  foot down to the fender top (the fender sits 2-6 cm under the belt there). The RX still has the
+  upright (rx_panels.py, `RX_Glass_DoorFront x=(GB_F, 0.660)`).
+- **The 7X's rear corner (owner, 2026-10-09: "body and rear window not aligned consistently").**
+  Found with part-coloured renders of a built (not exported) scene and with hiding nodes in the
+  viewer: (1) black diamonds along the roof blade's centre line were the black underlay piercing the
+  paint: `LoftBody.surface_normal` returned the zero vector at v = 1, so `surface_offset` did not
+  move a sheet's centre row (the -3 / -10 mm underlays stood up to the skin there); fixed in carkit
+  (shared: the RX and SU7 pick it up when rebuilt); (2) the rear wedge glass overlapped the backlight
+  by 14 mm (two sheets on one surface z-fought along the edge) and ran on as a 5 mm ribbon of needle
+  triangles behind x -2.07 (`X_WEDGE_END`); (3) the quarter's C-pillar tab jumped 6 cm within 3 mm
+  at the glass's tip, a strip of sliver quads with normals tilted up to 40 degrees (a vertical crease
+  down the quarter): it is its own panel now (`ZX_Quarter_Pillar`, `V_QBASE`). Left as they were:
+  the backlight's lower corners dip 6 cm under its centre (the join `zx_nose.JOIN_R` is constant x
+  and the loft's rear slope is crowned; following the z 1.15 contour instead breaks the hatch's
+  split, `zx_gate._gate_faces`), the quarter's straight diagonal edge against the shelf, the dark
+  seal crevice below it, and the loft's own undulation (noisy photo samples in `zx_surface`). The grey
+  "flap" on the backlight is the studio reflected in the curved glass, not geometry.
 - **The steering wheel and the visor** (owner: the top "smashed", too close to the screen).
   Measured on c10_0001, the centre camera behind the console, where the wheel and the screen
   are both ~1.7 m away so the screen's known width (16 in = 0.345 m + bezel) is the ruler: the
@@ -941,6 +986,64 @@ face 12 mm below the lip at the rim, 72 mm at the hub) for the RX too; the Sport
 "the leg tops from 0.395 of the lip radius out, and the lip", as its photographs show;
 caliper lettering (LUXEED, xiaomi), the hub emblem and the Ultra script, valve holes and
 tyre stickers are not modelled.
+
+### The Zeekr 7X's wheels (`zx_wheels.py`)
+
+Autohome's configuration lists 255/50 R19, 265/45 R20 (+ CNY 11,000) and 265/40 R21 (+ CNY 20,000);
+no page names the designs, so the names here are descriptive. Built: the **21 in six-Y** (the Ultra's,
+the model's own, orange calipers), the **20 in multi-spoke** and the **20 in twin-fork** in two finishes
+of ONE model. The 19 in aero cover was researched and left out at the owner's choice. The 20 in designs
+are traced from photographs of the 75 kWh Max (`12_75351_40` and `12_75351_324`, ellipse ratios 0.989 and
+0.992; the other candidates are in `blender/reference/zeekr-7x/wheels/candidates`, local only), whose
+calipers are silver; the Ultra and the 103 kWh Max show orange ones.
+
+- **The repeat is counted, not eyeballed.** `scripts/wheel-trace/period.cjs` found the multi-spoke 14-fold
+  (25.714 deg, autocorrelation 13.98): count by eye and you will say 15. `segment.cjs` lays the repeats
+  over each other and traces the silver class; both new faces are mirror symmetric about each window's
+  axis, so `zx_wheels._sym` builds their outlines from half-width tables and cannot lean.
+- **Centre the photograph on the axle before reading it** (`centrefit.cjs`, `shift.cjs`). `unwarp.cjs`
+  centres on the ellipse it fits to the lip ring and the fit is biased by the ring's lighting: the axles
+  sat (+4, +12) and (+1, +19) px from the middle of a 2400 px picture. It looked like parallax (a deep hub
+  shifts with depth and the lug nuts were 15 px low) but was not: the shift is the same at every radius,
+  and halves the variance between the repeats (1895 to 1051). Uncorrected, the top window of the
+  twin-fork matched and the side windows were a degree out; with the copy the filled overlay
+  (`maskedge.cjs ... 0.5`) matches in all five repeats. The bolt circle read off the corrected photograph
+  is 54 mm (5 x 108), not the 57.15 of the RX and SU7, and the lug nuts lie on the narrow windows' axes.
+- **Multi-spoke:** a black gloss face with 14 U windows (6.9 deg half-width, tops 0.958, bottoms 0.52,
+  the black band round them out to 8.6 deg and 0.478), a polished chrome disc (`M_Wheel_Chrome`, an
+  `inlay` whose `patch` is one boundary round the whole wheel: 0.5877 under a spoke, the flat U of
+  each window's band, `CHROME_EDGE`), two machined bars per spoke (2.8 deg each, a 3.2 deg black groove,
+  from the black line at 0.62 to the lip) and a chrome-ringed cap (`hub.cap_pts` and `cap_inner`, its
+  plate 43.7 mm in radius in the satin `M_Cap_Black`: a gloss plate mirrored the studio's white cove
+  and read grey face-on) over the lug nuts (`lugs.hidden`), the plate carrying the emblem (a square
+  outline of 44 mm with a stepped divider, 13.5 deg anticlockwise in the photographed frame: measured
+  on the corrected face-on photograph, built as flat quads, `hub.cap_logo`, `M_Logo_Grey`).
+- **Twin-fork:** a black gloss face with ten windows through it: five narrow bottle-shaped ones
+  (`FORK_BW`, on the lug nuts' axes) and between them, in each spoke, a pocket between the two arms
+  (`FORK_SW`); in `M_Wheel_Accent`, a silver U per spoke (the arms' bands on the narrow windows' edges,
+  flaring into the foot and closed under the pocket by a 6 mm bar) and a silver spike on the inside
+  of each arm, the lip's band too. Five domed lug caps in the counterbores and a 33 mm centre cap.
+- **Two finishes, one model.** The accent material ships gloss black; `WheelOption.accent` carries a
+  colour and optionally `metalness` and `roughness`, and `useWheels` tweens all three, so the two-tone
+  is the same nodes with a silver metal accent (`#c9ccd1`, 1.0, 0.3) and the black one without it.
+- **Library changes** (`carkit.parts.wheels`): `inlay` may be a list (one skin per material), takes a
+  `patch` besides `polys`, and its skin is trimmed by the windows, so an outline may overrun a window's
+  edge and the two still meet exactly; `hub.cap_pts` (a cap's profile), `hub.cap_inner` (a disc of
+  another material on its top) and `hub.cap_logo` (flat quads on it); `lugs.hidden`. The RX's three
+  designs, the SU7's and the 7X's six-Y build with identical vertex and triangle counts in every part
+  before and after (checked 2026-10-08 against the committed library).
+- **Export** (`export_zx.py`): `WHEEL_GROUPS` (the nodes `Zeekr7X_Multi_Wheels` and
+  `Zeekr7X_Fork_Wheels`), `build_wheel_options(lib)` before `prepare_exterior()` in `web()` and
+  `web_full()`, and each extra design's AO baked alone in the default wheels' place
+  (`bake_exterior_ao`), as for the RX; the ground shadow and the stills use the default only. Budget:
+  the exterior GLB 3.70 MB (2.35 before), the wheel nodes 43 k (six-Y), 78 k (multi-spoke) and 73 k
+  (twin-fork) triangles for four wheels, only the chosen one drawn; `export_zx.web()` takes ~2.5 min.
+  `wheel_preview.face_on("zx:multi" / "zx:fork", ..., accent=, accent_pbr=)` and `oblique` render them.
+- **Not modelled:** the twin-fork cap's lettering, the grey sloped
+  facets on the arms' flanks, valve holes, the 19 in cover. The dish depths are estimates (the six-Y's
+  measured profile for the fork, a flatter disc for the multi-spoke, checked against the oblique
+  photographs `12_75351_168`, `12_75351_34`); the calipers are the same sector in every design, and
+  the silver one is the orange material recoloured (a dielectric, not aluminium).
 
 ### Judging the web result against the photo
 

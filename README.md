@@ -52,8 +52,10 @@ bottom tab bar, in the manner of the HIMA 3D hall.
   carrying the published figures.
 - **Wheels:** the Luxeed RX's three photographed designs (22 in Fengying, 21 in
   Yufeng, 21 in Sport and its blue-accent finish, each traced from approved
-  photographs) and its caliper colours. The SU7 Ultra has one wheel and one
-  caliper colour, so its showroom has no Wheels tab.
+  photographs) and its caliper colours; the Zeekr 7X's 21 in six-Y, 20 in
+  multi-spoke and 20 in twin-fork (silver two-tone or gloss black) with orange or
+  silver calipers. The SU7 Ultra has one wheel and one caliper colour, so its
+  showroom has no Wheels tab.
 - **Dashboard:** the car's own screen, live, beside the car, and the lamps at
   both ends of it. The screen's headlamp controls (Off, Position, Low beam,
   Auto) switch the car's LED lines: a glow on the lamps, the beam on the floor
@@ -137,6 +139,7 @@ blender/scripts/
   su7_wheels.py      the forged five-hairpin wheel, traced from photographs;
                      carbon-ceramic brakes, Akebono calipers
   rx_wheels.py       the Luxeed RX's three wheel designs, traced the same way
+  zx_wheels.py       the Zeekr 7X's three (six-Y, multi-spoke, twin-fork), likewise
   wheel_preview.py   one wheel face-on or oblique, to lay over its photograph
   su7_materials.py   material library (+ export_safe() for the glTF path)
   su7_textures.py    carbon weave baked to real pixels

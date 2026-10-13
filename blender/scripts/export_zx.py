@@ -9,8 +9,10 @@ The 7X lives in the showroom only (no vehicle-page viewer): vehicle data has
 
     Zeekr7X_Body        the painted shell, glass, the lamps' surrounds
     Zeekr7X_Details     fascia, lamps, trim, mirrors, badges
-    Zeekr7X_Wheels      the four wheels (21 in, the Ultra's); its origin is the front-left
-                        wheel's centre (the showroom's camera rig reads it)
+    Zeekr7X_Wheels      the four wheels (21 in six-Y, the Ultra's); its origin is the
+                        front-left wheel's centre (the showroom's camera rig reads it)
+    Zeekr7X_Multi_Wheels, Zeekr7X_Fork_Wheels
+                        the two 20 in designs (zx_wheels), hidden until chosen
     Zeekr7X_Blackout    the black glass underlay and inner shadow shell
                         (the viewer hides any "*_blackout" node inside)
 
@@ -51,6 +53,66 @@ GROUPS = [
     ("Zeekr7X_Details", "ZX_Details"),
     ("Zeekr7X_Blackout", "ZX_Blackout"),
 ]
+# the other wheel designs (zx_wheels.DESIGNS): built beside the default for the export only, each a
+# node of its own; the viewer shows one at a time
+WHEEL_GROUPS = [
+    ("Zeekr7X_Multi_Wheels", "ZX_Wheels_Multi"),
+    ("Zeekr7X_Fork_Wheels", "ZX_Wheels_Fork"),
+]
+
+# The wheels ship one NODE PER CORNER, so the showroom's tech demos can steer, roll and lift them
+# (src/lib/tech/rig.ts); the RX does the same (export_rx.CORNERS). Per design: <node>_<tag> holds
+# everything that turns with the wheel (tyre, rim, face, disc) and <node>_Caliper_<tag> the caliper,
+# which steers but does not spin. Each node's origin is the hub centre, its local frame the wheel's
+# own (the build's wheel empty carries the placement), so a node spins about its axle. The viewer
+# groups the four of a design back under <node>.
+CORNERS = ("FL", "FR", "RL", "RR")
+
+
+def _corner_col(cname, kind, tag):
+    """The collection of one corner's wheel ('W') or caliper ('C') parts."""
+    return "%s_%s_%s" % (cname, kind, tag)
+
+
+def wheels_split():
+    return bpy.data.collections.get(_corner_col(GROUPS[1][1], "W", "FL")) is not None
+
+
+def split_wheels():
+    """Re-collect every wheel design's parts by corner (see CORNERS). Once, after the ambient
+    occlusion has been baked (it is per design, with the four wheels together) and before the
+    merge."""
+    if wheels_split():
+        return
+    for _, cname in [GROUPS[1]] + WHEEL_GROUPS:
+        src = bpy.data.collections.get(cname)
+        if src is None:
+            continue
+        for ob in list(src.objects):
+            if ob.type != 'MESH':
+                continue
+            # a part is named <prefix><Part>_<tag> and parented to the corner's empty
+            who = (ob.parent.name if ob.parent is not None else ob.name).split(".")[0]
+            tag = who.rsplit("_", 1)[-1]
+            if tag not in CORNERS:
+                raise RuntimeError("wheel part %s has no corner (%s)" % (ob.name, who))
+            kind = "C" if "_Caliper_" in ob.name else "W"
+            name = _corner_col(cname, kind, tag)
+            dst = bpy.data.collections.get(name) or bpy.data.collections.new(name)
+            if dst.name not in bpy.context.scene.collection.children:
+                bpy.context.scene.collection.children.link(dst)
+            src.objects.unlink(ob)
+            dst.objects.link(ob)
+
+
+def wheel_corner_groups(options=True):
+    """(node, collection) per corner of the default design, and of the others."""
+    out = []
+    for node, cname in [GROUPS[1]] + (WHEEL_GROUPS if options else []):
+        for tag in CORNERS:
+            out.append(("%s_%s" % (node, tag), _corner_col(cname, "W", tag)))
+            out.append(("%s_Caliper_%s" % (node, tag), _corner_col(cname, "C", tag)))
+    return out
 
 
 def split_blackout():
@@ -112,20 +174,49 @@ def prepare_exterior():
     RG.split_tail()           # the hatch: skin, backlight, lamp bar, lettering - one node
     RG.open_hull()            # the hull behind it
     RG.split_greenhouse()     # roof, rails and glass above the belt: the X-ray's ghost
+    import zx_charge as CH
+    CH.build()                # the charge flap (a hinged node), its port and caps (shown while it is open)
 
 
 def exterior_groups(options=True):
-    """Every exterior group (options is kept for the other cars' signature)."""
+    """Every exterior group; options=False leaves out the extra wheel designs."""
     import zx_openings as OP
     import zx_bays as BY
     import zx_gate as RG
-    return GROUPS + OP.door_groups() + BY.bonnet_groups() + [RG.GROUP, RG.GREENHOUSE_GROUP]
+    import zx_charge as CH
+    if wheels_split():
+        core = [g for g in GROUPS if g != GROUPS[1]]
+        return (core + wheel_corner_groups(options) + OP.door_groups() + BY.bonnet_groups()
+                + [RG.GROUP, RG.GREENHOUSE_GROUP] + CH.groups())
+    return (GROUPS + OP.door_groups() + BY.bonnet_groups() + [RG.GROUP, RG.GREENHOUSE_GROUP] + CH.groups()
+            + (WHEEL_GROUPS if options else []))
 
 
-def exterior_meshes():
-    return [o for _, cname in exterior_groups() for o in
+def exterior_meshes(options=False):
+    """The car's meshes; with options=False the extra wheel designs are not among them (they
+    stand where the default wheels do, so the car's own shadow and occlusion leave them out)."""
+    return [o for _, cname in exterior_groups(options) for o in
             (bpy.data.collections[cname].objects if cname in bpy.data.collections else ())
             if o.type == 'MESH']
+
+
+def build_wheel_options(lib):
+    """The other wheel designs (zx_wheels), one collection each, on the car's own material library
+    - before prepare_exterior(): rebuilding the library after it would undo export_safe(). Their
+    ambient occlusion is baked one design at a time (bake_exterior_ao), since they stand in the
+    same place."""
+    if bpy.data.collections.get(WHEEL_GROUPS[0][1]) is not None:
+        return
+    import zx_surface as S
+    import zx_wheels as ZW
+    from carkit import build as B
+    cols = []
+    for (_, cname), name in zip(WHEEL_GROUPS, [n for n in ZW.DESIGNS if n != ZW.DEFAULT]):
+        col = B.fresh_collection(cname)
+        ZW.build_design(col, S, lib, name)
+        cols.append(col)
+    B.ensure_uvs(cols)
+    return cols
 
 
 def open_all(on=True):
@@ -137,6 +228,9 @@ def open_all(on=True):
         OP.set_angle(key, d["deg"] if on else 0.0, card=False)
     BY.set_bonnet(BY.HOOD_DEG if on else 0.0)
     RG.set_hatch(RG.OPEN_DEG if on else 0.0, card=False)
+    import zx_charge as CH
+    if bpy.data.objects.get(CH.FLAP) is not None:
+        CH.set_flap(CH.OPEN_DEG if on else 0.0)
 
 
 def interior_objects():
@@ -151,12 +245,21 @@ def bake_exterior_ao(samples=512):
     from carkit import bake as BK
     prepare_exterior()
     hide = [o for o in (bpy.data.objects.get("Ground"),) if o is not None] + interior_objects()
+    extra = [(cname, [o for o in bpy.data.collections[cname].objects if o.type == 'MESH'])
+             for _, cname in WHEEL_GROUPS if cname in bpy.data.collections]
     # with every opening OPEN: the jambs, the bay under the bonnet and the boot are inside a
     # closed car and would bake black, and the outer skins do not change
     open_all(True)
     try:
-        return BK.ambient_occlusion(exterior_meshes(), samples=samples, distance=AO_DISTANCE,
-                                    hide=hide)
+        # the car with its own wheels, the other designs not there ...
+        stats = BK.ambient_occlusion(exterior_meshes(), samples=samples, distance=AO_DISTANCE,
+                                     hide=hide + [o for _, ms in extra for o in ms])
+        # ... then each other design alone in the default wheels' place
+        own = [o for o in bpy.data.collections[GROUPS[1][1]].objects if o.type == 'MESH']
+        for cname, ms in extra:
+            gone = own + [o for c, other in extra if c != cname for o in other]
+            BK.ambient_occlusion(ms, samples=samples, distance=AO_DISTANCE, hide=hide + gone)
+        return stats
     finally:
         open_all(False)
 
@@ -229,11 +332,10 @@ def clean_degenerate(objs, dist=1e-7, area=1e-12):
 def main(draco=True, ao=True, ao_samples=512, shadow=True):
     """The exterior (the scene must hold a fresh build_zx.main())."""
     prepare_exterior()
-    import zx_openings as OP
-    OP.add_window_panes()     # after the cabin's bakes: each door's dark pane behind its glass
     open_all(False)           # every part at its hinge, as the closed car
     if ao:
         bake_exterior_ao(ao_samples)
+    split_wheels()            # one node per corner, after the per-design AO bake
     groups = exterior_groups()
     merged = _X.merge_for_export(groups)
     clean_degenerate(merged)
@@ -249,6 +351,7 @@ def web(draco=True, ao_samples=512):
     sys.modules.pop("build_zx", None)
     import build_zx
     out = build_zx.main(reset=True, scene=False)
+    build_wheel_options(out["lib"])
     print("build tris:", out["tris"], "%.0f s" % (time.time() - t))
     res = main(draco=draco, ao_samples=ao_samples)
     print("export_zx.web: %.0f s" % (time.time() - t))
@@ -425,6 +528,7 @@ def web_full(samples=256, probe_samples=384, draco=True, ao_samples=512):
         sys.modules.pop(m, None)
     import build_zx
     out = build_zx.main(reset=True, scene=True)
+    build_wheel_options(out["lib"])
     import zx_interior_shell as SH
     SH.main()
     print("build: %d exterior tris, %.0f s" % (out["tris"], time.time() - t))
@@ -498,6 +602,29 @@ def hmi_art(res=(1800, 900), samples=256):
     studio.to_webp(png, out, quality=88, trim=True, width=1100)
     top = rig.top_view(os.path.join(rig.RENDER_DIR, "zeekr-7x_top.png"), dims=DIMS, samples=samples)
     studio.to_webp(top, os.path.join(DEST_HMI, "car-top.webp"), quality=88, trim=True, width=420)
+    return out
+
+
+def hmi_side_art(res=(1800, 700), samples=192, az=88.0):
+    """The car from the side, for the car screen's Quick settings page (the page draws the car
+    side-on with the suspension heights beside it, c10_0033): public/hmi/zeekr-7x/car-side.webp.
+    Same rig as hmi_art, one shot. Fresh build, exterior only."""
+    sys.modules.pop("build_zx", None)
+    import build_zx
+    from carkit import rig, studio
+    build_zx.main(reset=True, scene=False)
+    prepare_exterior()
+    open_all(False)
+    rig.drop_lookdev()
+    rig.build_studio()
+    bpy.data.objects["StudioFloor"].visible_camera = False
+    os.makedirs(rig.RENDER_DIR, exist_ok=True)
+    os.makedirs(DEST_HMI, exist_ok=True)
+    rig.SHOTS["hmi_side"] = dict(az=az, el=2.0, fov=16.0, margin=1.04, lift=0.0)
+    png = rig.still("hmi_side", os.path.join(rig.RENDER_DIR, "zeekr-7x_side.png"), dims=DIMS, res=res,
+                    samples=samples, transparent=True)
+    out = os.path.join(DEST_HMI, "car-side.webp")
+    studio.to_webp(png, out, quality=88, trim=True, width=1100)
     return out
 
 

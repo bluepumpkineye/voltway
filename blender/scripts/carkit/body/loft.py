@@ -430,9 +430,18 @@ class LoftBody:
     def surface_normal(self, x, v, eps=0.004):
         """Outward unit normal of the half surface at (x, v)."""
         x0, y0, z0 = self.surface(x, v)
-        _, y1, z1 = self.surface(x, min(1.0, v + eps))
+        v1 = min(1.0, v + eps)
+        if v1 - v < 0.5 * eps:
+            # on the top centreline the forward step is zero (v = 1): the tangent, and so the
+            # normal, came out as the zero vector and surface_offset() did not move the point at
+            # all - a sheet offset under the roof (the black underlays, -3 and -10 mm) stood up
+            # to the surface along its centre row and pierced the paint. Step back instead.
+            _, ya, za = self.surface(x, max(0.0, v - eps))
+            tv = (0.0, y0 - ya, z0 - za)
+        else:
+            _, y1, z1 = self.surface(x, v1)
+            tv = (0.0, y1 - y0, z1 - z0)
         _, y2, z2 = self.surface(min(self.HALF_L, x + eps), v)
-        tv = (0.0, y1 - y0, z1 - z0)
         tx = (eps, y2 - y0, z2 - z0)
         nx = tv[1] * tx[2] - tv[2] * tx[1]
         ny = tv[2] * tx[0] - tv[0] * tx[2]

@@ -211,9 +211,10 @@ export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undef
 /**
  * The wheel designs, as nodes of the exterior: the chosen one is shown and the
  * others hidden (each design is a node holding all four wheels, so a change is a
- * handful of visibility flags). A design with an accent paint (the Sport's edges)
- * also sets that material's colour, tweened like the caliper's. The first option
- * is the car as built, and is shown on first mount without touching the material.
+ * handful of visibility flags). A design with an accent paint (the Sport's edges, the
+ * twin-fork's bands) also sets that material's colour, and its metalness and roughness
+ * if the option names them, tweened like the caliper's. The first option is the car as
+ * built, and is shown on first mount without touching the material.
  */
 export function useWheels(model: THREE.Object3D, spec: ConfiguratorSpec | undefined, wheelId: string) {
   const invalidate = useThree((s) => s.invalidate);
@@ -254,7 +255,14 @@ export function useWheels(model: THREE.Object3D, spec: ConfiguratorSpec | undefi
     return out;
   }, [model, spec]);
 
-  const anim = React.useRef<{ slots: { m: THREE.MeshStandardMaterial }[]; from: THREE.Color; to: THREE.Color; t: number } | null>(null);
+  const anim = React.useRef<{
+    slots: { m: THREE.MeshStandardMaterial }[];
+    from: THREE.Color;
+    to: THREE.Color;
+    metal: [number, number];
+    rough: [number, number];
+    t: number;
+  } | null>(null);
 
   React.useEffect(() => {
     if (!spec?.wheels || !option) return;
@@ -265,10 +273,14 @@ export function useWheels(model: THREE.Object3D, spec: ConfiguratorSpec | undefi
     }
     const slots = option.accent ? accents.get(option.accent.material.toLowerCase()) : undefined;
     if (slots?.length && option.accent) {
+      const m = slots[0].m;
       anim.current = {
         slots,
-        from: slots[0].m.color.clone(),
+        from: m.color.clone(),
         to: new THREE.Color(option.accent.color),
+        // metalness and roughness only move when the option names them
+        metal: [m.metalness, option.accent.metalness ?? m.metalness],
+        rough: [m.roughness, option.accent.roughness ?? m.roughness],
         t: motionOk() ? 0 : 1,
       };
     }
@@ -282,7 +294,11 @@ export function useWheels(model: THREE.Object3D, spec: ConfiguratorSpec | undefi
     if (!a) return;
     a.t = Math.min(1, a.t + dt / DURATION);
     const k = ease(a.t);
-    for (const s of a.slots) s.m.color.copy(a.from).lerp(a.to, k);
+    for (const s of a.slots) {
+      s.m.color.copy(a.from).lerp(a.to, k);
+      s.m.metalness = lerp(a.metal[0], a.metal[1], k);
+      s.m.roughness = lerp(a.rough[0], a.rough[1], k);
+    }
     if (a.t >= 1) anim.current = null;
     else invalidate();
   });

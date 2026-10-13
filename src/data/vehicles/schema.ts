@@ -269,8 +269,13 @@ export interface WheelOption {
   tyres: string;
   /** The exterior GLB's node for the design. Designs that differ only in paint share one. */
   node: string;
-  /** The design's accent paint: a material of the exterior and the colour it takes (sRGB hex). */
-  accent?: { material: string; color: string };
+  /**
+   * The design's accent paint: a material of the exterior and the colour it takes (sRGB hex).
+   * metalness and roughness, when given, are taken too: one model can then be a silver metal or a
+   * gloss black (the Zeekr 7X's twin-fork); left out, the material keeps what it has (the RX's
+   * Sport swaps the colour of a dielectric).
+   */
+  accent?: { material: string; color: string; metalness?: number; roughness?: number };
   /** The caliper colour it is shown with first (an id of `calipers`), as on the photographed cars. */
   caliper?: string;
 }

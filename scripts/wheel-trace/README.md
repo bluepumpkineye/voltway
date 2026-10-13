@@ -57,6 +57,25 @@ designs".
 The polygons live in `blender/scripts/rx_wheels.py` and `su7_wheels.py`;
 `carkit.parts.wheels` cuts them from a dished face (the `traced` spoke style).
 
+## Centre the photograph on the axle first (added with the 7X's 20 in wheels)
+
+`unwarp.cjs` centres the picture on the ellipse it fits to the lip ring, and that fit is biased by the
+ring's lighting: the 7X photographs' axles sat 12 and 19 px below the middle of a 2400 px picture. It
+is a tenth of a percent of the lip radius and a degree of angle at the windows beside the horizontal:
+the first overlay of the twin-fork's traced bands lay about 10 px off at the side windows and fine at
+the top one. Do not read it as a depth effect (parallax moves a deep hub, not the lip).
+
+- `centrefit.cjs <uw.jpg> <repeats> [r0 r1 range]` finds the axle: a pattern of n identical repeats is
+  a ruler, and the luminance at (angle + k * 360 / n) agrees across k only when the polar origin is the
+  axle. It prints the shift in source pixels and the variance there and at the middle (the 7X
+  twin-fork's halved: 1895 to 1051).
+- `shift.cjs <in> <out> dx dy` moves the picture so that point is the middle. Make the copy, lift it
+  (`lift.cjs`) and trace from the copies: the strips and `segment.cjs`'s voted pictures come out sharp.
+  Read the corrected copy's half-widths: a symmetric window's half-width by radius is the same as the
+  uncorrected vote's within 0.3 deg, but the angular phase of the side repeats was off by about a degree.
+- Check a trace by laying the built face over the corrected photograph filled (`maskedge.cjs ... 0.5`):
+  a band that matches in all the repeats is right; one that matches only at the top is the centre.
+
 ## Finding the repeat and reading outlines automatically (added with the Zeekr 7X)
 
 - `period.cjs <uw.jpg> <r1,r2,...>` prints the dominant repeat (the circular autocorrelation of the

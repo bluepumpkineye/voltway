@@ -52,7 +52,14 @@ def _xz(px, y):
 X_COWL = S.COWL_X            # 1.200, screen base
 X_ROOF_F = 0.430             # windscreen header (the glass meets the roof)
 X_KNEE = S.KNEE_X            # -1.930, roof spoiler: backlight below it
-X_DLO_FRONT = 0.660          # the front door glass's front edge (upright)
+X_DLO_FRONT = 0.660          # where the roof-side glass line meets the A-pillar's (V_GT)
+# The front door glass does not stop there: it runs on forward up the A-pillar's line to just short of
+# the door's leading edge (0.977 at the belt). Stopping it at an upright left the triangle between that
+# upright and the pillar to the black underlay, which does not move with the door: a black wedge standing
+# in the doorway of an open door (reported 2026-10-08, twice). The real glass reaches the pillar.
+X_DOOR_TOP_F = 0.977         # the front door's leading edge at the belt (X_DOOR_F there)
+X_GLASS_F = 0.972            # the front door glass's front edge: flush with the door's, 5 mm short
+X_FOOT_END = 1.120           # the A-pillar's foot panel ends here (ZX_Pillar_Foot)
 X_DLO_TIP = -1.600           # the quarter glass's rear tip (side photo: z 1.265)
 X_BLADE = -1.925             # the roof spoiler's trailing edge
 X_FRIT = -1.960              # (no frit band on the 7X: the rear glass is uniformly dark)
@@ -132,9 +139,14 @@ def V_BELT(x):
 
 def V_GT(x):
     """Top of the side glass: the A-pillar edge ahead of the door glass, the roof
-    side behind it."""
+    side behind it. The two lines were read off the photographs separately and miss by
+    15 mm where they meet (X_DLO_FRONT): the A-pillar's eases down onto the roof-side
+    line over the next 0.3 m, so the glass's top edge, and the pillar's lower edge that
+    follows it, have no step."""
     if x > X_DLO_FRONT:
-        return v_up(x, z_a(x))
+        miss = z_a(X_DLO_FRONT) - DLO_TOP_Z(X_DLO_FRONT)
+        t = _clamp01((x - X_DLO_FRONT) / 0.30)
+        return v_up(x, z_a(x) - miss * (1.0 - _smooth(t)))
     return v_up(x, DLO_TOP_Z(max(X_DLO_TIP, x)))
 
 
@@ -206,6 +218,20 @@ def V_Q_TOP(x):
     return V_CEDGE(x)
 
 
+def V_QBASE(x):
+    """The quarter's own top edge: the belt along the quarter glass, easing onto the painted
+    edge behind the glass's tip. The C-pillar's front piece (ZX_Quarter_Pillar) stands on it up
+    to V_Q_TOP. The quarter used to run to V_Q_TOP itself, which jumps 6 cm within 3 mm at the
+    tip (fixed_x pair): a strip of sliver quads whose normals tilted up to 40 degrees, a
+    vertical crease down the whole C-pillar and the wheel arch."""
+    if x >= X_DLO_TIP:
+        return V_BELT(x)
+    if x >= X_CTIP:
+        s = _smooth((X_DLO_TIP - x) / (X_DLO_TIP - X_CTIP))
+        return V_BELT(X_DLO_TIP) + (V_CEDGE(X_CTIP) - V_BELT(X_DLO_TIP)) * s
+    return V_CEDGE(x)
+
+
 def V_ROOF_LO(x):
     if x >= X_DLO_TIP:
         return V_RAIL(x) - 0.004
@@ -219,7 +245,11 @@ def V_WEDGE_TOP(x):
         return V_WTOP(x)
     if x >= X_FRIT:
         return V_FRIT(x) + 0.004
-    return S.v_along(x, V_REARGLASS(x), 0.014) - 0.001
+    # behind the spoiler the wedge runs up to the backlight's side edge and 3 mm over it. It was 14 mm:
+    # two sheets of the same glass lying on the same surface over a strip that wide, tessellated
+    # differently, z-fought along the whole edge (a saw-tooth of black and grey where one reflects the
+    # studio and the other does not).
+    return S.v_along(x, V_REARGLASS(x), 0.003) - 0.001
 
 
 # The clamshell hood: its side edge runs along the fender crowns from the cowl to
@@ -279,6 +309,23 @@ def _quarter_tip():
 
 X_QTIP = _quarter_tip()
 
+
+def _wedge_end():
+    """Station where the dark wedge's height has fallen to a ribbon. Behind it the painted edge
+    (V_CEDGE) follows the backlight's side edge and the wedge between that and its own top
+    (V_WEDGE_TOP) is a 5 mm strip of needle triangles whose normals are noise: a jagged black and
+    grey edge on the backlight's lower corner. The wedge ends here and the backlight meets the
+    quarter."""
+    x = -2.0
+    while x > -2.34:
+        if V_WEDGE_TOP(x) - V_CEDGE(x) < 0.012:
+            return x
+        x -= 0.002
+    return -2.34
+
+
+X_WEDGE_END = _wedge_end()
+
 # ------------------------------------------------------------- flank panels
 PANELS = [
     dict(name="ZX_Fender_Front", x=(X_DOOR_F, N.JOIN_F), v=(V_SILL, V_HOOD),
@@ -291,15 +338,27 @@ PANELS = [
     # C-pillar up to the rail: one pressing, butted to the tail cap.
     # (behind the arch's top the cap's diagonal shut line is the quarter's LOWER edge,
     # and the quarter ends where that meets its top edge: V_QLOW, X_QTIP)
-    dict(name="ZX_Quarter", x=(X_QTIP, X_DOOR_R), v=(V_QLOW, V_Q_TOP),
-         nx=56, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint",
-         fixed_x=(X_DLO_TIP, X_CTIP)),
+    dict(name="ZX_Quarter", x=(X_QTIP, X_DOOR_R), v=(V_QLOW, V_QBASE),
+         nx=56, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint"),
+    # the C-pillar's front piece: the tab of the quarter between the glass's tip and the rail's
+    # rear end, from the quarter's top edge up to V_Q_TOP. A panel of its own, so no limit jumps
+    # inside one grid (see V_QBASE); it butts the quarter (v0), the rail (x1) and the roof paint.
+    dict(name="ZX_Quarter_Pillar", x=(X_CTIP + 0.002, X_DLO_TIP), v=(V_QBASE, V_Q_TOP),
+         nx=12, nv=24, gap=dict(v0=False, x1=False), mat="paint"),
     dict(name="ZX_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=60, nv=34, gap=dict(v1=False, x1=False), mat="paint", offset=0.0005),
     # Body-colour A-pillar and roof rail, butted to the quarter's C-pillar
     dict(name="ZX_Roof_Rail", x=(X_DLO_TIP, X_COWL),
          v=(lambda x: V_GT(x) + 0.006, V_RAIL_TOP),
          nx=140, nv=10, gap=dict(x0=False), mat="paint"),
+    # The A-pillar's foot: in front of the front door's leading edge the fender's top (V_HOOD) sits
+    # 2-6 cm under the belt and the pillar's line (V_GT) 10 cm over it, and nothing covered the
+    # gap but the black underlay: a black triangle left standing beside an open door. It is paint
+    # on the car (the dark triangle by the mirror is the door's glass, behind the door's edge).
+    # Ends at x 1.12: beyond 1.14 the loft has no surface at the pillar's height (V_GT jumps).
+    dict(name="ZX_Pillar_Foot", x=(X_DOOR_TOP_F + 0.004, X_FOOT_END),
+         v=(lambda x: V_HOOD(x) + 0.0005, lambda x: V_GT(x) + 0.006),
+         nx=14, nv=12, gap=dict(v0=False, v1=False), mat="paint"),
 
     # ---- greenhouse underlay: glass surround, B-pillar, under the roof glass
     dict(name="ZX_Greenhouse_Black", x=(X_DLO_TIP - 0.030, X_COWL),
@@ -320,12 +379,18 @@ PANELS = [
     dict(name="ZX_Glass_Roof", x=(X_ROOF_GLASS_R + 0.006, X_ROOF_F - 0.020),
          v=(lambda x: V_RAIL(x) + 0.004, 0.9995), nx=48, nv=30, glass="glass_dark",
          gap=dict(v1=False)),
-    dict(name="ZX_Glass_Wedge", x=(lambda v: N.JOIN_R(v) + 0.002, X_CTIP),
-         v=(V_CEDGE, V_WEDGE_TOP), nx=36, nv=10, glass="glass_dark", fixed_x=(X_BLADE,),
+    # No fixed_x column at the blade's foot (X_BLADE): panel_grid sorts the columns by their x at
+    # v = 0.5, where this strip's x-limit (the cap's join, x -2.09 there and -2.30 where the strip
+    # lives) is far from its own, so the fixed pair landed on the wrong side of the ordinary columns
+    # and the sheet folded back on itself in every row (a saw-toothed flap standing up from the
+    # glass at its right and left ends; checked by dbg_grid2: 11 of 11 rows inverted, 0 without).
+    # The step the limit makes at the blade's foot is a ramp of one column (1.8 cm) instead.
+    dict(name="ZX_Glass_Wedge", x=(X_WEDGE_END, X_CTIP),
+         v=(V_CEDGE, V_WEDGE_TOP), nx=36, nv=10, glass="glass_dark",
          gap=dict(x0=False, v1=False)),
-    dict(name="ZX_Glass_DoorFront", x=(GB_F, X_DLO_FRONT),
+    dict(name="ZX_Glass_DoorFront", x=(GB_F, X_GLASS_F),
          v=(lambda x: V_BELT(x) + 0.010, lambda x: V_GT(x) - 0.004),
-         nx=60, nv=28, glass="glass"),
+         nx=84, nv=28, glass="glass"),
     dict(name="ZX_Glass_DoorRear", x=(-1.10, GB_R),
          v=(lambda x: V_BELT(x) + 0.010, lambda x: V_GT(x) - 0.004),
          nx=46, nv=28, glass="glass_dark"),

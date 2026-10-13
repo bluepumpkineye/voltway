@@ -94,12 +94,32 @@ def build_library():
     _M.set_inputs(b, base=(0.0123, 0.0130, 0.0159), metallic=0.0, roughness=0.22,
                   coat=1.0, coat_rough=0.03, ior=1.45)
     lib["graphite"] = m
-    # the Sport's accent - the tops of its legs and its lip: gloss black as
-    # standard; the viewer paints the blue variant on this one material
+    # the twin-fork's machined bands, spikes and lip: gloss black as shipped; the viewer turns this
+    # one material into satin silver metal for the two-tone finish (colour, metalness, roughness:
+    # WheelOption.accent), so both finishes are one model
     m, nt, b = _M.mat("M_Wheel_Accent")
     _M.set_inputs(b, base=(0.013, 0.013, 0.014), metallic=0.0, roughness=0.12,
                   coat=1.0, coat_rough=0.03, ior=1.45)
     lib["accent"] = m
+    # the multi-spoke's polished disc and its hub cap's ring: bright chrome, a little soft so it
+    # reads under the showroom's dark rig (a mirror there shows whatever dark shape faces it)
+    m, nt, b = _M.mat("M_Wheel_Chrome")
+    _M.set_inputs(b, base=(0.80, 0.81, 0.83), metallic=1.0, roughness=0.17)
+    lib["chrome_polish"] = m
+    # the black plates of the wheels' caps: satin, so a flat disc does not mirror the studio's white
+    # cove (a gloss plate read light grey face-on, where the photographs' read black)
+    m, nt, b = _M.mat("M_Cap_Black")
+    _M.set_inputs(b, base=(0.011, 0.011, 0.012), metallic=0.0, roughness=0.36, specular=0.30)
+    lib["cap_black"] = m
+    # the multi-spoke cap's emblem: a flat light grey (the photographs' ~205 sRGB), satin
+    m, nt, b = _M.mat("M_Logo_Grey")
+    _M.set_inputs(b, base=(0.52, 0.53, 0.55), metallic=0.0, roughness=0.42, specular=0.35)
+    lib["logo_grey"] = m
+    # the twin-fork's lug-nut caps: dark brushed grey metal, lighter than the black face (the
+    # photograph's caps read sRGB ~90-150 where the face is ~10-40)
+    m, nt, b = _M.mat("M_Lug_Grey")
+    _M.set_inputs(b, base=(0.11, 0.115, 0.12), metallic=0.85, roughness=0.34)
+    lib["lug_grey"] = m
     # the brake discs: cast iron, a dull grey-brown (every photograph), not the
     # SU7's carbon-ceramic
     m, nt, b = _M.mat("M_Disc_Iron")

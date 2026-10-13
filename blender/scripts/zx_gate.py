@@ -628,7 +628,7 @@ def build_seal(collection="ZX_Details"):
 
 # ----------------------------------------------------------------- the greenhouse
 GREENHOUSE = ("ZX_Roof_Paint", "ZX_Roof_Rail", "ZX_Glass_Roof", "ZX_Glass_Windshield",
-              "ZX_Glass_Quarter", "ZX_Glass_Wedge")
+              "ZX_Glass_Quarter", "ZX_Glass_Wedge", "ZX_Quarter_Pillar", "ZX_Pillar_Foot")
 GREENHOUSE_GROUP = ("Zeekr7X_Greenhouse", "ZX_GreenhouseGrp")
 
 

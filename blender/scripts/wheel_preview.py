@@ -48,12 +48,13 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
-    if design == "zx":
+    if design == "zx" or design.startswith("zx:"):
+        # the Zeekr 7X: "zx" is the six-Y, "zx:multi" and "zx:fork" the 20 in designs (zx_wheels.DESIGNS)
         import zx_materials as MT
         import zx_wheels as ZW
         lib = MT.build_library()
         col = B.fresh_collection("ZX_Wheels")
-        prefix, spec = "ZX_", ZW.SPEC
+        prefix, spec = ZW.DESIGNS[design.split(":")[1] if ":" in design else "y"]
         spec.pop("_faces", None)
         w, r, dr = (0.265, 0.3647, 0.190) if front else (0.265, 0.3647, 0.180)
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
@@ -82,12 +83,17 @@ def _stats(parts):
 
 
 def face_on(design="yufeng", out=None, side="left", size=1400, samples=48, front=True,
-            hide=("Tyre",), accent=None, only=None, flat=False, dark=False):
+            hide=("Tyre",), accent=None, only=None, flat=False, dark=False, pitch=0.0,
+            accent_pbr=None):
     """Build and render. hide: name fragments of parts to leave out of the picture;
     only: if given, the parts that are drawn, all others hidden; flat: draw them as
     plain white on a transparent ground (a mask of the face, to lay over the
     photograph); dark: a dark studio instead of the white overcast;
-    accent: an (r, g, b) the accent material is painted (the blue variant)."""
+    accent: an (r, g, b) the accent material is painted (the blue variant), accent_pbr its
+    (metallic, roughness) (the 7X twin-fork's silver: (1.0, 0.2));
+    pitch: degrees the camera is lowered below the axle's line and aimed back up at it, which
+    moves a deep part (the hub) down the picture by depth x tan(pitch) as in a photograph taken
+    from a little off the axis (the 7X twin-fork's: 2.9, the lug nuts 15 px low)."""
     import time
     t = time.time()
     spec, col, empty, parts, lib = build_one(design, side, front=front)
@@ -97,6 +103,9 @@ def face_on(design="yufeng", out=None, side="left", size=1400, samples=48, front
     if accent is not None and "accent" in lib:
         b = next(n for n in lib["accent"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
         b.inputs["Base Color"].default_value = tuple(accent) + (1.0,)
+        if accent_pbr is not None:
+            b.inputs["Metallic"].default_value = accent_pbr[0]
+            b.inputs["Roughness"].default_value = accent_pbr[1]
     for p in parts:
         if any(h in p.name for h in hide) or (only and not any(h in p.name for h in only)):
             p.hide_render = True
@@ -126,6 +135,18 @@ def face_on(design="yufeng", out=None, side="left", size=1400, samples=48, front
     scn.collection.objects.link(cam)
     cam.location = (0.0, 0.0, 1.0)
     cam.rotation_euler = (0.0, 0.0, math.pi if side == "left" else 0.0)
+    if pitch:
+        # image up u0 and right r0 of the face-on camera, then the whole camera turned about r0
+        a = math.radians(pitch)
+        u0 = Vector((0.0, -1.0, 0.0)) if side == "left" else Vector((0.0, 1.0, 0.0))
+        v0 = Vector((0.0, 0.0, -1.0))
+        r0 = v0.cross(u0)
+        v = v0 * math.cos(a) + r0.cross(v0) * math.sin(a)
+        u = u0 * math.cos(a) + r0.cross(u0) * math.sin(a)
+        m = Matrix(((r0.x, u.x, -v.x, 0.0), (r0.y, u.y, -v.y, 0.0), (r0.z, u.z, -v.z, 0.0),
+                    (0.0, 0.0, 0.0, 1.0)))
+        m.translation = -v * 1.0
+        cam.matrix_world = m
     scn.camera = cam
     # a soft overcast and one key from upper left, as the photographs have
     w = bpy.data.worlds.new("W")
@@ -162,7 +183,7 @@ def face_on(design="yufeng", out=None, side="left", size=1400, samples=48, front
 
 
 def oblique(design="yufeng", out=None, side="left", az=35.0, el=8.0, size=1200, samples=64,
-            accent=None, dist=2.0, lens=70.0, front=True, dark=True):
+            accent=None, dist=2.0, lens=70.0, front=True, dark=True, accent_pbr=None):
     """The wheel from outside at `az` degrees to its axle (to the car's front, in the
     plane of the ground) and `el` above the horizon, a few lights and a dark ground:
     the way it is looked at in the showroom. The ground is not drawn."""
@@ -170,6 +191,9 @@ def oblique(design="yufeng", out=None, side="left", az=35.0, el=8.0, size=1200, 
     if accent is not None and "accent" in lib:
         b = next(n for n in lib["accent"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
         b.inputs["Base Color"].default_value = tuple(accent) + (1.0,)
+        if accent_pbr is not None:
+            b.inputs["Metallic"].default_value = accent_pbr[0]
+            b.inputs["Roughness"].default_value = accent_pbr[1]
     scn = bpy.context.scene
     # car up in the wheel's frame: the left wheel's local +Y is down
     up = Vector((0.0, -1.0 if side == "left" else 1.0, 0.0))

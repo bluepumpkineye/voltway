@@ -85,8 +85,6 @@ export const zeekr7x: Vehicle = {
   // colourways. The build is Gorge Stone Blue (涧石蓝, the car of the studio photographs);
   // every other value is matched by eye to Autohome's swatches under our studio rig (hence
   // "approximate" in the interface). The English names are translations of the Chinese ones.
-  // The Ultra's wheels and orange calipers are the only ones photographed; the wheel and
-  // caliper choices the maker lists (19 and 20 in) have no photographs, so they are not built.
   configurator: {
     paintMaterial: 'M_Paint_ZX_Blue',
     paints: [
@@ -178,10 +176,43 @@ export const zeekr7x: Vehicle = {
         },
       },
     ],
+    // The Ultra and the 103 kWh Max are photographed with orange calipers (the build's own), the
+    // 75 kWh Max and the other trims with silver ones.
     caliperMaterial: 'M_Caliper_Orange',
-    calipers: [{ id: 'orange', name: 'Orange', nameZh: '橙色', color: '#e56f1d' }],
+    calipers: [
+      { id: 'orange', name: 'Orange', nameZh: '橙色', color: '#e56f1d' },
+      { id: 'silver', name: 'Silver', nameZh: '银色', color: '#8d9399' },
+    ],
+    // The wheels Autohome's configuration lists with the car: 255/50 R19 (standard), 265/45 R20
+    // (+ CNY 11,000) and 265/40 R21 (+ CNY 20,000). No page names the designs. The 21 in six-Y is
+    // what the model is built with (the Ultra's); the 20 in multi-spoke and the 20 in twin-fork,
+    // in two finishes of one model, are nodes of the same file, traced from Autohome's photographs
+    // of the 75 kWh Max. The 19 in cover is not built.
+    wheels: [
+      { id: 'six-y', name: 'Six-Y', size: '21"', tyres: '265/40 R21', node: 'Zeekr7X_Wheels', caliper: 'orange' },
+      { id: 'multi-spoke', name: 'Multi-spoke', size: '20"', tyres: '265/45 R20', node: 'Zeekr7X_Multi_Wheels', caliper: 'silver' },
+      {
+        id: 'twin-fork',
+        name: 'Twin-fork',
+        size: '20"',
+        tyres: '265/45 R20',
+        node: 'Zeekr7X_Fork_Wheels',
+        accent: { material: 'M_Wheel_Accent', color: '#c9ccd1', metalness: 1, roughness: 0.3 },
+        caliper: 'silver',
+      },
+      {
+        id: 'twin-fork-black',
+        name: 'Twin-fork, gloss black',
+        size: '20"',
+        tyres: '265/45 R20',
+        node: 'Zeekr7X_Fork_Wheels',
+        accent: { material: 'M_Wheel_Accent', color: '#0d0d0e', metalness: 0, roughness: 0.12 },
+        caliper: 'silver',
+      },
+    ],
     sources: [
       { label: 'Autohome - Zeekr 7X: colours and interiors', url: 'https://car.autohome.com.cn/pic/series/7777.html' },
+      { label: 'Autohome - Zeekr 7X: wheels and brakes (75 kWh Max)', url: 'https://car.autohome.com.cn/pic/series/7777-12.html' },
     ],
   },
   // The four doors swing on their leading edge (the hinge: mid height, on the skin;

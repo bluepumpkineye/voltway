@@ -122,58 +122,13 @@ def split_doors():
     return made
 
 
-def add_window_panes(behind=0.004):
-    """Give each door a dark pane behind its glass, in the inner shell's material (M_Shadow).
-
-    The door glass is 12-50 % opaque: what makes a closed window dark is the black layer behind
-    it (the greenhouse underlay and the inner shadow shell, in the Blackout node, which stays
-    put). When a door swung open its glass left and the layer stayed, so the windows stood in
-    the doorway as dark panes (the RX had it too). cut_underlay() takes the windows out of that
-    layer; this puts a copy of each glass pane, `behind` metres inside it, into its door. The
-    viewer hides M_Shadow inside the cabin and in X-ray, as it does the blackout node.
-
-    Run AFTER the cabin's bakes (export_zx.main): they hide the blackout layer so daylight comes
-    in through the glass, and a pane in the door would be opaque to it."""
-    shadow = bpy.data.materials["M_Shadow"]
-    done = []
-    for key, d in DOORS.items():
-        door = bpy.data.objects["ZX_Door_" + key]
-        if door.get("pane"):
-            continue
-        me = door.data
-        names = [m.name if m else None for m in me.materials]
-        glass = {i for i, n in enumerate(names) if n and n.startswith("M_Glass")}
-        if not glass:
-            continue
-        if shadow.name not in names:
-            me.materials.append(shadow)
-            names.append(shadow.name)
-        mi = names.index(shadow.name)
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        bm.faces.ensure_lookup_table()
-        faces = [f for f in bm.faces if f.material_index in glass]
-        acc = {}
-        for f in faces:
-            for v in f.verts:
-                acc[v] = acc.get(v, Vector()) + f.normal * f.calc_area()
-        moved = {}
-        for v, n in acc.items():
-            if n.length < 1e-9:
-                n = Vector((0.0, d["side"], 0.0))
-            n = n.normalized()
-            if n.y * d["side"] < 0.0:
-                n = -n
-            moved[v] = bm.verts.new(v.co - n * behind)
-        for f in faces:
-            nf = bm.faces.new([moved[v] for v in f.verts])
-            nf.material_index = mi
-        bm.to_mesh(me)
-        bm.free()
-        me.update()
-        door["pane"] = 1
-        done.append(key)
-    return done
+# No door pane. An opaque dark copy of each door's glass 4 mm behind it (add_window_panes, M_Shadow)
+# was added to make a shut window dark, on the reading that the glass is "12-50 % opaque". That was
+# the viewer's opacity for an OPEN door (0.14) and the cabin (0.12), not the shut one: a shut door's
+# glass is fully opaque dark (Openings.tsx useGlass: opacity 1 until the door swings), so the
+# pane added nothing shut, and on an open door it stayed black and opaque while the glass cleared:
+# a black wedge standing in the window (reported 2026-10-08). The cuts in cut_underlay() are the
+# whole fix for "the window stays behind when the door opens".
 
 
 def join_cards(collection="ZX_Interior"):
@@ -424,7 +379,8 @@ def cut_underlay(under="ZX_Greenhouse_Black", inset=0.0025, hull="ZX_Shell_Shado
     left the sheet standing in the window: a black pane that did not move. Each door glass's
     outline (inset, so the shut pane still covers the edge) is cut out of it with an exact
     boolean; the pillars and the surround stay. The same windows are cut out of the inner shadow
-    shell, and split_doors() gives each door a dark pane in their place. Run before split_doors().
+    shell. The door's own glass is dark (opaque shut, clear as the door opens), so nothing else
+    goes in their place. Run before split_doors().
     Returns (faces before, faces after, faces pruned)."""
     from carkit import cut as C
     from carkit import mesh as M
@@ -437,7 +393,7 @@ def cut_underlay(under="ZX_Greenhouse_Black", inset=0.0025, hull="ZX_Shell_Shado
     for poly in ob.data.polygons:
         poly.use_smooth = True
     # and out of the inner shadow shell, which sits 1.5-3 cm behind the glass and stood in the
-    # doorway as a window of its own (each door's pane, _window_pane, replaces both)
+    # doorway as a window of its own
     shell = bpy.data.objects.get(hull)
     if shell is not None:
         M.apply_modifiers(shell)

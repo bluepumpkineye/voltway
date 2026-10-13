@@ -363,6 +363,19 @@ def _densify(pts, step_deg=1.5, step_r=0.02):
     return out
 
 
+def _densify_open(pts, step_deg=1.5, step_r=0.02):
+    """_densify for an open polyline (the last point is kept, no edge back to the first): a
+    boundary that goes once round the wheel, its angles increasing, with the first point
+    repeated at +360 degrees at the end."""
+    out = []
+    for i in range(len(pts) - 1):
+        a0, r0 = pts[i]
+        a1, r1 = pts[i + 1]
+        k = max(1, int(math.ceil(max(abs(a1 - a0) / step_deg, abs(r1 - r0) / step_r))))
+        out += [(a0 + (a1 - a0) * j / k, r0 + (r1 - r0) * j / k) for j in range(k)]
+    return out
+
+
 def _prisms(name, loops, z0, z1):
     """One cutter object holding a closed prism per (x, y) loop, from z0 to z1.
     The loops may be concave but must not cross themselves, and the prisms must
@@ -456,11 +469,13 @@ def _traced_face(name, collection, mat, d_face, big_r, sp, accent=None):
 
 def _traced_inlay(name, collection, mat, d_face, big_r, sp, inl):
     """A skin of the traced face's top surface inside some outlines, in another
-    material: the machined wedges of a two-tone face. The outlines are polygons of
-    one repeat like the windows (turned `count` times); they may run past the
-    face's edge, where the skin stops, but must not touch a window. The skin is
-    `lift` above the face so the two never fight over a pixel; nothing else of
-    the solid is kept."""
+    material: the machined wedges of a two-tone face. The outlines are `polys`, polygons
+    of one repeat like the windows (turned `count` times, and not touching each other),
+    and `patch`, one boundary [(angle, radius), ...] of one repeat that is chained round
+    the whole wheel into a single outline (a disc with a scalloped edge). They may run
+    past the face's edge, where the skin stops, and past a window's edge, which trims
+    them. The skin is `lift` above the face so the two never fight over a pixel; nothing
+    else of the solid is kept."""
     import bmesh
     count = sp["count"]
     r_in, r_out = sp["r_in"], sp["r_out"]
@@ -473,11 +488,19 @@ def _traced_inlay(name, collection, mat, d_face, big_r, sp, inl):
     M.orient(ob.data, lambda c: (0.0, 0.0, 1.0))
     M.solidify(ob, sp["depth"], -1.0)
     step = 360.0 / count
+    sd, sr = sp.get("step_deg", 1.5), sp.get("step_r", 0.02)
     loops = []
     for k in range(count):
-        for poly in inl["polys"]:
-            pts = _densify([(t + step * k, r) for (t, r) in poly], sp.get("step_deg", 1.5), sp.get("step_r", 0.02))
+        for poly in inl.get("polys", ()):
+            pts = _densify([(t + step * k, r) for (t, r) in poly], sd, sr)
             loops.append([_polar(t, r, big_r) for (t, r) in pts])
+    patch = inl.get("patch")
+    if patch:
+        # one boundary r(angle) going once round the wheel: the repeat's points turned `count`
+        # times, closed back to the first point a turn later (a disc with a scalloped edge)
+        pts = [(t + step * k, r) for k in range(count) for (t, r) in patch]
+        pts = _densify_open(pts + [(pts[0][0] + 360.0, pts[0][1])], sd, sr)
+        loops.append([_polar(t, r, big_r) for (t, r) in pts])
     zs = [d for (_, d) in prof]
     cutter = _prisms("_inl_" + name, loops, min(zs) - sp["depth"] - 0.03, max(zs) + 0.03)
     b = ob.modifiers.new("inlay", 'BOOLEAN')
@@ -494,6 +517,16 @@ def _traced_inlay(name, collection, mat, d_face, big_r, sp, inl):
     bpy.data.objects.remove(cutter, do_unlink=True)
     if cd.users == 0:
         bpy.data.meshes.remove(cd)
+    # the windows trim the skin, so an outline may overrun a window's edge by a little and the
+    # two still meet exactly
+    wloops = []
+    for k in range(count):
+        for poly in list(sp.get("windows", ())) + list(sp.get("notches", ())):
+            pts = _densify([(t + step * k, r) for (t, r) in poly], sd, sr)
+            wloops.append([_polar(t, r, big_r) for (t, r) in pts])
+    if wloops:
+        C.difference(ob, [_prisms("_inlwin_" + name, wloops, min(zs) - sp["depth"] - 0.03, max(zs) + 0.03)],
+                     "inlwin_")
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.normal.z < 0.3], context='FACES')
@@ -590,15 +623,18 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
         face.rotation_euler = (0.0, 0.0, roll)
         parts.append(face)
         inl = sp.get("inlay")
-        if inl:
-            src = cache.get("inlay")
+        # one skin per material: a dict, or a list of them (the chrome disc and the machined bars)
+        for ii, inl in enumerate(inl if isinstance(inl, (list, tuple)) else ([inl] if inl else [])):
+            key = "inlay" if ii == 0 else "inlay%d" % ii
+            sname = "Inlay_" if ii == 0 else "Inlay%d_" % ii
+            src = cache.get(key)
             if src is None or bpy.data.objects.get(src.name) is not src:
-                skin = _traced_inlay(prefix + "Inlay_" + tag, collection, lib[inl["mat"]], d_face, rim_r, sp, inl)
-                cache["inlay"] = skin
+                skin = _traced_inlay(prefix + sname + tag, collection, lib[inl["mat"]], d_face, rim_r, sp, inl)
+                cache[key] = skin
             else:
                 skin = src.copy()
                 skin.data = src.data.copy()
-                skin.name = prefix + "Inlay_" + tag
+                skin.name = prefix + sname + tag
                 skin.parent = None
                 collection.objects.link(skin)
             skin.rotation_euler = (0.0, 0.0, roll)
@@ -660,12 +696,37 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     kc = hub_spec.get("cap_r", 0.029) / 0.029
     cap = [(0.0, d_hub + 0.0055 + cr), (0.026 * kc, d_hub + 0.0055 + cr), (0.029 * kc, d_hub + 0.003 + cr),
            (0.029 * kc, d_hub)]
-    v, f = M.revolve(cap, 32)
+    if "cap_pts" in hub_spec:
+        # the cap's own profile: [(radius, height above the hub plate), ...] from the axis outward,
+        # closed down to the plate at the last radius
+        cp = hub_spec["cap_pts"]
+        cap = [(r_, d_hub + h_) for (r_, h_) in cp] + [(cp[-1][0], d_hub)]
+    v, f = M.revolve(cap, 40 if "cap_pts" in hub_spec else 32)
     parts.append(M.obj(prefix + "HubCap_" + tag, v, f, collection, lib[mats["cap"]]))
+    ci = hub_spec.get("cap_inner")
+    if ci:
+        # a flat disc of another material on the cap's top (the black plate of a chrome-ringed cap)
+        v, f = M.revolve([(0.0, d_hub + ci["h"]), (ci["r"], d_hub + ci["h"])], 40)
+        parts.append(M.obj(prefix + "HubPlate_" + tag, v, f, collection, lib[ci["mat"]]))
+    cl = hub_spec.get("cap_logo")
+    if cl:
+        # an emblem on the cap: flat quads [(x, y) x4, ...] in metres, in the photographed frame
+        # (turned with the face by `roll`), standing `h` above the hub plate
+        lv, lf = [], []
+        for quad in cl["quads"]:
+            pts = list(quad)
+            if sum(pts[i][0] * pts[(i + 1) % 4][1] - pts[(i + 1) % 4][0] * pts[i][1] for i in range(4)) < 0.0:
+                pts.reverse()                       # counter-clockwise: the normal up
+            b = len(lv)
+            lv += [(x_, y_, d_hub + cl["h"]) for (x_, y_) in pts]
+            lf += [[b, b + 1, b + 2], [b, b + 2, b + 3]]
+        logo = M.obj(prefix + "HubLogo_" + tag, lv, lf, collection, lib[cl["mat"]], smooth=False)
+        logo.rotation_euler = (0.0, 0.0, roll)
+        parts.append(logo)
 
     # lug bolts in counterbores, between the spokes
     lg = spec["lugs"]
-    nl = lg["count"]
+    nl = 0 if lg.get("hidden") else lg["count"]      # hidden: under a cap that covers them
     lugs = []
     for k in range(nl):
         a = 2.0 * math.pi * k / nl + sp["phase"] + math.pi / nl
@@ -692,9 +753,10 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
         ff = [[i, (i + 1) % 6, 6 + (i + 1) % 6, 6 + i] for i in range(6)]
         ff += [[12, i, (i + 1) % 6] for i in range(6)]
         lugs.append((vv, ff))
-    v, f = M.merge_parts(lugs)
-    parts.append(M.obj(prefix + "Lugs_" + tag, v, f, collection, lib[mats["lugs"]],
-                       smooth=bool(lg.get("dome"))))
+    if lugs:
+        v, f = M.merge_parts(lugs)
+        parts.append(M.obj(prefix + "Lugs_" + tag, v, f, collection, lib[mats["lugs"]],
+                           smooth=bool(lg.get("dome"))))
 
     # ------------------------------------------------------ disc and caliper
     dk = spec["disc"]

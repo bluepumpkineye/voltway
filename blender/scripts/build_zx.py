@@ -14,7 +14,8 @@ order:
     zx_front       fascia, headlamps, intakes, lower grille, badge, lidar
     zx_rear        tailgate, light bar, ducktail, bumper, lettering
     zx_side        mirrors, handles, arch cladding, skirts, vent, charge door
-    zx_wheels      the 5-spoke wheel and the corner table
+    zx_wheels      the three wheel designs (the default six-Y here, the 20 in two for the export)
+                   and the corner table
     zx_materials   the RX's finishes on carkit's material library
     zx_ref_match   the solved reference cameras (zx_camsolve: the readings)
 """
