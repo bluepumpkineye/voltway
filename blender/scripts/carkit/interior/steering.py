@@ -73,6 +73,8 @@ def _loop_ctrl(R, flat_bottom, flat_top, n=48, shape=None):
     top), or, with `shape` = dict(a, b, n), a superellipse |u/a|^n + |v/b|^n = 1 (a rounded
     square for n > 2: a squircle rim with a flat top and bottom and full corners)."""
     pts = []
+    if shape and shape.get("pts"):
+        return list(shape["pts"])
     if shape:
         a, b, e = shape["a"], shape["b"], shape.get("n", 2.0)
         for k in range(shape.get("ctrl", 72)):
@@ -182,7 +184,8 @@ def _rounded_polygon(w, h, sides, r, n=4):
 
 def hub(fr, spec, collection, lib, name="int_wheel_hub", logo_mat=None):
     h = spec["hub"]
-    outline = _rounded_polygon(h["w"], h["h"], h["sides"], h["r_corner"], n=5)
+    # a car may bring its own pad outline (u, v points, counter-clockwise): the Z9's rounded square
+    outline = h.get("outline") or _rounded_polygon(h["w"], h["h"], h["sides"], h["r_corner"], n=5)
     made = []
     # the pad: rings from the outline in to the centre, domed toward the driver
     rings = []

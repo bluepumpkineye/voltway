@@ -25,6 +25,9 @@ const CARS = {
   'luxeed-rx': { skip: /Yufeng|Sport|Caliper|DoorFrame/ },
   'su7-ultra': { skip: /DoorFrame|TrunkArms/ },
   'zeekr-7x': { skip: /Fork_Wheels|Multi_Wheels|DoorFrame/ },
+  // one wheel design each, already cut into corners
+  'denza-z9': { skip: /Caliper|DoorFrame/ },
+  'xpeng-g9l': { skip: /Caliper|DoorFrame/ },
 };
 
 /** Triangles after simplification. */

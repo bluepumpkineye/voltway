@@ -930,6 +930,72 @@ the memory notes. What is different from the RX:
   9876) answered; each call starts a fresh Python namespace, so helpers live in a module
   (`zx_leakqa.py`, `zx_lookdev.py`).
 
+### The Denza Z9 and XPeng G9L cabins (`z9_interior*.py`, `g9l_interior*.py`, `cabin_tools.py`, `cabin_hmi.py`)
+
+Both cars have a closed cabin (no openings, so one bake and no `_BAKEDLIGHT_OPEN`), built from Autohome's photographs
+(Z9: series 7838, the mocha-brown Nappa spec; G9L: series 8659, the purple car's Bordeaux Red spec) and shown in the
+showroom's Interior tab with the same cabin shader as the other cars. They are the first cabins whose build, QA and
+export are driven by a config dict instead of copied scripts:
+
+- **`cabin_tools.py`** takes the car's `CFG` (`z9_cabin.CFG`, `g9l_cabin.CFG`: slug, interior module, collections, blackout
+  layer, HDRI, probe position, seat eyes, cameras) and gives `compare()` (the cabin alone against the reference cameras,
+  seconds), `leaks()` (the seat-eye QA), `bake_cabin()` and `export_interior()`/`export_outside()`. `export_z9.web_cabin()` and
+  `export_g9l.web_cabin()` run build, bake and export in one background Blender (about 7 to 12 minutes; the cabin alone,
+  the exterior GLB is untouched). `cabin_parts.py` holds the seat pillows, headrests, pedals and rear-view mirror;
+  `carkit.interior.steering` accepts `loop=dict(pts=[...])` for a wheel rim drawn from photographed points.
+- **Never run two Blender builds at once**: both rewrite `blender/textures/*.png` and the second one fails with
+  "t_leather_normal.png failed to load".
+- **Leak QA found two things worth knowing.** (1) A trim sheet lying on a blackout underlay (their surfaces coincide to a
+  fraction of a millimetre) was stepped over by the QA's 0.5 mm skip, which reported the roof rail and wheel liner as
+  leaks; `carkit.qa.leaks` now steps 0.1 mm past a skipped surface. (2) On the G9L the real gaps were a slit between the
+  dash's front end and the windscreen's lower edge (`int_cowl_closure`) and the A-pillar's foot, where the fender's top
+  showed between the pillar band and the cowl wall (`int_cowl_top`, an `edge_band` under the body's upper surface).
+  On the Z9 the white triangles ahead of the sills were the underbody seen through the footwell's open outboard corner
+  below the floor line: the floor is now 0.80 m wide at the toe board. Last results: Z9 0.005 % front, 0.20 % rear; G9L
+  0.15 % front, 0.68 % rear (the black wheel-arch liner seen from the rear seats' eyes at yaw 135, pitch -40; not closed).
+  Both cabins ship the cluster's picture (Z9 also the passenger display's) through `CFG["displays"]`; only `screen_main`
+  goes out as the plain screen, because the live HMI covers it.
+- **Cabin colourways.** The first trim of each car is the cabin as built; the others carry `colors` (material name to hex,
+  `INT_Leather_Seat`, `INT_Leather_Dash`, `INT_Thread_Seat`, the carpet). `cockpit.ambientHue` sets the hue the ambient
+  light opens at (the G9L's star-field band is violet, 262; the generic default is 28).
+- **Z9 details drawn from the close-ups (c10_0002, c10_0009, c10_0043, c3_0003).** The wheel rim is an oval read off a pixel
+  grid laid over c10_0002 (draw a labelled grid on the crop with sharp, read the outline, normalise by the half-width): the
+  upper half a true ellipse, the lower half a superellipse of exponent 2.45, so it is round over the top and straighter
+  underneath (an earlier squircle with a flat top read as upside down). The airbag pad is a rounded square sitting 23 mm below
+  the rim's centre (`steering.hub` takes `spec["hub"]["outline"]`); the pods, legs, rim inlay and the hourglass mark are built
+  in `z9_interior._wheel_*` rather than in carkit. Under the screen the console steps up to a bronze mirror tray with eight
+  keys (three crystal rockers, the start/stop and hazard blocks, three rockers) under a louvered vent chamber, all in
+  `_console_controls`; the felt pad is a grid that follows the deck (a flat fan sank into the curved leather). The door's
+  switch pack is a black gloss block on the pod's front end, yawed to follow the card, with the lock keys, a mirror pad and
+  two rows of window keys (`_switch_pack`); the pod runs on under it, otherwise the pack floats.
+- **The centre screen is 16:10 on both.** The HMI is a 1280 x 800 page that `LiveScreen` pins to `screen_main`; the G9L's
+  panel is 16:9 in the photographs, so the quad is built 16:10 (0.350 x 0.2188 m) rather than stretching the page.
+
+**Infotainment skins.** `vehicle.cockpit.skin` picks them in `HmiSurface.tsx`: `'dilink'` (Z9, `components/hmi/dilink/`: the
+DiLink home with the car on a stage and a dock of cards, the controls menu, climate, seats, media, navigation, the 360
+camera, the app centre) and `'xos'` (G9L, `components/hmi/xos/`: XOS Tianji, light, the map as the home with sheets over it,
+the quick panel with its Common / AC / Seats tabs, vehicle settings, media, camera, app centre). Layout and colours are read
+off the cat-10 photographs (c10_0019-56 for the G9L). Both open the Tech tab's chassis page (`ChassisScreen`) inside the skin.
+Art from the build: `z9_cabin.hmi_art()` / `g9l_cabin.hmi_art()` (the car at 3/4 on a transparent ground and its top view,
+`public/hmi/<slug>/car34.webp`, `car-top.webp`) and `hmi_cabin()` (clay renders of the cabin for the climate and seat
+pages, `cabin-climate|seats-light|dark.webp`); `hmi_cabin` prints `HMI_SEATS`, the fractions where each seat's button goes
+(the `SEATS` arrays in `SeatsPage`/`SeatsTab`). Check a skin without the car: `/capture/hmi/<slug>?screen=<id>`.
+
+**Two viewer fixes that apply to every cabin (`CarModel.tsx`, `bakeSmooth.ts`).**
+
+- **The screen was drawn over the steering wheel.** The HMI is a web page above the canvas, so it covered anything between
+  the eye and the screen. `LiveScreen` now makes the picture a window: a `hmi_window` mesh on its plane (blend ZERO/ZERO, a
+  polygon offset) clears the canvas to transparent there, and after every main-view render (`addAfterEffect` plus a
+  `gl.render` wrapper that notes the draw) the canvas inside the HMI's outline is copied onto an overlay `<canvas>` above the
+  page (`pointer-events: none`), so the wheel, a pillar or the bezel stand in front of the HMI. The HMI's polygon is grown
+  1.5 px so the window's anti-aliased edge never shows the page's white. An idle demand canvas still renders 0 frames.
+- **"Black spots": the baked light was noisy.** Each vertex's Cycles light is its own Monte Carlo estimate, and
+  `bake.smooth` only averages two passes, so leather showed dark cloudy blotches (worst on the 7X and Z9, which were baked at
+  low samples). `smoothBakedLight()` relaxes it again at load: vertices at one position (the glTF split them at seams) are
+  welded, then six passes blend each vertex with its edge neighbours weighted by normal agreement (no averaging across a
+  crease), and a vertex far darker than its neighbours is replaced by them first. 160 ms for 174k vertices, once per cached
+  geometry; no re-bake. If a cabin ever looks too soft, lower `BAKE_SMOOTH_PASSES`.
+
 ### Wheel designs (`rx_wheels.py`, `su7_wheels.py`, `carkit.parts.wheels`, `wheel_preview.py`)
 
 The Luxeed RX is built with its 22 in Fengying and carries two more designs, the

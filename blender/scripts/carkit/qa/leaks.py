@@ -77,7 +77,9 @@ def find(cameras, interior, exterior, see_through, skip=(), res=(320, 180), max_
                     break
                 name = ob.name
                 if any(s in name for s in skip) or not ob.visible_get():
-                    p = loc + d * 0.0005
+                    # a trim sheet lying on the underlay (their surfaces coincide to a fraction of a mm) must not be
+                    # stepped over: 0.1 mm, not the glass's 0.5 mm
+                    p = loc + d * 0.0001
                     continue
                 if any(s in name for s in see_through):
                     crossed = True
