@@ -3,7 +3,7 @@
 import React from 'react';
 import * as THREE from 'three';
 import { useGLTF, Html } from '@react-three/drei';
-import { useFrame, useLoader, useThree } from '@react-three/fiber';
+import { addAfterEffect, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { OpeningId, Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
@@ -11,12 +11,14 @@ import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
+import { cullBehindClearGlass, useCabinStencil, useGlassStencil } from './clearGlass';
 import { useXray, useXrayCabin } from './Xray';
 import { hingesOf } from '@/lib/openings';
 import { prepareRig } from '@/lib/tech/rig';
 import { CarLights } from './Lights';
 import { useRigBinding } from './techRig';
 import { rigSwivel } from './ScreenSwivel';
+import { smoothBakedLight } from './bakeSmooth';
 
 /**
  * Blender exports with +Y up, so the car's axes arrive as:
@@ -172,7 +174,13 @@ export function CarModel({ vehicle, variant, url }: Props) {
   useHingedNodes(model, vehicle, 'node');
   useHingedNodes(model, vehicle, 'frameNode');
   const xray = useVehicleStore((s) => s.tab === 'xray') && Boolean(vehicle.xray) && hasCabin;
-  useGlass(model, vehicle, inside, hasCabin, xray);
+  // the cabin is mounted behind the exterior (ShowroomViewer): the windscreen and the front windows are clear glass once it is
+  const cabinReady = useVehicleStore((s) => s.cabinReady);
+  // not on the Tech tab: its demos move the car, and the cabin does not move with it
+  const clearTab = useVehicleStore((s) => s.tab !== 'tech');
+  const shut = useVehicleStore((s) => s.shut);
+  useGlass(model, vehicle, inside, hasCabin, xray, cabinReady && clearTab);
+  useGlassStencil(model, hasCabin && cabinReady && clearTab && !inside && !xray && shut);
   useXray(model, vehicle, xray);
   useStruts(model, vehicle);
   const picks = useOpeningPicks(model, vehicle, 'node');
@@ -216,6 +224,16 @@ export function CarModel({ vehicle, variant, url }: Props) {
     });
     return { blackout, shadow, shell };
   }, [model]);
+
+  // the car is on screen: the cabin may come in behind it
+  const setExteriorUp = useVehicleStore((s) => s.setExteriorUp);
+  React.useEffect(() => {
+    setExteriorUp(true);
+    return () => setExteriorUp(false);
+  }, [setExteriorUp]);
+
+  // the black layers behind the windscreen and the front windows are cut away, so the cabin shows through them (clearGlass.ts)
+  React.useEffect(() => (hasCabin ? cullBehindClearGlass(model, refs.blackout) : undefined), [model, refs, hasCabin]);
 
   // Inside the cabin: drop the blackout layer and see out through the glass
   // (useGlass tints it: ~80 % through the windscreen and front door glass,
@@ -311,6 +329,18 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   // the showroom's cabin colourways (the first option is the cabin as built)
   useTrim(model, vehicle.configurator, trimId);
 
+  // the cabin is there: the exterior's clear glass may show it
+  const setCabinReady = useVehicleStore((s) => s.setCabinReady);
+  React.useEffect(() => {
+    setCabinReady(true);
+    return () => setCabinReady(false);
+  }, [setCabinReady]);
+
+  // From outside, with every part shut, the cabin is drawn only where clear glass is in front of it: nothing of it can show
+  // through the bodywork, and the windscreen and front windows are windows (clearGlass.ts)
+  const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && s.tab !== 'xray' && s.tab !== 'tech' && s.shut);
+  useCabinStencil(model, masked);
+
   // the door cards turn about the same hinges as the exterior doors
   useHingedNodes(model, vehicle, 'cardNode');
   useHiddenWhileOpen(model, vehicle, useVehicleStore((s) => s.cameraMode !== 'exterior'));
@@ -336,6 +366,8 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
         g.setAttribute('bakedLightOpen', g.getAttribute('_bakedlight_open') ?? raw);
         g.deleteAttribute('_bakedlight');
         g.deleteAttribute('_bakedlight_open');
+        // the bake is one Monte Carlo estimate per vertex: relax it, or the leather reads as dirty, blotchy
+        smoothBakedLight(g);
       }
       const baked = Boolean(g.getAttribute('bakedLight'));
       for (const m of materialsOf(o)) {
@@ -478,6 +510,25 @@ function bakedLighting(
 // --------------------------------------------------------------- live HMI
 
 /**
+ * What the picture's window draws: nothing at all, not even the page's white, so the HMI page behind the canvas shows. The
+ * polygon offset pulls it in front of the dim backing quad it sits on.
+ */
+const HOLE = new THREE.MeshBasicMaterial({
+  colorWrite: true,
+  side: THREE.DoubleSide,
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation,
+  blendSrc: THREE.ZeroFactor,
+  blendDst: THREE.ZeroFactor,
+  blendSrcAlpha: THREE.ZeroFactor,
+  blendDstAlpha: THREE.ZeroFactor,
+  polygonOffset: true,
+  polygonOffsetFactor: -4,
+  polygonOffsetUnits: -4,
+  toneMapped: false,
+});
+
+/**
  * The live HMI, pinned onto `screen_main` by a per-frame perspective warp.
  *
  * drei's `<Html transform>` builds a CSS 3D camera in world units. The car is
@@ -525,8 +576,90 @@ function LiveScreen({
       parent.add(o);
       return o;
     });
-    return { corners };
+    return { corners, parent };
   }, [model]);
+
+  // The HMI is a page over the canvas, so by itself it would be drawn over anything standing between the eye and the
+  // screen (the steering wheel, a pillar). Instead the picture is a window: a mesh on the picture's plane that clears the
+  // canvas to transparent, so the HMI behind it shows through, and after every frame the canvas inside the HMI's outline
+  // is copied back over the page, which puts the wheel, the bezel and the like in front of the HMI where they belong.
+  const hole = React.useRef<THREE.Mesh | null>(null);
+  const poly = React.useRef<[number, number][] | null>(null);
+  const events = useThree((s) => s.events);
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const inside = cameraMode !== 'exterior';
+  React.useEffect(() => {
+    if (!quad || !inside) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(quad.corners.flatMap((o) => o.position.toArray()), 3),
+    );
+    geo.setIndex([0, 3, 2, 0, 2, 1]);
+    const mesh = new THREE.Mesh(geo, HOLE);
+    mesh.name = 'hmi_window';
+    mesh.raycast = () => undefined;
+    mesh.frustumCulled = false;
+    quad.parent.add(mesh);
+    hole.current = mesh;
+
+    const host = (events.connected as HTMLElement | undefined) ?? gl.domElement.parentElement;
+    const src = gl.domElement;
+    const cv = document.createElement('canvas');
+    cv.setAttribute('aria-hidden', 'true');
+    cv.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:17';
+    host?.appendChild(cv);
+    const ctx = cv.getContext('2d');
+
+    // the canvas is only readable in the task that drew it: note when the main view was drawn
+    let drawn = false;
+    const render = gl.render;
+    gl.render = (scene, cam) => {
+      render.call(gl, scene, cam);
+      if (gl.getRenderTarget() === null) drawn = true;
+    };
+    let last: [number, number, number, number] | null = null;
+    const stop = addAfterEffect(() => {
+      if (!ctx || !drawn) return;
+      drawn = false;
+      if (cv.width !== src.width || cv.height !== src.height) {
+        cv.width = src.width;
+        cv.height = src.height;
+        last = null;
+      }
+      if (last) ctx.clearRect(...last);
+      last = null;
+      const p = poly.current;
+      if (!p) return;
+      const k = src.width / Math.max(1, src.clientWidth);
+      const xs = p.map((q) => q[0] * k);
+      const ys = p.map((q) => q[1] * k);
+      const x0 = Math.max(0, Math.floor(Math.min(...xs)) - 2);
+      const y0 = Math.max(0, Math.floor(Math.min(...ys)) - 2);
+      const x1 = Math.min(cv.width, Math.ceil(Math.max(...xs)) + 2);
+      const y1 = Math.min(cv.height, Math.ceil(Math.max(...ys)) + 2);
+      if (x1 <= x0 || y1 <= y0) return;
+      ctx.save();
+      ctx.beginPath();
+      p.forEach((q, i) => (i ? ctx.lineTo(q[0] * k, q[1] * k) : ctx.moveTo(q[0] * k, q[1] * k)));
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(src, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+      ctx.restore();
+      last = [x0, y0, x1 - x0, y1 - y0];
+    });
+    invalidate();
+    return () => {
+      stop();
+      gl.render = render;
+      cv.remove();
+      quad.parent.remove(mesh);
+      geo.dispose();
+      hole.current = null;
+      poly.current = null;
+    };
+  }, [quad, inside, events, gl, invalidate]);
 
   const tmp = React.useMemo(() => new THREE.Vector3(), []);
   const world = React.useMemo(() => new THREE.Vector3(), []);
@@ -540,13 +673,25 @@ function LiveScreen({
       tmp.copy(c).applyMatrix4(camera.matrixWorldInverse);
       if (tmp.z > -0.02) {
         el.style.visibility = 'hidden'; // a corner is behind the eye
+        poly.current = null;
+        if (hole.current) hole.current.visible = false;
         return;
       }
       tmp.copy(c).project(camera);
       pts.push([(tmp.x + 1) * 0.5 * size.width, (1 - tmp.y) * 0.5 * size.height]);
     }
+    // a pixel and a half wider than the glass: the window's anti-aliased edge never shows the page's white, and the
+    // frame, copied back over the HMI, hides the overlap
+    const cx = (pts[0][0] + pts[1][0] + pts[2][0] + pts[3][0]) / 4;
+    const cy = (pts[0][1] + pts[1][1] + pts[2][1] + pts[3][1]) / 4;
+    const grown = pts.map(([x, y]) => {
+      const d = Math.hypot(x - cx, y - cy) || 1;
+      return [x + ((x - cx) / d) * 1.5, y + ((y - cy) / d) * 1.5] as [number, number];
+    });
+    poly.current = grown;
+    if (hole.current) hole.current.visible = true;
     el.style.visibility = 'visible';
-    el.style.transform = quadToCss(pts, HMI_W, HMI_H);
+    el.style.transform = quadToCss(grown, HMI_W, HMI_H);
   });
 
   if (!quad || cameraMode === 'exterior') return null;

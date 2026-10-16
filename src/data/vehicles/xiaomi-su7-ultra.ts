@@ -250,6 +250,34 @@ export const xiaomiSu7Ultra: Vehicle = {
         'A simulation. Only the two times are published: the pull’s shape between them, the tail’s squat and the tyres’ slip are ours. The 100 km/h time excludes rollout and needs Trofeo RS tyres. The wheels are drawn at three turns a second at most, so their spokes stay readable.',
     },
   ],
+  // The DC socket's mouth (the left rear quarter, behind the wheel: our estimate of the place, snapped to the model's skin
+  // by a ray) and the direction out of it, in the viewer's axes. The model has no flap, so the Charging tab draws a socket here.
+  chargePort: { mouth: [-1.64, 0.95, -0.9107], axis: [-0.0552, 0.4189, -0.9064], depth: 0.02 },
+  // The Charging tab (docs/tech-showcase.md section 11). Sources read 2026-10-16.
+  charging: {
+    window: { from: 10, to: 80, minutes: 11 },
+    cRate: 5.2,
+    packKwh: 93.7,
+    architectureV: 800,
+    connector: 'GB/T',
+    port: { side: 'left', published: true, where: 'Left rear quarter' },
+    claims: [
+      {
+        text: 'The 93.7 kWh CATL Qilin 2.0 pack supports a maximum charge rate of 5.2C and can complete a fast charge from 10 to 80 % in 11 minutes.',
+        source: { label: 'CarNewsChina, 5 December 2024', url: 'https://carnewschina.com/2024/12/05/xiaomi-su7-ultra-will-have-up-to-630-km-range-plus-1-98-seconds-acceleration/' },
+      },
+      {
+        text: 'At 5.2C the pack should peak at around 490 kW; the 11 minutes is what the car should be able to do, not a measured result.',
+        source: { label: 'electrive, 6 November 2024', url: 'https://www.electrive.com/2024/11/06/xiaomi-su7-ultra-goes-on-pre-sale/' },
+      },
+      {
+        text: 'The car’s DC charge port is on its left side.',
+        source: { label: 'CarNewsChina database, SU7 Ultra parameters', url: 'https://db.carnewschina.com/xiaomi-auto/su7-ultra/2025/params' },
+      },
+    ],
+    simulated:
+      'A simulation. The 5.2C and the eleven minutes are published; the peak is that C-rate times the pack, and the curve between is ours. The model has no charge flap, so the socket is drawn at a place on the left rear quarter that we chose, and the pedestal and the gun (styled on a generic charging connector, not Xiaomi’s or any maker’s) are ours. Eleven minutes play in fourteen seconds.',
+  },
   sources: [
     { label: 'CnEVPost — Xiaomi launches SU7 Ultra', url: 'https://cnevpost.com/2025/02/27/xiaomi-launches-su7-ultra/' },
     { label: 'CnEVPost — 630 km on 93.7 kWh pack', url: 'https://cnevpost.com/2024/12/05/xiaomi-su7-ultra-range-630-km-93-kwh-battery/' },

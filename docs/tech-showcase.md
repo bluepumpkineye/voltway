@@ -14,7 +14,9 @@ the SU7's aero and launch, has its sources and board (section 10): the owner acc
 3c, the 7X's fast charge, is built and approved (section 11); 3d (the RX's sensors, section 12) and the RX's swivel
 screen and BOOST (3e, section 13) were approved by the owner on 2026-10-12 and are built (BOOST's enlarged screen, 2026-10-13);
 the SU7's welcome sequence has a source (Xiaomi's page: the cluster flips up at start-up) and a board waiting for approval, the
-7X's failed its source check, so it is not built (section 13); the SU7's diffuser is left out (section 10). The camera on the Tech tab is free:
+7X's failed its source check, so it is not built (section 13); the SU7's diffuser is left out (section 10). Phase 4 (section 14) gives the Denza Z9 and the
+Xpeng G9L their chassis demos (crab walk, compass turn, e³ parking, a rear-steered U-turn, nose-in parking) on a new street
+environment that the parking lot shares. The camera on the Tech tab is free:
 it orbits the stage's middle, zooms as close as on any tab and looks straight down (section 4).
 
 ## 1. What a demonstration is
@@ -207,7 +209,7 @@ Read in the browser pane (the tables are built by script): `car.autohome.com.cn/
 | Air suspension (chambers) | dual-chamber | dual-chamber | single-chamber row; air + electromagnetic on the 4WD Ultra (verify) |
 
 Unverified, so not for display: Huawei's slot-type list (parallel, perpendicular, angled, unmarked, very
-narrow), the millimetres of
+narrow), the Denza Z9 GT's rear-wheel behaviour in the crab walk and its 11 cm parking margin, the millimetres of
 each of the 7X's five ride heights, a 30 m road preview at up to 80 km/h for the Magic Carpet (its only source, a Sina
 article, is gone). Settled in Phase 3: the SU7's wing is fixed or hand-adjusted and its active diffuser has two
 positions, 0 and 32 degrees (maker's page); the 7X has five named heights over about 70 mm.
@@ -240,6 +242,8 @@ positions, 0 and 32 degrees (maker's page); the 7X has five named heights over a
 | BOOST demo (`boost.ts`, `viewer/BoostKnob.tsx`, `hmi/harmonyos/Boost.tsx`, `showroom/Boost.tsx`; spec `Vehicle.boost`) | built (3e, approved); the screen it shows is a stand-in; see section 13 |
 | Welcome sequence of the SU7 (the cluster flips up at start-up) | source found (Xiaomi's page) and a reference board made 2026-10-13; waiting for the owner's approval of the photographs (section 13) |
 | Welcome sequence of the 7X | NOT built: no published sequence found (section 13) |
+| Street environment (`street.ts`, `viewer/TechStreet.tsx`), the lot's dressing (`dressLot`), proxies for the Z9 and the G9L | built; see section 14 |
+| Z9: crab walk, compass turn, e³ parking; G9L: rear-wheel-steering U-turn, nose-in parking (`chassis.ts`, `hmi/chassis.tsx`, `showroom/Chassis.tsx`) | built, played through, idle frames 0, wheelhouse probe clean; not yet seen by the owner (section 14) |
 
 ## 9. Magic Carpet (Zeekr 7X), Phase 3a
 
@@ -324,6 +328,8 @@ measures wheelbase 3.0001 m, radii 0.359 / 0.358 m, as published), calipers (whi
 the vertex buffers are shared with the original. It runs for the SU7 in every tab; the park demo could now run on it.
 
 ## 11. 7X fast charge, Phase 3c
+
+*Since 2026-10-16 this is the Charging tab, for every car (section 15): the demo is no longer in `Vehicle.tech`, and the Tech tab's devices no longer start it.*
 
 Approved by the owner on 2026-10-12, with two photographs of generic charging connectors for the gun (a white AC
 plug with a black head, a blue portable unit): they are AC (Type 2 style) connectors, so they style the gun's shell,
@@ -450,3 +456,183 @@ front that offers interactive lighting for scenarios, and concealed handles with
 that unlocks as you walk up, and frameless powered doors with one-touch open and close (the automatic open and close is an
 option); nothing says what the light curtain, the handles or the mirrors do on approach. Building one would be inventing it, so
 it waits for a video or a manual page from the owner, or a decision to drop it.
+
+## 14. The chassis demos and the street, Phase 4 (2026-10-13)
+
+The Denza Z9 and the Xpeng G9L, the two cars added after Phase 3, have no cabin, no HMI skin and no opening parts yet, so
+their demonstrations are the ones that need only their wheels: how the chassis moves. The rig took them as they came (both
+GLBs ship per-corner wheel nodes). Built on the owner's request to "add the Crab Walk (the rig test's) to the Z9, add some
+environment, think of the tech features of the two new models and build them".
+
+| Car | Demo | Driver | Starts from |
+|-----|------|--------|-------------|
+| Denza Z9 | Crab walk | `crab` | the car's screen (the generic skin's chassis page) |
+| Denza Z9 | Compass turn | `compass` | the car's screen; the dock picks the wheel (left or right front) and the angle (90, 180, 360) |
+| Denza Z9 | e³ parking | `e3park` | the car's screen: Pull in, then Pivot at the stop |
+| Xpeng G9L | Rear-wheel steering | `uturn` | the car's screen |
+| Xpeng G9L | Nose-in parking | `park` with `params.noseIn` | the dock: a button standing for the voice command |
+
+**What is published, and from where** (every source below was read in full on 2026-10-13; they are on each demo's facts panel).
+The sources for the Z9 describe the **Z9 GT**, the shooting brake on the same e³ platform, and the showroom's Z9 is
+listed as the sedan with the same two modes in its drive-mode list: check that the sedan has them.
+- *Crab walk* (BYD China, 2024-08-22; Xchuxing 133019; km77): crab walk is one of e³'s five signature functions (with the compass
+  turn, extreme steering, e³ parking and low-grip stabilisation); the front and rear wheels turn the same way and the car moves
+  diagonally; the rear wheels steer at most ±10°, with the rear motors' differential the crab angle reaches 15°; km77 adds that the
+  front wheels should not be turned more than 15° nor the car driven faster than 20 km/h, and that the centre screen shows a
+  numeric indicator against over-turning.
+- *Compass turn* (Xchuxing, km77, The Autopian): braking, torque vectoring and rear steering: one front wheel is locked as the
+  pivot, the rear wheels splayed out and driven in opposite directions, any angle from 0 to 360° about either front wheel; Denza
+  says the tyre wear is like a hard brake. The turning radius is 4.62 m (BYD).
+- *e³ parking* (The Autopian, km77, Xchuxing): for a parallel space the driver pulls the nose in, chooses a front wheel to pivot
+  about and turns an outline of the car on the screen; the inside rear wheel is driven forward, the outside one backward. Xchuxing says it
+  was to arrive on the Z9 GT by OTA.
+- *G9L rear steering* (Gasgoo's launch report; Xchuxing 174677; CarNewsChina 2026-08-11): steer-by-wire rear axle, up to 15° either
+  way, standard across the range; turning radius 5.4 m (Wikipedia says 4.96 m; most reports say 5.4).
+- *G9L nose-in parking* (Gasgoo): a new nose-in parking function makes the boot easier to reach, and voice commands from outside the car
+  can direct parking manoeuvres.
+
+**Ours, said on screen:** the streets, how far the car goes (2.25 m sideways in the crab walk), the pace (7 km/h in the crab walk, inside
+the 20 km/h limit), the gap and the 30° of e³ parking (no source says how tight a gap the car can take), the front wheels' angles in the
+G9L's U-turn (they follow from the geometry), the generic screen, the button standing for a voice command.
+
+### The motion
+
+`kinematics.ts` gained one thing: a segment may carry `steer` (the angles the wheels are really set to, per corner), for a car whose
+rear wheels cannot do what a no-slip turn asks. A wheel off its own velocity rolls the part of the path that lies along its plane and
+scrubs the rest (`roll = velocity . heading`). The crab walk uses it to put the front wheels at 15° and the rear ones at their 10° limit
+(rolled distance checked: 24.01 against 23.92 turns); the compass turn uses it to splay the rear wheels at ±10° instead of the 90° a
+turn about a front wheel would ask of them (the pivot wheel has no velocity and does not roll; the other front wheel rolls straight).
+`src/lib/tech/street.ts` has the planners, with no value imports of three.js, checkable with Node (a transpile script and four test
+files were used):
+
+- `planCrab`: one move at 15° off the heading, 2.25 m sideways (8.7 m of travel), to 25 cm off the kerb stone; the empty stretch of kerb is 15.3 m between
+  two pairs of parked cars; 7.5 s, 7 km/h.
+- `planCompass`: approach 4.5 m, turn about the chosen front wheel, leave 7 m. The street is as wide as the sweep needs plus 40 cm each
+  side, measured on the model: 7.4 m for 180° (the Z9's 4.62 m turning radius makes a turning circle of 9.2 m), 9.9 m
+  for 360°; 21 s and 28 s. The wall of the dead end is 70 cm past the farthest the body reaches.
+- `planPivotPark`: a 12 m arc in (the front wheels about 14° and 16°) to 30° off the kerb, a stop (the clock waits), then a turn about the left
+  front wheel with the rear wheels splayed. The gap is 6.14 m for a 5.09 m car: 70 cm behind it, where the pivot swings the tail 39 cm
+  back, and 35 cm ahead of it; the body comes within 19 cm of the stone as it swings and ends 40 cm off it. 12.2 s, the stop at 7.9 s.
+- `planUTurn`: `rearSteerCentre` solves where the car turns about when its outer front wheel follows a circle of 5.4 m and its inner rear
+  wheel is at 15° against the fronts (bisection): the fronts come out at 35.2° and 24.6°, the rears at 15° and 9.8°. The street is the sweep plus
+  90 cm each side, 13.2 m; 22.7 s.
+- `planPark` (park.ts) gained `noseIn` and `rearSteerDeg`: the car turns a quarter circle about a point to its right and a little
+  ahead of the rear axle, on rear steering, then 60 cm straight in; the planner takes the smallest turn that keeps 30 cm from the
+  neighbours (31 cm found; the front-steered forward arc needs a lane of nearly 9 m and still hit a neighbour by 47 cm, which is why the
+  rear steering is used). The reverse-in the RX uses is unchanged (the same code path: 18 s in, a stop, 18 s out).
+
+### The street
+
+`StreetStage` (`street.ts`) is what the viewer draws: the road between kerbs (`road`), footways, painted lines and bays, parked cars
+(stand-ins of the other modelled cars, `streetCars` in demos.ts, now including the Z9 and the G9L: `scripts/make-proxy.mjs denza-z9`,
+`xpeng-g9l`, about 60 KB each), lamp posts, trees, bollards, an optional dead-end wall, and the camera's frame. `viewer/TechStreet.tsx` draws
+it in the studio's own language, matte and pale, fading out at its ends: the road is one canvas texture (asphalt with grain, mended patches,
+gutters, painted lines, manholes), each footway a strip of quads a kerb's height up with vertex alpha, so it fades with the road; behind the
+far footway a plane of buildings (windows and shopfronts, painted on a canvas, fading toward the top into the white; hidden when the
+camera has gone round behind it); the props are merged geometries with vertex colours, one draw call each; the cars are TechStage's
+`Neighbour`. It takes the studio's dusk (`useDusk`) like the asphalt. The near footway has no trees and no lamps: the camera is on that
+side and they would stand in front of the car. `TechLotDressing` puts the same planted strip, lamps, trees and buildings behind the bays
+of a parking lot (`dressLot`), so the RX's park demo and the G9L's nose-in parking stand in a place too.
+Store: `techStreet`, `compassPivot`, `compassAngle`, `HmiScreen 'chassis'`. Session: `Runtime.chassis` (readout, facts, stage) and
+`useChassisReadout`.
+
+### The screens
+
+`hmi/chassis.tsx` is the generic skin's chassis page: the car from above with each wheel turned as the run sets it, the figure the
+manoeuvre is about (crab angle, how far turned, angle to the kerb), the speed, the four angles and the one button. A pivot wheel
+is filled while it is held and ringed while it is chosen. `lib/tech/chassis.ts` has the words and the button for each point of the run
+(start, pause, resume, the stop's own button, again), shared by the page, the device column (`TechDevices`, which treats these demos
+like the carpet's: one pill, and on a narrow window a bar) and the dock (`showroom/Chassis.tsx`: the angles, the speed, the street's
+width, and the compass turn's choices). The page says it is drawn for the showroom: the maker's e³ and chassis screens are not photographed.
+The G9L's XOS shows this generic page; the Z9's DiLink has its own e³ page since 2026-10-16 (section 15).
+
+### Checked
+
+tsc, eslint (src), production build in a copy of the project (passes), idle frames 0 on the Tech tab with a street, the whole run of each
+demo clicked through in the pane (start, pause, the stop, again; a switch of demo; the compass turn's pivot and angle), a phone-sized
+window (the screen as a sheet, then the bar), the RX's park demo with its new dressing. Wheelhouse clearance by a probe of the body's vertices
+against each steered tyre (a cylinder about the axle) at the G9L's 35° front lock and the Z9's 15° crab: nothing but the invisible
+`M_Shadow` shell comes into a tyre; no paint, trim or glass does.
+
+### Not done, and considered
+
+- The Z9's and G9L's own screens (DiLink 150, XOS Tianji), the outline you turn on the Z9's e³ parking screen, an app: no photographs.
+- Tyre marks where the compass turn's rear wheels scrub; the crab walk in reverse and the parallel-parking use of the compass turn on a longer
+  stretch; extreme steering (the Z9's 4.62 m: a no-slip turn on that radius asks about 20 to 30° of the rear wheels and they steer 10°, so the rest is the rear
+  motors' differential, which is not modelled).
+- G9L welcome mode (the air suspension lowers the body 30 mm: one source, Xchuxing 174677; a 3 cm change is also hard to see), the 5C charge (450 km in
+  9 minutes, 10 to 80 % in as little as 11: needs a charge port in the model, with approved photographs), the 98 in digital-projection headlamps (one line
+  in one launch report; what it projects is not said), VLA 2.0 (a list of capabilities and "six-second trajectory prediction", no behaviour to draw),
+  the Z9 GT's megawatt charging (a port again).
+
+## 15. Charging for every car, the Z9's e³ page and the new layout (2026-10-16)
+
+Built on the owner's pre-launch review: "Charging section ... should be available across all other vehicles", then "make a new
+section for charging for all cars, it's not only a tech demo".
+
+**Charging is a tab, not a demo.** The 7X's `fast-charge` entry left `Vehicle.tech`; every car with charging figures has a
+`Vehicle.charging` (`ChargingSpec` in `schema.ts`: the maker's window and its minutes, the peak where it is published or the
+C-rate it publishes instead, the pack, the voltage, the connector, the port's side, cited claims and what is simulated) and a
+`Vehicle.chargePort` (the socket's mouth and outward axis in the viewer's axes). `lib/tech/charging.ts` turns that into the
+`ChargeFacts` the run is planned from and a `TechDemoSpec` (`chargeDemo`) so the director, the clock and the playback bar run it as
+they run a Tech demo; the director plays it when the tab is `charging` (`isStageTab` in the store covers both stage tabs). The tab's
+panel (`showroom/Charge.tsx`: the readout, the curve, the specifications, one button) stands in a column at the right of a wide
+window and in the dock of a narrow one. `charge.ts` takes a `ChargeProfile` (pack, window, seconds, peak) instead of the 7X's
+constants, and puts the pedestal on the side the port is on (`pedestal.face`: its face and the camera turn to the passenger's side
+for the G9L).
+
+| Car | Window | Peak | Source | Port |
+|---|---|---|---|---|
+| Zeekr 7X | 10 to 80 % in 10 min | 620 kW (published) | Xinhua 2025-11-03 | left rear quarter, flap modelled |
+| Xiaomi SU7 Ultra | 10 to 80 % in 11 min | 5.2C x 93.7 kWh = 487 kW (electrive reads 490) | CarNewsChina 2024-12-05, electrive 2024-11-06 | left (CarNewsChina database); place ours |
+| Xpeng G9L | 10 to 80 % in 12 min | 5C x 110 kWh = 550 kW | XPeng news (the refreshed G9: 5C, 12 min, up to 525 kW) | right rear (EVKX); place ours |
+| Luxeed RX | 30 to 80 % in 15 min | derived from the window (257 kW) | CnEVPost 2026-09-28 | left rear quarter (photographs); place ours |
+| Denza Z9 | 10 to 80 % in 19 min | derived (283 kW) | the data file's figure (Autohome configuration table); **not confirmed** | left rear quarter: **our choice, no source** |
+
+**To confirm with the owner:** the Z9's 19 minutes and its port side (no source found; the Z9 GT's 1 MW flash charging is a
+different car and is not used), the G9L's use of XPeng's G9 figures, and the SU7's side (one database).
+
+**The socket of a car with no flap.** Only the 7X's model has a flap and a socket (`Zeekr7X_ChargeFlap`, `Zeekr7X_ChargePort`). For
+the other four, `TechCharge.tsx` draws a `Socket` at `chargePort` while the demo's flap is "open": the seam of an opened flap, the dark
+pocket, the DC cup with the contacts in the gun's layout and a light strip that follows the pedestal's. It grows out of the skin and
+shrinks back; the exact place along the quarter is ours (the rule: behind the rear wheel's centre, at the height of the quarter's
+shoulder; the RX's was read off a photograph, where the flap is above and behind the rear wheel). `chargePort` was found by casting a
+ray along z at that (x, y) onto the exported model (the probe: a gltf-transform script, the normal from four neighbouring hits); the same
+probe reproduces the 7X's published port to 2 cm on the skin and 0.01 in the axis.
+
+**The Z9's e³ page.** `hmi/dilink/E3.tsx` replaces the generic chassis page inside the DiLink skin: the light stage of DiLink's camera
+page with the car seen from above (`public/hmi/denza-z9/car-top.webp`) and its four wheels turned by the run, a manoeuvre selector
+(Crab walk, Compass turn, e³ parking, in step with the Tech tab's chips through `techDemoId`), the big figure (the crab angle; how far
+turned; the angle to the kerb), the speed, the four angles (the held wheel is lit), the compass turn's two choices (the wheel to pivot
+about, 90, 180 or 360 degrees), a line of the published limits for the others, the platform's five signature functions (BYD China, three
+of them demonstrated) and one button (`chassisAction`: start, Pause, Resume, Pivot at e³ parking's stop, Again). The G9L's XOS keeps the
+generic page.
+
+**The layout.** The showroom's main menu moved from the bottom to the top (`showroom/Chrome.tsx`: the car menu, the tabs, the scene
+switch and an info button; one row from 1280 px up, two below). The Tech tab's demonstrations are a second row of it. What stood at the
+foot is now only the tab's own controls: a tool card (trimmed of its footnotes, whose content is the demo's `simulated` text) and the
+playback bar, whose "Simulation" button opens the demo's facts and sources. The long notes of each tab (and the independence
+statement of the old footer) are behind the info button. The menu publishes its height as `--top-ui` (a panel hanging from under it
+starts at `BELOW_TOP`) and as `uiTop` in the store, which the camera treats as it treats a device's inset. The Specifications tab (renamed from Dimensions on 2026-10-16; its id and `?tab=dimensions` stay) holds the
+specification sheet (`showroom/Specs.tsx`), everything the retired vehicle page held; `/vehicles`, `/vehicles/[slug]` and `/compare`
+redirect (`next.config.ts`), and the site's header and footer went with them.
+
+### Glass (2026-10-16, later)
+
+The owner asked for real glass on the windscreen and the front windows, then for the same tint an open door shows on the rear
+glass (rear windows, backlight, a glass roof). All five exteriors have the same structure, so it is done in the viewer, with no
+re-export: the clear glass is the material `M_Glass` (windscreen and front door glass), the privacy glass `M_Glass_Privacy`; the black
+layers behind them are the `*_Blackout` node's `M_Black_Gloss` (underlay) and `M_Shadow` (shell).
+- `viewer/clearGlass.ts`, `cullBehindClearGlass`: once per mount, takes out of those two meshes (on a copy of the geometry) the triangles
+  whose centroid lies within 5 cm (underlay) or 7 cm (shell) of a pane's vertices; the hull elsewhere stays, so the body does not leak (the
+  X-ray tab hides the whole node, which is why it does).
+- `useGlass` (Openings.tsx): from outside, with the cabin mounted, `M_Glass` panes draw as the X-ray's ghost (`vehicle.xray`, else #98a4b3 at
+  0.34) and privacy panes at 0.55 in their own dark tint, which is what an open door's pane already showed; the frit stays opaque; an open door's
+  pane still clears as it swings.
+- The cabin (preloaded already) is mounted as soon as the exterior is up (`exteriorUp`, `cabinReady` in the store; not on the Tech tab, whose
+  demos move the car and not the cabin). A cabin has pieces a few millimetres outside the skin (the 7X's taupe jamb strip at the door's
+  leading edge), so with every part shut (`shut`, kept by `OpeningsDriver` from `hinges.lift.cabin`) the cabin is drawn only where a pane is in
+  front of it: each pane has a stencil writer (a copy of its mesh: no colour, no depth, render order 1) and the cabin's materials test the stencil
+  (render order 2). The canvas asks for a stencil buffer. With a door open the mask is off and the cabin shows as before.
+- Not covered: the cabins of the five cars were never checked from outside, so anything visible through a pane (a gap above a dash, the
+  G9L's slit at the windscreen base) is now seen; the capture routes (`VehicleViewer`) get the same glass.

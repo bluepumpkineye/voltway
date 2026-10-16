@@ -9,10 +9,8 @@ import { useTechClock } from '@/lib/tech/clock';
 import { STEPS } from '@/lib/tech/boost';
 import { runPhase } from '@/lib/tech/phase';
 import { useVehicleStore } from '@/store/vehicle-store';
-import { GLASS } from './Chrome';
+import { FOCUS, GLASS, BELOW_TOP } from './Chrome';
 import { useDashboardLayout } from './Dashboard';
-
-const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/70 focus-visible:ring-offset-1';
 
 /** How wide the enlarged screen's column is, px: half a wide window, so the BOOST page can be read from its rows. */
 export function boostColumnWidth(windowWidth: number): number {
@@ -37,7 +35,7 @@ export function BoostTools() {
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   const right = up && wide && screenFits ? Math.min(0.6, (boostColumnWidth(vw) + 28) / vw) : 0;
   React.useEffect(() => {
-    setInset({ right, bottom: 0.3 });
+    setInset({ right, bottom: 0.2 });
     return () => setInset({ right: 0, bottom: 0 });
   }, [setInset, right]);
 
@@ -72,16 +70,16 @@ export function BoostTools() {
         {STEPS.map((s, i) => {
           const done = on && i < step;
           return (
-            <li key={s.id} className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${done ? 'bg-[#2f6bff] text-white' : 'bg-black/[0.05] text-neutral-500'}`}>
+            <li
+              key={s.id}
+              title={`${s.label}: ${s.detail}`}
+              className={`rounded-full px-2.5 py-1 text-[11px] transition-colors ${done ? 'bg-[#2f6bff] text-white' : 'bg-black/[0.05] text-neutral-500'}`}
+            >
               {s.label}
-              <span className={done ? 'text-white/80' : 'text-neutral-400'}> · {s.detail}</span>
             </li>
           );
         })}
       </ul>
-      <p className="mt-2 text-[10.5px] leading-snug text-neutral-500">
-        The list is the maker’s <span className="text-neutral-400">published, some trims only</span>; the order and the timing are ours. The screen in the cabin is a stand-in drawn by the showroom: the maker’s BOOST screens are not photographed.
-      </p>
     </div>
   );
 }
@@ -142,7 +140,7 @@ function Popup({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
   if (wide) {
     return (
       // above the cabin's own pinned screen (z 16), which is the same page, small
-      <aside ref={ref} className="pointer-events-none absolute bottom-3 right-4 top-[60px] z-[30]" style={{ width: boostColumnWidth(vw) }} aria-label="The car’s screen, enlarged">
+      <aside ref={ref} className={`pointer-events-none absolute bottom-3 right-4 z-[30] ${BELOW_TOP}`} style={{ width: boostColumnWidth(vw) }} aria-label="The car’s screen, enlarged">
         <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 pb-6">
           {screen}
           <div className={`pointer-events-auto flex min-h-[34px] max-w-full items-center gap-3 rounded-full py-1 pl-4 pr-1.5 text-[12px] text-neutral-700 ${GLASS}`} role="status" aria-live="polite">
@@ -156,7 +154,7 @@ function Popup({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
     );
   }
   return (
-    <aside ref={ref} className="pointer-events-none absolute inset-x-2 bottom-[190px] top-[56px] z-[30]" aria-label="The car’s screen, enlarged">
+    <aside ref={ref} className={`pointer-events-none absolute inset-x-2 bottom-[150px] z-[30] ${BELOW_TOP}`} aria-label="The car’s screen, enlarged">
       <div className="flex h-full min-h-0 flex-col items-center gap-2">
         <button type="button" onClick={close} className={`pointer-events-auto shrink-0 rounded-full px-4 py-2 text-[12px] font-medium text-neutral-700 ${GLASS} ${FOCUS}`}>
           Show the cabin

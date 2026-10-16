@@ -1,11 +1,14 @@
-# Voltway — Chinese EV Showcase
+# Voltway — Chinese EV Showroom
 
-Explore Chinese electric vehicles in 3D, sit in the driver's seat, and use the
-central infotainment screen the way you would in the car. Every control on the
-dashboard changes what the vehicle reports back.
+Walk round the best Chinese electric vehicles in 3D: change the paint, sit in the
+driver's seat and use the central infotainment screen the way you would in the
+car, watch the car charge, and see what its technology does. Every control on
+the dashboard changes what the vehicle reports back.
 
-**Proof of concept: Xiaomi SU7 Ultra** — exterior, cockpit and a live HMI.
-Six more cars are in the database with full specifications and cited sources.
+The site is one page, the showroom, in the manner of the HIMA 3D hall. Five cars
+have one: the Xiaomi SU7 Ultra, Luxeed RX, Zeekr 7X, Xpeng G9L and Denza Z9. Two
+more (Avatr 11, Nio ES7) are in the database with specifications and cited
+sources, and wait for a model.
 
 ## Running it
 
@@ -14,70 +17,76 @@ npm install
 npm run dev
 ```
 
-Then open <http://localhost:3000>. The built car is at `/vehicles/xiaomi-su7-ultra`.
+Then open <http://localhost:3000>: the showroom opens on the SU7 Ultra, and the
+car menu at the top-left changes car.
 
 ## What's here
 
 | Route | What it does |
 |---|---|
-| `/` | Landing page, vehicle grid |
-| `/vehicles` | All seven cars |
-| `/vehicles/[slug]` | Exterior orbit, interior view, live dashboard, spec tables, sources |
-| `/showroom/[slug]` | The HIMA-style showroom: white studio, paint and cabin colours, driver's seat, dimension rulers (the SU7 Ultra and the Luxeed RX) |
-| `/compare` | Cross-vehicle table, CLTC and WLTP kept apart |
-
-Each vehicle page has three views:
-
-- **Exterior** — orbit the car, contact shadows, clamped so the camera can't go under the floor
-- **Interior** — seated at the driver's eye point in a full cabin (its own GLB, streamed in behind the exterior), parked on the Shanghai riverside at golden hour: the cabin is lit by a Cycles bake of that daylight through the glass, you look out at the skyline, and the centre screen runs the live HMI at true 16.1″ scale
-- **Dashboard** — the same HMI, flat and full size. The SU7 Ultra's is rebuilt from Xiaomi's own HyperOS screens: the parked desktop with the car, the three-card driving desktop, the dock with both climate zones, Settings with the car's real drive modes (Eco, Standard, Sport, M1 Slippery, M2 Novice, Drag race, Super power saving) and the Ultra's Track Master app. The Luxeed RX's is rebuilt from photographs of its HarmonyOS screens: two desktop pages, the App Centre, the Control Centre with the car's five drive modes, climate and seats, a draggable demo map, radio and music, and a Settings app of thirteen pages; its tiles open the 3D car's tailgate, bonnet and doors, set the headlamps and drive the cabin's ambient light
-
-All three read one Zustand store, so switching to Sport updates the in-car
-readout, the external metrics panel and the cabin lighting together.
+| `/` | The showroom, opened on the first car |
+| `/showroom/[slug]` | The showroom for one car (`xiaomi-su7-ultra`, `luxeed-rx`, `zeekr-7x`, `xpeng-g9l`, `denza-z9`); a slug with no showroom goes to `/` |
+| `/vehicles`, `/vehicles/[slug]`, `/compare` | Retired (the old Voltway site); they redirect to `/` and `/showroom/[slug]`. Everything the vehicle page held is in the showroom's Specifications tab |
+| `/capture/hmi/[slug]`, `/capture/view/[slug]` | Tools of the 3D pipeline (the HMI at native size, the viewer through a locked camera); development only, they are not found in a production build |
 
 ### The showroom
 
-`/showroom/<slug>` is the product's direction (see
-[`docs/hima-benchmark.md`](docs/hima-benchmark.md)): a bright studio with a
-bottom tab bar, in the manner of the HIMA 3D hall.
+`/showroom/<slug>` ([`docs/hima-benchmark.md`](docs/hima-benchmark.md)): a bright
+studio, the main menu across the top and only the controls of the tab you are on
+at the bottom. Small print (what a view shows and how far to trust it, the
+sources, who Voltway is not) is behind the round "i" button at the top right, and
+a demonstration's facts behind the "Simulation" button on its playback bar.
 
-- **Colour:** the maker's own paints (six for the Luxeed RX, five for the SU7
-  Ultra). A swatch tweens the clearcoated paint material in place; the first
-  swatch is the car exactly as exported from Blender.
+- **Colour:** the maker's own paints. A swatch tweens the clearcoated paint
+  material in place; the first swatch is the car exactly as exported from
+  Blender. Tap a door, the bonnet or the tailgate to open it. From outside the
+  windscreen and front windows are clear glass (the X-ray tab's pale ghost) and the
+  rear windows, backlight and any glass roof are tinted, with the cabin showing
+  through; the Tech tab, whose demos move the car, keeps its glass opaque.
 - **Interior:** the camera flies into the driver's seat and the cabin mounts
-  with its live HMI. The swatches are the maker's cabin colourways (four each);
-  the cabin's baked lighting is light only, so recolouring a trim is shaded
-  correctly.
-- **Dimensions:** length with wheelbase, width and height, as floor rulers
-  carrying the published figures.
-- **Wheels:** the Luxeed RX's three photographed designs (22 in Fengying, 21 in
-  Yufeng, 21 in Sport and its blue-accent finish, each traced from approved
-  photographs) and its caliper colours; the Zeekr 7X's 21 in six-Y, 20 in
-  multi-spoke and 20 in twin-fork (silver two-tone or gloss black) with orange or
-  silver calipers. The SU7 Ultra has one wheel and one caliper colour, so its
-  showroom has no Wheels tab.
+  with its live HMI. The swatches are the maker's cabin colourways; the cabin's
+  baked lighting is light only, so recolouring a trim is shaded correctly.
 - **Dashboard:** the car's own screen, live, beside the car, and the lamps at
   both ends of it. The screen's headlamp controls (Off, Position, Low beam,
   Auto) switch the car's LED lines: a glow on the lamps, the beam on the floor
   ahead, the tail's red wash behind, and the room going to dusk so the light
   reads. The dock adds Front / Rear, a high beam and a brake pedal; on a narrow
   window the screen opens as a sheet, on a phone the dock's switch stands in for
-  it ([`docs/lights.md`](docs/lights.md)).
+  it ([`docs/lights.md`](docs/lights.md)). Each car's screen is rebuilt from the
+  maker's own: HyperOS (SU7 Ultra), HarmonyOS (RX), ZEEKR OS (7X), DiLink (Z9) and
+  XOS (G9L).
+- **Wheels:** the Luxeed RX's three photographed designs and its caliper colours;
+  the Zeekr 7X's three designs with orange or silver calipers. The other cars have
+  one wheel and one caliper colour, so their showrooms have no Wheels tab.
+- **Specifications:** the published length, width and height drawn as floor rulers
+  on the car, and beside it the car's specification sheet: dimensions (pick one to
+  see its ruler), performance, battery, range (each on its own test cycle, CLTC and
+  WLTP never mixed) and charging, the cabin's screens, the price, the sources.
+  Choosing a variant changes the figures.
+- **X-ray:** the upper body as a see-through shell, so the cabin reads through it.
+- **Charging:** every car charges at a pedestal on the side of its port. The flap
+  opens (the 7X's is modelled; the others get a socket drawn at the port), a gun
+  goes in, and the pack charges through the window its maker quotes (10 to 80 % in
+  10 minutes for the 7X, 11 for the SU7 Ultra, 12 for the G9L, 19 for the Z9, 30 to
+  80 % in 15 for the RX) in fourteen seconds. The panel gives the maker's figures,
+  each tagged published or derived, the charging curve and the run's own numbers.
 - **Tech:** what the car's technology does, as simulations built from the
   makers' published figures: the Luxeed RX parks itself from a phone app or its
-  own screen, sees a pedestrian and brakes, turns its centre screen toward the
-  driver and presses BOOST; the Zeekr 7X floats over speed humps on its Magic
-  Carpet suspension and fast-charges; the Xiaomi SU7 Ultra launches to 100 km/h
-  in 1.98 s ([`docs/tech-showcase.md`](docs/tech-showcase.md)).
+  own screen, shows what its lidars see, presses BOOST and swivels its screen; the
+  Zeekr 7X floats over speed humps on its Magic Carpet; the SU7 Ultra launches;
+  the Denza Z9 crab-walks to a kerb, turns about a locked front wheel and pivots
+  into a tight kerbside gap, from its DiLink e³ page; the Xpeng G9L turns round on
+  its rear-wheel steering and parks nose first
+  ([`docs/tech-showcase.md`](docs/tech-showcase.md)).
 - **Studio / City:** the studio is the default; the city is the HDRI world the
   cabin was baked under.
 - The address always links to what is on screen
-  (`?tab=&paint=&trim=&scene=&dim=&lights=&high=&view=`).
+  (`?tab=&paint=&trim=&scene=&dim=&variant=&lights=&high=&view=&demo=`).
 - It renders on demand (an idle showroom draws no frames), respects
   `prefers-reduced-motion`, and drops the floor mirror on phones.
 
 Paint and trim names and the set of options come from the makers' pages (cited
-on each vehicle page); the colour values are matched by eye to their imagery
+in the info panel); the colour values are matched by eye to their imagery
 under our studio rig, so the interface calls them approximate. Where an option
 is listed by only one outside source it says so in
 `src/data/vehicles/<car>.ts`.
@@ -87,16 +96,16 @@ is listed by only one outside source it says so in
 Two rules are enforced in the schema and the UI:
 
 1. **Range cycles are never mixed.** CLTC typically reads 25–35% higher than
-   WLTP for the same car. Every figure carries its cycle, and `/compare` gives
-   them separate columns rather than one blended number.
+   WLTP for the same car. Every figure carries its cycle, and the specification
+   sheet gives each its own row rather than one blended number.
 2. **Modelled figures are labelled.** Manufacturers publish one range per
    variant on one cycle. The per-drive-mode spread in `lib/performance.ts` is
    derived from that figure to show the trade-off, and the UI says so. Charge
    times fall back to C-rate or peak power with a taper factor only when no
    manufacturer figure exists.
 
-Sources are cited per vehicle in `src/data/vehicles/*.ts` and rendered on each
-vehicle page.
+Sources are cited per vehicle in `src/data/vehicles/*.ts` and listed in the
+showroom's info panel and its Specifications tab.
 
 ## The 3D pipeline
 

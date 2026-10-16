@@ -106,6 +106,8 @@ export interface Cockpit {
   /** Named accent used by the in-car UI and the ambient lighting in 3D. */
   accentColor: string;
   ambientLighting?: boolean;
+  /** The hue (0-360) the ambient light opens at, where the maker's is not the generic warm one. */
+  ambientHue?: number;
   /** The theme the in-car UI opens in, where the maker's own is not the dark one (ZEEKR OS opens light). */
   defaultTheme?: 'dark' | 'light';
   /** The car's drive modes as its HMI lists them; the generic four otherwise. */
@@ -415,6 +417,35 @@ export interface TechDemoSpec {
 }
 
 /**
+ * A car's fast charging, for the showroom's Charging tab (src/lib/tech/charging.ts). The window and the peak are the
+ * maker's where it publishes them; a peak it does not publish is derived (from the C-rate it does, or from the
+ * window's average power), and the tab says which.
+ */
+export interface ChargingSpec {
+  /** the window the maker quotes, state of charge in per cent, and the minutes it takes at best */
+  window: { from: number; to: number; minutes: number };
+  /** the peak DC power, kW, when the maker publishes it */
+  peakKw?: number;
+  /** the maker's C-rate, when it is the peak that is published this way (the peak is then C x the pack) */
+  cRate?: number;
+  /** the pack the figures are for, kWh */
+  packKwh: number;
+  /** the voltage architecture */
+  architectureV?: number;
+  /** the DC connector standard */
+  connector: string;
+  /**
+   * Where the port is. `published` says whether a source gives the side; the place along the car is ours either way
+   * (the model has no flap, so the socket is drawn where `Vehicle.chargePort` puts it).
+   */
+  port: { side: 'left' | 'right'; published: boolean; where: string };
+  /** published facts shown with the tab, each cited */
+  claims: TechClaim[];
+  /** what is illustrative */
+  simulated: string;
+}
+
+/**
  * Where a car's sensors sit, for the sensor demo (docs/tech-showcase.md section 12), in the exterior model's space (glTF:
  * x forward, y up, z toward the passenger side). `mirror` puts a second one on the other side (z negated).
  */
@@ -502,10 +533,13 @@ export interface Vehicle {
   /** The Tech tab's demonstrations, see TechDemoSpec. */
   tech?: TechDemoSpec[];
   /**
-   * The DC charge port, for the fast-charge demo: the mouth of the DC socket in the viewer's axes (x forward, y up,
-   * z toward the passenger side), the direction pointing out of it, and how far a gun's nose goes in, m.
+   * The DC charge port, for the Charging tab's gun: the mouth of the DC socket in the viewer's axes (x forward, y up,
+   * z toward the passenger side), the direction pointing out of it, and how far a gun's nose goes in, m. A car whose
+   * model has no flap gets a socket drawn at the mouth (src/components/viewer/TechCharge.tsx).
    */
   chargePort?: { mouth: [number, number, number]; axis: [number, number, number]; depth: number };
+  /** The car's fast charging, for the Charging tab: the maker's figures and the port's side, see ChargingSpec. */
+  charging?: ChargingSpec;
   /** Which parts of the exterior are the lamps, see LightsSpec. */
   lights?: LightsSpec;
   /** The BOOST knob on the steering wheel, in the cabin model's space (glTF), for the BOOST demo. */

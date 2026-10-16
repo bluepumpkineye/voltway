@@ -45,8 +45,8 @@ export interface AnchorPose {
   shiftFrac?: number;
 }
 
-/** The bottom dock (swatches, tabs, note) takes about this much of the screen. */
-const LIFT_PX = 66;
+/** The bottom dock (its swatches and controls) takes a little more of the screen than the menu at the top: lift the picture by half the difference. */
+const LIFT_PX = 24;
 
 /** What the viewer measured on the loaded model. The spec is the fallback. */
 export interface CarFrame {
@@ -56,10 +56,11 @@ export interface CarFrame {
   /** centre of the front-left wheel */
   wheelFL?: V3;
   /**
-   * the part of the window a device covers, as fractions (right: of the width, bottom: of the height):
-   * the poses frame the car in what is left, as the car's screen stands beside it (Dashboard tab)
+   * the part of the window a device covers, as fractions (right: of the width, bottom: of the height; top: how much taller
+   * the menu at the top is than its one row): the poses frame the car in what is left, as the car's screen stands beside it
+   * (Dashboard tab)
    */
-  inset?: { right: number; bottom: number };
+  inset?: { right: number; bottom: number; top?: number };
   /**
    * the floor a tech demo uses: its centre and the radius to keep in view, m (viewer axes); the part
    * of the window a device covers, as fractions (right: of the width, bottom: of the height), which the
@@ -69,7 +70,7 @@ export interface CarFrame {
     cx: number;
     cz: number;
     radius: number;
-    inset?: { right: number; bottom: number };
+    inset?: { right: number; bottom: number; top?: number };
     camera?: { az: number; el: number };
   };
 }
@@ -97,7 +98,7 @@ interface Shot {
   close?: number;
 }
 
-// The side and front views carry the Dimensions tab's floor rulers, whose text
+// The side and front views carry the Specifications tab's floor rulers, whose text
 // lies on the floor: a little elevation opens it up, and the front view lifts
 // the car further so the rulers ahead of the nose clear the dock.
 const SHOTS: Record<
@@ -176,7 +177,7 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPo
     maxPolar: 0.74 * Math.PI,
     rotateSpeed: -0.32,
     liftPx: 0,
-    liftFrac: (frame.inset?.bottom ?? 0) / 2,
+    liftFrac: ((frame.inset?.bottom ?? 0) - (frame.inset?.top ?? 0)) / 2,
     // a screen standing at the right of the window (the BOOST demo's enlarged one) takes the picture to the left of it
     shiftFrac: (frame.inset?.right ?? 0) / 2,
   };
@@ -227,7 +228,7 @@ export function resolveAnchor(
     const elv = el * D2R;
     // the circle must fit across what is left of the screen, and (foreshortened by the elevation, plus the car's height) up it
     const fitAcross = st.radius / (half * Math.max(aspect * (1 - inset.right), 0.3));
-    const fitUp = (st.radius * Math.sin(elv) + H) / (half * Math.max(1 - inset.bottom, 0.3));
+    const fitUp = (st.radius * Math.sin(elv) + H) / (half * Math.max(1 - inset.bottom - (inset.top ?? 0), 0.3));
     const dist = 1.1 * Math.max(fitAcross, fitUp);
     const d = dirFrom(az, el);
     // the camera looks at the middle of the stage, and the picture is slid into the free part of the window
@@ -249,7 +250,7 @@ export function resolveAnchor(
       maxPolar: POLAR_MAX,
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * s.lift,
-      liftFrac: inset.bottom / 2,
+      liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
       shiftFrac: inset.right / 2,
     };
   }
@@ -279,7 +280,7 @@ export function resolveAnchor(
     maxPolar: POLAR_MAX,
     rotateSpeed: 0.55,
     liftPx: LIFT_PX * s.lift,
-    liftFrac: inset.bottom / 2,
+    liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
     shiftFrac: inset.right / 2,
   };
 }

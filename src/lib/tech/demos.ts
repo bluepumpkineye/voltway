@@ -3,14 +3,16 @@ import { vehicles } from '@/data/vehicles';
 import { arc, MOTION, Track, type Layout, type PlannedRun, type Segment } from './kinematics';
 import { planCarpet, stiffnessOf, type CarpetRun, type RoadStage } from './carpet';
 import { planCharge, type ChargeRun } from './charge';
+import { chargeFacts, portOf } from './charging';
 import { planLaunch, type LaunchRun } from './launch';
 import { planPark, PARK_MOTION, type BodyBox, type ParkSpeed, type ParkStage, type Pose } from './park';
 import type { Chassis, RideMode } from './ride';
 import { planBoost, type BoostRun } from './boost';
 import { planSensors, type SensorsRun } from './sensors';
 import { planSwivel, type SwivelRun } from './swivel';
+import { planCompass, planCrab, planPivotPark, planUTurn, type Pivot, type StreetNeighbour, type StreetRun } from './street';
 
-/** The demos the visitor is offered: development-only ones are left out of a production build. */
+/** The demos the Tech tab offers: development-only ones are left out of a production build. */
 export function visibleDemos(vehicle: Vehicle): TechDemoSpec[] {
   return (vehicle.tech ?? []).filter((d) => !d.devOnly || process.env.NODE_ENV !== 'production');
 }
@@ -29,6 +31,8 @@ export interface DemoContext {
   ride: { carpet: boolean; modeId: string | null };
   /** the numbers the demo's spec gives its driver (`TechDemoSpec.params`) */
   params: Record<string, number>;
+  /** the compass turn's choices: which front wheel it turns about, and how far (degrees) */
+  chassis: { pivot: Pivot; angleDeg: number };
 }
 
 /** A demo's motion, built for one car. */
@@ -44,6 +48,8 @@ export interface BuiltDemo {
   stage: ParkStage | null;
   /** where the camera looks, when the demo has a view of its own (the charge port's side of the car) */
   frame?: CarpetRun['frame'];
+  /** a chassis demo (the crab walk, the compass turn, the U-turn): the street it drives in and the wheels' readout */
+  street?: StreetRun;
   /** the fast-charge demo: the flap, the gun, the readout (the director opens the flap and sets the charge level) */
   charge?: ChargeRun;
   /** the BOOST demo: whether BOOST is on and how many of its steps have been applied at each time */
@@ -114,11 +120,73 @@ function neighboursOf(vehicle: Vehicle) {
     }));
 }
 
-/** Park from your phone: a reverse-in to a bay between two parked cars, and the way out again. */
+/** Park from your phone: a reverse-in to a bay between two parked cars, and the way out again (nose-in, if the demo says so). */
 const park: Driver = {
-  build: ({ vehicle, layout, body, start, speed }) => {
-    const plan = planPark(layout, body, start, PARK_MOTION[speed], { neighbours: neighboursOf(vehicle) });
+  build: ({ vehicle, layout, body, start, speed, params }) => {
+    const plan = planPark(layout, body, start, PARK_MOTION[speed], {
+      neighbours: neighboursOf(vehicle),
+      noseIn: params.noseIn === 1,
+    });
     return { track: plan.track, stops: plan.stops, autoplay: false, trail: false, stage: plan.stage };
+  },
+};
+
+/**
+ * The cars parked in a street scene: the other modelled cars as stand-ins, in neutral paint, then the demo's own car's
+ * (so a street never shows the same car twice in a row), as many as the scene has places for.
+ */
+function streetCars(vehicle: Vehicle): StreetNeighbour[] {
+  const make = (v: Vehicle) => ({ slug: v.slug, length: v.dimensions.lengthMm / 1000, width: v.dimensions.widthMm / 1000 - 0.1 });
+  const others = vehicles.filter((v) => v.slug !== vehicle.slug && v.assets.proxyUrl).map(make);
+  const own = vehicles.filter((v) => v.slug === vehicle.slug && v.assets.proxyUrl).map(make);
+  return [...others, ...own];
+}
+
+/**
+ * The crab walk (the Denza Z9): the car beside an empty stretch of kerb turns all four wheels the same way and slides to
+ * the stone without turning its body. The angles are the maker's (front 15, rear 10); the street and the pace are ours.
+ */
+const crab: Driver = {
+  build: ({ vehicle, layout, body, start }) => {
+    const run = planCrab(layout, body, start, { neighbours: streetCars(vehicle) });
+    return { track: run.track, stops: run.stops, autoplay: false, trail: false, stage: null, frame: run.frame, street: run };
+  },
+};
+
+/**
+ * The compass turn (the Denza Z9): up a dead-end street, one front wheel locked, the car turns about it with the rear wheels
+ * splayed and driven against each other, and drives out. The visitor chooses the wheel and the angle.
+ */
+const compass: Driver = {
+  build: ({ vehicle, layout, body, start, chassis }) => {
+    const run = planCompass(layout, body, start, { pivot: chassis.pivot, angleDeg: chassis.angleDeg, neighbours: streetCars(vehicle) });
+    return { track: run.track, stops: run.stops, autoplay: false, trail: false, stage: null, frame: run.frame, street: run };
+  },
+};
+
+/**
+ * e³ parking (the Denza Z9): parallel parking into a gap hardly longer than the car: the nose is pulled in, angled to the
+ * kerb, the car stops, and it pivots about its left front wheel until it lies parallel and the tail has swung in.
+ */
+const e3park: Driver = {
+  build: ({ vehicle, layout, body, start }) => {
+    const run = planPivotPark(layout, body, start, { neighbours: streetCars(vehicle) });
+    return { track: run.track, stops: run.stops, autoplay: false, trail: false, stage: null, frame: run.frame, street: run };
+  },
+};
+
+/**
+ * The rear-steered U-turn (the Xpeng G9L): half a circle at the published turning radius, the rear wheels steering against
+ * the fronts up to their published limit, between two kerbs as far apart as the sweep needs.
+ */
+const uturn: Driver = {
+  build: ({ vehicle, layout, body, start, params }) => {
+    const run = planUTurn(layout, body, start, {
+      radius: params.radiusM ?? 5.4,
+      rearMaxDeg: params.rearMaxDeg ?? 15,
+      neighbours: streetCars(vehicle),
+    });
+    return { track: run.track, stops: run.stops, autoplay: false, trail: false, stage: null, frame: run.frame, street: run };
   },
 };
 
@@ -163,13 +231,15 @@ const launch: Driver = {
 };
 
 /**
- * Fast charge: the flap opens, a gun comes off its pedestal and goes into the DC socket, the car charges from 10 to 80 %
- * on the published ten minutes (played in fourteen seconds), the gun goes home and the flap shuts.
+ * Fast charge (the Charging tab): the flap opens, a gun comes off its pedestal and goes into the DC socket, the car
+ * charges through the window its maker quotes (played in fourteen seconds), the gun goes home and the flap shuts.
  */
 const charge: Driver = {
-  build: ({ vehicle, layout, body, start, params }) => {
-    const port = vehicle.chargePort ?? { mouth: [-1.4, 1, -0.85], axis: [0, 0, -1], depth: 0.02 };
-    const run = planCharge(layout, body, start, { port, kwh: params.packKwh ?? 100 });
+  build: ({ vehicle, layout, body, start }) => {
+    const facts = chargeFacts(vehicle);
+    // the Charging tab is offered only to a car with charging figures, so a demo is never built without them
+    if (!facts) throw new Error(`${vehicle.slug} has no charging figures`);
+    const run = planCharge(layout, body, start, { port: portOf(vehicle), profile: facts.profile });
     return { track: run.track, stops: run.stops, autoplay: false, trail: false, stage: null, frame: run.frame, charge: run };
   },
 };
@@ -209,4 +279,4 @@ const swivel: Driver = {
   },
 };
 
-export const DRIVERS: Record<string, Driver> = { 'rig-test': rigTest, park, carpet, launch, charge, swivel, sensors, boost };
+export const DRIVERS: Record<string, Driver> = { 'rig-test': rigTest, park, carpet, launch, charge, swivel, sensors, boost, crab, compass, e3park, uturn };

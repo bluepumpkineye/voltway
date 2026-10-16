@@ -311,39 +311,39 @@ export const zeekr7x: Vehicle = {
         'A simulation. The humps, the speed and the body’s motion are ours: the maker publishes no response curves. The five heights are equal steps over its roughly 70 mm, and “passive” is a plain suspension of our own, not a Zeekr car.',
       devices: ['dashboard'],
     },
-    {
-      id: 'fast-charge',
-      title: 'Fast charge',
-      blurb:
-        'The flap opens, a gun goes into the DC socket and the pack charges from 10 to 80 % at up to 620 kW. Ten minutes play in fourteen seconds.',
-      driver: 'charge',
-      devices: ['dashboard'],
-      params: { packKwh: 103 },
-      claims: [
-        {
-          text: 'The refreshed 7X carries 900 V motors, controllers and thermal management across the range, with 5.5C or 6C ultra-fast charging as standard.',
-          source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
-        },
-        {
-          text: 'The 103 kWh 6C Kirin pack charges at up to 620 kW, and from 10 to 80 % in 10 minutes at best. The 75 kWh 5.5C pack adds 425 km in 10 minutes.',
-          source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
-        },
-        {
-          text: 'The charge port is on the left rear quarter under one flap: a DC socket and an AC socket in one housing, a light strip above them and two dust caps on cords.',
-          source: { label: 'Autohome photo of the 7X, flap open', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-12-x/12781350.html' },
-        },
-        {
-          text: 'The car’s own screen has a “Charge port cover” tile for the flap, and a Vehicle charging page with the charge limit, the charge left and the range.',
-          source: { label: 'Autohome photo of the 7X’s screen', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-10-x/12161296.html' },
-        },
-      ],
-      simulated:
-        'A simulation. Only the 620 kW peak and the ten minutes are published, and the ten minutes are the best case. The curve between them, the pedestal and the gun (styled on a generic charging connector, not a Zeekr or any maker’s) are ours, and ten minutes play in fourteen seconds.',
-    },
   ],
   // The DC socket's mouth and the direction pointing out of it, in the viewer's axes (zx_charge.py: the cup centred 3 cm
-  // ahead of the flap's middle, 2 cm under the skin), for the fast-charge demo's gun.
+  // ahead of the flap's middle, 2 cm under the skin), for the Charging tab's gun. The flap and the socket are modelled.
   chargePort: { mouth: [-1.4583, 0.982, -0.8458], axis: [-0.038, 0.1642, -0.9857], depth: 0.022 },
+  // The Charging tab (docs/tech-showcase.md section 11). Sources read 2026-10-12.
+  charging: {
+    window: { from: 10, to: 80, minutes: 10 },
+    peakKw: 620,
+    packKwh: 103,
+    architectureV: 900,
+    connector: 'GB/T',
+    port: { side: 'left', published: true, where: 'Left rear quarter, under one flap' },
+    claims: [
+      {
+        text: 'The refreshed 7X carries 900 V motors, controllers and thermal management across the range, with 5.5C or 6C ultra-fast charging as standard.',
+        source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
+      },
+      {
+        text: 'The 103 kWh 6C Kirin pack charges at up to 620 kW, and from 10 to 80 % in 10 minutes at best. The 75 kWh 5.5C pack adds 425 km in 10 minutes.',
+        source: { label: 'Xinhua, 3 November 2025', url: 'https://www.news.cn/auto/20251103/050868441a0d4dff9a28a523841721a0/c.html' },
+      },
+      {
+        text: 'The charge port is on the left rear quarter under one flap: a DC socket and an AC socket in one housing, a light strip above them and two dust caps on cords.',
+        source: { label: 'Autohome photo of the 7X, flap open', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-12-x/12781350.html' },
+      },
+      {
+        text: 'The car’s own screen has a “Charge port cover” tile for the flap, and a Vehicle charging page with the charge limit, the charge left and the range.',
+        source: { label: 'Autohome photo of the 7X’s screen', url: 'https://www.autohome.com.cn/cars/imgs-7777-75350-10-x/12161296.html' },
+      },
+    ],
+    simulated:
+      'A simulation. Only the 620 kW peak and the ten minutes are published, and the ten minutes are the best case. The curve between them, the pedestal and the gun (styled on a generic charging connector, not a Zeekr or any maker’s) are ours, and ten minutes play in fourteen seconds.',
+  },
   sources: [
     { label: 'Paul Tan - 7X facelift, 900 V, 802 km', url: 'https://paultan.org/2025/10/22/zeekr-7x-facelift-revealed-900v-architecture-6c-dc-charging-802-km-cltc-795-ps-0-100-km-h-2-98-secs/' },
     { label: 'Wikipedia - Zeekr 7X', url: 'https://en.wikipedia.org/wiki/Zeekr_7X' },

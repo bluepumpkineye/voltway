@@ -33,10 +33,11 @@
   color-scheme: dark;
 }
 
+/* The showroom is a light studio: the page behind it (overscroll, the moment before the canvas) matches it. */
 html,
 body {
-  background: var(--color-ink-900);
-  color: var(--color-ink-100);
+  background: #f1f2f4;
+  color: #171717;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -119,14 +120,16 @@ body {
 .hy-scroll { scrollbar-width: none; }
 .hy-scroll::-webkit-scrollbar { display: none; }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--color-ink-850); }
+/* thin scrollbars that read on both the glass panels and the dark in-car screens */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-ink-600);
+  background: rgba(120, 126, 138, 0.45);
   border-radius: 6px;
-  border: 2px solid var(--color-ink-850);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); }
+::-webkit-scrollbar-thumb:hover { background: rgba(120, 126, 138, 0.7); background-clip: padding-box; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

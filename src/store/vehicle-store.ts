@@ -5,6 +5,7 @@ import type { DriveMode } from '@/lib/performance';
 import type { AnchorId, TechDevice } from '@/data/vehicles/schema';
 import { isLowBeam, type LightMode } from '@/lib/lights';
 import type { ParkSpeed, ParkStage } from '@/lib/tech/park';
+import type { Pivot, StreetStage } from '@/lib/tech/street';
 import type { Slide as ScreenSlide, Turn as ScreenTurn } from '@/lib/tech/swivel';
 
 export type HmiScreen =
@@ -23,7 +24,9 @@ export type HmiScreen =
   // HarmonyOS apps (the Luxeed RX)
   | 'seats'
   | 'camera'
-  | 'park';
+  | 'park'
+  // the generic skin's chassis page (the Z9 and G9L demos): the wheels' angles live, and the manoeuvre's button
+  | 'chassis';
 
 /** The Settings app's side menu (HyperOS 设置, in the car's own order). */
 export type SettingsPage =
@@ -54,8 +57,11 @@ export type Gear = 'P' | 'D';
 
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot' | 'charge';
 
-/** The showroom's bottom tabs (/showroom/[slug]). */
-export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dimensions' | 'xray' | 'tech';
+/** The showroom's tabs (the menu at the top of /showroom/[slug]). */
+export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dimensions' | 'xray' | 'charging' | 'tech';
+
+/** The tabs that stage the car on a floor of its own and play a demonstration on it (src/lib/tech). */
+export const isStageTab = (tab: ShowroomTab) => tab === 'tech' || tab === 'charging';
 
 /** Which end of the car the Dashboard tab looks at: the lamps are at both. */
 export type LightsView = 'front' | 'rear';
@@ -63,10 +69,10 @@ export type LightsView = 'front' | 'rear';
 /** Studio is the default; city is the HDRI world the car was baked under. */
 export type ShowroomScene = 'studio' | 'city';
 
-/** Which published dimension the Dimensions tab is showing. */
+/** Which published dimension the Specifications tab is showing. */
 export type DimensionFocus = 'length' | 'width' | 'height';
 
-/** Each tab opens on its own pose; the Dimensions chips pick theirs. */
+/** Each tab opens on its own pose; the Specifications tab's dimension chips pick theirs. */
 const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   colour: 'hero',
   interior: 'driver',
@@ -74,6 +80,7 @@ const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   wheels: 'wheel',
   dimensions: 'side',
   xray: 'xray',
+  charging: 'techWide',
   tech: 'techWide',
 };
 /** Where the camera goes to see a part open: the side its hinge is on. */
@@ -196,6 +203,11 @@ export interface VehicleUiState {
    * the width, bottom: of the height); the camera frames the car clear of it
    */
   deviceInset: { right: number; bottom: number };
+  /**
+   * How much taller the menu at the top of the showroom is than its one row (a Tech demo's second row, a phone's wrapped
+   * tabs), as a fraction of the window's height: the camera keeps the car clear of it, as it does of a device
+   */
+  uiTop: number;
   /** which end of the car the Dashboard tab looks at */
   lightsView: LightsView;
   /** the swivel screen's goal (the car's direction dialog, or the Tech tab's demo) and the dialog being open */
@@ -209,6 +221,11 @@ export interface VehicleUiState {
   boostPopup: boolean;
   /** the parking lot (or other staged floor) of the running demo, which the viewer draws round the car */
   techScene: ParkStage | null;
+  /** the street of a chassis demo (the crab walk, the compass turn, the U-turn), which the viewer draws round the car */
+  techStreet: StreetStage | null;
+  /** the compass turn's choices: the front wheel it turns about and how far it turns, degrees */
+  compassPivot: Pivot;
+  compassAngle: number;
   /** whether the mounted exterior has the per-corner wheels the demos drive */
   techStatus: 'loading' | 'ready' | 'none';
   /** the device of the Tech tab on show: the phone, or the car's screen */
@@ -217,6 +234,14 @@ export interface VehicleUiState {
   techIntent: boolean;
   /** the showroom is mounted, so the car's screen can start demos (the vehicle page has none) */
   techAvailable: boolean;
+  /**
+   * The exterior has loaded and the cabin is mounted behind it (viewer/ShowroomViewer.tsx): the cabin comes in once the
+   * car is on screen, and the windscreen and front windows turn to clear glass only when there is a cabin to see through them
+   */
+  exteriorUp: boolean;
+  cabinReady: boolean;
+  /** every hinged part is shut (the openings' driver keeps it): the cabin then shows only through the clear glass */
+  shut: boolean;
   /** the car's own parking settings (Settings > Assisted driving > Parking assist) */
   rpaEnabled: boolean;
   parkSpeed: ParkSpeed;
@@ -272,10 +297,16 @@ export interface VehicleUiState {
   setTechSpeed: (speed: number) => void;
   setTechStage: (stage: VehicleUiState['techStage']) => void;
   setTechScene: (scene: ParkStage | null) => void;
+  setTechStreet: (street: StreetStage | null) => void;
+  setCompass: (pivot: Pivot, angle: number) => void;
   setDeviceInset: (inset: VehicleUiState['deviceInset']) => void;
+  setUiTop: (fraction: number) => void;
   setTechStatus: (status: VehicleUiState['techStatus']) => void;
   setTechDevice: (device: TechDevice) => void;
   setTechAvailable: (v: boolean) => void;
+  setExteriorUp: (up: boolean) => void;
+  setCabinReady: (ready: boolean) => void;
+  setShut: (shut: boolean) => void;
   setScreenPose: (turn: ScreenTurn, slide: ScreenSlide) => void;
   setScreenDialog: (open: boolean) => void;
   setBoost: (on: boolean, step: number) => void;
@@ -385,6 +416,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   techSpeed: 1,
   techStage: null,
   deviceInset: { right: 0, bottom: 0 },
+  uiTop: 0,
   lightsView: 'front',
   screenTurn: 'centre',
   screenSlide: 'rear',
@@ -393,10 +425,16 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   boostStep: 0,
   boostPopup: false,
   techScene: null,
+  techStreet: null,
+  compassPivot: 'FL',
+  compassAngle: 180,
   techStatus: 'loading',
   techDevice: 'phone',
   techIntent: false,
   techAvailable: false,
+  exteriorUp: false,
+  cabinReady: false,
+  shut: true,
   rpaEnabled: true,
   parkSpeed: 'medium',
 
@@ -439,8 +477,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
 
   toggleOpening: (o) =>
     set((s) => {
-      // the car is on the move in the Tech tab: its doors stay shut (the charge demo opens its own flap: setOpening)
-      if (s.tab === 'tech') return {};
+      // the car is on the move on a stage: its doors stay shut (the charging tab opens its own flap: setOpening)
+      if (isStageTab(s.tab)) return {};
       const openings = { ...s.openings, [o]: !s.openings[o] };
       // opening a part from outside brings it into frame (as HIMA's showroom
       // does); from the seat, or on another tab, the camera stays where it is
@@ -475,7 +513,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       dimension: 'length',
       ...anchorState(tab === 'dashboard' && s.lightsView === 'rear' ? 'dashRear' : TAB_ANCHOR[tab]),
       // the tech demos stage a shut car in the studio: nothing hangs open, the city's sun is not on its floor
-      ...(tab === 'tech' ? techTab : {}),
+      ...(isStageTab(tab) ? techTab : {}),
       // the Dashboard tab opens on the car's home screen, whatever page the last tab left it on
       ...(tab === 'dashboard' ? { hmiScreen: 'home' as const, climateOpen: false, appCentreOpen: false } : {}),
     })),
@@ -490,13 +528,19 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setTechSpeed: (techSpeed) => set({ techSpeed }),
   setTechStage: (techStage) => set({ techStage }),
   setTechScene: (techScene) => set({ techScene }),
+  setTechStreet: (techStreet) => set({ techStreet }),
+  setCompass: (compassPivot, compassAngle) => set({ compassPivot, compassAngle }),
   setDeviceInset: (deviceInset) =>
     set((s) =>
       s.deviceInset.right === deviceInset.right && s.deviceInset.bottom === deviceInset.bottom ? {} : { deviceInset },
     ),
+  setUiTop: (uiTop) => set((s) => (Math.abs(s.uiTop - uiTop) < 0.002 ? {} : { uiTop })),
   setTechStatus: (techStatus) => set({ techStatus }),
   setTechDevice: (techDevice) => set({ techDevice }),
   setTechAvailable: (techAvailable) => set({ techAvailable }),
+  setExteriorUp: (exteriorUp) => set((s) => (s.exteriorUp === exteriorUp ? s : { exteriorUp })),
+  setCabinReady: (cabinReady) => set((s) => (s.cabinReady === cabinReady ? s : { cabinReady })),
+  setShut: (shut) => set((s) => (s.shut === shut ? s : { shut })),
   setScreenPose: (screenTurn, screenSlide) =>
     set((s) => (s.screenTurn === screenTurn && s.screenSlide === screenSlide ? s : { screenTurn, screenSlide })),
   setScreenDialog: (screenDialog) => set({ screenDialog }),
@@ -571,6 +615,9 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       techSpeed: 1,
       techStage: null,
       techScene: null,
+      techStreet: null,
+      compassPivot: 'FL',
+      compassAngle: 180,
       techDevice: 'phone',
       techIntent: false,
       rpaEnabled: true,

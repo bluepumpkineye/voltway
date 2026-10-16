@@ -4,8 +4,8 @@ import type { Vehicle } from './schema';
 import { xiaomiSu7Ultra } from './xiaomi-su7-ultra';
 import { luxeedRx } from './luxeed-rx';
 import { zeekr7x } from './zeekr-7x';
-import { xpengP7Plus } from './xpeng-p7-plus';
-import { bydSeal } from './byd-seal';
+import { xpengG9l } from './xpeng-g9l';
+import { denzaZ9 } from './denza-z9';
 import { avatr11 } from './avatr-11';
 import { nioEs7 } from './nio-es7';
 
@@ -14,8 +14,8 @@ export const vehicles: Vehicle[] = [
   xiaomiSu7Ultra,
   luxeedRx,
   zeekr7x,
-  xpengP7Plus,
-  bydSeal,
+  xpengG9l,
+  denzaZ9,
   avatr11,
   nioEs7,
 ];

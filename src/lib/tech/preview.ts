@@ -29,6 +29,7 @@ export function usePreviewRuntime(vehicle: Vehicle, demoId: string): Runtime | n
       speed,
       ride: { carpet: true, modeId: null },
       params: spec?.params ?? {},
+      chassis: { pivot: 'FL', angleDeg: 180 },
     });
     return { demoId, stage: built.stage, sample: (t: number) => built.track.sample(t), body };
   }, [vehicle, demoId, rig, rigged, speed]);

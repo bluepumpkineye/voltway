@@ -7,7 +7,7 @@ import { Fit } from '@/components/tech/Fit';
 import { useWide } from '@/components/tech/TechDevices';
 import { isLowBeam, LIGHT_MODES, type LightMode } from '@/lib/lights';
 import { useVehicleStore } from '@/store/vehicle-store';
-import { GLASS } from './Chrome';
+import { BELOW_TOP, GLASS } from './Chrome';
 
 /**
  * The Dashboard tab: the car's own screen, live, beside the car. Its headlamp controls switch the lamps,
@@ -82,7 +82,7 @@ export function DashboardScreen({
 
   // the camera frames the car clear of the screen
   React.useEffect(() => {
-    if (wide) setInset({ right: Math.min(0.6, (colW + 28) / vw), bottom: 0.07 });
+    if (wide) setInset({ right: Math.min(0.6, (colW + 28) / vw), bottom: 0 });
     else setInset({ right: 0, bottom: 0.1 });
     return () => setInset({ right: 0, bottom: 0 });
   }, [wide, colW, vw, setInset]);
@@ -106,7 +106,7 @@ export function DashboardScreen({
   if (wide) {
     return (
       <aside
-        className="pointer-events-none absolute bottom-3 right-4 top-[60px] z-10"
+        className={`pointer-events-none absolute bottom-3 right-4 z-10 ${BELOW_TOP}`}
         style={{ width: colW }}
         aria-label="The car’s screen"
       >
@@ -125,7 +125,7 @@ export function DashboardScreen({
     );
   }
   return (
-    <aside className="pointer-events-none absolute inset-x-2 bottom-[128px] top-[56px] z-10" aria-label="The car’s screen">
+    <aside className={`pointer-events-none absolute inset-x-2 bottom-[84px] z-10 ${BELOW_TOP}`} aria-label="The car’s screen">
       <div className="flex h-full min-h-0 flex-col items-center gap-2">
         <button
           type="button"

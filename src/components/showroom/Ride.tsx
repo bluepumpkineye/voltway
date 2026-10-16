@@ -46,7 +46,7 @@ export function RideTools({ showHeights }: { showHeights: boolean }) {
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   React.useEffect(() => {
     if (!showHeights) return;
-    setInset({ right: 0, bottom: 0.3 });
+    setInset({ right: 0, bottom: 0.27 });
     return () => setInset({ right: 0, bottom: 0 });
   }, [showHeights, setInset]);
 

@@ -3,16 +3,13 @@
 import React from 'react';
 import type { TechDemoSpec } from '@/data/vehicles/schema';
 import { techClock, useTechClock } from '@/lib/tech/clock';
-import { GLASS } from './Chrome';
-
-const FOCUS =
-  'outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/70 focus-visible:ring-offset-1';
+import { FOCUS, GLASS, PANEL } from './Chrome';
 
 const SPEEDS = [0.5, 1, 2];
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-/** The car's demonstrations, as chips like the wheel designs. */
+/** The car's demonstrations, as chips like the wheel designs: the Tech tab's second row of menu. */
 export function TechChips({
   demos,
   selected,
@@ -24,7 +21,7 @@ export function TechChips({
 }) {
   const cur = demos.find((d) => d.id === selected) ?? demos[0];
   return (
-    <div role="group" aria-label="Demonstration" className={`pointer-events-auto flex w-fit max-w-full overflow-x-auto rounded-full p-1 ${GLASS}`}>
+    <div role="group" aria-label="Demonstration" className={`hy-scroll pointer-events-auto flex w-fit max-w-full overflow-x-auto rounded-full p-1 ${GLASS}`}>
       {demos.map((d) => (
         <button
           key={d.id}
@@ -55,22 +52,36 @@ const PAUSE = 'M3 2h2.6v10H3zM8.4 2H11v10H8.4z';
 const REPLAY =
   'M7 2.2a4.8 4.8 0 1 0 4.5 6.4.7.7 0 1 0-1.3-.5A3.4 3.4 0 1 1 7 3.6h.7L6.6 4.7a.7.7 0 1 0 1 1l2.4-2.4a.7.7 0 0 0 0-1L7.6.4a.7.7 0 0 0-1 1l.9.8z';
 
-/** Play and pause, replay, the playhead and its speed. */
+/**
+ * Play and pause, replay, the playhead and its speed, and the button that opens what the demonstration is: the published
+ * facts behind it and what in it is simulated. The label says it is a simulation without being opened.
+ */
 export function TechControls({
   speed,
   onSpeed,
   disabled,
+  spec,
 }: {
   speed: number;
   onSpeed: (s: number) => void;
   disabled?: string;
+  spec?: TechDemoSpec;
 }) {
   const clock = useTechClock();
   const resume = React.useRef(false);
+  const [facts, setFacts] = React.useState(false);
   const off = Boolean(disabled) || clock.duration <= 0;
+  // a new demonstration starts with its facts shut
+  React.useEffect(() => setFacts(false), [spec?.id]);
   return (
+    <div className="pointer-events-none relative w-full max-w-[620px]">
+      {facts && spec && (
+        <div className={`pointer-events-auto absolute bottom-full left-0 right-0 mb-2 max-h-[min(50vh,380px)] overflow-y-auto rounded-2xl px-4 py-3 ${PANEL}`}>
+          <FactsBody spec={spec} />
+        </div>
+      )}
     <div
-      className={`pointer-events-auto flex w-full max-w-[620px] items-center gap-2 rounded-full px-2 py-1.5 ${GLASS}`}
+      className={`pointer-events-auto flex w-full items-center gap-2 rounded-full px-2 py-1.5 ${GLASS}`}
       title={disabled}
     >
       <button
@@ -142,58 +153,57 @@ export function TechControls({
           </button>
         ))}
       </div>
+      {spec && (
+        <button
+          type="button"
+          aria-expanded={facts}
+          aria-label="Facts, sources and what is simulated"
+          onClick={() => setFacts((v) => !v)}
+          className={`flex shrink-0 items-center gap-1.5 rounded-full py-1 pl-2.5 pr-2 text-[11px] font-medium transition-colors ${FOCUS} ${
+            facts ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
+          }`}
+        >
+          <span className="hidden sm:inline">Simulation</span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <circle cx="8" cy="8" r="6.4" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M8 7.2v3.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="8" cy="4.9" r="0.95" fill="currentColor" />
+          </svg>
+        </button>
+      )}
+    </div>
     </div>
   );
 }
 
-/**
- * What the demonstration is, the published facts behind it and what in it is simulated. One line until
- * opened, so the stage and the devices keep the screen; the line already says it is a simulation.
- */
-export function TechFacts({ spec }: { spec: TechDemoSpec }) {
-  const [open, setOpen] = React.useState(false);
+/** What the demonstration is, the published facts behind it and what in it is simulated. */
+export function FactsBody({ spec }: { spec: TechDemoSpec }) {
   return (
-    <div className={`pointer-events-auto w-full max-w-[620px] rounded-2xl px-3.5 py-2 text-[11px] leading-snug text-neutral-600 ${GLASS}`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center justify-between gap-3 text-left ${FOCUS}`}
-      >
-        <span className="min-w-0 truncate">
-          <span className="font-semibold text-neutral-900">{spec.title}</span>
-          <span className="text-neutral-500"> · a simulation from the maker’s published figures</span>
-        </span>
-        <span className="shrink-0 text-neutral-500">
-          {open ? 'Hide' : 'Facts and sources'}
-          <svg className={`ml-1 inline transition-transform ${open ? 'rotate-180' : ''}`} width="9" height="6" viewBox="0 0 9 6" aria-hidden>
-            <path d="M1 1l3.5 3.5L8 1" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      </button>
-      {open && (
-        <div className="mt-1.5">
-          <p>{spec.blurb}</p>
-          {spec.claims.length > 0 && (
-            <ul className="mt-1 list-disc space-y-0.5 pl-4">
-              {spec.claims.map((c) => (
-                <li key={c.text}>
-                  {c.text}{' '}
-                  <a
-                    href={c.source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900"
-                  >
-                    {c.source.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-1 italic text-neutral-500">{spec.simulated}</p>
-        </div>
+    <div className="text-[12px] leading-relaxed text-neutral-600">
+      <h2 className="text-[13px] font-semibold text-neutral-900">{spec.title}</h2>
+      <p className="mt-1">{spec.blurb}</p>
+      {spec.claims.length > 0 && (
+        <>
+          <h3 className="mt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Published</h3>
+          <ul className="mt-1 list-disc space-y-1 pl-4">
+            {spec.claims.map((c) => (
+              <li key={c.text}>
+                {c.text}{' '}
+                <a
+                  href={c.source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900"
+                >
+                  {c.source.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
+      <h3 className="mt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">Simulated</h3>
+      <p className="mt-1 text-neutral-500">{spec.simulated}</p>
     </div>
   );
 }

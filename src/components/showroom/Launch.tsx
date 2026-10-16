@@ -33,7 +33,7 @@ export function LaunchTools() {
   // this panel is what covers the foot of the window (no device stands beside the stage): the camera keeps the car clear of it
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   React.useEffect(() => {
-    setInset({ right: 0, bottom: 0.3 });
+    setInset({ right: 0, bottom: 0.22 });
     return () => setInset({ right: 0, bottom: 0 });
   }, [setInset]);
   // while the clock is not running the panel follows its snapshots (a scrub, a pause)

@@ -36,7 +36,7 @@ export function TechStage() {
 }
 
 /** the paint of the parked cars: neutral, so the car in the demo stays the one the eye follows */
-const TONES = ['#c9ccd2', '#aeb3bb', '#363b45', '#8d929b'];
+export const TONES = ['#c9ccd2', '#aeb3bb', '#363b45', '#8d929b'];
 
 /** pixels per metre of the painted ground's texture */
 const PPM = 70;
@@ -164,7 +164,7 @@ function WheelStop({ rect }: { rect: Rect }) {
  * paint, on the baked floor shadow of the real one. Placed so the middle of its body is the middle of
  * its bay, whatever the model's origin is.
  */
-function Neighbour({ n, tone }: { n: ParkNeighbour; tone: string }) {
+export function Neighbour({ n, tone }: { n: Pick<ParkNeighbour, 'slug' | 'rect'>; tone: string }) {
   const vehicle = getVehicle(n.slug);
   const url = vehicle?.assets.proxyUrl;
   if (!vehicle || !url) return null;
@@ -177,7 +177,7 @@ function NeighbourModel({
   url,
   shadow,
 }: {
-  n: ParkNeighbour;
+  n: Pick<ParkNeighbour, 'slug' | 'rect'>;
   tone: string;
   url: string;
   shadow: Parameters<typeof GroundShadow>[0]['shadow'] | undefined;

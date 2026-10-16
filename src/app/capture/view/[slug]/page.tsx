@@ -19,6 +19,7 @@ export function generateStaticParams() {
 export default async function ViewCapturePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const vehicle = getVehicle(slug);
-  if (!vehicle) notFound();
+  // a tool of the 3D pipeline, not part of the published site
+  if (!vehicle || process.env.NODE_ENV === 'production') notFound();
   return <ViewCapture vehicle={vehicle} />;
 }

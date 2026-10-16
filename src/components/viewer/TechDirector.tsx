@@ -4,8 +4,9 @@ import React from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { Vehicle } from '@/data/vehicles/schema';
-import { useVehicleStore } from '@/store/vehicle-store';
+import { isStageTab, useVehicleStore } from '@/store/vehicle-store';
 import { techClock } from '@/lib/tech/clock';
+import { chargeDemo } from '@/lib/tech/charging';
 import { DRIVERS, visibleDemos } from '@/lib/tech/demos';
 import type { PlannedRun } from '@/lib/tech/kinematics';
 import { RIDE_LEVELS } from '@/lib/tech/ride';
@@ -36,9 +37,13 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const modeId = useVehicleStore((s) => s.modeId);
   const easyEntry = useVehicleStore((s) => s.easyEntry);
   const beltOn = useVehicleStore((s) => s.beltOn);
+  const compassPivot = useVehicleStore((s) => s.compassPivot);
+  const compassAngle = useVehicleStore((s) => s.compassAngle);
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
-  const spec = tab === 'tech' ? (demos.find((d) => d.id === demoId) ?? demos[0]) : undefined;
+  const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
+  // the Tech tab plays the demo the visitor picked; the Charging tab plays the car's own charge
+  const spec = tab === 'tech' ? (demos.find((d) => d.id === demoId) ?? demos[0]) : tab === 'charging' ? (charging ?? undefined) : undefined;
 
   const built = React.useMemo(() => {
     const driver = spec ? DRIVERS[spec.driver] : undefined;
@@ -54,10 +59,11 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       speed: parkSpeed,
       ride: { carpet: carpetOn, modeId },
       params: spec.params ?? {},
+      chassis: { pivot: compassPivot, angleDeg: compassAngle },
     });
     return { spec, body, ...b, trailLine: b.trail ? trailOf(b.track) : null };
     // the rig is the same object for the car's life; `rigged` says when its wheels arrive
-  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle]);
+  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle]);
 
   // a demo starts from the top (or waits for a device to start it), and the camera takes in its floor
   React.useEffect(() => {
@@ -82,6 +88,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     };
     st.setTechStage(framing);
     st.setTechScene(stage);
+    st.setTechStreet(built.street?.stage ?? null);
     // a demo whose subject is in the cabin sits the camera in the driver's seat; the swivel screen's opens its
     // direction dialog on the car's screen, with the screen as the car stands
     if (built.spec.view === 'cabin') st.setAnchor('driver');
@@ -106,11 +113,16 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       launch: built.treadmill?.launch ?? null,
       charge: built.charge ?? null,
       sensors: built.sensors ? { ...built.sensors.scenario, frontX: built.sensors.frontX } : null,
+      chassis: built.street ? { readout: built.street.readout, facts: built.street.facts, stage: built.street.stage } : null,
     });
     if (process.env.NODE_ENV !== 'production') {
       console.info(
         `[tech] ${built.spec.id}: ${track.duration.toFixed(1)} s, widest steer ${((track.stats.maxSteer * 180) / Math.PI).toFixed(1)} deg` +
-          (stage ? `, clearance ${stage.clearance.toFixed(2)} m` : `, stage r ${framing.radius.toFixed(1)} m`),
+          (stage
+            ? `, clearance ${stage.clearance.toFixed(2)} m`
+            : built.street
+              ? `, street ${built.street.facts.roadWidth.toFixed(1)} m wide, clearance ${built.street.stage.clearance.toFixed(2)} m`
+              : `, stage r ${framing.radius.toFixed(1)} m`),
       );
     }
     invalidate();
@@ -133,9 +145,10 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
         s.setScreenPose('centre', 'rear');
       }
       // back to the stage's wide shot when the visitor changes demo (leaving the tab sets the next tab's own)
-      if (built.spec.view === 'cabin' && s.tab === 'tech') s.setAnchor('techWide');
+      if (built.spec.view === 'cabin' && isStageTab(s.tab)) s.setAnchor('techWide');
       s.setTechStage(null);
       s.setTechScene(null);
+      s.setTechStreet(null);
       rig.reset();
       invalidate();
     };

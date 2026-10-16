@@ -33,6 +33,8 @@ export function OpeningsDriver({ vehicle }: { vehicle: Vehicle }) {
 
   useFrame(() => {
     if (hinges?.step(performance.now())) invalidate();
+    // the cabin shows only through the clear glass while everything is shut (clearGlass.ts)
+    useVehicleStore.getState().setShut(!hinges || hinges.lift.cabin.value < 0.002);
   });
   return null;
 }
@@ -133,6 +135,9 @@ const PANE = {
   privacy: { open: 0.55, inside: 0.5 },
 };
 
+/** The glass of a car with no X-ray of its own: the same pale ghost the X-ray tab draws. */
+const GHOST_GLASS = { color: '#98a4b3', opacity: 0.34 };
+
 /**
  * The pane's colour as the viewer shows it. The build's glass is tinted green,
  * as real glazing is, and with only the studio's whites around it that read as
@@ -211,10 +216,12 @@ export function useGlass(
   inside: boolean,
   enabled: boolean,
   xray = false,
+  /** the cabin is there to be seen: the clear glass (M_Glass) turns to the X-ray's ghost from outside */
+  clearOutside = false,
 ) {
   const hinges = hingesOf(vehicle);
   const invalidate = useThree((s) => s.invalidate);
-  const live = React.useRef({ inside, xray, repaint: () => {} });
+  const live = React.useRef({ inside, xray, clearOutside, repaint: () => {} });
 
   React.useEffect(() => {
     if (!enabled) return;
@@ -259,14 +266,23 @@ export function useGlass(
       const kind = pane.privacy ? PANE.privacy : PANE.clear;
       const p = pane.door ? (swing.get(pane.door) ?? 0) : 0;
       const ghost = lv.xray ? vehicle.xray : undefined;
-      pane.m.color.set(ghost ? ghost.color : pane.color);
+      // Seen from outside with the cabin behind them, the windscreen and the front windows are the X-ray's ghost, and the
+      // privacy glass (the rear windows, the backlight, a glass roof) is tinted: the same dark pane an open door shows. The
+      // frit, the black ceramic band round the backlight, stays black.
+      const seeThrough = lv.clearOutside && !lv.inside && !lv.xray && !pane.frit;
+      const g = vehicle.xray ?? GHOST_GLASS;
+      pane.m.color.set(ghost ? ghost.color : seeThrough && !pane.privacy ? g.color : pane.color);
+      const swing01 = Math.min(1, p * 1.6);
+      const shut = pane.privacy ? kind.open : g.opacity;
       const op = ghost
         ? ghost.opacity
         : pane.frit
           ? 1
           : lv.inside
             ? kind.inside
-            : 1 - (1 - kind.open) * Math.min(1, p * 1.6);
+            : seeThrough
+              ? shut - (shut - kind.open) * swing01
+              : 1 - (1 - kind.open) * swing01;
       const transparent = op < 0.999;
       if (pane.m.transparent !== transparent) {
         pane.m.transparent = transparent;
@@ -302,9 +318,10 @@ export function useGlass(
   React.useEffect(() => {
     live.current.inside = inside;
     live.current.xray = xray;
+    live.current.clearOutside = clearOutside;
     live.current.repaint();
     invalidate();
-  }, [inside, xray, invalidate]);
+  }, [inside, xray, clearOutside, invalidate]);
 }
 
 /**
@@ -364,8 +381,14 @@ export function useOpeningPicks(root: THREE.Object3D, vehicle: Vehicle, key: 'no
  * closing swing is not cut off.
  */
 export function useCabinWanted() {
+  // the cabin comes in once the car is on screen: the windscreen and front windows show it from outside. Not on the Tech
+  // tab, whose demos move the car and leave the cabin where it is (a demo of the cabin itself asks for it: cameraMode)
   const need = useVehicleStore(
-    (s) => s.cameraMode !== 'exterior' || s.tab === 'xray' || Object.values(s.openings).some(Boolean),
+    (s) =>
+      s.cameraMode !== 'exterior' ||
+      s.tab === 'xray' ||
+      (s.exteriorUp && s.tab !== 'tech') ||
+      Object.values(s.openings).some(Boolean),
   );
   const [hold, setHold] = React.useState(false);
   React.useEffect(() => {

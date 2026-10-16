@@ -287,6 +287,26 @@ export const luxeedRx: Vehicle = {
     ],
     ultrasonic: [{ at: [2.32, 0.48, 0.74], mirror: true }],
   },
+  // The DC socket's mouth (the left rear quarter above and behind the rear wheel, where the photographs show the flap;
+  // the exact place is our estimate, snapped to the model's skin by a ray) and the direction out of it, in the viewer's
+  // axes. The model has no flap, so the Charging tab draws a socket here.
+  chargePort: { mouth: [-1.9, 1.06, -0.885], axis: [-0.0938, 0.463, -0.8814], depth: 0.02 },
+  // The Charging tab (docs/tech-showcase.md section 11). Sources read 2026-10-16.
+  charging: {
+    window: { from: 30, to: 80, minutes: 15 },
+    packKwh: 100.4,
+    architectureV: 800,
+    connector: 'GB/T',
+    port: { side: 'left', published: false, where: 'Left rear quarter, as the photographs show' },
+    claims: [
+      {
+        text: 'All variants support 800 V fast charging: a charge from 30 to 80 % takes about 15 minutes. The packs are an 81 kWh lithium iron phosphate and a 100 kWh ternary.',
+        source: { label: 'CnEVPost, Luxeed launches the RX, 28 September 2026', url: 'https://cnevpost.com/2026/09/28/luxeed-launches-rx-suv/' },
+      },
+    ],
+    simulated:
+      'A simulation. Only the 15 minutes from 30 to 80 % and the 800 V are published: no peak power is, so the peak is derived from the window’s average power, and the curve is ours. The charge flap is on the left rear quarter in the photographs, but the model has none: the socket is drawn at a place we chose, and the pedestal and the gun (styled on a generic charging connector, not Luxeed’s or any maker’s) are ours. Fifteen minutes play in fourteen seconds.',
+  },
   // The BOOST knob on the wheel's lower right, in the cabin model's space: found by casting a ray at the knob (a satin black
   // cap in a chrome ring, about 32 mm across) from the driver's eye.
   boost: { knob: [0.287, 0.953, -0.328] },
@@ -342,7 +362,7 @@ export const luxeedRx: Vehicle = {
         },
       ],
       simulated:
-        'A simulation. The pedestrian, the speeds and the braking are ours, and so is every cone’s angle and the reach it is drawn to: no field of view is published (the real lidar recognises a 14 cm box at 120 m). The side lidars are drawn from the fender gill, where one source reports them, and the rear one from where nothing says it is; the five radars are not drawn.',
+        'A simulation. The pedestrian, the speeds and the braking are ours, and so is every cone’s angle and the reach it is drawn to: no field of view is published (the real lidar recognises a 14 cm box at 120 m). The side lidars are drawn from the fender gill, where one source reports them, and the rear one from where nothing says it is; the five radars are not drawn. A dot is a sensor a photograph shows; a ring is a position reported or not published.',
     },
     {
       id: 'boost',

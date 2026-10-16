@@ -4,21 +4,27 @@ import React from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
+import type { Vehicle } from '@/data/vehicles/schema';
 import { techClock } from '@/lib/tech/clock';
-import type { ChargeReadout } from '@/lib/tech/charge';
+import type { ChargePort, ChargeReadout } from '@/lib/tech/charge';
+import { chargeFacts, portOf } from '@/lib/tech/charging';
 import { useRuntime, type Runtime } from '@/lib/tech/session';
+import { useVehicleStore } from '@/store/vehicle-store';
 
 /**
- * The fast-charge demo's props: a plain, unbranded charging pedestal beside the car, the gun on its front face and the
- * gun's cable (src/lib/tech/charge.ts moves them with the demo's clock). None of it is Zeekr's or any maker's: the
- * gun is styled on the owner's photographs of a charging connector (a white shell, a black head and boot) and its face
- * is the 7X's DC inlet the other way round (the sockets' layout in blender/scripts/zx_charge.py, read off the
- * Autohome photographs c12_0048 and c12_0049). Mount once in the showroom's Canvas.
+ * The Charging tab's props: a plain, unbranded charging pedestal beside the car, the gun on its face and the gun's
+ * cable (src/lib/tech/charge.ts moves them with the demo's clock). None of it is any maker's: the gun is styled on
+ * the owner's photographs of a charging connector (a white shell, a black head and boot) and its face is the 7X's DC
+ * inlet the other way round (the sockets' layout in blender/scripts/zx_charge.py, read off the Autohome photographs
+ * c12_0048 and c12_0049). The 7X's model has a flap and a socket of its own; every other car gets a socket drawn at
+ * its port while the flap is "open" (`Vehicle.chargePort`), the same inlet the gun is made for. Mount once in the
+ * showroom's Canvas.
  */
-export function TechCharge() {
+export function TechCharge({ vehicle }: { vehicle: Vehicle }) {
   const charge = useRuntime()?.charge;
   if (!charge) return null;
-  return <Props charge={charge} />;
+  const facts = chargeFacts(vehicle);
+  return <Props charge={charge} socket={facts && !facts.modelledFlap ? portOf(vehicle) : null} />;
 }
 
 type Charge = NonNullable<Runtime['charge']>;
@@ -39,10 +45,11 @@ const DC_SIGNAL: [number, number, number][] = [
 const SHELL = '#ebe8e1';
 const BLACK = '#18191c';
 
-function Props({ charge }: { charge: Charge }) {
+function Props({ charge, socket }: { charge: Charge; socket: ChargePort | null }) {
   const gun = React.useRef<THREE.Group>(null);
   const cable = React.useRef<THREE.Mesh>(null);
   const strip = React.useRef<THREE.MeshBasicMaterial>(null);
+  const socketStrip = React.useRef<THREE.MeshBasicMaterial>(null);
   const { pedestal, cableOut, gunExit } = charge;
 
   const screen = React.useMemo(() => {
@@ -92,7 +99,9 @@ function Props({ charge }: { charge: Charge }) {
     }
     // the light strip and the pedestal's screen
     const r = charge.readout(t);
-    if (strip.current) strip.current.color.set(stripColour(r, clock.elapsedTime));
+    const lit = stripColour(r, clock.elapsedTime);
+    if (strip.current) strip.current.color.set(lit);
+    if (socketStrip.current) socketStrip.current.color.set(lit);
     if (Math.abs(t - lastDraw.current) > 0.09 || lastDraw.current < 0) {
       drawScreen(screen.c, r);
       screen.tex.needsUpdate = true;
@@ -131,7 +140,11 @@ function Props({ charge }: { charge: Charge }) {
           <boxGeometry args={[0.1, 0.1, 0.03]} />
           <meshStandardMaterial color="#0f1013" roughness={0.7} />
         </mesh>
-        <mesh position={[cableOut[0] - pedestal.x, cableOut[1], cableOut[2] - pedestal.z - 0.003]} rotation-x={Math.PI / 2}>
+        {/* the cable's grommet, in the pedestal's own frame (it is turned half way round for a port on the passenger's side) */}
+        <mesh
+          position={[pedestal.face * (cableOut[0] - pedestal.x), cableOut[1], pedestal.face * (cableOut[2] - pedestal.z) - 0.003]}
+          rotation-x={Math.PI / 2}
+        >
           <cylinderGeometry args={[0.02, 0.02, 0.012, 16]} />
           <meshStandardMaterial color="#0f1013" roughness={0.7} />
         </mesh>
@@ -139,6 +152,7 @@ function Props({ charge }: { charge: Charge }) {
       <mesh ref={cable} material={cableMat} frustumCulled={false}>
         <bufferGeometry />
       </mesh>
+      {socket && <Socket port={socket} strip={socketStrip} />}
       <group ref={gun}>
         <Gun />
       </group>
@@ -146,15 +160,80 @@ function Props({ charge }: { charge: Charge }) {
   );
 }
 
+/** The DC cup's contacts, in the cup's frame; the gun's face is the cup the other way round (`flip`). */
+function contacts(flip: boolean) {
+  const k = flip ? -1 : 1;
+  const out: { x: number; y: number; r: number; long: number }[] = [];
+  for (const [x, y, r] of DC_BIG) out.push({ x: k * x * DC_R, y: -y * DC_R, r: r * DC_R * 0.62, long: 0.016 });
+  for (const [x, y, r] of DC_EARTH) out.push({ x: k * x * DC_R, y: -y * DC_R, r: r * DC_R * 0.6, long: 0.012 });
+  for (const [x, y, r] of DC_SIGNAL) out.push({ x: k * x * DC_R, y: -y * DC_R, r: r * DC_R * 0.5, long: 0.008 });
+  return out;
+}
+
+/**
+ * A DC socket drawn on a car whose model has no flap: the seam of a flap that has opened, the dark pocket, the cup with
+ * its contacts and the light strip above it, at the car's charge port. It grows out of the skin when the demo opens the
+ * flap and shrinks back when it shuts. The size is a flap's, about 19 by 15 cm; the place is `Vehicle.chargePort`.
+ */
+function Socket({ port, strip }: { port: ChargePort; strip: React.RefObject<THREE.MeshBasicMaterial | null> }) {
+  const group = React.useRef<THREE.Group>(null);
+  const open = React.useRef(0);
+  const pins = React.useMemo(() => contacts(false), []);
+  // z along the axis out of the port, y as near to up as the skin allows
+  const quat = React.useMemo(() => {
+    const z = new THREE.Vector3(...port.axis).normalize();
+    const y = new THREE.Vector3(0, 1, 0).addScaledVector(z, -z.y).normalize();
+    const x = new THREE.Vector3().crossVectors(y, z).normalize();
+    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  }, [port]);
+  const pos = React.useMemo(
+    () => new THREE.Vector3(...port.mouth).addScaledVector(new THREE.Vector3(...port.axis), 0.006),
+    [port],
+  );
+
+  useFrame((_, dt) => {
+    const g = group.current;
+    if (!g) return;
+    const goal = useVehicleStore.getState().openings.charge ? 1 : 0;
+    open.current += (goal - open.current) * Math.min(1, dt * 9);
+    if (Math.abs(goal - open.current) < 0.004) open.current = goal;
+    g.visible = open.current > 0.01;
+    g.scale.setScalar(Math.max(open.current, 0.001));
+  });
+
+  return (
+    <group ref={group} position={pos} quaternion={quat} visible={false}>
+      <RoundedBox args={[0.19, 0.15, 0.004]} radius={0.03} smoothness={3} position={[0, 0, 0.002]}>
+        <meshStandardMaterial color="#1c1e22" roughness={0.55} metalness={0.2} />
+      </RoundedBox>
+      <RoundedBox args={[0.17, 0.13, 0.006]} radius={0.026} smoothness={3} position={[0, 0, 0.004]}>
+        <meshStandardMaterial color="#0b0c0f" roughness={0.8} />
+      </RoundedBox>
+      <mesh rotation-x={Math.PI / 2} position={[0, -0.008, 0.01]}>
+        <cylinderGeometry args={[0.036, 0.036, 0.016, 32]} />
+        <meshStandardMaterial color="#17191d" roughness={0.6} />
+      </mesh>
+      <mesh position={[0, -0.008, 0.0185]}>
+        <torusGeometry args={[0.0345, 0.0035, 10, 40]} />
+        <meshStandardMaterial color="#34373d" roughness={0.45} metalness={0.4} />
+      </mesh>
+      {pins.map((p, i) => (
+        <mesh key={i} rotation-x={Math.PI / 2} position={[p.x, p.y - 0.008, 0.0185 - p.long / 2]}>
+          <cylinderGeometry args={[p.r, p.r, p.long, 14]} />
+          <meshStandardMaterial color={i < 2 ? '#b9923f' : '#8a8d92'} roughness={0.3} metalness={0.9} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.058, 0.0075]}>
+        <boxGeometry args={[0.1, 0.007, 0.003]} />
+        <meshBasicMaterial ref={strip} color="#9fb4ff" toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 /** The gun, its nose's tip at the origin and the nose pointing +Z, the grip down (-Y). */
 function Gun() {
-  const pins = React.useMemo(() => {
-    const out: { x: number; y: number; r: number; long: number }[] = [];
-    for (const [x, y, r] of DC_BIG) out.push({ x: -x * DC_R, y: -y * DC_R, r: r * DC_R * 0.62, long: 0.016 });
-    for (const [x, y, r] of DC_EARTH) out.push({ x: -x * DC_R, y: -y * DC_R, r: r * DC_R * 0.6, long: 0.012 });
-    for (const [x, y, r] of DC_SIGNAL) out.push({ x: -x * DC_R, y: -y * DC_R, r: r * DC_R * 0.5, long: 0.008 });
-    return out;
-  }, []);
+  const pins = React.useMemo(() => contacts(true), []);
   return (
     <group>
       {/* the head: a black barrel, its face with the pins */}
@@ -253,7 +332,7 @@ function drawScreen(c: HTMLCanvasElement, r: ChargeReadout) {
         : r.phase === 'charging'
           ? 'Charging'
           : r.phase === 'charged'
-            ? 'Charged to 80 %'
+            ? `Charged to ${Math.round(r.target * 100)} %`
             : 'Unplugged';
   ctx.fillStyle = r.phase === 'charging' || r.phase === 'charged' ? '#33e07a' : '#c9cfdd';
   ctx.font = '600 24px system-ui, sans-serif';

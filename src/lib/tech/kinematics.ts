@@ -54,6 +54,12 @@ export type Segment =
       distance: number;
       /** the direction of travel in the car's frame, rad (0 straight ahead; a crab walk is a small angle) */
       angle?: number;
+      /**
+       * The angles the wheels are really set to, per corner (FL, FR, RL, RR), rad, when they are not all the direction of
+       * travel: a car whose rear wheels turn less than its fronts (the Z9's crab walk: rear wheels at most 10 degrees, the
+       * crab angle up to 15). A wheel off its own velocity rolls the part of it that lies along its plane and scrubs the rest.
+       */
+      steer?: readonly number[];
       label?: string;
     }
   | {
@@ -62,6 +68,12 @@ export type Segment =
       about: Vec2;
       /** signed, rad: positive is counter-clockwise from above (the car swings left) */
       angle: number;
+      /**
+       * The angles the wheels are really set to, when they cannot take the direction a no-slip turn asks of them: a
+       * compass turn about a front wheel asks the rear wheels to point sideways, and the Z9 splays them 10 degrees
+       * instead and lets the tyres scrub. The pivot wheel (no velocity) keeps its angle.
+       */
+      steer?: readonly number[];
       label?: string;
     };
 
@@ -195,8 +207,10 @@ export function segmentWheels(
     const w = layout.wheels[c];
     if (seg.kind === 'move') {
       const beta = seg.angle ?? 0;
-      steer.push(beta);
-      roll.push(Math.sign(seg.distance) || 1);
+      const set = seg.steer?.[i] ?? beta;
+      steer.push(set);
+      // a wheel set off the direction of travel rolls only the part of the path that lies along its plane
+      roll.push((Math.sign(seg.distance) || 1) * Math.cos(beta - set));
       reach = 1;
     } else {
       const rx = w.x - seg.about.x;
@@ -204,17 +218,20 @@ export function segmentWheels(
       const r = Math.hypot(rx, ry);
       const omega = Math.sign(seg.angle) || 1;
       if (r < 1e-6) {
-        steer.push(hold[i] ?? 0);
+        steer.push(seg.steer?.[i] ?? hold[i] ?? 0);
         roll.push(0);
         return;
       }
       // contact velocity of a point turning counter-clockwise about the centre
       const vx = -omega * ry;
       const vy = omega * rx;
-      const d = fold(Math.atan2(vy, vx));
+      const set = seg.steer?.[i];
+      const d = set ?? fold(Math.atan2(vy, vx));
       steer.push(d);
-      // rolling forward along the wheel's own heading, or backward
-      roll.push(Math.sign(vx * Math.cos(d) + vy * Math.sin(d)) * r);
+      // rolling forward along the wheel's own heading, or backward; with the wheel set by hand, the
+      // velocity's component along its plane (the rest is scrub)
+      const along = vx * Math.cos(d) + vy * Math.sin(d);
+      roll.push(set === undefined ? Math.sign(along) * r : along);
       reach = Math.max(reach, r);
     }
   });

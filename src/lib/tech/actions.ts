@@ -3,7 +3,7 @@
  * whichever tab the visitor is on when they ask.
  */
 import type { TechDevice } from '@/data/vehicles/schema';
-import { useVehicleStore } from '@/store/vehicle-store';
+import { isStageTab, useVehicleStore } from '@/store/vehicle-store';
 import { techClock } from './clock';
 import { techSession } from './session';
 
@@ -14,7 +14,7 @@ import { techSession } from './session';
  */
 export function startDemo(demoId: string, device: TechDevice) {
   const st = useVehicleStore.getState();
-  if (st.tab === 'tech' && techSession.runtime?.demoId === demoId) {
+  if (isStageTab(st.tab) && techSession.runtime?.demoId === demoId) {
     techClock.play();
     return;
   }
@@ -22,13 +22,13 @@ export function startDemo(demoId: string, device: TechDevice) {
 }
 
 /**
- * A tap on the car's own "charge port cover" (the Vehicle charging page's tile, the Home chip). In the fast-charge
- * demo it is what starts the demo and, at its stop, what sends the gun home; anywhere else it opens or shuts the
+ * A tap on the car's own "charge port cover" (the Vehicle charging page's tile, the Home chip). On the Charging tab
+ * it is what starts the charge and, at its stop, what sends the gun home; anywhere else it opens or shuts the
  * flap. Returns nothing: the screens read the demo's clock.
  */
 export function tapChargeFlap() {
   const st = useVehicleStore.getState();
-  if (st.tab === 'tech' && techSession.runtime?.charge) {
+  if (isStageTab(st.tab) && techSession.runtime?.charge) {
     if (!techClock.playing) techClock.play();
     return;
   }

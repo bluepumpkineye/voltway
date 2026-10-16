@@ -16,6 +16,7 @@ import type { SensorsRun } from './sensors';
 import type { RideMode, RideRun } from './ride';
 import type { Sample } from './kinematics';
 import type { BodyBox, ParkStage } from './park';
+import type { StreetRun, StreetStage } from './street';
 
 export interface Runtime {
   demoId: string;
@@ -32,9 +33,11 @@ export interface Runtime {
   /** the launch's speed, pull and stopwatch at time t, and the published times it is checked against (its readout) */
   launch?: LaunchRun['launch'] | null;
   /** the fast-charge demo: the gun, the readout and the curve (the car's charging page, the pedestal, the chart) */
-  charge?: Pick<ChargeRun, 'readout' | 'gun' | 'curve' | 'pedestal' | 'cableOut' | 'gunExit'> | null;
+  charge?: Pick<ChargeRun, 'readout' | 'gun' | 'curve' | 'pedestal' | 'cableOut' | 'gunExit' | 'profile'> | null;
   /** the sensor demo: the pedestrian and the readout at time t, and the car's nose */
   sensors?: (SensorsRun['scenario'] & { frontX: number }) | null;
+  /** a chassis demo (crab walk, compass turn, U-turn): the wheels' readout at time t, the street and what the manoeuvre needed */
+  chassis?: { readout: StreetRun['readout']; facts: StreetRun['facts']; stage: StreetStage } | null;
 }
 
 type Listener = () => void;
@@ -65,6 +68,13 @@ export function useRuntime(): Runtime | null {
   return React.useSyncExternalStore(techSession.subscribe, techSession.snapshot, () => null);
 }
 
+/** A chassis demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
+export function useChassisReadout(): ReturnType<NonNullable<Runtime['chassis']>['readout']> | null {
+  const chassis = useRuntime()?.chassis;
+  const clock = useTechClock();
+  return chassis ? chassis.readout(clock.t) : null;
+}
+
 /** The sensor demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
 export function useSensorsReadout(): ReturnType<NonNullable<Runtime['sensors']>['readout']> | null {
   const sensors = useRuntime()?.sensors;
@@ -72,7 +82,7 @@ export function useSensorsReadout(): ReturnType<NonNullable<Runtime['sensors']>[
   return sensors ? sensors.readout(clock.t) : null;
 }
 
-/** The fast-charge demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
+/** The Charging tab's readout at the clock's time (10 Hz while it runs), or null when no charge is on. */
 export function useChargeReadout(): ChargeReadout | null {
   const charge = useRuntime()?.charge;
   const clock = useTechClock();

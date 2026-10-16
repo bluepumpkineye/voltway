@@ -131,7 +131,7 @@ function MirrorFloor() {
   const invalidate = useThree((s) => s.invalidate);
   const mat = React.useRef<React.ElementRef<typeof MeshReflectorMaterial>>(null);
 
-  // the Dimensions tab writes on the floor: ease the reflection back so the
+  // the Specifications tab writes on the floor: ease the reflection back so the
   // rulers and their labels read cleanly, and forward again on the other tabs
   useFrame((_, dt) => {
     const m = mat.current;

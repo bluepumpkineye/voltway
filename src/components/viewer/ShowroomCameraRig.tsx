@@ -67,7 +67,9 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const stage = useVehicleStore((s) => s.techStage);
   // what a device (the Tech tab's phone or car screen, the Dashboard tab's car screen) covers of the window:
   // every pose frames the car in the part that is left
-  const inset = useVehicleStore((s) => s.deviceInset);
+  const deviceInset = useVehicleStore((s) => s.deviceInset);
+  const uiTop = useVehicleStore((s) => s.uiTop);
+  const inset = React.useMemo(() => ({ ...deviceInset, top: uiTop }), [deviceInset, uiTop]);
   const frame = React.useMemo(
     () => (stage ? { ...carFrame, inset, stage: { ...stage, inset } } : { ...carFrame, inset }),
     [carFrame, stage, inset],

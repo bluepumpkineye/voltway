@@ -9,7 +9,7 @@ import type { CarFrame } from '@/lib/showroom/anchors';
 import { STAGE_LAYER } from './StudioShowroom';
 
 /**
- * Floor rulers for the Dimensions tab: length and wheelbase along the driver's
+ * Floor rulers for the Specifications tab: length and wheelbase along the driver's
  * side, width across the nose, height at the nose, each with its published
  * figure. The figures come from the vehicle's data (the maker's numbers); the
  * lines are placed from the mesh the viewer measured. Labels are painted into

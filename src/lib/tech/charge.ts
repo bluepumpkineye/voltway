@@ -1,14 +1,15 @@
 import type { Layout, PlannedRun, Sample } from './kinematics';
 
 /**
- * The fast-charge demo's run (docs/tech-showcase.md section 11): the car's flap opens, a charging gun is drawn
- * from its pedestal and plugged into the DC socket, the car charges from 10 to 80 %, the gun comes out and the
- * flap closes. The car does not move.
+ * The Charging tab's run (docs/tech-showcase.md section 11): the car's flap opens, a charging gun is drawn
+ * from its pedestal and plugged into the DC socket, the car charges through the window its maker quotes (10 to 80 %
+ * in ten minutes at best, for the Zeekr 7X), the gun comes out and the flap closes. The car does not move.
  *
- * Published: 620 kW peak and 10 to 80 % in 10 minutes "at best" for the 103 kWh 6C pack (Xinhua, 2025-11-03).
- * Ours, said on screen: the curve between (a ramp up to the peak, a plateau, a taper that makes the ten minutes
- * come out exactly), the pedestal, the gun and its cable, and the speed of the clock: ten minutes play in 14
- * seconds. No value imports: it runs under plain Node, as ride.ts does.
+ * Published, per car (Vehicle.charging): the window and its minutes, and the peak where the maker gives one. Ours,
+ * said on screen: the curve between (a ramp up to the peak, a plateau, a taper that makes the minutes come out
+ * exactly), a peak the maker does not publish (derived from its C-rate, or from the window's average power), the
+ * pedestal, the gun and its cable, and the speed of the clock: the minutes play in 14 seconds. No value imports: it
+ * runs under plain Node, as ride.ts does.
  */
 
 /** The charge port, in the viewer's axes (x forward, y up, z toward the passenger side), from the model. */
@@ -37,11 +38,18 @@ export const T = {
 export const T_STOP = T.charge0 + T.chargeDur;
 const T_END = T_STOP + T.flapCloses + T.tail;
 
-/** the simulated length of the charge, s (10 to 80 %, at best, published) */
-export const SIM_SECONDS = 600;
-export const SOC_FROM = 0.1;
-export const SOC_TO = 0.8;
-export const PEAK_KW = 620;
+/**
+ * What a charge is: the pack, the window the maker quotes (state of charge, 0 to 1) and the seconds it takes there,
+ * and the power the curve peaks at.
+ */
+export interface ChargeProfile {
+  kwh: number;
+  from: number;
+  to: number;
+  /** the simulated length of the charge, s */
+  seconds: number;
+  peakKw: number;
+}
 
 export type ChargePhase = 'ready' | 'opening' | 'connecting' | 'charging' | 'charged' | 'unplugging' | 'done';
 
@@ -49,6 +57,8 @@ export interface ChargeReadout {
   phase: ChargePhase;
   /** 0 to 1 */
   soc: number;
+  /** where the charge stops, 0 to 1 */
+  target: number;
   kw: number;
   /** simulated time charging, s, and what is left to 80 % */
   elapsed: number;
@@ -69,13 +79,15 @@ export interface GunPose {
 
 export interface ChargeRun {
   track: PlannedRun;
+  profile: ChargeProfile;
   stops: number[];
   flapOpen: (t: number) => boolean;
   gun: (t: number) => GunPose;
   readout: (t: number) => ChargeReadout;
   /** the curve for the chart: kW against simulated seconds */
   curve: { s: number; kw: number; soc: number }[];
-  pedestal: { x: number; z: number; yaw: number };
+  /** where the pedestal stands, and which way its face points (1: toward +z, as for a port on the driver's side; -1: toward -z) */
+  pedestal: { x: number; z: number; yaw: number; face: 1 | -1 };
   /** where the cable leaves the pedestal, and the gun's cable exit in the gun's own frame (forward, up, right) */
   cableOut: [number, number, number];
   gunExit: [number, number, number];
@@ -92,42 +104,53 @@ const norm = (v: number[]): [number, number, number] => {
   return [v[0] / l, v[1] / l, v[2] / l];
 };
 
-/** the charging power as a fraction of the peak at a state of charge: ramp, plateau, taper to `q` at 80 % */
-function shape(s: number, q: number): number {
-  if (s < 0.25) return lerp(0.72, 1, smooth((s - SOC_FROM) / (0.25 - SOC_FROM)));
+/**
+ * The charging power as a fraction of the peak at a state of charge: a ramp up over the first stretch of the window, a
+ * plateau to 45 %, a taper to `q` at the window's end. A window that starts above 25 % (the RX's 30 to 80) skips the ramp.
+ */
+function shape(s: number, q: number, p: ChargeProfile): number {
+  if (s < 0.25) return lerp(0.72, 1, smooth((s - p.from) / Math.max(0.25 - p.from, 1e-6)));
   if (s < 0.45) return 1;
-  return lerp(1, q, smooth((s - 0.45) / (SOC_TO - 0.45)));
+  return lerp(1, q, smooth((s - 0.45) / Math.max(p.to - 0.45, 1e-6)));
 }
 
-/** the seconds from 10 to 80 % at the shape's `q`, for a pack of `kwh` */
-function seconds(kwh: number, q: number): number {
+/** the seconds through the window at the shape's `q` */
+function secondsAt(q: number, p: ChargeProfile): number {
   const n = 700;
-  const ds = (SOC_TO - SOC_FROM) / n;
+  const ds = (p.to - p.from) / n;
   let t = 0;
   for (let i = 0; i < n; i++) {
-    const s = SOC_FROM + (i + 0.5) * ds;
-    t += (kwh * ds * 3600) / (PEAK_KW * shape(s, q));
+    const s = p.from + (i + 0.5) * ds;
+    t += (p.kwh * ds * 3600) / (p.peakKw * shape(s, q, p));
   }
   return t;
 }
 
-/** The charging curve: the taper that makes 10 to 80 % take exactly the published ten minutes. */
-export function chargeCurve(kwh: number): { s: number; kw: number; soc: number }[] {
+/**
+ * The peak a curve needs to cross the window in the minutes the maker quotes, when the maker does not publish one:
+ * the window's average power, with headroom for the taper. Ours, and the tab says so.
+ */
+export function derivedPeakKw(kwh: number, from: number, to: number, seconds: number): number {
+  return Math.round(((kwh * (to - from) * 3600) / seconds) * 1.28);
+}
+
+/** The charging curve: the taper that makes the window take exactly the published minutes. */
+export function chargeCurve(p: ChargeProfile): { s: number; kw: number; soc: number }[] {
   let lo = 0.05;
   let hi = 1.0;
   for (let i = 0; i < 40; i++) {
     const q = (lo + hi) / 2;
-    if (seconds(kwh, q) > SIM_SECONDS) lo = q;
+    if (secondsAt(q, p) > p.seconds) lo = q;
     else hi = q;
   }
   const q = (lo + hi) / 2;
   const out: { s: number; kw: number; soc: number }[] = [];
   const dt = 1;
-  let soc = SOC_FROM;
-  for (let t = 0; t <= SIM_SECONDS + 1e-6; t += dt) {
-    const kw = PEAK_KW * shape(soc, q);
+  let soc = p.from;
+  for (let t = 0; t <= p.seconds + 1e-6; t += dt) {
+    const kw = p.peakKw * shape(soc, q, p);
     out.push({ s: t, kw, soc });
-    soc += (kw * dt) / (kwh * 3600);
+    soc += (kw * dt) / (p.kwh * 3600);
   }
   return out;
 }
@@ -136,10 +159,11 @@ export function planCharge(
   layout: Layout,
   body: { rear: number; front: number; halfWidth: number },
   start: { x: number; y: number; yaw: number },
-  opts: { port: ChargePort; kwh: number },
+  opts: { port: ChargePort; profile: ChargeProfile },
 ): ChargeRun {
-  const { port, kwh } = opts;
-  const curve = chargeCurve(kwh);
+  const { port, profile } = opts;
+  const { kwh, from: SOC_FROM, seconds: SIM_SECONDS } = profile;
+  const curve = chargeCurve(profile);
   const at = (sim: number) => {
     const f = Math.min(Math.max(sim, 0), SIM_SECONDS);
     const i = Math.min(Math.floor(f), curve.length - 2);
@@ -169,12 +193,14 @@ export function planCharge(
     return t >= T_END - 1e-3 ? 'done' : 'unplugging';
   };
 
-  // the pedestal stands out from the left flank, level with the port; the gun hangs on its front face
+  // the pedestal stands out from the flank the port is on, level with the port; the gun hangs on its face, which
+  // looks at the car: toward +z for a port on the driver's side (z < 0), toward -z for one on the passenger's
   const out = port.axis;
+  const face: 1 | -1 = out[2] < 0 ? 1 : -1;
   const px = port.mouth[0] + 0.55;
   const pz = port.mouth[2] + out[2] * 1.35;
   const FRONT = 0.115;
-  const holster: [number, number, number] = [px, 1.1, pz + FRONT + 0.01];
+  const holster: [number, number, number] = [px, 1.1, pz + face * (FRONT + 0.01)];
   const A: [number, number, number] = [port.mouth[0] + out[0] * 0.24, port.mouth[1] + out[1] * 0.24, port.mouth[2] + out[2] * 0.24];
   const seat: [number, number, number] = [
     port.mouth[0] - out[0] * port.depth, port.mouth[1] - out[1] * port.depth, port.mouth[2] - out[2] * port.depth,
@@ -182,8 +208,8 @@ export function planCharge(
   const fwdPort = norm([-out[0], -out[1], -out[2]]);
   const psi1 = Math.atan2(fwdPort[0], fwdPort[2]);
   const pitch1 = Math.asin(fwdPort[1]);
-  const psi0 = Math.PI;                        // the gun goes into the pedestal pointing away from the car
-  const pull: [number, number, number] = [holster[0] + 0.02, holster[1] + 0.03, holster[2] + 0.28];
+  const psi0 = face === 1 ? Math.PI : 0;       // the gun goes into the pedestal pointing away from the car
+  const pull: [number, number, number] = [holster[0] + 0.02, holster[1] + 0.03, holster[2] + face * 0.28];
   // the way out, turning through the car's front: pull, a high swing, the approach
   const waypoints = [holster, pull, [lerp(pull[0], A[0], 0.55), Math.max(pull[1], A[1]) + 0.12, lerp(pull[2], A[2], 0.5)], A];
   const spline = (s: number): [number, number, number] => {
@@ -238,6 +264,7 @@ export function planCharge(
     const { kw, soc } = at(sm);
     return {
       phase: ph,
+      target: profile.to,
       soc: t < T.charge0 ? SOC_FROM : soc,
       kw: ph === 'charging' ? kw : 0,
       elapsed: t < T.charge0 ? 0 : sm,
@@ -249,20 +276,21 @@ export function planCharge(
 
   return {
     track,
+    profile,
     stops: [T_STOP],
     flapOpen,
     gun,
     readout,
     curve,
-    pedestal: { x: px, z: pz, yaw: 0 },
-    cableOut: [px + 0.075, 0.62, pz + FRONT],
+    pedestal: { x: px, z: pz, yaw: face === 1 ? 0 : Math.PI, face },
+    cableOut: [px + 0.075, 0.62, pz + face * FRONT],
     gunExit: [-0.215, -0.17, 0],
-    // the rear three-quarter of the car's left side: the port, the pedestal ahead of it
+    // the rear three-quarter of the car's side the port is on: the port, the pedestal ahead of it
     frame: {
       cx: port.mouth[0] + 0.05,
       cz: (port.mouth[2] + pz) / 2,
       radius: 1.8,
-      camera: { az: 126, el: 10 },
+      camera: { az: face === 1 ? 126 : -126, el: 10 },
     },
   };
 }

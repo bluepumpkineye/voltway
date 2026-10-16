@@ -21,6 +21,7 @@ import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
 import { TechSensors } from './TechSensors';
 import { TechStage } from './TechStage';
+import { TechLotDressing, TechStreet } from './TechStreet';
 import { CarRoot } from './techRig';
 
 /**
@@ -64,6 +65,8 @@ export function ShowroomViewer({
         dpr={[1, 2]}
         gl={{
           antialias: true,
+          // the cabin is drawn through a stencil of the clear glass (clearGlass.ts)
+          stencil: true,
           // the Khronos PBR Neutral curve the Blender renders use
           toneMapping: THREE.NeutralToneMapping,
           toneMappingExposure: 0.92,
@@ -137,8 +140,10 @@ function Stage({
       )}
       {/* the lot a tech demo drives in, when it has one */}
       {!inside && <TechStage />}
+      {!inside && <TechStreet />}
+      {!inside && <TechLotDressing />}
       {!inside && <TechRoad vehicle={vehicle} />}
-      {!inside && <TechCharge />}
+      {!inside && <TechCharge vehicle={vehicle} />}
       {!inside && <TechSensors vehicle={vehicle} />}
       {/* the car and its baked shadow stand in one group, so a tech demo moves them together */}
       <CarRoot vehicle={vehicle}>

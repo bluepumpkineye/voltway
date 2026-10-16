@@ -6,9 +6,7 @@ import { techClock, useTechClock } from '@/lib/tech/clock';
 import { runPhase } from '@/lib/tech/phase';
 import { BUTTONS, afterPress, type ButtonId } from '@/lib/tech/swivel';
 import { useVehicleStore } from '@/store/vehicle-store';
-import { GLASS } from './Chrome';
-
-const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/70 focus-visible:ring-offset-1';
+import { FOCUS, GLASS } from './Chrome';
 
 const FACING = { driver: 'toward the driver', centre: 'square on', passenger: 'toward the passenger' } as const;
 
@@ -27,7 +25,7 @@ export function SwivelTools() {
   // this panel covers the foot of the window: the cabin picture is lifted clear of it
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   React.useEffect(() => {
-    setInset({ right: 0, bottom: 0.3 });
+    setInset({ right: 0, bottom: 0.2 });
     return () => setInset({ right: 0, bottom: 0 });
   }, [setInset]);
 
@@ -73,9 +71,6 @@ export function SwivelTools() {
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[10.5px] leading-snug text-neutral-500">
-        16.1 in · 55 mm forward and back · up to 30° to either side <span className="text-neutral-400">published, some trims only</span>. The speed it moves at is ours.
-      </p>
     </div>
   );
 }

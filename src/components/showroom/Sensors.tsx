@@ -8,9 +8,7 @@ import { runPhase } from '@/lib/tech/phase';
 import type { SensorsState } from '@/lib/tech/sensors';
 import { useSensorsReadout } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
-import { GLASS } from './Chrome';
-
-const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/70 focus-visible:ring-offset-1';
+import { FOCUS, GLASS } from './Chrome';
 
 /** The groups of sensors the demo draws: the colour in the scene, what it is, and the maker's count where there is one. */
 const GROUPS: { id: LayerId; label: string; note: string; color: string }[] = [
@@ -33,7 +31,7 @@ const SAYS: Record<SensorsState, string> = {
 /**
  * The sensor demo's own panel, the showroom's and not the car's (the car's screen has no photographed page for it): the
  * button that starts the run, what the car is doing now, and a switch for each group of sensors. The counts are the
- * maker's and Autohome's, the cones and the scenario are ours; the panel says so under the controls.
+ * maker's and Autohome's (a tooltip on each switch), the cones and the scenario are ours; the demo's facts say so.
  */
 export function SensorsTools() {
   const clock = useTechClock();
@@ -43,7 +41,7 @@ export function SensorsTools() {
   // this panel covers the foot of the window: the camera keeps the car clear of it
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   React.useEffect(() => {
-    setInset({ right: 0, bottom: 0.3 });
+    setInset({ right: 0, bottom: 0.2 });
     return () => setInset({ right: 0, bottom: 0 });
   }, [setInset]);
 
@@ -76,22 +74,16 @@ export function SensorsTools() {
             type="button"
             aria-pressed={layers[g.id]}
             onClick={() => toggleLayer(g.id)}
-            title={g.note}
+            title={`${g.label}: ${g.note}`}
             className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] transition-opacity ${FOCUS} ${
               layers[g.id] ? 'bg-black/[0.07] text-neutral-800' : 'bg-black/[0.03] text-neutral-400'
             }`}
           >
             <span className="h-[8px] w-[8px] shrink-0 rounded-full" style={{ background: layers[g.id] ? g.color : '#c9ccd2' }} aria-hidden />
             {g.label}
-            <span className="text-neutral-400">{g.note}</span>
           </button>
         ))}
       </div>
-      <p className="mt-2 text-[10.5px] leading-snug text-neutral-500">
-        38 sensors in all <span className="text-neutral-400">published</span>; five radars are not drawn, and no sensor’s field of view is published, so the cones
-        and their reach are illustrations (the real lidar recognises a 14 cm box at 120 m). A dot is a sensor a photograph shows; a ring is a position reported
-        or not published. The pedestrian and the braking are our scenario.
-      </p>
     </div>
   );
 }
