@@ -16,6 +16,10 @@ A car's config (see z9_cabin.CFG):
     skip_leak   name fragments the leak QA ignores
     protected   cabin nodes that stay separate in the glTF (merge_for_export)
     cluster     callable() -> the cluster's resting image path (or None)
+    join_cards  callable() joining each door card's parts into one node on its hinge (optional: a car whose
+                doors open)
+    set_open    callable(on) swinging every door and the tailgate open (True) or shut (False), cabin parts
+                included (optional: the second, "open" bake needs it)
 
 Run a script in a background Blender (never the user's open session, see docs/3d-pipeline.md):
 
@@ -198,6 +202,29 @@ def bake_cabin(cfg, samples=256, probe_samples=384, probe=True):
     return stats
 
 
+def bake_cabin_open(cfg, samples=256):
+    """The same vertex lighting with every door and the tailgate open: the second set of light the viewer blends in
+    as a part swings open (the cabin is lit by the doorways, the boot by the sky). Needs the exterior's parts split
+    and hinged (the car's prepare_exterior) and cfg['join_cards'] / cfg['set_open']."""
+    from carkit import bake as BK
+    col = bpy.data.collections[cfg["collection"]]
+    cfg["join_cards"]()
+    cfg["set_open"](True)
+    hidden = cabin_lighting(cfg)
+    try:
+        with BK.thin_glass():
+            objs = BK.prepare(col, attr=BK.ATTR_OPEN)
+            stats = BK.vertex_lighting(objs, samples=samples, attr=BK.ATTR_OPEN,
+                                       scale=BK.STORE_SCALE * cfg.get("gain", 1.0))
+            BK.smooth(objs, attr=BK.ATTR_OPEN)
+            BK.to_generic(objs, BK.ATTR_OPEN, BK.EXPORT_ATTR_OPEN)
+    finally:
+        for ob in hidden:
+            ob.hide_render = False
+        cfg["set_open"](False)
+    return stats
+
+
 def export_outside(cfg):
     """The view out (JPEG, tone mapped as the viewer does) and its light (HDR)."""
     from carkit import bake as BK
@@ -253,6 +280,8 @@ def export_interior(cfg, draco=True):
         and m.name != "INT_Screen" and not m.name.startswith("INT_Display")))
     for o in [o for o in col.objects if o.type == 'LIGHT']:
         bpy.data.objects.remove(o, do_unlink=True)
+    if cfg.get("join_cards"):
+        cfg["join_cards"]()
     join_prefix(cfg["collection"], "int_headliner", "int_headliner")
     groups = [(cfg["node"], cfg["collection"])]
     merged = _X.merge_for_export(groups, cfg["protected"])

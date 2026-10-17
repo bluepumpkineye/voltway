@@ -216,6 +216,42 @@ export const denzaZ9: Vehicle = {
       { label: 'Denza Official — Z9 Executive Flagship Sedan', url: 'https://www.denza.com/' },
     ],
   },
+  // The four doors swing on their leading edge (the hinge: mid height, on the skin; blender/scripts/z9_openings.py). The
+  // node origins are the hinges, and the cabin's door cards turn about the same axes. The sign is the swing direction
+  // (glTF y up): the left doors turn negative.
+  openings: [
+    { id: 'doorFL', node: 'DenzaZ9_Door_FL', cardNode: 'int_door_L', frameNode: 'DenzaZ9_DoorFrame_FL', deg: -72 },
+    { id: 'doorFR', node: 'DenzaZ9_Door_FR', cardNode: 'int_door_R', frameNode: 'DenzaZ9_DoorFrame_FR', deg: 72 },
+    { id: 'doorRL', node: 'DenzaZ9_Door_RL', cardNode: 'int_rdoor_L', frameNode: 'DenzaZ9_DoorFrame_RL', deg: -66 },
+    { id: 'doorRR', node: 'DenzaZ9_Door_RR', cardNode: 'int_rdoor_R', frameNode: 'DenzaZ9_DoorFrame_RR', deg: 66 },
+    // The bonnet hinges on a lateral axis under its rear edge at the cowl and stands about 76 deg open (c12_0001/2); two
+    // thin gas struts hold it from the cowl's corners (c12_0064). The frunk under it is blender/scripts/z9_bays.py.
+    {
+      id: 'frunk',
+      node: 'DenzaZ9_Bonnet',
+      axis: 'z',
+      deg: 76,
+      struts: [
+        { body: [1.05, 0.9, -0.7], moving: [1.3, 0.935, -0.7] },
+        { body: [1.05, 0.9, 0.7], moving: [1.3, 0.935, 0.7] },
+      ],
+    },
+    // The boot lid is the whole short rear above the bumper's top edge: the decklid, the upper tail, the gate and the middle of
+    // the two lamps. It hangs from the backlight's base (blender/scripts/z9_gate.py) and swings up about 80 deg (Autohome
+    // c3_0179/229/230, where two black swan-neck arms hold it: drawn here as two struts at the opening's front corners).
+    // The cabin's liner turns with it.
+    {
+      id: 'boot',
+      node: 'DenzaZ9_Tailgate',
+      cardNode: 'int_tailgate',
+      axis: 'z',
+      deg: -80,
+      struts: [
+        { body: [-2.12, 0.93, -0.62], moving: [-2.4, 0.98, -0.62] },
+        { body: [-2.12, 0.93, 0.62], moving: [-2.4, 0.98, 0.62] },
+      ],
+    },
+  ],
   // The Tech tab (docs/tech-showcase.md, section 14). Every source below describes the Z9 GT, the shooting brake on the same
   // e³ platform: the showroom's Z9 is listed with the same two modes in its drive-mode list, but check that the sedan has them.
   tech: [

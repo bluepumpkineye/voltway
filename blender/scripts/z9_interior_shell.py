@@ -14,6 +14,7 @@ import z9_surface as S
 import z9_panels as PN
 import z9_interior as ZI
 import z9_interior_doors as DR
+import z9_gate as GT
 import cabin_parts as CP
 from z9_interior import FLOOR_Z, MIRROR_C, z_glass
 from cabin_parts import smooth as _smooth
@@ -253,7 +254,7 @@ def build_closures(col, lib):
 
 def build_rear_closure(col, lib):
     """Behind the rear seats: a bulkhead from the floor to the parcel shelf, and the shelf back to the
-    backlight's lower edge (the boot is a closed volume under it: the lid does not open)."""
+    backlight's lower edge, and the boot behind the bulkhead (the lid opens, see z9_gate)."""
     made = []
     # the bulkhead behind the rear seat backs
     xb = -1.395
@@ -272,6 +273,11 @@ def build_rear_closure(col, lib):
     M.orient(ob.data, lambda c: (0.0, 0.0, 1.0))
     M.mirror_y(ob)
     made.append(ob)
+
+    # the boot: the walls follow the skin at every height, the tail's closes in behind x -2.30, the mouth is 0.74 wide
+    def half(x, z, depth=0.062):
+        return min(0.74, CB.skin_offset_y(S.BODY, max(x, -2.30), z, depth + 0.012, 0.99))
+    made += GT.build_boot(col, lib, half)
     return made
 
 
@@ -354,6 +360,7 @@ def main(lights=True, parts=None):
                 ("doors", lambda: DR.build_doors(col, lib)),
                 ("shell", lambda: build_shell(col, lib)),
                 ("closures", lambda: build_closures(col, lib)),
+                ("gate", lambda: GT.build_liner(col)),
                 ("pedals", lambda: build_pedals(col, lib)))
     for name, fn in builders:
         if parts and name not in parts:

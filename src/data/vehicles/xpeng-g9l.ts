@@ -246,6 +246,43 @@ export const xpengG9l: Vehicle = {
       { label: 'XPeng Official - G9L Flagship Intelligent Luxury SUV', url: 'https://www.xpeng.com/' },
     ],
   },
+  // The four doors swing on their leading edge (the hinge: mid height, on the skin; blender/scripts/g9l_openings.py). The
+  // node origins are the hinges, and the cabin's door cards turn about the same axes. The sign is the swing direction
+  // (glTF y up): the left doors turn negative.
+  openings: [
+    { id: 'doorFL', node: 'XpengG9L_Door_FL', cardNode: 'int_door_L', frameNode: 'XpengG9L_DoorFrame_FL', deg: -70 },
+    { id: 'doorFR', node: 'XpengG9L_Door_FR', cardNode: 'int_door_R', frameNode: 'XpengG9L_DoorFrame_FR', deg: 70 },
+    { id: 'doorRL', node: 'XpengG9L_Door_RL', cardNode: 'int_rdoor_L', frameNode: 'XpengG9L_DoorFrame_RL', deg: -68 },
+    { id: 'doorRR', node: 'XpengG9L_Door_RR', cardNode: 'int_rdoor_R', frameNode: 'XpengG9L_DoorFrame_RR', deg: 68 },
+    // The bonnet hinges on a lateral axis under its rear edge at the cowl and rises about 62 deg (c12_0001); two gas
+    // struts hold it from the cowl's corners (c12_0002). The frunk under it is blender/scripts/g9l_bays.py.
+    {
+      id: 'frunk',
+      node: 'XpengG9L_Bonnet',
+      axis: 'z',
+      deg: 62,
+      struts: [
+        { body: [1.27, 1.10, -0.86], moving: [1.56, 1.215, -0.86] },
+        { body: [1.27, 1.10, 0.86], moving: [1.56, 1.215, 0.86] },
+      ],
+    },
+    // The tailgate is the whole rear above its smile shut line: the backlight with the spoiler, the lamp bar's
+    // middle and the painted gate. It hangs from the roof's trailing edge (blender/scripts/g9l_gate.py) and swings
+    // up about 82 deg on two gas struts at its sides (Autohome c3_0156/57). The cabin's liner turns with it.
+    {
+      id: 'boot',
+      node: 'XpengG9L_Tailgate',
+      cardNode: 'int_tailgate',
+      axis: 'z',
+      deg: -82,
+      hidesOutside: ['int_cpillar', 'int_cpillar_flange'],
+      // the mounts sit inside the C-pillar's sail (its walls are at y 0.64-0.72 there), so a shut car shows no strut
+      struts: [
+        { body: [-2.06, 1.52, -0.665], moving: [-2.27, 1.36, -0.665] },
+        { body: [-2.06, 1.52, 0.665], moving: [-2.27, 1.36, 0.665] },
+      ],
+    },
+  ],
   // The Tech tab (docs/tech-showcase.md, section 14).
   tech: [
     {

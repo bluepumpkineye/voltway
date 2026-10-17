@@ -39,7 +39,8 @@ a demonstration's facts behind the "Simulation" button on its playback bar.
 
 - **Colour:** the maker's own paints. A swatch tweens the clearcoated paint
   material in place; the first swatch is the car exactly as exported from
-  Blender. Tap a door, the bonnet or the tailgate to open it. From outside the
+  Blender. Tap a door, the bonnet or the tailgate to open it (all five cars have four doors, a bonnet over a frunk and a
+  tailgate or boot lid over a boot). From outside the
   windscreen and front windows are clear glass (the X-ray tab's pale ghost) and the
   rear windows, backlight and any glass roof are tinted, with the cabin showing
   through; the Tech tab, whose demos move the car, keeps its glass opaque.

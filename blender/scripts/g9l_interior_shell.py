@@ -14,6 +14,7 @@ import g9l_surface as S
 import g9l_panels as PN
 import g9l_interior as ZI
 import g9l_interior_doors as DR
+import g9l_gate as GT
 import cabin_parts as CP
 from g9l_interior import FLOOR_Z, MIRROR_C, z_glass
 from cabin_parts import smooth as _smooth
@@ -31,7 +32,7 @@ X_OPEN_F, X_OPEN_R = 0.400, -0.320
 Y_OPEN = 0.540                           # the opening's half-width
 X_HEADLINER_R = -2.040                   # the roof's trailing edge
 X_A_FOOT = 1.280
-Z_CARGO = 0.600                          # the cargo floor
+Z_CARGO = GT.Z_CARGO                     # the cargo floor, flush with the sill plate (c3_0157)
 
 
 def glass_top(x):
@@ -270,33 +271,44 @@ def _skin_y(x, z, depth=0.045):
 
 
 def build_cargo(col, lib):
-    """Behind the rear bench: the cargo bay (a carpeted floor, side walls to the belt, a rear wall up to
-    the backlight): the tailgate does not open, so the bay is a closed box under the glass."""
+    """Behind the rear bench: the cargo bay (a carpeted floor, side walls to the belt) open at the back: the tailgate
+    swings up (g9l_gate), so there is no rear wall, only the sill plate and the boot's fittings."""
     made = []
     x0, x1 = -1.34, -2.46
     xs = [x0 + (x1 - x0) * k / 20.0 for k in range(21)]
+    # the bay's half-width at height z, `depth` inboard of the body's skin; the tail's skin closes in behind x -2.30
+    # and the opening's mouth is 0.78 wide (c3_0157), so neither is passed
+    def half(x, z, depth=0.062):
+        return min(0.78, CB.skin_offset_y(S.BODY, max(x, -2.30), z, depth, 0.99))
     rows = []
     for x in xs:
-        hw = _skin_y(x, 1.0, 0.062)
+        hw = half(x, Z_CARGO)
         rows.append([(x, hw * j / 12.0, Z_CARGO) for j in range(13)])
-    fl = grid_mesh("int_cargo_floor", rows, col, lib["carpet"])
+    carpet = GT.boot_carpet()
+    fl = grid_mesh("int_cargo_floor", rows, col, carpet)
     M.orient(fl.data, lambda c: (0.0, 0.0, 1.0))
     M.mirror_y(fl)
     made.append(fl)
-    pts = [(x, _skin_y(x, 1.0, 0.062)) for x in xs]
-    made.append(CB.wall(col, lib["lower_card"], pts, lambda x, y: Z_CARGO,
-                        lambda x, y: DR._belt_z(x) + 0.040, nz=10, name="int_cargo_wall",
-                        facing=(0.0, -1.0, 0.0)))
-    # the rear wall: a panel across the car from the cargo floor to the backlight's lower edge
-    xw = x1 + 0.020
-    zt = 1.200
-    made.append(CB.bulkhead(col, lib["lower_card"], [(xw, Z_CARGO), (xw, zt)],
-                            lambda x, z: min(0.80, _skin_y(xw, 1.0, 0.062)), n=14, name="int_cargo_rear",
-                            facing=(1.0, 0.0, 0.0)))
+    # the side walls, up to the glass's lower edge: they follow the skin at every height (the sail leans in above the
+    # belt, a wall at the floor's width stands outside the body), and the belt's height is read at the last x the
+    # belt line is defined for, not extrapolated to the tail, where it climbs to the roof
+    rows = []
+    for x in xs:
+        zt = DR._belt_z(max(x, -1.80)) + 0.040
+        rows.append([(x, half(x, Z_CARGO + (zt - Z_CARGO) * k / 10.0), Z_CARGO + (zt - Z_CARGO) * k / 10.0)
+                     for k in range(11)])
+    wall = grid_mesh("int_cargo_wall", rows, col, lib["lower_card"])
+    M.orient(wall.data, lambda c: (0.0, -1.0, 0.0))
+    M.mirror_y(wall)
+    made.append(wall)
     # the seat backs' rear faces are the front wall of the bay (the rear seat's shell); a back panel
     # closes the gap between the seats and the floor
-    made.append(CB.bulkhead(col, lib["carpet"], [(x0, FLOOR_Z + 0.02), (x0, Z_CARGO)],
+    made.append(CB.bulkhead(col, carpet, [(x0, FLOOR_Z + 0.02), (x0, Z_CARGO)],
                             lambda x, z: 0.74, n=14, name="int_cargo_front", facing=(1.0, 0.0, 0.0)))
+    sb = GT.build_seatback_carpet(col, carpet)
+    if sb is not None:
+        made.append(sb)
+    made += GT.build_boot_details(col, lib, lambda x: half(x, 1.0))
     return made
 
 
@@ -366,6 +378,7 @@ def main(lights=True, parts=None):
                 ("doors", lambda: DR.build_doors(col, lib)),
                 ("shell", lambda: build_shell(col, lib)),
                 ("closures", lambda: build_closures(col, lib)),
+                ("gate", lambda: GT.build_liner(col)),
                 ("pedals", lambda: build_pedals(col, lib)))
     for name, fn in builders:
         if parts and name not in parts:

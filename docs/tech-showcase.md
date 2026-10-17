@@ -459,7 +459,8 @@ it waits for a video or a manual page from the owner, or a decision to drop it.
 
 ## 14. The chassis demos and the street, Phase 4 (2026-10-13)
 
-The Denza Z9 and the Xpeng G9L, the two cars added after Phase 3, have no cabin, no HMI skin and no opening parts yet, so
+The Denza Z9 and the Xpeng G9L, the two cars added after Phase 3, had no cabin, no HMI skin and no opening parts yet (they have
+all three since 2026-10-13/17: docs/3d-pipeline.md, the Z9 and G9L cabins), so
 their demonstrations are the ones that need only their wheels: how the chassis moves. The rig took them as they came (both
 GLBs ship per-corner wheel nodes). Built on the owner's request to "add the Crab Walk (the rig test's) to the Z9, add some
 environment, think of the tech features of the two new models and build them".

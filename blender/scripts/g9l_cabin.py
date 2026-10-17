@@ -39,6 +39,20 @@ def _zi():
     import g9l_interior as m
     return m
 
+
+def _join_cards():
+    import g9l_openings as OP
+    OP.join_cards()
+
+
+def _set_open(on):
+    """Every door (cards too) and the tailgate (its liner too) open or shut, for the open-state bake."""
+    import g9l_openings as OP
+    import g9l_gate as RG
+    for key, d in OP.DOORS.items():
+        OP.set_angle(key, d["deg"] if on else 0.0)
+    RG.set_hatch(RG.OPEN_DEG if on else 0.0)
+
 CFG = dict(
     slug="xpeng-g9l",
     interior="g9l_interior_shell",
@@ -53,7 +67,12 @@ CFG = dict(
     probe_at=(0.20, 0.0, 1.25),
     rig_fill=0.8,
     gain=1.0,
-    protected={"screen_main", "int_headliner"},
+    # the door cards and the hatch's liner swing with their skins; the X-ray tab takes the headliner away; the rear
+    # pillar trims' ragged rear edges show from the open boot, so the viewer hides them while it is open
+    protected={"screen_main", "int_headliner", "int_door_L", "int_door_R", "int_rdoor_L", "int_rdoor_R",
+               "int_tailgate", "int_cpillar", "int_cpillar_flange"},
+    join_cards=_join_cards,
+    set_open=_set_open,
     eyes={"driver": (0.18, 0.40, 1.28), "passenger": (0.18, -0.40, 1.28),
           "rear_left": (-1.00, 0.385, 1.32), "rear_right": (-1.00, -0.385, 1.32),
           "rear_mid": (-1.00, 0.0, 1.32)},

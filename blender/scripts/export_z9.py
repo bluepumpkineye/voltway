@@ -8,6 +8,9 @@ Nodes:
     DenzaZ9_Details     fascia, lamps, trim, mirrors, badges, lettering
     DenzaZ9_Wheels      the four wheels (21-inch 14-spoke luxury alloy); split into FL/FR/RL/RR
     DenzaZ9_Blackout    inner shadow shell and greenhouse underlay
+    DenzaZ9_Door_<corner>, DenzaZ9_DoorFrame_<corner>, DenzaZ9_Bonnet, DenzaZ9_Tailgate
+                        the hinged parts, each a node with its origin on its hinge (z9_openings, z9_bays,
+                        z9_gate)
 """
 import os
 import sys
@@ -108,17 +111,51 @@ def check_transmission():
 
 
 def prepare_exterior():
+    """Everything the exterior needs before it is merged and exported: the blackout layer split off, the frunk and
+    the bonnet, the windows cut out of the underlay, the doors and the trunk lid made hinged nodes with the hull
+    opened behind them. Once per build (Z9_Tailgate_Node marks it done); the cabin's open-state bake wants the
+    parts split, so web_cabin() calls it before that bake. The cabin's lid liner must be built first (it reads
+    the lid's skins)."""
+    if bpy.data.objects.get("Z9_Tailgate_Node") is not None:
+        return
     import z9_materials as MB
     MB.export_safe()
     split_blackout()
     check_transmission()
+    import z9_openings as OP
+    import z9_bays as BY
+    import z9_gate as RG
+    BY.build_frunk()          # the bay under the bonnet, then the bonnet as a hinged node
+    BY.split_bonnet()
+    BY.open_hull()
+    OP.cut_underlay()         # the door windows out of the black underlay: it must not stay behind
+    RG.build_seal()           # a black bead behind the lid's shut line
+    OP.split_trim()           # the Z-line's stretch across each door goes with the door
+    OP.split_doors()          # a hinged node per door (the cabin's cards: join_cards)
+    OP.open_hull()            # the hull behind them, so the cabin shows when one is open
+    RG.split_tail()           # the trunk lid: decklid, upper tail, gate, lamp middles, roundel - one node
+    RG.open_hull()            # the hull under and behind it
+
+
+def open_all(on=True):
+    """Every door, the bonnet and the lid swung open (or shut again)."""
+    import z9_openings as OP
+    import z9_bays as BY
+    import z9_gate as RG
+    for key, d in OP.DOORS.items():
+        OP.set_angle(key, d["deg"] if on else 0.0, card=False)
+    BY.set_bonnet(BY.HOOD_DEG if on else 0.0)
+    RG.set_hatch(RG.OPEN_DEG if on else 0.0, card=False)
 
 
 def exterior_groups():
+    import z9_openings as OP
+    import z9_bays as BY
+    import z9_gate as RG
     if wheels_split():
         core = [g for g in GROUPS if g != GROUPS[1]]
-        return core + wheel_corner_groups()
-    return GROUPS
+        return core + wheel_corner_groups() + OP.door_groups() + BY.bonnet_groups() + [RG.GROUP]
+    return GROUPS + OP.door_groups() + BY.bonnet_groups() + [RG.GROUP]
 
 
 def exterior_meshes():
@@ -163,6 +200,7 @@ def clean_degenerate(objs, dist=1e-7, area=1e-12):
 
 def main(draco=True, shadow=True):
     prepare_exterior()
+    open_all(False)           # every part at its hinge, as the closed car
     split_wheels()
     groups = exterior_groups()
     merged = _X.merge_for_export(groups)
@@ -191,8 +229,8 @@ def web(draco=True):
 
 # ------------------------------------------------------------------ cabin
 def web_cabin(samples=256, probe_samples=384, draco=True, probe=True, outside=True):
-    """The Z9's cabin: fresh build of body and cabin -> one baked light set (the car has no
-    openings, so no second set) -> public/models/denza-z9-interior.glb, the reflection probe
+    """The Z9's cabin: fresh build of body and cabin -> two baked light sets (every part shut, then every door
+    and the trunk lid open) -> public/models/denza-z9-interior.glb, the reflection probe
     (denza-z9-cabin.hdr) and the world seen through the glass. The exterior GLB is left as it is.
     In a background Blender (never the open session):
 
@@ -212,7 +250,9 @@ def web_cabin(samples=256, probe_samples=384, draco=True, probe=True, outside=Tr
     prepare_exterior()
     stats = CT.bake_cabin(C.CFG, samples, probe_samples, probe=probe)
     print("bake: %.0f s" % (time.time() - t))
-    res = {"bake": stats, "interior": CT.export_interior(C.CFG, draco=draco)}
+    stats_open = CT.bake_cabin_open(C.CFG, samples)
+    print("bake open: %.0f s" % (time.time() - t))
+    res = {"bake": stats, "bake_open": stats_open, "interior": CT.export_interior(C.CFG, draco=draco)}
     if outside:
         res["outside"] = CT.export_outside(C.CFG)
     print("web_cabin: %.0f s" % (time.time() - t))

@@ -932,7 +932,7 @@ the memory notes. What is different from the RX:
 
 ### The Denza Z9 and XPeng G9L cabins (`z9_interior*.py`, `g9l_interior*.py`, `cabin_tools.py`, `cabin_hmi.py`)
 
-Both cars have a closed cabin (no openings, so one bake and no `_BAKEDLIGHT_OPEN`), built from Autohome's photographs
+Both cars have a cabin built from Autohome's photographs (since 2026-10-17 their four doors, bonnet and tailgate or boot lid open, so each bakes two light sets, `_BAKEDLIGHT` and `_BAKEDLIGHT_OPEN`; see below)
 (Z9: series 7838, the mocha-brown Nappa spec; G9L: series 8659, the purple car's Bordeaux Red spec) and shown in the
 showroom's Interior tab with the same cabin shader as the other cars. They are the first cabins whose build, QA and
 export are driven by a config dict instead of copied scripts:
@@ -970,6 +970,33 @@ export are driven by a config dict instead of copied scripts:
   two rows of window keys (`_switch_pack`); the pod runs on under it, otherwise the pack floats.
 - **The centre screen is 16:10 on both.** The HMI is a 1280 x 800 page that `LiveScreen` pins to `screen_main`; the G9L's
   panel is 16:9 in the photographs, so the quad is built 16:10 (0.350 x 0.2188 m) rather than stretching the page.
+
+- **Doors, bonnet and tailgate (2026-10-17: `g9l_openings.py`, `g9l_bays.py`, `g9l_gate.py` and the `z9_*` twins).** Ported from the
+  7X's recipe (`zx_openings`, `zx_bays`, `zx_gate`) by name substitution (`blender/scripts/porting/port_openings.py`, `port_bays.py`, `port_bays_z9.py`: the rows of a door's mirrored objects, the hinge from `PN._DOOR_F_EDGE(0.60)` in front and the B-pillar shut line
+  behind, the hood's measured outline, hinge and tub), because both cars use the same carkit panel machinery. What differs:
+  - *G9L hatch.* The tail is built as bands of the tail cap (`g9l_rear.band`), so there is no shut-line boolean: the lamp bar,
+    its lens and strips and the painted gate are cut by bisect planes at |y| 0.775 (`<name>_C` pieces), and the backlight, the
+    spoiler, the lettering, camera and plate go whole into `XpengG9L_Tailgate`, hinged at the roof knee (-1.97, 1.70), 82 deg
+    (c3_0156). `G9L_Roof_Rear_Black` (the pane's own footprint) is deleted, not cut. Its inside, `int_tailgate` (a liner under the
+    gate and a bezel round the glass) and the boot (a sill plate at z 0.78, a bag-hook / 12 V / lamp module, wall vents, black
+    carpet on the floor and on the seat backs' rear faces, c3_0157/58) are cabin geometry; the struts sit inside the sail at
+    y 0.665 (its walls are 0.64 to 0.72 there; at 0.70 they poked through the paint).
+  - *Z9 lid.* A sedan whose rear glass stays on the body: `DenzaZ9_Tailgate` = `Z9_Decklid`, the upper tail, the gate, the
+    lamps' middles (|y| < 0.70), the roundel and the badges, hinged at the decklid's front end (-2.185), 80 deg (c3_0179/229/230).
+    The plate tray, the camera and the bumper stay on the body. The photographs show two black swan-neck hinge arms; the viewer
+    draws two struts at the opening's front corners instead. `Z9_Door_Z_Crease` / `_Z_Shadow` run across both doors and the
+    fender: `split_trim()` cuts them at the door edges so each door carries its stretch.
+  - *Cabin.* `cabin_tools.bake_cabin_open(cfg)` and `export_interior` take `cfg["join_cards"]` and `cfg["set_open"]`; the config
+    also lists `int_door_*`, `int_rdoor_*` and `int_tailgate` as `protected` nodes. `export_<car>.web_cabin()` bakes closed, then
+    open, then exports (32 samples took about 10 minutes in a background Blender; its stdout is buffered, so poll the GLB's
+    mtime; the final bake is `samples=256`).
+  - **Check every cabin surface for poke-through.** The stencil mask hides the cabin wherever no clear pane is in front of it, so
+    a wall built too wide shows only when a door opens: the G9L's cargo wall was extruded straight up at the floor's width and its
+    top height read `DR._belt_z(x)` past x -1.8, where `V_BELT(x)` is extrapolated, so it climbed to the roof: black bands and
+    fins outside the rear quarters (reported by the owner, 2026-10-17). Walls now follow the skin at every height
+    (`CB.skin_offset_y(S.BODY, x, z, ...)`) and the belt is read at `max(x, -1.8)`. `blender/scripts/porting/poke_probe.py` (run in a background Blender with `-- g9l`) fires a ray
+    sideways from every cabin vertex at the exterior and lists the ones that escape (arches, window openings and the sail's
+    lower tip are legitimate).
 
 **Infotainment skins.** `vehicle.cockpit.skin` picks them in `HmiSurface.tsx`: `'dilink'` (Z9, `components/hmi/dilink/`: the
 DiLink home with the car on a stage and a dock of cards, the controls menu, climate, seats, media, navigation, the 360

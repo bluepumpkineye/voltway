@@ -45,6 +45,21 @@ def _zi():
     import z9_interior as m
     return m
 
+
+def _join_cards():
+    import z9_openings as OP
+    OP.join_cards()
+
+
+def _set_open(on):
+    """Every door (cards too) and the trunk lid (its liner too) open or shut, for the open-state bake."""
+    import z9_openings as OP
+    import z9_gate as RG
+    for key, d in OP.DOORS.items():
+        OP.set_angle(key, d["deg"] if on else 0.0)
+    RG.set_hatch(RG.OPEN_DEG if on else 0.0)
+
+
 CFG = dict(
     slug="denza-z9",
     interior="z9_interior_shell",
@@ -59,7 +74,11 @@ CFG = dict(
     probe_at=(0.10, 0.0, 1.10),
     rig_fill=0.8,
     gain=1.0,
-    protected={"screen_main", "int_headliner"},
+    # the door cards and the lid's liner swing with their skins; the X-ray tab takes the headliner away
+    protected={"screen_main", "int_headliner", "int_door_L", "int_door_R", "int_rdoor_L", "int_rdoor_R",
+               "int_tailgate"},
+    join_cards=_join_cards,
+    set_open=_set_open,
     eyes={"driver": (0.10, 0.36, 1.18), "passenger": (0.10, -0.36, 1.18),
           "rear_left": (-1.00, 0.38, 1.12), "rear_right": (-1.00, -0.38, 1.12),
           "rear_mid": (-1.00, 0.0, 1.12)},
