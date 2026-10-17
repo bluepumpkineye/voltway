@@ -6,7 +6,7 @@ import { luxeedRx } from './luxeed-rx';
 import { zeekr7x } from './zeekr-7x';
 import { xpengG9l } from './xpeng-g9l';
 import { denzaZ9 } from './denza-z9';
-import { avatr11 } from './avatr-11';
+import { avatr06t } from './avatr-06t';
 import { nioEs7 } from './nio-es7';
 
 /** Ordered as the showcase presents them: the car we have built first. */
@@ -16,7 +16,7 @@ export const vehicles: Vehicle[] = [
   zeekr7x,
   xpengG9l,
   denzaZ9,
-  avatr11,
+  avatr06t,
   nioEs7,
 ];
 

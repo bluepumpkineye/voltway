@@ -28,6 +28,7 @@ const CARS = {
   // one wheel design each, already cut into corners
   'denza-z9': { skip: /Caliper|DoorFrame/ },
   'xpeng-g9l': { skip: /Caliper|DoorFrame/ },
+  'avatr-06t': { skip: /Caliper|DoorFrame/ },
 };
 
 /** Triangles after simplification. */
