@@ -5,10 +5,10 @@ import { planCarpet, stiffnessOf, type CarpetRun, type RoadStage } from './carpe
 import { planCharge, type ChargeRun } from './charge';
 import { chargeFacts, portOf } from './charging';
 import { planLaunch, type LaunchRun } from './launch';
-import { planPark, PARK_MOTION, type BodyBox, type ParkSpeed, type ParkStage, type Pose } from './park';
+import { ASSIST_MOTION, planPark, PARK_MOTION, type BodyBox, type ParkSpeed, type ParkStage, type Pose } from './park';
 import type { Chassis, RideMode } from './ride';
 import { planBoost, type BoostRun } from './boost';
-import { planSensors, type SensorsRun } from './sensors';
+import { planSensors, ROLES, type SensorsRun } from './sensors';
 import { planSwivel, type SwivelRun } from './swivel';
 import { planCompass, planCrab, planPivotPark, planUTurn, type Pivot, type StreetNeighbour, type StreetRun } from './street';
 
@@ -54,7 +54,7 @@ export interface BuiltDemo {
   charge?: ChargeRun;
   /** the BOOST demo: whether BOOST is on and how many of its steps have been applied at each time */
   boost?: BoostRun;
-  /** the sensor demo: the pedestrian and the readout (the director publishes them, and sets the brake lamps) */
+  /** the Autonomous Drive demo: the traffic and the readout (the director publishes them, and sets the brake lamps) */
   sensors?: SensorsRun;
   /** the swivel screen's demo: the pose the car's screen is asked for at each time (the director writes it to the store) */
   swivel?: SwivelRun;
@@ -71,6 +71,8 @@ export interface BuiltDemo {
     frame: CarpetRun['frame'];
     ride?: { modes: CarpetRun['modes']; mode: RideMode };
     launch?: LaunchRun['launch'];
+    /** the car changes lane: the director keeps the plan's sideways place and heading instead of pinning the car to its lane */
+    lateral?: boolean;
   };
 }
 
@@ -120,12 +122,17 @@ function neighboursOf(vehicle: Vehicle) {
     }));
 }
 
-/** Park from your phone: a reverse-in to a bay between two parked cars, and the way out again (nose-in, if the demo says so). */
+/**
+ * Park from your phone: a reverse-in to a bay between two parked cars, and the way out again (nose-in, if the demo says so).
+ * With `search` (the SU7's parking assist) the car comes along the row of bays at a walking pace first and finds the empty one.
+ */
 const park: Driver = {
   build: ({ vehicle, layout, body, start, speed, params }) => {
-    const plan = planPark(layout, body, start, PARK_MOTION[speed], {
+    const search = params.search ?? 0;
+    const plan = planPark(layout, body, start, search > 0 ? ASSIST_MOTION : PARK_MOTION[speed], {
       neighbours: neighboursOf(vehicle),
       noseIn: params.noseIn === 1,
+      search,
     });
     return { track: plan.track, stops: plan.stops, autoplay: false, trail: false, stage: plan.stage };
   },
@@ -245,12 +252,16 @@ const charge: Driver = {
 };
 
 /**
- * What the car sees: the sensors' coverage is drawn, a pedestrian steps off the kerb ahead, and the car brakes to a stop
- * short of them. The scenario is ours (sensors.ts); the road rolls under the car like the launch's.
+ * Autonomous Drive: the car cruises on a three-lane road among other cars, its sensors' coverage is drawn, the car ahead
+ * brakes, the car follows it, waits for the left lane to clear, changes lane and overtakes. The scenario is ours
+ * (sensors.ts); the road rolls under the car like the launch's, and the traffic is the other modelled cars' stand-ins.
  */
 const sensors: Driver = {
-  build: ({ layout, body, start }) => {
-    const run = planSensors(layout, body, start);
+  build: ({ vehicle, layout, body, start }) => {
+    // the other modelled cars first, then the demo's own (a road never shows the same car twice in a row), as many as the traffic needs
+    const cars = streetCars(vehicle);
+    const traffic = ROLES.map((_, i) => cars[i % Math.max(cars.length, 1)] ?? { slug: '', length: 4.9, width: 1.9 });
+    const run = planSensors(layout, body, start, { traffic });
     return {
       track: run.track,
       stops: [],
@@ -258,7 +269,7 @@ const sensors: Driver = {
       trail: false,
       stage: null,
       sensors: run,
-      treadmill: { road: run.road, scroll: run.scroll, chassis: run.chassis, frame: run.frame },
+      treadmill: { road: run.road, scroll: run.scroll, chassis: run.chassis, frame: run.frame, lateral: true },
     };
   },
 };

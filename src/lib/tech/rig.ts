@@ -185,8 +185,8 @@ export class CarRig {
   private prepared: PreparedRig | null = null;
   /** groups that carry the car's place on the floor (the exterior's wrapper, the baked shadow) */
   private roots = new Set<THREE.Object3D>();
-  /** roads that roll under the car (`RigState.scroll`), each with where it stands when it has not rolled */
-  private roads = new Map<THREE.Object3D, number>();
+  /** roads that roll under the car (`RigState.scroll`), each with where it stands when it has not rolled, and the period of its pattern when it repeats */
+  private roads = new Map<THREE.Object3D, { baseX: number; period?: number }>();
 
   /** The measured wheels, once an exterior with a rig is mounted. */
   get layout(): Layout | null {
@@ -241,9 +241,12 @@ export class CarRig {
     };
   }
 
-  /** A road that rolls under the car as the demo says (`RigState.scroll`); `baseX` is where it lies at rest. */
-  attachRoad(g: THREE.Object3D, baseX: number): () => void {
-    this.roads.set(g, baseX);
+  /**
+   * A road that rolls under the car as the demo says (`RigState.scroll`); `baseX` is where it lies at rest. A strip of
+   * repeating marks (lane dashes) gives its `period`: it then rolls only that far and starts again, so it can be short.
+   */
+  attachRoad(g: THREE.Object3D, baseX: number, period?: number): () => void {
+    this.roads.set(g, { baseX, period });
     this.apply();
     return () => {
       this.roads.delete(g);
@@ -293,7 +296,7 @@ export class CarRig {
       g.position.set(st.x, 0, st.z);
       g.rotation.set(0, st.yaw, 0);
     }
-    for (const [g, baseX] of this.roads) g.position.x = baseX - st.scroll;
+    for (const [g, { baseX, period }] of this.roads) g.position.x = baseX - (period ? st.scroll % period : st.scroll);
     const p = this.prepared;
     if (!p) return;
 

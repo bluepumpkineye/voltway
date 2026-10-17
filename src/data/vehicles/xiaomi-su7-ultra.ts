@@ -249,7 +249,84 @@ export const xiaomiSu7Ultra: Vehicle = {
       simulated:
         'A simulation. Only the two times are published: the pull’s shape between them, the tail’s squat and the tyres’ slip are ours. The 100 km/h time excludes rollout and needs Trofeo RS tyres. The wheels are drawn at three turns a second at most, so their spokes stay readable.',
     },
+    {
+      id: 'sensors',
+      title: 'Autonomous Drive',
+      blurb:
+        'A three-lane road with traffic in every lane. The roof lidar and the surround cameras, drawn from where they sit, as the car ahead brakes, the car follows it, waits for the left lane to clear and overtakes.',
+      driver: 'sensors',
+      claims: [
+        {
+          text: 'The SU7 Ultra carries one 128-line Hesai lidar (up to 200 m), eleven surround cameras (two of 8 megapixels, nine of 3), twelve ultrasonic sensors and two NVIDIA DRIVE Orin X chips (508 TOPS) running Xiaomi HAD, a level 2 system.',
+          source: { label: 'CarNewsChina database, SU7 Ultra parameters', url: 'https://data.carnewschina.com/xiaomi-auto/su7-ultra/2025/params' },
+        },
+        {
+          text: 'The lidar is the Hesai AT128, with a 120° by 25.4° field of view.',
+          source: { label: 'Hesai, AT128 product page', url: 'https://www.hesaitech.com/product/at128/' },
+        },
+        {
+          text: 'Automatic lane change assist and lane centering are standard; parking memory and automatic ramp entry and exit are options.',
+          source: { label: 'CarNewsChina database, SU7 Ultra parameters', url: 'https://data.carnewschina.com/xiaomi-auto/su7-ultra/2025/params' },
+        },
+        {
+          text: 'Xiaomi describes its Hyper Assisted Driving as advanced perception and confident decision-making, with active safety that detects and responds to road hazards.',
+          source: { label: 'Xiaomi, Hyper Assisted Driving', url: 'https://www.xiaomiauto.com/global/pilot' },
+        },
+        {
+          text: 'The lidar sits in a black pod at the top of the windscreen with a pair of small cameras in front of it; each mirror carries a camera under it; the front bumper’s cheeks carry round ultrasonic sensors.',
+          source: { label: 'Autohome photo of the SU7 Ultra’s details', url: 'https://www.autohome.com.cn/cars/imgs-7915-70545-12-x/12793838.html' },
+        },
+      ],
+      simulated:
+        'A simulation. The road, the other cars, their speeds, the braking, the decisions and when they come are ours, and so is every beam’s reach: only the lidar’s 120 degree field of view is published. The four diagonal beams stand for the surround cameras, drawn as Xiaomi’s own animation draws its sensors, not as a measured coverage; the radars are not drawn (sources count one or three). A dot is a sensor a photograph shows. The other cars are the other models’ stand-ins in neutral paint.',
+    },
+    {
+      id: 'parking',
+      title: 'Parking assist',
+      blurb:
+        'Along a row of bays at a walking pace: the car sees the empty one as it passes, stops, and reverses itself in. Press again to pull out.',
+      driver: 'park',
+      params: { search: 12 },
+      claims: [
+        {
+          text: 'Automatic parking is standard on the SU7 Ultra and parking memory is an option; the car has eleven surround cameras and twelve ultrasonic sensors.',
+          source: { label: 'CarNewsChina database, SU7 Ultra parameters', url: 'https://data.carnewschina.com/xiaomi-auto/su7-ultra/2025/params' },
+        },
+        {
+          text: 'Xiaomi says its Hyper Assisted Driving takes care of the parking process for an easier, more manageable arrival.',
+          source: { label: 'Xiaomi, Hyper Assisted Driving', url: 'https://www.xiaomiauto.com/global/pilot' },
+        },
+      ],
+      simulated:
+        'A simulation. The car park, the other cars, the path (one reverse arc into the bay) and the speeds are ours. The bay found as the car passes it, the blue beams and ripples and the P mark follow the look of Xiaomi’s own animation of the function, not the car’s display, which has not been photographed. The maker says nothing of how the car parks.',
+    },
   ],
+  // Where the sensors are, for Autonomous Drive and the parking assist, in the exterior model's space. The lidar sits in the
+  // black pod at the top of the windscreen (the model's SU7Ultra_Lidar; Autohome photo 12793838 shows a pair of small
+  // cameras on the black tongue in front of it, put at the glass behind the pod), each mirror has a camera on its
+  // underside (12793834), a camera sits above the lip of the bonnet at the nose (12793846) and another above the plate at the
+  // tail (the model's SU7Ultra_RearCamera), and round ultrasonic sensors sit in the front bumper's cheeks (12793849). Eleven
+  // cameras and twelve ultrasonic sensors are counted; these are the ones the photographs show, the rest are not drawn. The
+  // radars (reported as one 4D radar by some sources and three by the CarNewsChina table) are not drawn. The lidar is the
+  // Hesai AT128, whose published field of view is 120 by 25.4 degrees.
+  sensors: {
+    lidar: [0.41, 1.375, 0],
+    lidarFov: 120,
+    surround: true,
+    cameras: [
+      { at: [0.5, 1.25, 0.04], mirror: true },
+      { at: [0.66, 0.93, 1.0], mirror: true },
+      { at: [2.468, 0.56, 0] },
+      { at: [-2.496, 0.645, 0] },
+    ],
+    ultrasonic: [{ at: [2.28, 0.5, 0.72], mirror: true }],
+    notes: {
+      lidar: 'One Hesai AT128: 128 channels, 120° by 25.4°',
+      surround: '11 surround cameras, drawn as the four diagonal beams of Xiaomi’s own animation',
+      ultrasonic: '12; the photographs show the two in the front bumper’s cheeks',
+      cameras: '11; the photographs show the pair behind the windscreen, one under each mirror, the nose and the tail',
+    },
+  },
   // The DC socket's mouth (the left rear quarter, behind the wheel: our estimate of the place, snapped to the model's skin
   // by a ray) and the direction out of it, in the viewer's axes. The model has no flap, so the Charging tab draws a socket here.
   chargePort: { mouth: [-1.64, 0.95, -0.9107], axis: [-0.0552, 0.4189, -0.9064], depth: 0.02 },

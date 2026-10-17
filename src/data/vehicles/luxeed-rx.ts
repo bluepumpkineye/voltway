@@ -286,6 +286,13 @@ export const luxeedRx: Vehicle = {
       { at: [-2.49, 0.86, 0] },
     ],
     ultrasonic: [{ at: [2.32, 0.48, 0.74], mirror: true }],
+    notes: {
+      lidar: '896 lines, a wide and a tele light path',
+      side: '2, solid-state, drawn from the fender gill',
+      rear: '1, solid-state, drawn from the tail',
+      ultrasonic: '12, as the maker counts them',
+      cameras: 'as the photographs show them',
+    },
   },
   // The DC socket's mouth (the left rear quarter above and behind the rear wheel, where the photographs show the flap;
   // the exact place is our estimate, snapped to the model's skin by a ray) and the direction out of it, in the viewer's
@@ -339,9 +346,9 @@ export const luxeedRx: Vehicle = {
     },
     {
       id: 'sensors',
-      title: 'What the car sees',
+      title: 'Autonomous Drive',
       blurb:
-        'The car’s lidars and ultrasonic sensors, drawn from where they sit, as a pedestrian steps off the kerb ahead and the car brakes to a stop.',
+        'A three-lane road with traffic in every lane. The car’s lidars and ultrasonic sensors, drawn from where they sit, as the car ahead brakes, the car follows it, waits for the left lane to clear and overtakes.',
       driver: 'sensors',
       claims: [
         {
@@ -357,12 +364,16 @@ export const luxeedRx: Vehicle = {
           source: { label: 'Huawei Qiankun, 4 March 2026', url: 'https://auto.huawei.com/cn/news/2026/2026-3-4-lidar' },
         },
         {
+          text: 'Huawei’s Qiankun ADS Pro update does navigation-guided cruise assist that follows traffic and changes lane to overtake (announced for city roads, 20 April 2026).',
+          source: { label: '10jqka (同花顺), 20 April 2026', url: 'https://news.10jqka.com.cn/20260420/c676114121.shtml' },
+        },
+        {
           text: 'The lidar’s window is in the black housing at the top of the windscreen, beside a pair of cameras; the front fender’s black gill carries cameras and a dark slot; a dual-lens unit sits under the tail badge.',
           source: { label: 'Autohome photo of the RX’s details', url: 'https://www.autohome.com.cn/cars/imgs-8684-78055-12-x/13535277.html' },
         },
       ],
       simulated:
-        'A simulation. The pedestrian, the speeds and the braking are ours, and so is every cone’s angle and the reach it is drawn to: no field of view is published (the real lidar recognises a 14 cm box at 120 m). The side lidars are drawn from the fender gill, where one source reports them, and the rear one from where nothing says it is; the five radars are not drawn. A dot is a sensor a photograph shows; a ring is a position reported or not published.',
+        'A simulation. The road, the other cars, their speeds, the braking, the decisions and when they come are ours, and so is every cone’s angle and the reach it is drawn to: no field of view is published (the real lidar recognises a 14 cm box at 120 m). The side lidars are drawn from the fender gill, where one source reports them, and the rear one from where nothing says it is; the five radars are not drawn. A dot is a sensor a photograph shows; a ring is a position reported or not published. The other cars are the other models’ stand-ins in neutral paint.',
     },
     {
       id: 'boost',

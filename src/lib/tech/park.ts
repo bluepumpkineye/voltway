@@ -148,6 +148,8 @@ export interface ParkStage {
   maxSteer: number;
   /** the camera's preferred look at the stage */
   camera: { az: number; el: number };
+  /** with a search (ParkOptions): when the drive along the row ends and when the bay has been seen, s; else null */
+  search: { end: number; found: number } | null;
 }
 
 export interface ParkOptions {
@@ -166,6 +168,12 @@ export interface ParkOptions {
   noseIn?: boolean;
   /** the most the rear wheels steer, degrees (the nose-in turn uses it; the G9L publishes 15) */
   rearSteerDeg?: number;
+  /**
+   * Come along the lane from this far before the stop and find the bay on the way (the SU7's parking assist, as Xiaomi's
+   * animation shows it): the car drives past the row at a walking pace, has seen the empty bay by the time its nose is
+   * past it, and goes on to the stop, where the reverse begins. Tail first only.
+   */
+  search?: number;
 }
 
 export interface ParkPlan {
@@ -183,6 +191,9 @@ export const PARK_MOTION: Record<ParkSpeed, { vmax: number; accel: number; steer
   medium: { vmax: 1.0, accel: 0.55, steerRate: 0.9, dwell: 0.25, steerMin: 0.45 },
   fast: { vmax: 1.4, accel: 0.7, steerRate: 1.1, dwell: 0.2, steerMin: 0.4 },
 };
+
+/** The parking assist's pace (the SU7's demo, ours): a walking pace along the row, about 7 km/h, and a brisker reverse than the phone's. */
+export const ASSIST_MOTION: Motion = { vmax: 1.9, accel: 0.9, steerRate: 1.2, dwell: 0.25, steerMin: 0.4 };
 
 /**
  * The reverse-in and the way out, for a car whose rear axle's middle starts at `start`
@@ -267,8 +278,25 @@ export function planPark(layout: Layout, body: BodyBox, start: Pose, motion: Mot
     const { noseIn, laneHalf, mouthY, parkedY, bayX, backY } = w;
     const depth = mouthY - backY;
     const bayCentreY = (mouthY + backY) / 2;
-    const track = new Track(layout, [...w.inSegs, ...w.outSegs], motion, start);
-    const tIn = track.span(1)?.tEnd ?? track.duration / 2;
+    // a search first drives the lane's length past the bays: the car then begins that far before the stop
+    const approach = !noseIn ? (opts.search ?? 0) : 0;
+    const searchSegs: Segment[] = approach > 0 ? [{ kind: 'move', distance: approach, label: 'search' }] : [];
+    const origin = approach > 0 ? { ...start, x: start.x - approach } : start;
+    const track = new Track(layout, [...searchSegs, ...w.inSegs, ...w.outSegs], motion, origin);
+    const tIn = track.span(searchSegs.length + 1)?.tEnd ?? track.duration / 2;
+    // the bay is seen once the nose has passed its far edge (the side sensors are in the front half of the car)
+    let search: ParkStage['search'] = null;
+    if (approach > 0) {
+      const end = track.span(0)?.tEnd ?? 0;
+      let found = end;
+      for (let t = 0; t <= end; t += 0.02) {
+        if (track.sample(t).x + body.front >= bayX + pitch / 2 + 0.3) {
+          found = t;
+          break;
+        }
+      }
+      search = { end, found };
+    }
 
     // the bays: the empty one in the middle, the two with cars, and an empty one at each end
     const bays: ParkBay[] = [];
@@ -353,6 +381,7 @@ export function planPark(layout: Layout, body: BodyBox, start: Pose, motion: Mot
         clearance,
         maxSteer: track.stats.maxSteer,
         camera: noseIn ? { az: 118, el: 38 } : { az: 62, el: 38 },
+        search,
       },
     };
   };

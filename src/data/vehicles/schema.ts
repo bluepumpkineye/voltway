@@ -453,15 +453,28 @@ export interface SensorSpec {
   /** the forward lidar's window, in the roof housing (photographed) */
   lidar: [number, number, number];
   /**
-   * Where the solid-state lidars are drawn from, the passenger side's (mirrored for the driver's side). Reported at the
-   * fenders by one secondary source; the photographs show cameras and a slot there, no marked lidar.
+   * The forward lidar's field of view where the maker publishes one, degrees (the SU7's Hesai AT128: 120 by 25.4); the
+   * drawing's reach is ours. Without it the demo draws the Luxeed RX's two paths (a wide and a tele one).
    */
-  sideLidar: [number, number, number];
-  /** the rear solid-state lidar: the maker does not say where it is */
-  rearLidar: [number, number, number];
+  lidarFov?: number;
+  /**
+   * Where the solid-state lidars are drawn from, the passenger side's (mirrored for the driver's side). Reported at the
+   * fenders by one secondary source; the photographs show cameras and a slot there, no marked lidar. Left out for a car
+   * that has none.
+   */
+  sideLidar?: [number, number, number];
+  /** the rear solid-state lidar: the maker does not say where it is. Left out for a car that has none. */
+  rearLidar?: [number, number, number];
+  /**
+   * The surround cameras' coverage, drawn as the four diagonal beams of the maker's own animation (Xiaomi's, for the
+   * SU7), from the middle of the car: illustrative, and the panel says so.
+   */
+  surround?: boolean;
   /** cameras and ultrasonic sensors that the photographs show, as far as they could be read off them */
   cameras: { at: [number, number, number]; mirror?: boolean }[];
   ultrasonic: { at: [number, number, number]; mirror?: boolean }[];
+  /** what each switch on the demo's panel says it is (a tooltip): the maker's counts, where it gives them */
+  notes?: Partial<Record<'lidar' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround', string>>;
 }
 
 /**

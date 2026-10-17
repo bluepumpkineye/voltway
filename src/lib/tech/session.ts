@@ -34,8 +34,8 @@ export interface Runtime {
   launch?: LaunchRun['launch'] | null;
   /** the fast-charge demo: the gun, the readout and the curve (the car's charging page, the pedestal, the chart) */
   charge?: Pick<ChargeRun, 'readout' | 'gun' | 'curve' | 'pedestal' | 'cableOut' | 'gunExit' | 'profile'> | null;
-  /** the sensor demo: the pedestrian and the readout at time t, and the car's nose */
-  sensors?: (SensorsRun['scenario'] & { frontX: number }) | null;
+  /** the Autonomous Drive demo: the traffic, the car's own place among it and the readout at time t */
+  sensors?: SensorsRun['scenario'] | null;
   /** a chassis demo (crab walk, compass turn, U-turn): the wheels' readout at time t, the street and what the manoeuvre needed */
   chassis?: { readout: StreetRun['readout']; facts: StreetRun['facts']; stage: StreetStage } | null;
 }
@@ -75,7 +75,7 @@ export function useChassisReadout(): ReturnType<NonNullable<Runtime['chassis']>[
   return chassis ? chassis.readout(clock.t) : null;
 }
 
-/** The sensor demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
+/** The Autonomous Drive demo's readout at the clock's time (10 Hz while it runs), or null when no such demo is on. */
 export function useSensorsReadout(): ReturnType<NonNullable<Runtime['sensors']>['readout']> | null {
   const sensors = useRuntime()?.sensors;
   const clock = useTechClock();

@@ -237,7 +237,8 @@ positions, 0 and 32 degrees (maker's page); the 7X has five named heights over a
 | Fast-charge demo (`charge.ts`, `viewer/TechCharge.tsx`, `showroom/Charge.tsx`, the car's Vehicle charging page and Charge port cover tile) | built, approved by the owner (3c); flap, gun, readout and flow looked at; see section 11 |
 | The park demo on the SU7 | its wheels are now cut in the browser (`splitWheels.ts`): the planner takes the car's own layout, body and published width; not offered yet |
 | Free camera on the Tech tab (`showroom/anchors.ts` `techWide`, `ShowroomCameraRig.tsx`) | built 2026-10-12: zoom as close as the other tabs, up to 2.2 times the fit, from straight above to the floor; a new stage re-frames the camera |
-| Sensor demo "What the car sees" (`sensors.ts`, `viewer/TechSensors.tsx`, `showroom/Sensors.tsx`, `layers.ts`; spec `Vehicle.sensors`) | built (3d, approved); tsc, eslint, production build in a copy, looked at on a wide and a phone-sized window, idle frames 0; see section 12 |
+| Autonomous Drive (was "What the car sees"; `sensors.ts`, `viewer/TechSensors.tsx`, `showroom/Sensors.tsx`, `layers.ts`; spec `Vehicle.sensors`) | rebuilt 2026-10-17 as a three-lane road with traffic (section 12), on the RX, the SU7 and the 06T; tsc, eslint, played through, idle frames 0, 60 fps in the pane; not yet seen by the owner |
+| SU7 parking assist (`park.ts` `search`, `viewer/TechParkAssist.tsx`, `showroom/ParkAssist.tsx`) | built 2026-10-17 from Xiaomi's own animation (section 16); not yet seen by the owner |
 | Swivel screen (`swivel.ts`, `viewer/ScreenSwivel.tsx`, `hmi/harmonyos/ScreenDirection.tsx`, `showroom/Swivel.tsx`; spec `Vehicle.swivel`) | built (3e, approved); the frame is cut out of the cabin's merged mesh in the browser, no re-export; see section 13 |
 | BOOST demo (`boost.ts`, `viewer/BoostKnob.tsx`, `hmi/harmonyos/Boost.tsx`, `showroom/Boost.tsx`; spec `Vehicle.boost`) | built (3e, approved); the screen it shows is a stand-in; see section 13 |
 | Welcome sequence of the SU7 (the cluster flips up at start-up) | source found (Xiaomi's page) and a reference board made 2026-10-13; waiting for the owner's approval of the photographs (section 13) |
@@ -366,7 +367,7 @@ Outside the Tech tab the flap is an ordinary opening (`openings.charge`; a tap o
 **Not done:** the flap's arm (it turns about a plain hinge), the warning label's icons, the badge's exact Z, the pocket's depth
 and its shape from the side, the AC cap's cord, a second charger style; the phone app has no charging screen in any photograph.
 
-## 12. What the RX sees, Phase 3d (2026-10-12)
+## 12. Autonomous Drive (was "What the car sees"), Phase 3d (2026-10-12), rebuilt 2026-10-17
 
 Approved by the owner with board T3d (`blender/reference/luxeed-rx/tech/sensors`, `_sources.md`). The demo `sensors`
 (`luxeed-rx.ts`, no device: the car's screen has no photographed page for it, so it starts from the demo's panel and the
@@ -386,16 +387,51 @@ the safer one is built: coverage only, from the fender gill (where one secondary
 (where nothing says the rear one is), each marked with a RING, not a dot: a dot is a sensor a photograph shows. The five radars
 are not drawn.
 
-**The run** (`src/lib/tech/sensors.ts`, no value imports, run it with Node): 8 s, the car on the spot and the road rolling
-under it like the launch's. It cruises at 50 km/h; a pedestrian (a plain figure of capsules, no face) stands at the kerb 46 m
-ahead, is tracked by the tele path from the start, steps off at 1.6 s with 24 m to go, is judged to be in the car's way at
-1.95 s and the car brakes at 2.2 s at 8 m/s^2 to a stop 3.6 m short of them at about 4.1 s, the nose dipping about 0.9 degrees on
-its springs and the brake lamps on (the store's `braking`); the pedestrian crosses and the path clears. All of it is ours
-and the panel says so. **The scene** (`viewer/TechSensors.tsx`): a flat sector on the floor for each lidar, fading outward, with
-its edges, range rings (the forward wide path only) and a thin beam that sweeps to and fro on the demo's clock; three pulses that
-go out from the car's outline (the ultrasonic sensors); a strip in front of the car that goes amber and red as the pedestrian
-comes into it; blue returns on the pedestrian and a box that is white, amber, red and green by the state. A switch for each
-group of sensors on the panel (`layers.ts`).
+**Rebuilt 2026-10-17 (owner: rename it Autonomous Drive and put other cars on three lanes, "like the short clip from Xiaomi's website",
+https://www.xiaomiauto.com/global/pilot; the same scene on the SU7).** The pedestrian is gone (nobody crosses an expressway); the demo is
+now `sensors` on the RX, the SU7 and, because it uses the same driver, the Avatr 06T's "Huawei Qiankun ADS 3.0" entry (another
+session's file, left as it is: only its scene changed). The clip (the page's `highway.mp4`, 5 s, 1920 x 823; frames read in the Browser
+pane by seeking the video) shows a top-down, grey, desaturated three-lane road with dashed lane lines and solid edges, grey cars
+passing in every lane, and the white SU7 in the middle with a blue forward beam, four diagonal beams from its corners, ripples at the
+wheels and a big translucent ring with a grid that grows and fades. We took the look, not the footage.
+
+**The run** (`src/lib/tech/sensors.ts`, no value imports, run it with Node `--experimental-strip-types`; the scratchpad's
+`drive-test.mjs` prints the timeline): 19 s, the car on the spot and the road rolling under it, except sideways: the plan's lateral
+offset and heading are the car's (`treadmill.lateral`, TechDirector), so it really changes lane. Six traffic cars (`ROLES`: where each
+stands and how fast it goes), the other modelled cars' stand-ins in mid greys: the car ahead in the car's own lane (100 km/h, brakes
+to 74 from 2.6 s to 6 s, brake lamps on), one that goes by on the left early, one that comes up fast from behind in the left lane
+(130 km/h), one in the right lane that the car passes, one that follows it there, one far ahead. The car holds 100 km/h, follows the
+one ahead (`aLead`: about 1.5 s of gap, a jerk limit), and when the car ahead is more than 2.5 m/s slower and within 52 m it
+indicates left and WAITS until the left lane is clear (`inTheWay`: a car behind must not close within 3.2 s, one ahead must be 12 m
+clear), then moves over (a raised cosine over 4 s, the front wheels' angle from the path's curvature, at most 4 degrees of heading)
+and overtakes at 112 km/h. Phases: cruising, following, waiting, changing, passing, done. With the traffic as it is the timeline is:
+following from 2.6 s, waiting from 4.6 s, the lane change from 8.4 s to 12.4 s, done at about 18.4 s; the closest any two bodies
+come is the 1.8 m between neighbouring lanes. All of it is ours and the panel says so.
+
+**The scene** (`viewer/TechSensors.tsx`): `CarCoverage` (a child of the rig's root, in the model's space, so it follows the car's
+lane change): a flat sector on the floor for each lidar, fading outward, with its edges and a thin beam that sweeps; where the maker
+publishes a field of view (the SU7's Hesai AT128, 120 degrees) one fan of that angle, else the RX's wide and tele paths; four diagonal
+beams from the middle of the car for the surround cameras (`spec.surround`, Xiaomi's own look); pulses going out from the car's
+outline (ultrasonic); the detection ring (`ScanRing`: two waves out to 34 m over a polar grid, fading, 3.4 s each); dots and rings
+where the sensors are. In the road's frame (rolled under the car): the traffic (`useStandIn` in TechStage, the stand-in models in mid
+greys, their baked floor shadows, two red bars for brake lamps), corner marks round each car the sensors have in reach (white,
+blue for the one being followed, amber for the one in the way of the lane change), the left lane laid out amber then green while the
+car means to move into it, and a line from the nose to the tail of the car being followed. The road (`viewer/TechRoad.tsx`,
+`Highway`): 3 x 3.75 m lanes, solid edge lines, dashes of 6 m every 15 m and tar joints every 12.5 m that the rig rolls only as far as
+their period (`CarRig.attachRoad(g, baseX, period)`), so the strip is 280 m long whatever the run. The panel (`showroom/Sensors.tsx`)
+says what the car is doing (an indicator arrow while it means to change lane), the speed, the gap to the car ahead and how many cars
+are in reach, with a switch for each group of sensors the car has.
+
+**The SU7's sensors.** Published: one 128-line Hesai lidar of up to 200 m, eleven surround cameras (two 8 MP, nine 3 MP), twelve
+ultrasonic sensors, two Orin X (508 TOPS), Xiaomi HAD at level 2, automatic lane change assist and lane centering standard, parking
+memory optional (CarNewsChina's parameter table, read 2026-10-17); the lidar is the AT128 (Autohome's table, section 7), whose 120 x
+25.4 degree field of view is on Hesai's page. The radars are not drawn: the same table says three, other reports say one 4D radar.
+Photographed (Autohome series 7915 cat 12, read in the Browser pane; photo ids 12793838, 12793834, 12793846, 12793849): the lidar's
+domed window in the black pod at the top of the windscreen with a pair of small cameras on the black tongue in front of it; a camera
+on the underside of each mirror; a camera at the nose above the lip; round ultrasonic sensors in the front bumper's cheeks; the tail's
+camera is the model's own. Their places come from the exported model's surfaces (the pod's top at (0.325, 1.402), the windscreen at
+x = 0.5 is y = 1.264, the nose at x = 2.47, the cheek at x = 2.28 where z = 0.72, the tail at x = -2.50), about 2 to 3 cm good. The
+four corner beams are drawn as Xiaomi's animation draws its sensors and are labelled so; they are not a measured coverage.
 
 ## 13. The RX's swivel screen and BOOST, Phase 3e (2026-10-12)
 
@@ -637,3 +673,26 @@ layers behind them are the `*_Blackout` node's `M_Black_Gloss` (underlay) and `M
   (render order 2). The canvas asks for a stencil buffer. With a door open the mask is off and the cabin shows as before.
 - Not covered: the cabins of the five cars were never checked from outside, so anything visible through a pane (a gap above a dash, the
   G9L's slit at the windscreen base) is now seen; the capture routes (`VehicleViewer`) get the same glass.
+
+## 16. The SU7's parking assist (2026-10-17)
+
+The owner asked for it in the SU7's Tech section along with the new scene. The source is the other video of Xiaomi's page
+(`auto-parking.mp4`, 11.7 s: a row of perpendicular bays, grey parked cars, the white SU7 driving along the aisle with ripples at its
+corners, the empty bay picked out with a blue P, the car pulling past it, swinging and reversing in nose out). Published: automatic
+parking is standard and parking memory optional (CarNewsChina's table), and Xiaomi's one line, "takes care of the parking process for
+easy and more manageable arrival". Nothing of the car's own parking screen is photographed, so the demo has no device and starts from
+its panel (`showroom/ParkAssist.tsx`: Find a bay, Pause, Resume, Pull out, Again).
+
+The motion is the Park from your phone planner with one addition: `ParkOptions.search` (tech entry `params: { search: 12 }`), a drive
+of 12 m along the row before the stop, at `ASSIST_MOTION` (1.9 m/s at most), so the car starts 12 m before where the old demo began.
+`ParkStage.search` gives the times the panel and the overlay use: the bay is "found" once the nose has passed its far edge (about 3.4 s)
+and the drive ends at about 8.4 s; the reverse on one arc follows, the clock stops with the car parked (20.8 s), "Pull out" drives out
+again to where the search ended (32.8 s in all; the clearance to the cars beside is the same 0.46 m). `viewer/TechParkAssist.tsx`
+draws the overlay on top of the usual stage: `CarCoverage` with only the surround beams (8 m), the ultrasonic ripples and the
+camera dots, a pale blue tile with the P on the empty bay from when it is found until the car backs toward it, and white corner marks
+on each parked car as the nose comes within reach of it. Ours: the car park, the cars, the path, the speeds; the look follows Xiaomi's
+animation, not the car's display.
+
+Checked 2026-10-17: tsc, eslint; the RX's Park from your phone is unchanged (stops at 18.3 s, 0.46 m); played through in the Browser
+pane (the real Find a bay button, the stop, the pull-out). Not checked: a production build (the tree is shared with other work in
+progress), the nose-in parking of the G9L after the planner change (the search is ignored for it).

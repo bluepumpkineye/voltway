@@ -19,6 +19,7 @@ import { DimensionRulers } from './DimensionRulers';
 import { TechCharge } from './TechCharge';
 import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
+import { TechParkAssist } from './TechParkAssist';
 import { TechSensors } from './TechSensors';
 import { TechStage } from './TechStage';
 import { TechLotDressing, TechStreet } from './TechStreet';
@@ -145,6 +146,7 @@ function Stage({
       {!inside && <TechRoad vehicle={vehicle} />}
       {!inside && <TechCharge vehicle={vehicle} />}
       {!inside && <TechSensors vehicle={vehicle} />}
+      {!inside && <TechParkAssist vehicle={vehicle} />}
       {/* the car and its baked shadow stand in one group, so a tech demo moves them together */}
       <CarRoot vehicle={vehicle}>
         <CarModel vehicle={vehicle} variant={variant} url={url} />

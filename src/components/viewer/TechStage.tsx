@@ -171,19 +171,13 @@ export function Neighbour({ n, tone }: { n: Pick<ParkNeighbour, 'slug' | 'rect'>
   return <NeighbourModel n={n} tone={tone} url={url} shadow={vehicle.assets.studioShadow} />;
 }
 
-function NeighbourModel({
-  n,
-  tone,
-  url,
-  shadow,
-}: {
-  n: Pick<ParkNeighbour, 'slug' | 'rect'>;
-  tone: string;
-  url: string;
-  shadow: Parameters<typeof GroundShadow>[0]['shadow'] | undefined;
-}) {
+/**
+ * Another car's stand-in (scripts/make-proxy.mjs) in neutral paint: the model, and where the middle of its body is (the
+ * model's origin is not it). Shared by the parked cars and the traffic of Autonomous Drive.
+ */
+export function useStandIn(url: string, tone: string): { model: THREE.Object3D; centre: THREE.Vector3 } {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const { model, centre } = React.useMemo(() => {
+  const standIn = React.useMemo(() => {
     const root = scene.clone(true);
     // a matte paint, like a maquette's: the stand-ins are coarse, and a gloss finish would show every facet
     const paint = new THREE.MeshStandardMaterial({ color: tone, roughness: 0.62, metalness: 0.05, side: THREE.DoubleSide });
@@ -202,12 +196,27 @@ function NeighbourModel({
   }, [scene, tone]);
   React.useEffect(
     () => () => {
-      model.traverse((o) => {
+      standIn.model.traverse((o) => {
         if (o instanceof THREE.Mesh) (o.material as THREE.Material).dispose();
       });
     },
-    [model],
+    [standIn],
   );
+  return standIn;
+}
+
+function NeighbourModel({
+  n,
+  tone,
+  url,
+  shadow,
+}: {
+  n: Pick<ParkNeighbour, 'slug' | 'rect'>;
+  tone: string;
+  url: string;
+  shadow: Parameters<typeof GroundShadow>[0]['shadow'] | undefined;
+}) {
+  const { model, centre } = useStandIn(url, tone);
 
   // the group sits at the model's origin; the middle of the body goes to the middle of the bay
   const { x, y, yaw } = n.rect;

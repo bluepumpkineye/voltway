@@ -34,6 +34,8 @@ export interface RoadStage {
   width: number;
   /** the broken edge lines' period and dash, and the spacing of the tar joints, m (the default suits a slow run) */
   markings?: { period: number; length: number; joint: number };
+  /** a road of several lanes (Autonomous Drive's): how many and how wide; it is drawn with dashed lane lines and solid edge lines, not the broken edge lines above */
+  lanes?: { count: number; width: number };
 }
 
 export interface CarpetRun {

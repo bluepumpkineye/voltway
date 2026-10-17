@@ -16,11 +16,14 @@ import { STAGE_LAYER } from './StudioShowroom';
  * model drives its wheels over (`humpAt`), so what the tyre climbs is what is drawn.
  *
  * The group's x is run distance: 0 is where the rear axle started. Mount once in the showroom's Canvas.
+ *
+ * A road with lanes (Autonomous Drive's) is drawn by `Highway` below: one long strip that stands still under the car, and
+ * its marks, which repeat, rolled as far as their period and no further.
  */
 export function TechRoad({ vehicle }: { vehicle: Vehicle }) {
   const road = useRuntime()?.road;
   if (!road) return null;
-  return <Road road={road} vehicle={vehicle} />;
+  return road.lanes ? <Highway road={road} lanes={road.lanes} vehicle={vehicle} /> : <Road road={road} vehicle={vehicle} />;
 }
 
 /** pixels per metre of the asphalt's texture (less on a very long strip, to keep the canvas small) */
@@ -210,5 +213,138 @@ function HumpMesh({ hump, width }: { hump: Hump; width: number }) {
     <mesh geometry={geometry} position={[hump.x, 0.004, 0]} ref={onStageLayer}>
       <meshStandardMaterial map={map} roughness={0.78} metalness={0} />
     </mesh>
+  );
+}
+
+// ------------------------------------------------------------------ the highway
+
+/** the dashed lane line (Chinese expressways: 6 m of paint and 9 m of gap), the edge line, and the spacing of the tar joints, m */
+const DASH = { length: 6, period: 15, width: 0.15 };
+const EDGE_WIDTH = 0.2;
+const JOINT_PERIOD = 12.5;
+/** the fade at the strip's far ends (it is long enough that they are out of sight) and at its sides, m */
+const HIGHWAY_FADE_END = 70;
+const HIGHWAY_FADE_SIDE = 1.1;
+
+/**
+ * The expressway of Autonomous Drive: the asphalt with its two solid edge lines stands still under the car; the dashes
+ * between the lanes and the tar joints are short repeating strips that the rig rolls by the road's scroll modulo their
+ * period, so they stream past at the car's speed on a strip of a few hundred metres, whatever the run's length.
+ */
+function Highway({ road, lanes, vehicle }: { road: RoadStage; lanes: NonNullable<RoadStage['lanes']>; vehicle: Vehicle }) {
+  const rig = rigOf(vehicle);
+  const dashes = React.useRef<THREE.Group>(null);
+  const joints = React.useRef<THREE.Group>(null);
+  React.useEffect(() => {
+    const a = dashes.current;
+    const b = joints.current;
+    if (!a || !b) return;
+    const offA = rig.attachRoad(a, rig.rac.x, DASH.period);
+    const offB = rig.attachRoad(b, rig.rac.x, JOINT_PERIOD);
+    return () => {
+      offA();
+      offB();
+    };
+  }, [rig, road]);
+
+  const length = road.to - road.from;
+  const half = (lanes.count * lanes.width) / 2;
+  const map = React.useMemo(() => {
+    const W = 1536;
+    const H = 96;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = ASPHALT;
+    ctx.fillRect(0, 0, W, H);
+    const img = ctx.getImageData(0, 0, W, H);
+    const d = img.data;
+    let seed = 4711;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) - 0.5;
+    for (let y = 0; y < H; y++) {
+      const dy = (Math.min(y, H - 1 - y) / H) * road.width;
+      for (let x = 0; x < W; x++) {
+        const dx = (Math.min(x, W - 1 - x) / W) * length;
+        const i = (y * W + x) * 4;
+        const n = rnd() * 6;
+        d[i] += n;
+        d[i + 1] += n;
+        d[i + 2] += n;
+        d[i + 3] = Math.round(255 * smooth(0, HIGHWAY_FADE_SIDE, dy) * smooth(0, HIGHWAY_FADE_END, dx));
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    return tex;
+  }, [road, length]);
+  React.useEffect(() => () => map.dispose(), [map]);
+
+  // one dash plane and one joint plane, laid out on instances
+  const lineSlots = React.useMemo(() => {
+    const out: number[] = [];
+    for (let x = -Math.ceil(length / 2 / DASH.period) * DASH.period; x <= length / 2 + DASH.period; x += DASH.period) out.push(x);
+    return out;
+  }, [length]);
+  const jointSlots = React.useMemo(() => {
+    const out: number[] = [];
+    for (let x = -Math.ceil(length / 2 / JOINT_PERIOD) * JOINT_PERIOD; x <= length / 2 + JOINT_PERIOD; x += JOINT_PERIOD) out.push(x);
+    return out;
+  }, [length]);
+  const dashMesh = React.useRef<THREE.InstancedMesh>(null);
+  const jointMesh = React.useRef<THREE.InstancedMesh>(null);
+  React.useLayoutEffect(() => {
+    const m = new THREE.Matrix4();
+    const d = dashMesh.current;
+    if (d) {
+      let i = 0;
+      // a lane line between every two lanes: at the middle of the first dash's span
+      for (let k = 1; k < lanes.count; k++) {
+        const z = -half + k * lanes.width;
+        // the strip is laid flat by the mesh's own turn about x, which sends the instance's y to the road's -z
+        for (const x of lineSlots) d.setMatrixAt(i++, m.makeTranslation(x + DASH.length / 2, -z, 0));
+      }
+      d.count = i;
+      d.instanceMatrix.needsUpdate = true;
+    }
+    const j = jointMesh.current;
+    if (j) {
+      jointSlots.forEach((x, i) => j.setMatrixAt(i, m.makeTranslation(x, 0, 0)));
+      j.count = jointSlots.length;
+      j.instanceMatrix.needsUpdate = true;
+    }
+  }, [lineSlots, jointSlots, lanes.count, lanes.width, half]);
+
+  const mark = { polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6, toneMapped: false, depthWrite: false } as const;
+  return (
+    // the road's middle is the car's own centre line
+    <group position-z={-rig.rac.y}>
+      <mesh position={[rig.rac.x, 0.002, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStageLayer}>
+        <planeGeometry args={[length, road.width]} />
+        <meshBasicMaterial map={map} transparent polygonOffset polygonOffsetFactor={-4} polygonOffsetUnits={-4} depthWrite={false} toneMapped={false} />
+      </mesh>
+      {/* the solid edge lines */}
+      {[-half, half].map((z) => (
+        <mesh key={z} position={[rig.rac.x, 0.003, z]} rotation-x={-Math.PI / 2} renderOrder={-0.4} ref={onStageLayer}>
+          <planeGeometry args={[length * 0.8, EDGE_WIDTH]} />
+          <meshBasicMaterial color={PAINT} transparent opacity={0.92} {...mark} />
+        </mesh>
+      ))}
+      {/* tar joints across the lanes, and the dashes between them: the rig rolls these */}
+      <group ref={joints}>
+        <instancedMesh ref={jointMesh} args={[undefined, undefined, jointSlots.length]} rotation-x={-Math.PI / 2} position-y={0.0025} renderOrder={-0.42} frustumCulled={false} onUpdate={onStageLayer}>
+          <planeGeometry args={[0.05, half * 2]} />
+          <meshBasicMaterial color="#141518" transparent opacity={0.5} {...mark} />
+        </instancedMesh>
+      </group>
+      <group ref={dashes}>
+        <instancedMesh ref={dashMesh} args={[undefined, undefined, lineSlots.length * (lanes.count - 1)]} rotation-x={-Math.PI / 2} position-y={0.003} renderOrder={-0.4} frustumCulled={false} onUpdate={onStageLayer}>
+          <planeGeometry args={[DASH.length, DASH.width]} />
+          <meshBasicMaterial color={PAINT} transparent opacity={0.92} {...mark} />
+        </instancedMesh>
+      </group>
+    </group>
   );
 }

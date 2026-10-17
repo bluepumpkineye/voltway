@@ -112,7 +112,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       ride: built.treadmill?.ride ?? null,
       launch: built.treadmill?.launch ?? null,
       charge: built.charge ?? null,
-      sensors: built.sensors ? { ...built.sensors.scenario, frontX: built.sensors.frontX } : null,
+      sensors: built.sensors ? built.sensors.scenario : null,
       chassis: built.street ? { readout: built.street.readout, facts: built.street.facts, stage: built.street.stage } : null,
     });
     if (process.env.NODE_ENV !== 'production') {
@@ -175,7 +175,8 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     const tm = built.treadmill;
     if (tm) {
       // the car stays on the spot and the road rolls under it
-      rig.setSample({ ...s, x: rig.rac.x, y: rig.rac.y, yaw: 0 });
+      // (a demo whose car changes lane keeps its sideways place and heading: Autonomous Drive's)
+      rig.setSample({ ...s, x: rig.rac.x, y: tm.lateral ? s.y : rig.rac.y, yaw: tm.lateral ? s.yaw : 0 });
       rig.state.scroll = tm.scroll(techClock.t);
       rig.setChassis(tm.chassis(techClock.t));
     } else {
