@@ -88,6 +88,7 @@ def build_library():
     _M.set_inputs(b, base=(0.012, 0.013, 0.016), metallic=0.0, roughness=0.20,
                   coat=1.0, coat_rough=0.03, ior=1.45)
     lib["graphite"] = m
+    lib["dark_grey"] = m
 
     # Gloss black wheel pocket accent
     m, nt, b = _M.mat("M_Wheel_Accent")

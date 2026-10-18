@@ -66,9 +66,31 @@ GROUPS = [
     ("NioES8_Details", "ES8_Details"),
     ("NioES8_Blackout", "ES8_Blackout"),
 ]
-WHEEL_GROUPS = []
+WHEEL_GROUPS = [
+    ("NioES8_Sail_Wheels", "ES8_Wheels_Sail"),
+    ("NioES8_Glow_Wheels", "ES8_Wheels_Glow"),
+    ("NioES8_Carbon_Wheels", "ES8_Wheels_Carbon"),
+    ("NioES8_Shine_Wheels", "ES8_Wheels_Shine"),
+]
 
 CORNERS = ("FL", "FR", "RL", "RR")
+
+
+def build_wheel_options(lib):
+    """Build the other wheel designs (es8_wheels), one collection each, on the car's own
+    material library before prepare_exterior()."""
+    if not WHEEL_GROUPS or bpy.data.collections.get(WHEEL_GROUPS[0][1]) is not None:
+        return
+    import es8_surface as S
+    import es8_wheels as EW
+    from carkit import build as B
+    cols = []
+    for (_, cname), name in zip(WHEEL_GROUPS, [n for n in EW.DESIGNS if n != EW.DEFAULT]):
+        col = B.fresh_collection(cname)
+        EW.build_design(col, S, lib, name)
+        cols.append(col)
+    B.ensure_uvs(cols)
+    return cols
 
 
 def _corner_col(cname, kind, tag):
@@ -248,6 +270,7 @@ def web(draco=True):
     sys.modules.pop("build_es8", None)
     import build_es8
     out = build_es8.main(reset=True, scene=False)
+    build_wheel_options(out["lib"])
     print("build tris:", out["tris"])
     return main(draco=draco, ao=False, shadow=True)
 
@@ -257,6 +280,7 @@ def exterior(draco=True, ao=True, ao_samples=256):
         sys.modules.pop(m, None)
     import build_es8
     out = build_es8.main(reset=True, scene=False)
+    build_wheel_options(out["lib"])
     print("build tris:", out["tris"])
     res = {}
     res["exterior"] = main(draco=draco, ao=ao, ao_samples=ao_samples, shadow=True)
@@ -470,6 +494,7 @@ def web_full(samples=160, probe_samples=256, draco=True):
         sys.modules.pop(m, None)
     import build_es8
     out = build_es8.main(reset=True, scene=True)
+    build_wheel_options(out["lib"])
     import es8_interior as RI
     RI.main()
     import es8_gate as RG

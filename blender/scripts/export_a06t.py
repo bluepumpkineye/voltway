@@ -64,9 +64,28 @@ GROUPS = [
     ("Avatr06T_Details", "A06T_Details"),
     ("Avatr06T_Blackout", "A06T_Blackout"),
 ]
-WHEEL_GROUPS = []
+WHEEL_GROUPS = [
+    ("Avatr06T_Aero_Wheels", "A06T_Wheels_Aero"),
+    ("Avatr06T_Cyclone_Wheels", "A06T_Wheels_Cyclone"),
+    ("Avatr06T_Multi_Wheels", "A06T_Wheels_Multi"),
+]
 
 CORNERS = ("FL", "FR", "RL", "RR")
+
+
+def build_wheel_options(lib):
+    """The other wheel designs (a06t_wheels), one collection each."""
+    if not WHEEL_GROUPS or bpy.data.collections.get(WHEEL_GROUPS[0][1]) is not None:
+        return
+    import a06t_surface as S
+    import a06t_wheels as AW
+    from carkit import build as B
+    cols = []
+    for (_, cname), name in zip(WHEEL_GROUPS, [n for n in AW.DESIGNS if n != AW.DEFAULT]):
+        col = B.fresh_collection(cname)
+        AW.build_design(col, S, lib, name)
+        cols.append(col)
+    B.ensure_uvs(cols)
 
 
 def _corner_col(cname, kind, tag):
@@ -254,6 +273,7 @@ def exterior(draco=True, ao=True, ao_samples=256):
         sys.modules.pop(m, None)
     import build_a06t
     out = build_a06t.main(reset=True, scene=False)
+    build_wheel_options(out["lib"])
     print("build tris:", out["tris"])
     res = {}
     res["exterior"] = main(draco=draco, ao=ao, ao_samples=ao_samples, shadow=True)
@@ -467,6 +487,7 @@ def web_full(samples=160, probe_samples=256, draco=True):
         sys.modules.pop(m, None)
     import build_a06t
     out = build_a06t.main(reset=True, scene=True)
+    build_wheel_options(out["lib"])
     import a06t_interior as RI
     RI.main()
     import a06t_gate as RG

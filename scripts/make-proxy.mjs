@@ -28,8 +28,8 @@ const CARS = {
   // one wheel design each, already cut into corners
   'denza-z9': { skip: /Caliper|DoorFrame/ },
   'xpeng-g9l': { skip: /Caliper|DoorFrame/ },
-  'avatr-06t': { skip: /Caliper|DoorFrame/ },
-  'nio-es8': { skip: /Caliper|DoorFrame/ },
+  'avatr-06t': { skip: /Aero|Cyclone|Multi|Caliper|DoorFrame/ },
+  'nio-es8': { skip: /Sail_Wheels|Glow_Wheels|Carbon_Wheels|Shine_Wheels|Caliper|DoorFrame/ },
 };
 
 /** Triangles after simplification. */
