@@ -35,7 +35,8 @@ PAINT = "M_Paint_G9L_Purple"
 PARTS = (
     "G9L_Glass_Rear", "G9L_Spoiler",
     "G9L_Letter_X", "G9L_Letter_P", "G9L_Letter_E", "G9L_Letter_N", "G9L_Letter_G",
-    "G9L_Badge_Brand", "G9L_Badge_Model", "G9L_Rear_Camera_House", "G9L_Rear_Camera_Lens", "G9L_Plate_Rear",
+    "G9L_Badge_Brand", "G9L_Badge_Model", "G9L_Rear_Camera_House", "G9L_Rear_Camera_Lens",
+    "G9L_Plate_Rear", "G9L_Plate_Rear_XPENGG9",
 )
 # the bands the shut line cuts: only the middle (|y| < Y_SHUT) goes with the hatch, the swept ends stay on the
 # quarter panels

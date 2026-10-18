@@ -274,7 +274,9 @@ def build_plate(collection, lib):
     y, z = CAM.rear_yz(1934, 1606, -2.52)
     p, n = face(0.0, z, 0.0)
     made += fittings.plate("G9L_Plate_Rear", tuple(p[i] + n[i] * 0.004 for i in range(3)), n, collection, lib,
-                           w=0.480, h=0.148, depth=0.008)
+                           w=0.480, h=0.148, depth=0.008,
+                           texts=[("XPENG G9", 0.0, 0.038, False, True)],
+                           mat="black_gloss", text_mat="machined")
     # the reversing camera in its black housing above the plate
     pz = z + 0.075 + 0.045
     made.append(band("G9L_Rear_Camera_House", lambda yy: pz - 0.014, lambda yy: pz + 0.014, 14, 2, collection,

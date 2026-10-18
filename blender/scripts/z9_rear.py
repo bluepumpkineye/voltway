@@ -241,7 +241,9 @@ def build_plate_tray(collection, lib):
                      off_fn=lambda y, k: -0.012, y_max=yt, thickness=0.003))
     p, n = face(0.0, Z_PLATE, -0.004)
     made += fittings.plate("Z9_Plate_Rear", tuple(p[i] + n[i] * 0.004 for i in range(3)), n, collection, lib,
-                           w=0.480, h=0.148, depth=0.008)
+                           w=0.480, h=0.148, depth=0.008,
+                           texts=[("DENZA Z9", 0.0, 0.038, False, True)],
+                           mat="black_gloss", text_mat="machined")
     # the reversing camera: a small black pod at the tray's top edge with two lenses
     zc = zt + 0.004
     made.append(band("Z9_Camera_Pod", lambda y: zc - 0.012, lambda y: zc + 0.016, 14, 3, collection, lib["black_gloss"],

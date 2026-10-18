@@ -314,6 +314,14 @@ def build_emblem(collection, lib):
     return parts
 
 
+def build_plate(collection, lib):
+    """Front show plate on the lower bumper fascia with ZEEKR 7X model name."""
+    p, n = face(0.0, 0.495, 0.004)
+    return fittings.plate("ZX_Plate_Front", p, n, collection, lib, w=0.440, h=0.140, depth=0.008,
+                          texts=[("ZEEKR 7X", 0.0, 0.038, False, True)],
+                          mat="black_gloss", text_mat="machined")
+
+
 def build_all(collection, lib):
     PLACER.reset()
     made = []
@@ -322,4 +330,5 @@ def build_all(collection, lib):
     made += build_lightbar(collection, lib)
     made += build_chin(collection, lib)
     made += build_emblem(collection, lib)
+    made += build_plate(collection, lib)
     return made

@@ -55,8 +55,8 @@ TAIL_X_OF_Z = Curve([
     (0.360, -2.605),
     (0.460, -2.640),  # rear bumper apex (-2.640 m)
     (0.560, -2.625),
-    (0.680, -2.590),  # tailgate lower edge
-    (0.800, -2.565),  # recessed plate zone
+    (0.680, -2.595),  # tailgate lower edge
+    (0.800, -2.590),  # smooth flush plate zone
     (0.940, -2.585),
     (1.060, -2.605),  # Super-Red illumiBlade face
     (1.115, -2.590),  # base of rear glass

@@ -19,7 +19,7 @@ from carkit import cut as C
 from carkit.body import fascia as FA
 from carkit.body import panels as BP
 import carkit.place as P
-from carkit.parts import lamps
+from carkit.parts import fittings, lamps
 
 BODY = N.BODY
 NOSE = N.NOSE
@@ -147,12 +147,13 @@ def build_fascia(collection, lib):
     made.append(chin)
 
     # 5. Front license plate mount & plate (centered at z=0.445, c1_0042.jpg)
-    p_plate, _ = _face(0.0, 0.445, d=0.006)
+    p_plate, n_plate = _face(0.0, 0.445, d=0.006)
     plate_mount = _box("Z9_Plate_Mount_Front", p_plate, (0.008, 0.450, 0.145), collection, lib["black_gloss"])
     made.append(plate_mount)
     p_plate_f, _ = _face(0.0, 0.445, d=0.010)
-    plate = _box("Z9_License_Plate_Front", p_plate_f, (0.002, 0.440, 0.140), collection, lib["logo_chrome"])
-    made.append(plate)
+    made += fittings.plate("Z9_Plate_Front", p_plate_f, n_plate, collection, lib, w=0.440, h=0.140, depth=0.004,
+                           texts=[("DENZA Z9", 0.0, 0.038, False, True)],
+                           mat="black_gloss", text_mat="machined")
 
     return made
 

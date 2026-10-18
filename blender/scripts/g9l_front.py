@@ -314,7 +314,9 @@ def build_plate(collection, lib):
     made = []
     p, n = face(0.0, 0.614, 0.0)
     made += fittings.plate("G9L_Plate_Front", tuple(p[i] + n[i] * 0.004 for i in range(3)), n,
-                           collection, lib, w=0.480, h=0.148, depth=0.008)
+                           collection, lib, w=0.480, h=0.148, depth=0.008,
+                           texts=[("XPENG G9", 0.0, 0.038, False, True)],
+                           mat="black_gloss", text_mat="machined")
     for k, (y, z) in enumerate(((0.341, 0.591), (0.644, 0.410))):
         pp, nn = face(y, z, 0.0)
         made += _disc("G9L_Sensor_F%d" % k, pp, nn, 0.0125, collection, lib["cap_black"], 0.003)

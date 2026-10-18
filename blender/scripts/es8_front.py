@@ -22,20 +22,20 @@ PLACER = P.Placer(BODY.proud)
 
 # --------------------------------------------------------------- hardpoints
 # Double-Dash dual-layer crystal DRLs (upper corner along hood shut line)
-DRL_HOUSE_LO = [(0.520, 0.875), (0.650, 0.882), (0.765, 0.892), (0.855, 0.908)]
-DRL_HOUSE_UP = [(0.520, 0.916), (0.650, 0.922), (0.765, 0.932), (0.855, 0.946)]
+DRL_HOUSE_LO = [(0.440, 0.885), (0.540, 0.892), (0.640, 0.902), (0.745, 0.916)]
+DRL_HOUSE_UP = [(0.440, 0.915), (0.540, 0.922), (0.640, 0.930), (0.745, 0.940)]
 
 # Upper dash row: inner segment + outer segment (separated by crisp break)
-DRL_UP_IN_LO  = [(0.535, 0.898), (0.610, 0.902), (0.685, 0.907)]
-DRL_UP_IN_UP  = [(0.535, 0.910), (0.610, 0.914), (0.685, 0.919)]
-DRL_UP_OUT_LO = [(0.710, 0.910), (0.780, 0.917), (0.845, 0.927)]
-DRL_UP_OUT_UP = [(0.710, 0.922), (0.780, 0.929), (0.845, 0.939)]
+DRL_UP_IN_LO  = [(0.460, 0.902), (0.520, 0.906), (0.580, 0.912)]
+DRL_UP_IN_UP  = [(0.460, 0.914), (0.520, 0.918), (0.580, 0.924)]
+DRL_UP_OUT_LO = [(0.600, 0.914), (0.670, 0.921), (0.740, 0.929)]
+DRL_UP_OUT_UP = [(0.600, 0.926), (0.670, 0.933), (0.740, 0.941)]
 
 # Lower dash row: inner segment + outer segment (Double-Dash 2nd layer)
-DRL_LO_IN_LO  = [(0.550, 0.880), (0.620, 0.884), (0.685, 0.889)]
-DRL_LO_IN_UP  = [(0.550, 0.890), (0.620, 0.894), (0.685, 0.899)]
-DRL_LO_OUT_LO = [(0.710, 0.892), (0.780, 0.899), (0.840, 0.909)]
-DRL_LO_OUT_UP = [(0.710, 0.902), (0.780, 0.909), (0.840, 0.919)]
+DRL_LO_IN_LO  = [(0.475, 0.888), (0.530, 0.892), (0.580, 0.897)]
+DRL_LO_IN_UP  = [(0.475, 0.898), (0.530, 0.902), (0.580, 0.907)]
+DRL_LO_OUT_LO = [(0.600, 0.899), (0.670, 0.906), (0.735, 0.914)]
+DRL_LO_OUT_UP = [(0.600, 0.909), (0.670, 0.916), (0.735, 0.924)]
 
 # Vertical HDPL projector headlamp pocket in outer bumper cheek (y, z loop)
 POCKET_YZ = [
@@ -65,7 +65,8 @@ BAND_RECESS = 0.030
 def face(y, z, d=0.0):
     zc = max(NOSE.Z_LO + 0.005, min(NOSE.Z_HI - 0.002, z))
     w, v = NOSE.wv_at(abs(y), zc)
-    p, n = NOSE.point(w, v), NOSE.normal(w, v)
+    w_safe = min(0.985, w)
+    p, n = NOSE.point(w_safe, v), NOSE.normal(w_safe, v)
     if d:
         p = tuple(p[i] + n[i] * d for i in range(3))
     if y < 0.0:
@@ -79,7 +80,7 @@ def _on_face(yz, n=32):
 
 
 def _place(p, d):
-    return BODY.proud(p, d)
+    return face(p[1], p[2], d)
 
 
 def _cut_band(ob):

@@ -344,7 +344,7 @@ def main(draco=True, ao=True, ao_samples=512, shadow=True):
     return _X.export(DEST, groups, "Zeekr7X_Body", draco=draco, attributes=ao)
 
 
-def web(draco=True, ao_samples=512):
+def web(draco=True, ao=False, ao_samples=512):
     """Fresh build -> merged exterior GLB."""
     import time
     t = time.time()
@@ -353,7 +353,7 @@ def web(draco=True, ao_samples=512):
     out = build_zx.main(reset=True, scene=False)
     build_wheel_options(out["lib"])
     print("build tris:", out["tris"], "%.0f s" % (time.time() - t))
-    res = main(draco=draco, ao_samples=ao_samples)
+    res = main(draco=draco, ao=ao, ao_samples=ao_samples)
     print("export_zx.web: %.0f s" % (time.time() - t))
     return res
 

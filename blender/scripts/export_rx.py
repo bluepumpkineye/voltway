@@ -470,14 +470,14 @@ def main(draco=True, ao=True, ao_samples=512, shadow=True):
     return _X.export(DEST, groups, "LuxeedRX_Body", draco=draco, attributes=ao)
 
 
-def web(draco=True):
+def web(draco=True, ao=False):
     """Fresh build -> merged exterior GLB."""
     sys.modules.pop("build_rx", None)
     import build_rx
     out = build_rx.main(reset=True, scene=False)
     build_wheel_options(out["lib"])
     print("build tris:", out["tris"])
-    return main(draco=draco)
+    return main(draco=draco, ao=ao)
 
 
 # ------------------------------------------------------------------ cabin

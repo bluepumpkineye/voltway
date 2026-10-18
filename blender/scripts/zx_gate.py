@@ -32,6 +32,7 @@ PARTS = (
     "ZX_Glass_Rear", "ZX_Glass_Wedge_Rear",
     "ZX_Lightbar_Lens_C", "ZX_Lightbar_Edge_C", "ZX_Lightbar_SealLow_C", "ZX_Lightbar_SealUp_C",
     "ZX_Lightbar_Pod", "ZX_Rear_Camera", "ZX_Badge_Maker", "ZX_Badge_Model",
+    "ZX_Plate_Rear", "ZX_Plate_Rear_ZEEKR7X",
 )
 # the lamp bar's pieces: it sweeps round each corner onto the quarter panel, beyond the hatch's
 # side edge (y 0.795): only its middle goes with the hatch

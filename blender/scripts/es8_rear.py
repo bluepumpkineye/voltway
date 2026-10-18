@@ -302,10 +302,10 @@ def build_badges_and_plate(collection, lib):
     made.append(_badge_text("ES8_Badge_Maker", "NIO", 0.540, 0.965, 0.026,
                             collection, lib["chrome"]))
 
-    # Rear license plate in the recessed zone
-    p_pl, n_pl = on_rear(0.0, 0.800, 0.002)
+    # Rear license plate in the smooth zone with clean proud plinth
+    p_pl, n_pl = on_rear(0.0, 0.800, 0.006)
     made += fittings.plate(
-        "ES8_Plate_Rear", p_pl, n_pl, collection, lib, w=0.440, h=0.140,
+        "ES8_Plate_Rear", p_pl, n_pl, collection, lib, w=0.440, h=0.140, depth=0.008,
         texts=[("NIO ES8", 0.0, 0.038, False, True)],
         mat="black_gloss", text_mat="machined",
     )

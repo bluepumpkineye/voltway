@@ -440,7 +440,7 @@ def build_plate(collection, lib):
     p, n = face(PLATE[0], PLATE[1], 0.012)
     return fittings.plate("RX_Plate", p, n, collection, lib, w=0.480, h=0.140,
                           mat="black_gloss", text_mat="chrome",
-                          texts=(("RX", 0.0, 0.070, False, True),))
+                          texts=(("LUXEED RX", 0.0, 0.038, False, True),))
 
 
 # ------------------------------------------------------------------- lidar

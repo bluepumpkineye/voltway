@@ -248,6 +248,10 @@ def build_tail(collection, lib):
     x_face = FA.recessed_x(TAIL, 0.0)
     made.append(_pocket("RX_Rear_PlateRecess", PLATE_RECESS, PLATE_DEPTH, collection,
                         lib["paint"], x_face))
+    p_pl, n_pl = on_rear(0.0, 0.5865, 0.002)
+    made += fittings.plate("RX_Plate_Rear", p_pl, n_pl, collection, lib, w=0.480, h=0.140, depth=0.006,
+                           mat="black_gloss", text_mat="chrome",
+                           texts=(("LUXEED RX", 0.0, 0.038, False, True),))
     # grey pods: proud panels in the pod openings
     y0, y1, z0, z1 = POD_BOX
     pod = fittings.rounded_panel("RX_Rear_Pod", (-S.HALF_L, 0.5 * (y0 + y1), 0.5 * (z0 + z1)),

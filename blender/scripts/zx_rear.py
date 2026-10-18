@@ -338,6 +338,14 @@ def build_badges(collection, lib):
     return made
 
 
+def build_plate(collection, lib):
+    """Rear show plate on the tailgate with ZEEKR 7X model name."""
+    p, n = on_rear(0.0, 0.740, 0.005)
+    return fittings.plate("ZX_Plate_Rear", p, n, collection, lib, w=0.440, h=0.140, depth=0.008,
+                          texts=[("ZEEKR 7X", 0.0, 0.038, False, True)],
+                          mat="black_gloss", text_mat="machined")
+
+
 def build_all(collection, lib):
     made = []
     made += build_tail(collection, lib)
@@ -345,4 +353,5 @@ def build_all(collection, lib):
     made += build_bumper_details(collection, lib)
     made += build_diffuser(collection, lib)
     made += build_badges(collection, lib)
+    made += build_plate(collection, lib)
     return made
