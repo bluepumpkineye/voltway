@@ -373,10 +373,10 @@ export function Showroom({
           />
         </aside>
       )}
-      {ready && chargeColumn && (
-        <aside className={`pointer-events-none absolute bottom-3 right-4 z-10 flex items-start ${BELOW_TOP}`} style={{ width: chargeCol }} aria-label="Charging">
-          <ChargePanel vehicle={vehicle} compact={false} />
-        </aside>
+      {ready && tab === 'charging' && (
+        <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-label="Charging">
+          <ChargePanel vehicle={vehicle} compact={!dash.wide} />
+        </div>
       )}
 
       <div
@@ -409,15 +409,10 @@ export function Showroom({
         {tab === 'dashboard' && (
           <DashboardControls screenFits={dash.screenFits} wide={dash.wide} screenOpen={screenOpen} onScreen={setScreenOpen} />
         )}
-        {tab === 'charging' && !chargeColumn && (
-          <div className="pointer-events-none w-full max-w-[620px]">
-            <ChargePanel vehicle={vehicle} compact />
-          </div>
-        )}
         {tab === 'tech' && demo && (
           <>
-            {demo.driver === 'carpet' && <RideTools showHeights={!col.active} />}
-            {demo.driver === 'launch' && <LaunchTools />}
+            {demo.driver === 'carpet' && <RideTools vehicle={vehicle} showHeights={!col.active} />}
+            {demo.driver === 'launch' && <LaunchTools vehicle={vehicle} />}
             {demo.driver === 'swivel' && <SwivelTools />}
             {demo.driver === 'sensors' && <SensorsTools vehicle={vehicle} />}
             {demo.driver === 'boost' && !boostSheet && <BoostTools />}

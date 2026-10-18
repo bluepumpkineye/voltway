@@ -313,47 +313,167 @@ function stripColour(r: ChargeReadout, time: number): string {
   }
 }
 
-/** The pedestal's small screen: what a charger shows, drawn from the demo's own numbers. */
+/** The pedestal's screen: modern high-tech EV Charger terminal display matching the showroom UI. */
 function drawScreen(c: HTMLCanvasElement, r: ChargeReadout) {
   const ctx = c.getContext('2d')!;
   const W = c.width;
   const H = c.height;
-  ctx.fillStyle = '#0b0d12';
+
+  // Screen background with deep dark cyber-blue gradient
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#09131f');
+  bgGrad.addColorStop(0.5, '#060c14');
+  bgGrad.addColorStop(1, '#03060a');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#8b93a5';
-  ctx.font = '600 20px system-ui, sans-serif';
+
+  // Subtle screen frame & glass border
+  ctx.strokeStyle = 'rgba(6, 182, 212, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(3, 3, W - 6, H - 6);
+
+  // Header Bar
+  ctx.fillStyle = 'rgba(6, 182, 212, 0.8)';
+  ctx.font = '700 11px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('09:16', 14, 22);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('DC FAST CHARGE', W / 2, 36);
-  const label =
-    r.phase === 'ready' || r.phase === 'opening'
-      ? 'Ready'
-      : r.phase === 'connecting'
-        ? 'Connecting…'
-        : r.phase === 'charging'
-          ? 'Charging'
-          : r.phase === 'charged'
-            ? `Charged to ${Math.round(r.target * 100)} %`
-            : 'Unplugged';
-  ctx.fillStyle = r.phase === 'charging' || r.phase === 'charged' ? '#33e07a' : '#c9cfdd';
-  ctx.font = '600 24px system-ui, sans-serif';
-  ctx.fillText(label, W / 2, 78);
+  ctx.fillText('⚡ DC FAST CHARGER', W / 2, 22);
+
+  ctx.fillStyle = r.phase === 'charging' ? '#10b981' : '#38bdf8';
+  ctx.font = '600 10px system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('800V DC', W - 14, 22);
+
+  // Header divider
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(10, 28);
+  ctx.lineTo(W - 10, 28);
+  ctx.stroke();
+
+  // Central Circular Charge Progress Meter
+  const cx = W / 2;
+  const cy = 138;
+  const rad = 58;
+
+  // Dark circular track
+  ctx.strokeStyle = '#0e1724';
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, 0, 2 * Math.PI);
+  ctx.stroke();
+
+  // Active glowing progress arc
+  const startAngle = -Math.PI / 2;
+  const endAngle = startAngle + 2 * Math.PI * Math.min(1, Math.max(0, r.soc));
+  ctx.save();
+  ctx.strokeStyle = r.phase === 'charging' ? '#10b981' : r.phase === 'charged' ? '#06b6d4' : '#38bdf8';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = r.phase === 'charging' ? '#10b981' : '#06b6d4';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(cx, cy, rad, startAngle, endAngle);
+  ctx.stroke();
+  ctx.restore();
+
+  // Inside the Circular Gauge
+  const isCharging = r.phase === 'charging';
+  const isCharged = r.phase === 'charged';
+  const statusText =
+    isCharging ? 'ACTIVE' : isCharged ? 'COMPLETE' : r.phase === 'connecting' ? 'CONNECTING' : 'READY';
+
+  // Status badge pill
+  ctx.fillStyle = isCharging ? 'rgba(16, 185, 129, 0.15)' : 'rgba(6, 182, 212, 0.15)';
+  ctx.fillRect(cx - 36, cy - 38, 72, 16);
+  ctx.strokeStyle = isCharging ? 'rgba(16, 185, 129, 0.4)' : 'rgba(6, 182, 212, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx - 36, cy - 38, 72, 16);
+
+  ctx.fillStyle = isCharging ? '#34d399' : '#38bdf8';
+  ctx.font = '600 9px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(statusText, cx, cy - 26);
+
+  // Large numeric percentage (Clean, Light, Authoritative)
   ctx.fillStyle = '#ffffff';
-  ctx.font = '700 84px system-ui, sans-serif';
-  ctx.fillText(String(Math.round(r.kw)), W / 2, 190);
-  ctx.fillStyle = '#8b93a5';
-  ctx.font = '600 24px system-ui, sans-serif';
-  ctx.fillText('kW', W / 2, 224);
-  // the charge level
-  ctx.fillStyle = '#1b2029';
-  ctx.fillRect(28, 258, W - 56, 18);
-  ctx.fillStyle = '#33e07a';
-  ctx.fillRect(28, 258, (W - 56) * r.soc, 18);
+  ctx.font = '300 50px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(r.soc * 100)}`, cx, cy + 18);
+
+  // Subtitle
+  ctx.fillStyle = 'rgba(165, 243, 252, 0.7)';
+  ctx.font = '500 8.5px system-ui, sans-serif';
+  ctx.fillText('STATE OF CHARGE', cx, cy + 34);
+
+  // Telemetry Cards: Power
+  ctx.fillStyle = '#0f1b2b';
+  ctx.fillRect(16, 218, W - 32, 42);
+  ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(16, 218, W - 32, 42);
+
+  // Orange power bar fill
+  const powerFraction = Math.min(1, r.kw / 350);
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.85)';
+  ctx.fillRect(W - 18 - Math.round((W - 120) * powerFraction), 221, Math.round((W - 120) * powerFraction), 36);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 9px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('CHARGING POWER', 26, 235);
+
   ctx.fillStyle = '#ffffff';
-  ctx.font = '600 30px system-ui, sans-serif';
-  ctx.fillText(`${Math.round(r.soc * 100)} %`, W / 2, 318);
-  ctx.fillStyle = '#8b93a5';
-  ctx.font = '500 20px system-ui, sans-serif';
+  ctx.font = '600 17px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif';
+  ctx.fillText(`${Math.round(r.kw)} kW`, 26, 252);
+
+  // Bottom 2 columns: Time & Energy
+  const cardW = (W - 38) / 2;
+  // Left: Time elapsed
+  ctx.fillStyle = '#0b131f';
+  ctx.fillRect(16, 268, cardW, 40);
+  ctx.strokeRect(16, 268, cardW, 40);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '500 8.5px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('TIME ELAPSED', 24, 283);
+
   const mm = Math.floor(r.elapsed / 60);
   const ss = Math.floor(r.elapsed % 60);
-  ctx.fillText(`${mm}:${String(ss).padStart(2, '0')}  ·  ${r.kwh.toFixed(1)} kWh`, W / 2, 354);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 13.5px monospace, sans-serif';
+  ctx.fillText(`${mm}:${String(ss).padStart(2, '0')}`, 24, 300);
+
+  // Right: Energy dispensed
+  ctx.fillStyle = '#0b131f';
+  ctx.fillRect(16 + cardW + 6, 268, cardW, 40);
+  ctx.strokeRect(16 + cardW + 6, 268, cardW, 40);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '500 8.5px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('ENERGY ADDED', 24 + cardW + 6, 283);
+
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = '600 13.5px monospace, sans-serif';
+  ctx.fillText(`${r.kwh.toFixed(1)} kWh`, 24 + cardW + 6, 300);
+
+  // Bottom Ticker / Status Bar
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+  ctx.fillRect(16, 318, W - 32, 20);
+  ctx.fillStyle = isCharging ? '#34d399' : '#38bdf8';
+  ctx.font = '600 9px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    isCharging ? '● ULTRA-FAST LIQUID-COOLED DC' : isCharged ? '● CHARGE COMPLETE' : '● READY TO CONNECT',
+    W / 2,
+    332,
+  );
 }
+
