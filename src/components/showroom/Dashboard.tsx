@@ -46,6 +46,7 @@ const WHERE: Partial<Record<HmiSkin, string>> = {
   harmonyos: 'Tap the headlamp button on the bottom bar of the car’s screen, or open Vehicle control.',
   hyperos: 'Tap the headlight on the car at the centre of its screen, or open Settings, then Lights.',
   zeekros: 'Tap Lights on the car’s home screen.',
+  banyan: 'Tap Lights on the vehicle stage or open Controls on the Banyan display.',
 };
 
 function coachText(vehicle: Vehicle, mode: LightMode, high: boolean, braking: boolean): string {

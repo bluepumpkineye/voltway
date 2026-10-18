@@ -14,6 +14,8 @@ import {
   Card, CardTitle, Row, SegmentBar, Stepper, Tile, Toggle, cx,
   BoltIcon, LockIcon, NextIcon, PauseIcon, PlayIcon, PrevIcon,
 } from './ui';
+import { useChargeReadout } from '@/lib/tech/session';
+import { tapChargeFlap } from '@/lib/tech/actions';
 
 interface ScreenProps {
   vehicle: Vehicle;
@@ -34,18 +36,37 @@ const TRACKS = [
 export function HomeScreen({ variant, accent }: ScreenProps) {
   const { soc, driveMode, climate, openings, headlightsOn, media, setHmiScreen, patchMedia } =
     useVehicleStore();
+  const live = useChargeReadout();
   const range = effectiveRange(variant, driveMode, soc, climate);
   const track = TRACKS[media.trackIndex % TRACKS.length];
   const anyOpen = Object.values(openings).some(Boolean);
+  const isCharging = live?.phase === 'charging';
+  const isConnected = Boolean(live?.connected || openings.charge);
 
   return (
     <div className="grid h-full grid-cols-[1.06fr_1.28fr_0.92fr] gap-3">
       {/* vehicle pane */}
       <Card className="flex flex-col overflow-hidden">
-        <CardTitle>Vehicle</CardTitle>
-        <div className="relative flex flex-1 items-center justify-center px-4">
-          <CarTopDown accent={accent} openings={openings} headlightsOn={headlightsOn} />
+        <div className="flex items-center justify-between px-5 pt-4">
+          <CardTitle className="p-0">Vehicle</CardTitle>
+          {isCharging && (
+            <span
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+              style={{ background: `${accent}22`, color: accent }}
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: accent }} />
+              Charging · {Math.round(live.kw)} kW
+            </span>
+          )}
         </div>
+        <button
+          type="button"
+          onClick={() => setHmiScreen(isCharging || isConnected ? 'charge' : 'controls')}
+          className="relative flex flex-1 items-center justify-center px-4 focus:outline-none"
+          aria-label="Open vehicle controls or charging"
+        >
+          <CarTopDown accent={accent} openings={openings} headlightsOn={headlightsOn} />
+        </button>
         <div className="px-5 pb-4">
           <div className="flex items-baseline gap-2">
             <span className="tnum text-[40px] font-light leading-none text-white">
@@ -55,14 +76,20 @@ export function HomeScreen({ variant, accent }: ScreenProps) {
           </div>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${soc * 100}%`, background: accent }}
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${soc * 100}%`,
+                background: isCharging
+                  ? `linear-gradient(90deg, ${accent}, #10b981)`
+                  : accent,
+                boxShadow: isCharging ? `0 0 8px ${accent}` : undefined,
+              }}
             />
           </div>
           <div className="mt-2 flex justify-between text-[13px] text-white/45">
-            <span className="tnum">{Math.round(soc * 100)}%</span>
-            <span className={cx(anyOpen && 'text-amber-300')}>
-              {anyOpen ? 'Door open' : 'All closed'}
+            <span className="tnum font-medium text-white/80">{Math.round(soc * 100)}%</span>
+            <span className={cx(anyOpen && 'text-amber-300', isCharging && 'text-emerald-400 font-medium')}>
+              {isCharging ? `${Math.max(0, Math.round(live.left / 60))} min left` : anyOpen ? 'Door open' : 'All closed'}
             </span>
           </div>
         </div>
@@ -585,6 +612,294 @@ export function ControlsScreen({ accent }: ScreenProps) {
           </button>
         </div>
       </Card>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ charge */
+
+export function ChargeScreen({ vehicle, variant, accent }: ScreenProps) {
+  const { soc, openings, driveMode, climate } = useVehicleStore();
+  const live = useChargeReadout();
+  const range = effectiveRange(variant, driveMode, soc, climate);
+
+  const isCharging = live?.phase === 'charging';
+  const isCharged = live?.phase === 'charged';
+  const isConnecting = live?.phase === 'connecting' || live?.phase === 'opening';
+  const isConnected = Boolean(live?.connected || openings.charge);
+
+  const currentSoc = live?.soc ?? soc;
+  const pct = Math.round(currentSoc * 100);
+  const kw = isCharging ? Math.round(live.kw) : openings.charge ? 180 : 0;
+  const leftMins = live ? Math.max(0, Math.round(live.left / 60)) : 0;
+  const kwhAdded = live ? live.kwh.toFixed(1) : '0.0';
+
+  const [limit, setLimit] = React.useState(80);
+  const [preheat, setPreheat] = React.useState(true);
+
+  // Status badge text
+  const statusBadge = isCharging ? (
+    <span className="flex items-center gap-2 rounded-full bg-emerald-500/20 px-3.5 py-1 text-[13px] font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+      </span>
+      Ultra-Fast DC Charging · {kw} kW
+    </span>
+  ) : isCharged ? (
+    <span className="flex items-center gap-2 rounded-full bg-emerald-500/20 px-3.5 py-1 text-[13px] font-medium text-emerald-400 ring-1 ring-emerald-500/30">
+      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+      Charge Complete ({pct}%)
+    </span>
+  ) : isConnecting ? (
+    <span className="flex items-center gap-2 rounded-full bg-amber-500/20 px-3.5 py-1 text-[13px] font-medium text-amber-300 ring-1 ring-amber-500/30">
+      <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+      Connecting & Handshaking…
+    </span>
+  ) : isConnected ? (
+    <span className="flex items-center gap-2 rounded-full bg-sky-500/20 px-3.5 py-1 text-[13px] font-medium text-sky-400 ring-1 ring-sky-500/30">
+      <span className="h-2 w-2 rounded-full bg-sky-400" />
+      Gun Connected · Ready to Charge
+    </span>
+  ) : (
+    <span className="flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-[13px] font-medium text-white/70 ring-1 ring-white/15">
+      <span className="h-2 w-2 rounded-full bg-white/40" />
+      Port Standby
+    </span>
+  );
+
+  return (
+    <div className="flex h-full flex-col gap-3">
+      {/* top status bar */}
+      <div className="flex items-center justify-between rounded-[20px] bg-white/[0.045] px-6 py-3.5 ring-1 ring-white/[0.07]">
+        <div className="flex items-center gap-4">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.08]" style={{ color: accent }}>
+            <BoltIcon />
+          </span>
+          <div>
+            <div className="text-[17px] font-medium text-white/95">Energy & Charging · 能源管理</div>
+            <div className="text-[12px] text-white/45">
+              {vehicle.charging?.claims?.[0]?.text ? 'NIO Power Swap 3.0 & 500 kW Ultra-Fast DC' : 'High-Power DC Fast Charging'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {statusBadge}
+          <button
+            type="button"
+            aria-pressed={openings.charge}
+            onClick={tapChargeFlap}
+            className={cx(
+              'flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+              openings.charge ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/40' : 'bg-white/10 text-white/80 ring-1 ring-white/15 hover:bg-white/15',
+            )}
+          >
+            <LockIcon />
+            <span>Port Flap {openings.charge ? 'Open' : 'Closed'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* main content split: left vehicle/battery visualizer, right metrics */}
+      <div className="grid flex-1 grid-cols-[1.32fr_1fr] gap-3 min-h-0">
+        {/* left card: car silhouette + interactive battery module */}
+        <Card className="flex flex-col justify-between overflow-hidden p-6 relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[13px] uppercase tracking-[0.15em] text-white/40">Vehicle Battery Status</span>
+              <div className="mt-0.5 text-[22px] font-light text-white">
+                {variant.battery.capacityKwh} kWh <span className="text-white/40 font-normal text-[15px]">{variant.battery.chemistry}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[13px] text-white/40">Port Location</span>
+              <div className="text-[15px] font-medium text-white/80">{vehicle.charging?.port?.where ?? 'Left rear quarter'}</div>
+            </div>
+          </div>
+
+          {/* vehicle silhouette with charging effects */}
+          <div className="relative my-auto flex h-[210px] w-full items-center justify-center">
+            {/* background aura when charging */}
+            {isCharging && (
+              <div
+                className="absolute inset-x-8 inset-y-4 rounded-full opacity-35 blur-2xl transition-all duration-700"
+                style={{ background: `radial-gradient(circle, ${accent} 0%, rgba(16,185,129,0) 70%)` }}
+              />
+            )}
+
+            {/* car perspective render */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/hmi/${vehicle.slug}/car34.webp`}
+              alt={`${vehicle.brand} ${vehicle.model}`}
+              draggable={false}
+              className="max-h-[185px] w-auto max-w-[90%] object-contain select-none drop-shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
+            />
+
+            {/* Charge Port Glow Indicator on flank */}
+            <div
+              className={cx(
+                'absolute right-[19%] top-[34%] flex items-center justify-center rounded-full transition-all duration-300',
+                openings.charge ? 'h-7 w-7' : 'h-5 w-5',
+              )}
+              style={{
+                background: openings.charge ? (isCharging ? '#10b981' : accent) : 'rgba(255,255,255,0.2)',
+                boxShadow: openings.charge ? `0 0 16px ${isCharging ? '#10b981' : accent}` : undefined,
+              }}
+            >
+              {openings.charge && (
+                <span className="text-[10px] text-black font-bold">⚡</span>
+              )}
+            </div>
+          </div>
+
+          {/* Battery pack tray visualizer */}
+          <div className="mt-auto space-y-3">
+            <div className="flex items-end justify-between">
+              <div>
+                <span className="text-[13px] text-white/45">Current State of Charge</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="tnum text-[44px] font-light leading-none text-white">{pct}%</span>
+                  {isCharging && (
+                    <span className="text-[18px] font-medium text-emerald-400">+{kw} kW</span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[13px] text-white/45">Charge Limit</span>
+                <div className="text-[20px] font-medium text-white/90">{limit}%</div>
+              </div>
+            </div>
+
+            {/* Glowing segmented battery tray bar */}
+            <div className="relative h-6 w-full overflow-hidden rounded-xl bg-white/[0.08] p-1 ring-1 ring-white/15">
+              <div
+                className="h-full rounded-lg transition-all duration-300 relative overflow-hidden"
+                style={{
+                  width: `${pct}%`,
+                  background: isCharging
+                    ? `linear-gradient(90deg, ${accent}, #10b981, ${accent})`
+                    : accent,
+                  boxShadow: isCharging ? `0 0 14px ${accent}` : undefined,
+                }}
+              />
+              {/* Target limit tick marker */}
+              <div
+                className="absolute inset-y-0 w-1 bg-white/70 shadow-sm"
+                style={{ left: `${limit}%` }}
+                title={`Target: ${limit}%`}
+              />
+            </div>
+
+            {/* Charge limit selectors */}
+            <div className="flex items-center justify-between pt-1 text-[13px]">
+              <span className="text-white/40">Quick target limit:</span>
+              <div className="flex gap-2">
+                {[80, 90, 100].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setLimit(val)}
+                    className={cx(
+                      'rounded-lg px-3 py-1 font-medium transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-white',
+                      limit === val
+                        ? 'bg-white/20 text-white ring-1 ring-white/30'
+                        : 'bg-white/[0.05] text-white/50 hover:bg-white/[0.09]',
+                    )}
+                  >
+                    {val}% {val === 80 ? '(Daily)' : val === 100 ? '(Trip)' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* right column: live metrics card + battery ecosystem cards */}
+        <div className="flex flex-col gap-3 min-h-0">
+          {/* live power & telemetry card */}
+          <Card className="flex flex-col justify-between p-6">
+            <CardTitle className="p-0">Telemetry & Performance</CardTitle>
+
+            <div className="my-3 flex items-baseline justify-between border-b border-white/[0.08] pb-4">
+              <div>
+                <span className="text-[13px] text-white/45">Charging Power</span>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="tnum text-[48px] font-light leading-none text-white">{kw}</span>
+                  <span className="text-[17px] text-white/45 font-medium">kW</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[13px] text-white/45">Estimated Range</span>
+                <div className="flex items-baseline justify-end gap-1.5">
+                  <span className="tnum text-[34px] font-light leading-none text-white/95">
+                    {range ? range.km : '--'}
+                  </span>
+                  <span className="text-[15px] text-white/45 font-medium">km</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white/[0.04] p-3.5 ring-1 ring-white/[0.05]">
+                <span className="text-[12px] text-white/40">Time Remaining</span>
+                <div className="tnum mt-1 text-[22px] font-medium text-white/90">
+                  {isCharging ? `${leftMins} min` : isCharged ? 'Finished' : '--'}
+                </div>
+                <span className="text-[11px] text-white/30">to {limit}% target</span>
+              </div>
+              <div className="rounded-xl bg-white/[0.04] p-3.5 ring-1 ring-white/[0.05]">
+                <span className="text-[12px] text-white/40">Energy Added</span>
+                <div className="tnum mt-1 text-[22px] font-medium text-white/90">
+                  {kwhAdded} <span className="text-[14px] text-white/45">kWh</span>
+                </div>
+                <span className="text-[11px] text-white/30">this session</span>
+              </div>
+              <div className="rounded-xl bg-white/[0.04] p-3.5 ring-1 ring-white/[0.05]">
+                <span className="text-[12px] text-white/40">Architecture</span>
+                <div className="tnum mt-1 text-[20px] font-medium text-white/90">
+                  {vehicle.charging?.architectureV ?? 400} V
+                </div>
+                <span className="text-[11px] text-white/30">Liquid-cooled bus</span>
+              </div>
+              <div className="rounded-xl bg-white/[0.04] p-3.5 ring-1 ring-white/[0.05]">
+                <span className="text-[12px] text-white/40">Peak Capability</span>
+                <div className="tnum mt-1 text-[20px] font-medium text-white/90">
+                  {vehicle.charging?.peakKw ?? 250} kW
+                </div>
+                <span className="text-[11px] text-white/30">GB/T DC Protocol</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* NIO Power Swap / Battery features card */}
+          <Card className="flex flex-col justify-between p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                  ⚡
+                </span>
+                <div>
+                  <div className="text-[15px] font-medium text-white/90">NIO Power Swap 3.0</div>
+                  <div className="text-[12px] text-white/45">3-Minute Automated Battery Swapping</div>
+                </div>
+              </div>
+              <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-400">
+                Ready
+              </span>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[13px]">
+              <div>
+                <span className="block text-white/90">Battery Thermal Conditioning</span>
+                <span className="block text-[11px] text-white/40">Preheat pack for fast charging</span>
+              </div>
+              <Toggle label="Preheat" on={preheat} accent={accent} onChange={setPreheat} />
+            </div>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -29,6 +29,7 @@ const CARS = {
   'denza-z9': { skip: /Caliper|DoorFrame/ },
   'xpeng-g9l': { skip: /Caliper|DoorFrame/ },
   'avatr-06t': { skip: /Caliper|DoorFrame/ },
+  'nio-es8': { skip: /Caliper|DoorFrame/ },
 };
 
 /** Triangles after simplification. */

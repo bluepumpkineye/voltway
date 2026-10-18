@@ -75,7 +75,7 @@ export function TechDevices({ vehicle, variant, demo }: { vehicle: Vehicle; vari
   // these have no stops to speak of and no pages of their own to carry a Start: one button in the pill does it
   const kit = carpet || chassis;
   const run = runPhase(clock);
-  const homeScreen = carpet ? 'controls' : chassis ? 'chassis' : 'park';
+  const homeScreen = carpet ? (vehicle.cockpit.skin === 'banyan' ? 'chassis' : 'controls') : chassis ? 'chassis' : 'park';
   // a phone-sized window has no room for the stage and a device at once: the device opens nearly full
   // screen, and gives way to a slim bar of controls once the car is moving, so the stage can be watched
   const [sheet, setSheet] = React.useState<'open' | 'bar'>('open');

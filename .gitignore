@@ -30,3 +30,9 @@ public/reference images/
 # CC0 HDRIs from Poly Haven, 25 MB each: re-downloadable, see
 # blender/textures/hdri/README.md
 blender/textures/hdri/*.hdr
+
+# Local demo recordings
+demo-video/
+public/demo/
+*.mp4
+

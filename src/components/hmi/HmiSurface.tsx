@@ -6,22 +6,24 @@ import { useVehicleStore, type HmiScreen } from '@/store/vehicle-store';
 import { DRIVE_MODES, effectiveRange } from '@/lib/performance';
 import {
   HMI_W, HMI_H, cx,
-  HomeIcon, ClimateIcon, DriveIcon, NavIcon, MediaIcon, AdasIcon, ControlsIcon,
+  HomeIcon, ClimateIcon, DriveIcon, NavIcon, MediaIcon, AdasIcon, ControlsIcon, BoltIcon,
 } from './ui';
 import {
-  HomeScreen, ClimateScreen, DriveScreen, NavScreen, MediaScreen, AdasScreen, ControlsScreen,
+  HomeScreen, ClimateScreen, DriveScreen, NavScreen, MediaScreen, AdasScreen, ControlsScreen, ChargeScreen,
 } from './screens';
 import { HyperOsSurface } from './hyperos/HyperOsSurface';
 import { HarmonyOsSurface } from './harmonyos/HarmonyOsSurface';
 import { ZeekrOsSurface } from './zeekros/ZeekrOsSurface';
 import { DilinkSurface } from './dilink/DilinkSurface';
 import { XosSurface } from './xos/XosSurface';
+import { BanyanSurface } from './banyan/BanyanSurface';
 import { ChassisScreen } from './chassis';
 
 const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon /> },
   { id: 'climate', label: 'Climate', icon: <ClimateIcon /> },
   { id: 'drive', label: 'Drive', icon: <DriveIcon /> },
+  { id: 'charge', label: 'Charging', icon: <BoltIcon /> },
   { id: 'nav', label: 'Navigation', icon: <NavIcon /> },
   { id: 'media', label: 'Media', icon: <MediaIcon /> },
   { id: 'adas', label: 'Assist', icon: <AdasIcon /> },
@@ -34,8 +36,8 @@ const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
  * Authored at a fixed 1280x800 and scaled by the caller, so the same component
  * renders identically whether it is mounted flat on the page or projected onto
  * the screen quad inside the 3D cabin. A car whose OS has been rebuilt from its
- * maker's own screens gets that skin (HyperOS, HarmonyOS, ZEEKR OS); the rest share the
- * generic one below.
+ * maker's own screens gets that skin (HyperOS, HarmonyOS, ZEEKR OS, Banyan, DiLink, XOS);
+ * the rest share the generic one below.
  */
 export function HmiSurface({
   vehicle,
@@ -51,6 +53,7 @@ export function HmiSurface({
   if (vehicle.cockpit.skin === 'zeekros') return <ZeekrOsSurface vehicle={vehicle} variant={variant} />;
   if (vehicle.cockpit.skin === 'dilink') return <DilinkSurface vehicle={vehicle} variant={variant} />;
   if (vehicle.cockpit.skin === 'xos') return <XosSurface vehicle={vehicle} variant={variant} />;
+  if (vehicle.cockpit.skin === 'banyan') return <BanyanSurface vehicle={vehicle} variant={variant} className={className} />;
   return <GenericSurface vehicle={vehicle} variant={variant} className={className} />;
 }
 
@@ -82,7 +85,7 @@ function GenericSurface({
     seats: ClimateScreen,
     camera: NavScreen,
     park: NavScreen,
-    charge: ControlsScreen,
+    charge: ChargeScreen,
     chassis: ChassisScreen,
   }[hmiScreen];
 

@@ -35,9 +35,9 @@ export function Card({
   );
 }
 
-export function CardTitle({ children }: { children: React.ReactNode }) {
+export function CardTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="px-5 pt-4 pb-2 text-[13px] font-medium uppercase tracking-[0.15em] text-white/40">
+    <div className={cx('px-5 pt-4 pb-2 text-[13px] font-medium uppercase tracking-[0.15em] text-white/40', className)}>
       {children}
     </div>
   );

@@ -45,10 +45,10 @@ export const CHASSIS: Record<string, ChassisCopy> = {
     doing: 'The car pivots about its left front wheel',
   },
   uturn: {
-    title: 'Rear-wheel steering',
+    title: 'Turning agility',
     start: 'U-turn',
     figure: 'Turned',
-    hint: 'The rear wheels steer against the fronts, so the car turns on a tighter circle than its front wheels alone would give.',
+    hint: 'Advanced suspension geometry and virtual kingpins allow deep wheel articulation for an exceptionally tight turning circle.',
     doing: 'The car turns round',
   },
 };

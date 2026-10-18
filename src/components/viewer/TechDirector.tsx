@@ -9,7 +9,7 @@ import { techClock } from '@/lib/tech/clock';
 import { chargeDemo } from '@/lib/tech/charging';
 import { DRIVERS, visibleDemos } from '@/lib/tech/demos';
 import type { PlannedRun } from '@/lib/tech/kinematics';
-import { RIDE_LEVELS } from '@/lib/tech/ride';
+import { rideLevelsOf, RIDE_SPAN_MM } from '@/lib/tech/ride';
 import { rigOf } from '@/lib/tech/rig';
 import { techSession } from '@/lib/tech/session';
 import { motionOk } from './configurator';
@@ -102,6 +102,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       st.setBoost(false, 0);
       st.setBoostPopup(false);
     }
+    if (built.charge) {
+      st.setHmiScreen('charge');
+    }
     poseAt.current = NaN;
     techSession.set({
       demoId: built.spec.id,
@@ -134,6 +137,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
         // the demo's flap and charge level are not the visitor's
         s.setOpening('charge', false);
         s.setSoc(soc0);
+        s.setHmiScreen('home');
       }
       if (built.sensors) s.setBraking(false);
       if (built.boost) {
@@ -160,7 +164,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   // the ride height the car's screen asks for: the air suspension takes a moment to get there. With easy entry on
   // and a belt unbuckled (the car is parked then: the Tech tab buckles up again when it drives) the body kneels
   const kneel = easyEntry && !beltOn;
-  const rideGoal = spec?.driver === 'carpet' ? (RIDE_LEVELS[kneel ? 0 : rideLevel]?.mm ?? 0) : 0;
+  const spanMm = vehicle.slug === 'nio-es8' ? 100 : RIDE_SPAN_MM;
+  const levels = React.useMemo(() => rideLevelsOf(spanMm), [spanMm]);
+  const rideGoal = spec?.driver === 'carpet' ? (levels[kneel ? 0 : rideLevel]?.mm ?? 0) : 0;
   const ride = React.useRef(0);
   const poseAt = React.useRef(NaN);
   React.useEffect(() => invalidate(), [rideGoal, invalidate]);

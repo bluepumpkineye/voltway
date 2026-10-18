@@ -1,32 +1,35 @@
 'use client';
 
 import React from 'react';
+import type { Vehicle } from '@/data/vehicles/schema';
 import { useTechClock } from '@/lib/tech/clock';
-import { RIDE_LEVELS, type RideMode, type RideRun } from '@/lib/tech/ride';
+import { rideLevelsOf, RIDE_SPAN_MM, type RideMode, type RideRun } from '@/lib/tech/ride';
 import { useRuntime } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { GLASS } from './Chrome';
 
 const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/70 focus-visible:ring-offset-1';
 
-const MODES: { id: RideMode; label: string }[] = [
-  { id: 'carpet', label: 'Magic Carpet' },
-  { id: 'passive', label: 'Passive' },
-];
-
 const W = 600;
 const H = 74;
 /** how far the chart reaches up and down from the body's resting height, cm */
 const SPAN_CM = 3.5;
-const COLOUR: Record<RideMode, string> = { carpet: '#2f6bff', passive: '#8a8f98' };
 
 /**
- * The Magic Carpet demo's own controls, the showroom's and not the car's (the car has no such switch): which
+ * The Magic Carpet / PrimeRide demo's own controls, the showroom's and not the car's (the car has no such switch): which
  * suspension the body rides on, the ride height when no screen offers it, and the body's height through the
  * run, both suspensions drawn together so the difference is seen and not only felt. It is a simulation
  * (src/lib/tech/ride.ts); the chart says so.
  */
-export function RideTools({ showHeights }: { showHeights: boolean }) {
+export function RideTools({ vehicle, showHeights }: { vehicle?: Vehicle; showHeights: boolean }) {
+  const isNio = vehicle?.slug === 'nio-es8';
+  const modes: { id: RideMode; label: string }[] = [
+    { id: 'carpet', label: isNio ? 'PrimeRide 4D' : 'Magic Carpet' },
+    { id: 'passive', label: isNio ? 'Passive Suspension' : 'Passive' },
+  ];
+  const spanMm = isNio ? 100 : RIDE_SPAN_MM;
+  const levels = React.useMemo(() => rideLevelsOf(spanMm), [spanMm]);
+  const activeColor = isNio ? '#00C2A8' : '#2f6bff';
   const carpetOn = useVehicleStore((s) => s.carpetOn);
   const setCarpetOn = useVehicleStore((s) => s.setCarpetOn);
   const level = useVehicleStore((s) => s.rideLevel);
@@ -54,7 +57,7 @@ export function RideTools({ showHeights }: { showHeights: boolean }) {
     <div className={`pointer-events-auto w-full max-w-[620px] rounded-2xl px-3.5 py-2 ${GLASS}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <div role="group" aria-label="Suspension" className="flex rounded-full bg-black/[0.04] p-0.5">
-          {MODES.map((m) => (
+          {modes.map((m) => (
             <button
               key={m.id}
               type="button"
@@ -70,7 +73,7 @@ export function RideTools({ showHeights }: { showHeights: boolean }) {
         </div>
         {showHeights && (
           <div role="group" aria-label="Ride height" className="flex min-w-0 overflow-x-auto rounded-full bg-black/[0.04] p-0.5">
-            {RIDE_LEVELS.map((l, i) => (
+            {levels.map((l, i) => (
               <button
                 key={l.id}
                 type="button"
@@ -89,7 +92,13 @@ export function RideTools({ showHeights }: { showHeights: boolean }) {
       {easyEntry && !moving && (
         <div className="mt-1.5 flex items-center justify-between gap-3 border-t border-black/[0.06] pt-1.5">
           <span className="text-[11px] leading-snug text-neutral-500">
-            {beltOn ? 'Suspension easy entry: unbuckle a belt and the parked car lowers.' : 'Belt unbuckled: the parked car has lowered to let you out.'}
+            {beltOn
+              ? isNio
+                ? 'Suspension Easy Entry: unbuckle a belt and the ES8 lowers by 50 mm.'
+                : 'Suspension easy entry: unbuckle a belt and the parked car lowers.'
+              : isNio
+                ? 'Belt unbuckled: the ES8 has lowered by 50 mm for effortless exit.'
+                : 'Belt unbuckled: the parked car has lowered to let you out.'}
           </span>
           <button
             type="button"
@@ -103,15 +112,26 @@ export function RideTools({ showHeights }: { showHeights: boolean }) {
           </button>
         </div>
       )}
-      {ride && <BodyChart modes={ride.modes} mode={mode} />}
+      {ride && <BodyChart modes={ride.modes} mode={mode} activeLabel={isNio ? 'PrimeRide 4D' : 'Magic Carpet'} activeColor={activeColor} />}
     </div>
   );
 }
 
 /** The body's height through the run, both suspensions, and where the playhead is. */
-function BodyChart({ modes, mode }: { modes: Record<RideMode, RideRun>; mode: RideMode }) {
+function BodyChart({
+  modes,
+  mode,
+  activeLabel = 'Magic Carpet',
+  activeColor = '#2f6bff',
+}: {
+  modes: Record<RideMode, RideRun>;
+  mode: RideMode;
+  activeLabel?: string;
+  activeColor?: string;
+}) {
   const clock = useTechClock();
   const dur = modes.carpet.duration || 1;
+  const colour: Record<RideMode, string> = { carpet: activeColor, passive: '#8a8f98' };
   const paths = React.useMemo(() => {
     const out = {} as Record<RideMode, string>;
     for (const m of ['passive', 'carpet'] as const) {
@@ -131,14 +151,14 @@ function BodyChart({ modes, mode }: { modes: Record<RideMode, RideRun>; mode: Ri
     <figure className="mt-1.5">
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-[46px] w-full" role="img" aria-label="Body height through the run, both suspensions">
         <line x1="0" x2={W} y1={H / 2} y2={H / 2} stroke="#c9ccd2" strokeWidth="1" strokeDasharray="3 4" />
-        <path d={paths[other]} fill="none" stroke={COLOUR[other]} strokeOpacity="0.55" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
-        <path d={paths[mode]} fill="none" stroke={COLOUR[mode]} strokeWidth="2.2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={paths[other]} fill="none" stroke={colour[other]} strokeOpacity="0.55" strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+        <path d={paths[mode]} fill="none" stroke={colour[mode]} strokeWidth="2.2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         <line x1={x} x2={x} y1="0" y2={H} stroke="#17181b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       </svg>
       <figcaption className="mt-0.5 flex flex-wrap justify-between gap-x-3 text-[10.5px] leading-snug text-neutral-500">
         <span>Body height over the humps (simulated)</span>
         <span className="tnum">
-          <span style={{ color: COLOUR.carpet }}>Magic Carpet ±{cm('carpet')} cm</span>
+          <span style={{ color: activeColor }}>{activeLabel} ±{cm('carpet')} cm</span>
           {' · '}
           <span style={{ color: '#6b7078' }}>Passive ±{cm('passive')} cm</span>
         </span>

@@ -37,11 +37,14 @@ const NAMES: [RideLevelId, string][] = [
   ['very-high', 'Very high'],
 ];
 /** Lowest first. */
-export const RIDE_LEVELS: readonly RideLevel[] = NAMES.map(([id, label], i) => ({
-  id,
-  label,
-  mm: (i - 2) * (RIDE_SPAN_MM / 4),
-}));
+export function rideLevelsOf(spanMm: number = RIDE_SPAN_MM): readonly RideLevel[] {
+  return NAMES.map(([id, label], i) => ({
+    id,
+    label,
+    mm: (i - 2) * (spanMm / 4),
+  }));
+}
+export const RIDE_LEVELS: readonly RideLevel[] = rideLevelsOf(RIDE_SPAN_MM);
 export const STANDARD_LEVEL = 2;
 
 // ---------------------------------------------------------------------------- the road

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import type { Vehicle } from '@/data/vehicles/schema';
 import { techClock, useTechClock } from '@/lib/tech/clock';
 import { pauseDemo } from '@/lib/tech/actions';
 import { runPhase } from '@/lib/tech/phase';
@@ -20,7 +21,9 @@ const G_SPAN = 1.8;
  * frame while the car runs, so they are as smooth as the car; the readout is a simulation (src/lib/tech/launch.ts)
  * and the panel says which times are the maker's.
  */
-export function LaunchTools() {
+export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
+  const isNio = vehicle?.slug === 'nio-es8';
+  const accent = isNio ? '#00C2A8' : '#2f6bff';
   const launch = useRuntime()?.launch;
   const clock = useTechClock();
   const run = runPhase(clock);
@@ -95,7 +98,7 @@ export function LaunchTools() {
       <div className="mt-2 flex items-center gap-2.5">
         <span className="w-[26px] text-[10.5px] text-neutral-500">Pull</span>
         <span className="relative h-[6px] min-w-0 flex-1 overflow-hidden rounded-full bg-black/[0.07]">
-          <span ref={gFill} className="absolute inset-y-0 left-0 rounded-full bg-[#2f6bff]" style={{ width: '0%' }} />
+          <span ref={gFill} className="absolute inset-y-0 left-0 rounded-full" style={{ width: '0%', backgroundColor: accent }} />
         </span>
         <span ref={gText} className="tnum w-[52px] text-right text-[11px] text-neutral-700">
           0.00 g
@@ -111,7 +114,7 @@ export function LaunchTools() {
             data-reached="false"
             className="group tnum transition-colors data-[reached=true]:font-medium data-[reached=true]:text-neutral-900"
           >
-            0–{m.speed} km/h <span className="group-data-[reached=true]:text-[#2f6bff]">{m.time.toFixed(2)} s</span>
+            0–{m.speed} km/h <span className="group-data-[reached=true]:font-semibold" style={{ color: accent }}>{m.time.toFixed(2)} s</span>
             <span className="ml-1 text-neutral-400">published</span>
           </li>
         ))}

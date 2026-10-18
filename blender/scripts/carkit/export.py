@@ -184,9 +184,13 @@ def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=No
     def _run(**kw):
         # the exporter reads context.active_object, which does not exist when
         # the build is driven from outside the UI
-        with bpy.context.temp_override(active_object=active, object=active,
-                                       selected_objects=sel,
-                                       selected_editable_objects=sel):
+        win = bpy.context.window or (bpy.context.window_manager.windows[0] if len(bpy.context.window_manager.windows) else None)
+        override = dict(active_object=active, object=active,
+                        selected_objects=sel,
+                        selected_editable_objects=sel)
+        if win:
+            override["window"] = win
+        with bpy.context.temp_override(**override):
             bpy.ops.export_scene.gltf(**kw)
 
     _run(**kwargs)

@@ -2,7 +2,7 @@ import socket
 import json
 import sys
 
-def eval_code(code_str, timeout=120):
+def eval_code(code_str, timeout=300):
     s = socket.socket()
     s.settimeout(timeout)
     s.connect(('127.0.0.1', 9876))
