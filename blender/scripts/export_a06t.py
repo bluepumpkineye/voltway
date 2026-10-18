@@ -235,7 +235,7 @@ def bake_exterior_ao(samples=512):
 def bake_ground_shadow(samples=192):
     from carkit import studio
     car = []
-    for _, cname in exterior_groups():
+    for _, cname in exterior_groups(options=False):
         col = bpy.data.collections.get(cname)
         if col is not None:
             car.extend([o for o in col.objects if o.type == 'MESH'])
