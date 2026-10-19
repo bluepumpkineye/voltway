@@ -21,21 +21,19 @@ NOSE = N.NOSE
 PLACER = P.Placer(BODY.proud)
 
 # --------------------------------------------------------------- hardpoints
-# Double-Dash dual-layer crystal DRLs (upper corner along hood shut line)
-DRL_HOUSE_LO = [(0.440, 0.885), (0.540, 0.892), (0.640, 0.902), (0.745, 0.916)]
-DRL_HOUSE_UP = [(0.440, 0.915), (0.540, 0.922), (0.640, 0.930), (0.745, 0.940)]
+# Double-Dash dual-layer crystal DRLs (spanning from near central emblem to outer bonnet edge)
+HOUSE_UP_XY = [(2.542, 0.380), (2.518, 0.480), (2.476, 0.590), (2.418, 0.690), (2.355, 0.765)]
+HOUSE_LO_XY = [(2.576, 0.380), (2.552, 0.480), (2.510, 0.590), (2.452, 0.690), (2.390, 0.765)]
 
-# Upper dash row: inner segment + outer segment (separated by crisp break)
-DRL_UP_IN_LO  = [(0.460, 0.902), (0.520, 0.906), (0.580, 0.912)]
-DRL_UP_IN_UP  = [(0.460, 0.914), (0.520, 0.918), (0.580, 0.924)]
-DRL_UP_OUT_LO = [(0.600, 0.914), (0.670, 0.921), (0.740, 0.929)]
-DRL_UP_OUT_UP = [(0.600, 0.926), (0.670, 0.933), (0.740, 0.941)]
+UP_IN_UP_XY  = [(2.545, 0.395), (2.530, 0.480), (2.508, 0.575)]
+UP_IN_LO_XY  = [(2.560, 0.395), (2.545, 0.480), (2.523, 0.575)]
+UP_OUT_UP_XY = [(2.482, 0.595), (2.432, 0.685), (2.370, 0.760)]
+UP_OUT_LO_XY = [(2.497, 0.595), (2.447, 0.685), (2.385, 0.760)]
 
-# Lower dash row: inner segment + outer segment (Double-Dash 2nd layer)
-DRL_LO_IN_LO  = [(0.475, 0.888), (0.530, 0.892), (0.580, 0.897)]
-DRL_LO_IN_UP  = [(0.475, 0.898), (0.530, 0.902), (0.580, 0.907)]
-DRL_LO_OUT_LO = [(0.600, 0.899), (0.670, 0.906), (0.735, 0.914)]
-DRL_LO_OUT_UP = [(0.600, 0.909), (0.670, 0.916), (0.735, 0.924)]
+LO_IN_UP_XY  = [(2.561, 0.405), (2.546, 0.480), (2.524, 0.575)]
+LO_IN_LO_XY  = [(2.573, 0.405), (2.558, 0.480), (2.536, 0.575)]
+LO_OUT_UP_XY = [(2.498, 0.595), (2.448, 0.685), (2.386, 0.755)]
+LO_OUT_LO_XY = [(2.510, 0.595), (2.460, 0.685), (2.398, 0.755)]
 
 # Vertical HDPL projector headlamp pocket in outer bumper cheek (y, z loop)
 POCKET_YZ = [
@@ -187,34 +185,47 @@ def build_chin(collection, lib):
 
 
 # ----------------------------------------------------------- Double-Dash + HDPL lamps
-def _strip(name, lo_yz, up_yz, dist, collection, mat, n=28, nk=5, thickness=0.0025):
+def _top_place(p, d):
+    return BODY.top_point(p[0], p[1], d)
+
+
+def _pts_3d(xy_list):
+    return [BODY.top_point(x, y)[0] for (x, y) in xy_list]
+
+
+def _strip_top(name, lo_xy, up_xy, dist, collection, mat, n=32, nk=4,
+               thickness=0.0022, bevel=(0.0006, 2, 40)):
+    lo_3d = _pts_3d(lo_xy)
+    up_3d = _pts_3d(up_xy)
+    lo_p = geom.polyline(lo_3d, n)
+    up_p = geom.polyline(up_3d, n)
     out = geom.away_from((2.05, 0.55, 0.65))
     return lamps.lens(
-        name, _on_face(lo_yz, n), _on_face(up_yz, n), _place,
+        name, lo_p, up_p, _top_place,
         collection, mat, nk, dist, out,
-        thickness=thickness, bevel=(0.0008, 2, 30),
+        thickness=thickness, bevel=bevel,
     )
 
 
 def build_headlamps(collection, lib):
     made = []
     # 1. Double-Dash upper crystal DRL dark housing
-    made.append(_strip(
-        "ES8_Lamp_Housing", DRL_HOUSE_LO, DRL_HOUSE_UP,
-        lambda k, nk: 0.0022 + 0.0008 * math.sin(math.pi * k / nk),
-        collection, lib["black_gloss"], n=32, nk=5,
+    made.append(_strip_top(
+        "ES8_Lamp_Housing", HOUSE_LO_XY, HOUSE_UP_XY,
+        lambda k, nk: 0.0022 + 0.0006 * math.sin(math.pi * k / nk),
+        collection, lib["black_gloss"], n=36, nk=5, bevel=(0.0006, 2, 40),
     ))
-    # Four crystal LED blades per side (Double-Dash 2x2 segments, sitting proud so they shine clearly)
+    # Four crystal LED blades per side (Double-Dash 2x2 segments)
     for nm, lo, up in (
-        ("ES8_Lamp_DRL_In",   DRL_UP_IN_LO,  DRL_UP_IN_UP),
-        ("ES8_Lamp_DRL_Out",  DRL_UP_OUT_LO, DRL_UP_OUT_UP),
-        ("ES8_Lamp_DRL2_In",  DRL_LO_IN_LO,  DRL_LO_IN_UP),
-        ("ES8_Lamp_DRL2_Out", DRL_LO_OUT_LO, DRL_LO_OUT_UP),
+        ("ES8_Lamp_DRL_In",   UP_IN_LO_XY,  UP_IN_UP_XY),
+        ("ES8_Lamp_DRL_Out",  UP_OUT_LO_XY, UP_OUT_UP_XY),
+        ("ES8_Lamp_DRL2_In",  LO_IN_LO_XY,  LO_IN_UP_XY),
+        ("ES8_Lamp_DRL2_Out", LO_OUT_LO_XY, LO_OUT_UP_XY),
     ):
-        made.append(_strip(
+        made.append(_strip_top(
             nm, lo, up,
-            lambda k, nk: 0.0045 + 0.0012 * math.sin(math.pi * k / nk),
-            collection, lib["led_white"], n=18, nk=4, thickness=0.0025,
+            lambda k, nk: 0.0042 + 0.0008 * math.sin(math.pi * k / nk),
+            collection, lib["led_white"], n=20, nk=3, thickness=0.0020, bevel=None,
         ))
 
     # 2. Vertical HDPL smart projector pocket in outer bumper cheek

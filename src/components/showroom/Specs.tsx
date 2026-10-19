@@ -5,9 +5,12 @@ import type { Variant, Vehicle } from '@/data/vehicles/schema';
 import { chargeMinutes10to80 } from '@/lib/performance';
 import type { DimensionFocus } from '@/store/vehicle-store';
 import { FOCUS, GLASS } from './Chrome';
+import { ComparisonView } from './ComparisonView';
 
 /** How wide the specification column is, px, on a window wide enough to stand it beside the car. */
 export const SPECS_COLUMN_W = 392;
+/** How wide the split-screen comparison console is, px, on a wide window. */
+export const COMPARE_COLUMN_W = 760;
 
 const mm = (v: number) => `${v.toLocaleString('en-US')} mm`;
 const num = (v: number) => v.toLocaleString('en-US');
@@ -71,6 +74,14 @@ export function SpecsPanel({
   sources,
   onCharging,
   compact,
+  compareVehicle,
+  compareVariant,
+  onSelectCompareVehicle,
+  onCompareVariant,
+  isComparing = false,
+  onToggleComparing,
+  isMaximized = false,
+  onToggleMaximize,
 }: {
   vehicle: Vehicle;
   variant: Variant;
@@ -81,7 +92,33 @@ export function SpecsPanel({
   /** open the Charging tab, when the car has one */
   onCharging?: () => void;
   compact: boolean;
+  compareVehicle?: Vehicle;
+  compareVariant?: Variant;
+  onSelectCompareVehicle?: (slug: string) => void;
+  onCompareVariant?: (id: string) => void;
+  isComparing?: boolean;
+  onToggleComparing?: (on: boolean) => void;
+  isMaximized?: boolean;
+  onToggleMaximize?: () => void;
 }) {
+  if (isComparing && compareVehicle && compareVariant && onToggleComparing && onSelectCompareVehicle && onCompareVariant) {
+    return (
+      <ComparisonView
+        vehicleA={vehicle}
+        variantA={variant}
+        onVariantA={onVariant}
+        vehicleB={compareVehicle}
+        variantB={compareVariant}
+        onSelectVehicleB={onSelectCompareVehicle}
+        onVariantB={onCompareVariant}
+        onClose={() => onToggleComparing(false)}
+        compact={compact}
+        isMaximized={isMaximized}
+        onToggleMaximize={onToggleMaximize}
+      />
+    );
+  }
+
   const d = vehicle.dimensions;
   const p = variant.performance;
   const b = variant.battery;
@@ -100,8 +137,21 @@ export function SpecsPanel({
     <div className={`pointer-events-auto flex max-h-full w-full flex-col overflow-hidden rounded-2xl ${GLASS}`}>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-1 pt-3">
         <header>
-          <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-            {vehicle.group} · {vehicle.bodyStyle} · {vehicle.year}
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+              {vehicle.group} · {vehicle.bodyStyle} · {vehicle.year}
+            </div>
+            {onToggleComparing && (
+              <button
+                type="button"
+                onClick={() => onToggleComparing(true)}
+                className={`flex items-center gap-1.5 rounded-full bg-black/[0.05] px-2.5 py-1 text-[11px] font-semibold text-neutral-800 transition-colors hover:bg-neutral-900 hover:text-white ${FOCUS}`}
+                title="Compare two models side-by-side"
+              >
+                <span>◫</span>
+                <span>Compare</span>
+              </button>
+            )}
           </div>
           <h2 className="mt-0.5 text-[17px] font-semibold leading-tight tracking-tight text-neutral-900">
             {vehicle.brand} {vehicle.model}

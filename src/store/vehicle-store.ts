@@ -189,6 +189,10 @@ export interface VehicleUiState {
   anchorTick: number;
   sceneKind: ShowroomScene;
   dimension: DimensionFocus;
+  /** comparison mode: vehicle slug to compare against, or null when single spec */
+  compareSlug: string | null;
+  /** variant id of the comparison vehicle, or null for its flagship variant */
+  compareVariantId: string | null;
   /** the Tech tab's demo ('' means the car's first); its clock lives in src/lib/tech/clock.ts */
   techDemoId: string;
   /** playback speed of the demo's clock */
@@ -293,6 +297,8 @@ export interface VehicleUiState {
   setAnchor: (id: AnchorId) => void;
   setSceneKind: (s: ShowroomScene) => void;
   setDimension: (d: DimensionFocus) => void;
+  setCompareSlug: (slug: string | null) => void;
+  setCompareVariantId: (id: string | null) => void;
   setTechDemo: (id: string) => void;
   setTechSpeed: (speed: number) => void;
   setTechStage: (stage: VehicleUiState['techStage']) => void;
@@ -412,6 +418,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   anchorTick: 0,
   sceneKind: 'studio',
   dimension: 'length',
+  compareSlug: null,
+  compareVariantId: null,
   techDemoId: '',
   techSpeed: 1,
   techStage: null,
@@ -524,6 +532,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setAnchor: (id) => set(anchorState(id)),
   setSceneKind: (sceneKind) => set({ sceneKind }),
   setDimension: (dimension) => set({ dimension, ...anchorState(DIMENSION_ANCHOR[dimension]) }),
+  setCompareSlug: (compareSlug) => set({ compareSlug, compareVariantId: null }),
+  setCompareVariantId: (compareVariantId) => set({ compareVariantId }),
   setTechDemo: (techDemoId) => set({ techDemoId }),
   setTechSpeed: (techSpeed) => set({ techSpeed }),
   setTechStage: (techStage) => set({ techStage }),
@@ -611,6 +621,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       anchorId: 'hero',
       sceneKind: 'studio',
       dimension: 'length',
+      compareSlug: null,
+      compareVariantId: null,
       techDemoId: '',
       techSpeed: 1,
       techStage: null,

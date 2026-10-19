@@ -97,8 +97,8 @@ Y_SHOULDER = Curve([
 Y_ROOF = Curve([
     (-HALF_L, 0.570), (-2.400, 0.580), (KNEE_X, 0.595),
     (-1.600, 0.625), (-0.600, 0.650), (0.350, 0.660),
-    (0.850, 0.715), (COWL_X, 0.815), (1.650, 0.845),
-    (2.150, 0.820), (2.450, 0.765), (HALF_L, 0.680),
+    (0.850, 0.715), (COWL_X, 0.815), (1.650, 0.800),
+    (2.150, 0.760), (2.350, 0.710), (2.450, 0.650), (HALF_L, 0.580),
 ])
 
 Y_ROCKER = Curve([
@@ -122,7 +122,7 @@ BODY = LoftBody(
     y_rocker=Y_ROCKER, undercut=UNDERCUT, z_crest=Z_CREST,
     v_shoulder=V_SHOULDER, cowl_x=COWL_X, backlight_x=BACKLIGHT_X,
     sill_height=0.135, core_z=0.75, crease="soft",
-    section=Section(step_in=0.028, step_max=0.026, tumble=(0.38, 0.58, 0.50, 0.38)),
+    section=Section(step_in=0.008, step_max=0.015, tumble=(0.50, 0.50, 0.50, 0.38)),
 )
 
 z_rocker = BODY.z_rocker

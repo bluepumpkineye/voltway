@@ -52,6 +52,10 @@ def main(reset=True, parts=PARTS, wheels=True, scene=True):
             continue
         with guard("building " + name):
             mod.build_all(dcol, lib)
+    shell = bpy.data.objects.get("ES8_Shell_Shadow")
+    fascia = bpy.data.objects.get("ES8_Fascia")
+    if shell is not None and fascia is not None:
+        P.clear_shell(shell, [fascia], gap=0.020)
     if wheels:
         import es8_wheels as W
         with guard("building es8_wheels"):

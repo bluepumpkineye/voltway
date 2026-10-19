@@ -17,7 +17,8 @@ import { BELOW_TOP, CarMenu, FOCUS, GLASS, InfoButton, SceneToggle, TabBar } fro
 import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
 import { CaliperSwatches, DimensionChips, PaintSwatches, TrimSwatches, WheelChips } from './Swatches';
 import { CHARGE_COLUMN_W, ChargePanel } from './Charge';
-import { SPECS_COLUMN_W, SpecsPanel } from './Specs';
+import { COMPARE_COLUMN_W, SPECS_COLUMN_W, SpecsPanel } from './Specs';
+import { showroomCars } from '@/lib/showroom/cars';
 import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
 import { ChassisTools, NoseInTools } from './Chassis';
 import { LaunchTools } from './Launch';
@@ -37,6 +38,20 @@ const ShowroomViewer = dynamic(
     ssr: false,
     loading: () => (
       <div className="absolute inset-0 grid place-items-center">
+        <div className="h-[3px] w-40 overflow-hidden rounded-full bg-black/10">
+          <div className="h-full w-1/3 rounded-full bg-neutral-800 animate-sweep" />
+        </div>
+      </div>
+    ),
+  },
+);
+
+const Comparison3DShowroom = dynamic(
+  () => import('./Comparison3DShowroom').then((m) => m.Comparison3DShowroom),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 grid place-items-center bg-[#f1f2f4]">
         <div className="h-[3px] w-40 overflow-hidden rounded-full bg-black/10">
           <div className="h-full w-1/3 rounded-full bg-neutral-800 animate-sweep" />
         </div>
@@ -107,9 +122,12 @@ export function Showroom({
   const sceneKind = useVehicleStore((s) => s.sceneKind);
   const dimension = useVehicleStore((s) => s.dimension);
   const variantId = useVehicleStore((s) => s.variantId);
+  const compareSlug = useVehicleStore((s) => s.compareSlug);
+  const compareVariantId = useVehicleStore((s) => s.compareVariantId);
   const {
     reset, setTab, setPaint, setTrim, setCaliper, setWheel, setSceneKind, setDimension, setTechDemo, setTechSpeed,
     setTechAvailable, setTechDevice, setLightMode, setHighBeam, setLightsView, setVariant, setDeviceInset, setUiTop,
+    setCompareSlug, setCompareVariantId,
   } = useVehicleStore.getState();
   const techDevice = useVehicleStore((s) => s.techDevice);
   const demo = demos.find((d) => d.id === techDemoId) ?? demos[0];
@@ -127,6 +145,17 @@ export function Showroom({
   const webgl = useWebGl();
 
   const variant = vehicle.variants.find((v) => v.id === variantId) ?? flagshipVariant(vehicle);
+
+  const allShowroomCars = React.useMemo(() => showroomCars(), []);
+  const otherCars = React.useMemo(() => allShowroomCars.filter((c) => c.slug !== vehicle.slug), [allShowroomCars, vehicle.slug]);
+  const compareVehicle = compareSlug
+    ? (allShowroomCars.find((c) => c.slug === compareSlug) ?? otherCars[0])
+    : otherCars[0];
+  const compareVariant = compareVehicle
+    ? (compareVehicle.variants.find((v) => v.id === compareVariantId) ?? flagshipVariant(compareVehicle))
+    : undefined;
+  const isComparing = Boolean(compareSlug);
+  const [compareMaximized, setCompareMaximized] = React.useState(false);
 
   // the devices of the Tech tab: the car's screen can start demos while the showroom is mounted (the dock
   // leaves their column clear on a wide window; the devices themselves frame the camera, see TechDevices)
@@ -203,6 +232,12 @@ export function Showroom({
     if (wantCaliper && spec.calipers?.some((c) => c.id === wantCaliper)) setCaliper(wantCaliper);
     const wantScene = q.get('scene') as ShowroomScene | null;
     if (wantScene === 'city' && canCity) setSceneKind('city');
+    const wantCompare = q.get('compare');
+    if (wantCompare && wantCompare !== vehicle.slug && allShowroomCars.some((c) => c.slug === wantCompare)) {
+      setCompareSlug(wantCompare);
+      const wantCVariant = q.get('cvariant');
+      if (wantCVariant) setCompareVariantId(wantCVariant);
+    }
     setReady(true);
     // the actions are stable store functions; the vehicle is fixed per mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,6 +253,10 @@ export function Showroom({
     if (tab === 'dashboard' && lightsView === 'rear') q.set('view', 'rear');
     if (tab === 'dimensions' && dimension !== 'length') q.set('dim', dimension);
     if (tab === 'dimensions' && variant.id !== flagshipVariant(vehicle).id) q.set('variant', variant.id);
+    if (compareSlug) {
+      q.set('compare', compareSlug);
+      if (compareVariantId) q.set('cvariant', compareVariantId);
+    }
     if (paintId && paintId !== spec.paints[0].id) q.set('paint', paintId);
     if (trimId && trimId !== spec.trims[0].id) q.set('trim', trimId);
     if (wheelId && spec.wheels && wheelId !== spec.wheels[0].id) q.set('wheel', wheelId);
@@ -231,7 +270,7 @@ export function Showroom({
     }
     const s = q.toString();
     window.history.replaceState(null, '', s ? `?${s}` : window.location.pathname);
-  }, [ready, tab, dimension, variant.id, vehicle, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView]);
+  }, [ready, tab, dimension, variant.id, vehicle, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView, compareSlug, compareVariantId]);
 
   // A design comes with the caliper colour it is photographed in - unless the caliper
   // was chosen on purpose, i.e. is not the colour the design it replaces came with.
@@ -256,19 +295,21 @@ export function Showroom({
   // the right, as the car's screen does, and the camera frames the car in what is left (the device inset). On a
   // narrower one the sheet opens over the car, and the charging panel sits in the dock.
   const specsCol = Math.min(SPECS_COLUMN_W, Math.round(dash.vw * 0.4));
+  const compareCol = Math.min(COMPARE_COLUMN_W, Math.round(dash.vw * 0.58));
+  const currentSpecsCol = isComparing ? compareCol : specsCol;
   const chargeCol = Math.min(CHARGE_COLUMN_W, Math.round(dash.vw * 0.4));
   const specsColumn = tab === 'dimensions' && dash.wide;
   const chargeColumn = tab === 'charging' && dash.wide;
   React.useEffect(() => {
     if (tab === 'dimensions') {
-      if (dash.wide) setDeviceInset({ right: Math.min(0.5, (specsCol + 28) / dash.vw), bottom: 0 });
+      if (dash.wide && !compareMaximized) setDeviceInset({ right: Math.min(0.62, (currentSpecsCol + 28) / dash.vw), bottom: 0 });
       else setDeviceInset({ right: 0, bottom: 0 });
     } else if (tab === 'charging') {
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
       else setDeviceInset({ right: 0, bottom: 0.42 });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
-  }, [tab, dash.wide, dash.vw, specsCol, chargeCol, setDeviceInset]);
+  }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
   // the sheet gives way to the column when the window grows wide, and shuts when the tab is left
   React.useEffect(() => {
     if (dash.wide || tab !== 'dimensions') setSpecsOpen(false);
@@ -282,8 +323,8 @@ export function Showroom({
         ? boostColumnWidth(dash.vw) + 40
         : tab === 'dashboard' && dash.wide
           ? dash.colW + 40
-          : specsColumn
-            ? specsCol + 40
+          : specsColumn && !compareMaximized
+            ? currentSpecsCol + 40
             : chargeColumn
               ? chargeCol + 40
               : 0;
@@ -296,6 +337,21 @@ export function Showroom({
       ? 'Tap a door, the bonnet or the tailgate to open it.'
       : undefined;
   const playing = tab === 'tech' ? demo : tab === 'charging' ? (charging ?? undefined) : undefined;
+
+  if (ready && isComparing && compareVehicle && compareVariant) {
+    return (
+      <Comparison3DShowroom
+        vehicleA={vehicle}
+        variantA={variant}
+        vehicleB={compareVehicle}
+        variantB={compareVariant}
+        onSelectVehicleB={(slug) => setCompareSlug(slug)}
+        onSelectVariantA={(id) => setVariant(id)}
+        onSelectVariantB={(id) => setCompareVariantId(id)}
+        onClose={() => setCompareSlug(null)}
+      />
+    );
+  }
 
   return (
     <div ref={root} className="fixed inset-0 select-none overflow-hidden bg-[#f1f2f4] text-neutral-900">
@@ -328,6 +384,15 @@ export function Showroom({
             />
           </div>
           <div className="order-2 ml-auto flex items-center gap-2 xl:order-none xl:justify-self-end">
+            <button
+              type="button"
+              onClick={() => setCompareSlug(otherCars[0]?.slug ?? null)}
+              className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium text-neutral-800 transition-colors ${GLASS} ${FOCUS}`}
+              title="Compare side-by-side with another model"
+            >
+              <span>◫</span>
+              <span>Compare</span>
+            </button>
             {canCity && <SceneToggle scene={sceneKind} onScene={setSceneKind} />}
             <InfoButton title={TITLES[tab]} note={NOTES[tab]} hint={hint} sources={sources} />
           </div>
@@ -346,21 +411,40 @@ export function Showroom({
         <DashboardScreen vehicle={vehicle} variant={variant} open={screenOpen} onClose={closeScreen} />
       )}
       {ready && specsColumn && (
-        <aside className={`pointer-events-none absolute bottom-3 right-4 z-10 flex ${BELOW_TOP}`} style={{ width: specsCol }} aria-label="Specifications">
-          <SpecsPanel
-            vehicle={vehicle}
-            variant={variant}
-            onVariant={setVariant}
-            dimension={dimension}
-            onDimension={setDimension}
-            sources={sources}
-            onCharging={hasCharging ? () => setTab('charging') : undefined}
-            compact={false}
-          />
+        <aside
+          className={`pointer-events-none absolute z-10 flex ${BELOW_TOP} ${
+            compareMaximized ? 'inset-x-4 sm:inset-x-8 bottom-3 justify-center' : 'bottom-3 right-4'
+          }`}
+          style={compareMaximized ? undefined : { width: currentSpecsCol }}
+          aria-label={isComparing ? 'Vehicle Comparison' : 'Specifications'}
+        >
+          <div className={compareMaximized ? 'w-full max-w-5xl flex h-full' : 'w-full flex h-full'}>
+            <SpecsPanel
+              vehicle={vehicle}
+              variant={variant}
+              onVariant={setVariant}
+              dimension={dimension}
+              onDimension={setDimension}
+              sources={sources}
+              onCharging={hasCharging ? () => setTab('charging') : undefined}
+              compact={false}
+              compareVehicle={compareVehicle}
+              compareVariant={compareVariant}
+              onSelectCompareVehicle={setCompareSlug}
+              onCompareVariant={setCompareVariantId}
+              isComparing={isComparing}
+              onToggleComparing={(on) => {
+                setCompareSlug(on ? (compareSlug ?? otherCars[0]?.slug ?? null) : null);
+                if (!on) setCompareMaximized(false);
+              }}
+              isMaximized={compareMaximized}
+              onToggleMaximize={() => setCompareMaximized((m) => !m)}
+            />
+          </div>
         </aside>
       )}
       {ready && tab === 'dimensions' && !dash.wide && specsOpen && (
-        <aside className={`pointer-events-none absolute inset-x-2 bottom-[84px] z-10 flex ${BELOW_TOP}`} aria-label="Specifications">
+        <aside className={`pointer-events-none absolute inset-x-2 bottom-[84px] z-10 flex ${BELOW_TOP}`} aria-label={isComparing ? 'Vehicle Comparison' : 'Specifications'}>
           <SpecsPanel
             vehicle={vehicle}
             variant={variant}
@@ -370,6 +454,14 @@ export function Showroom({
             sources={sources}
             onCharging={hasCharging ? () => setTab('charging') : undefined}
             compact
+            compareVehicle={compareVehicle}
+            compareVariant={compareVariant}
+            onSelectCompareVehicle={setCompareSlug}
+            onCompareVariant={setCompareVariantId}
+            isComparing={isComparing}
+            onToggleComparing={(on) => {
+              setCompareSlug(on ? (compareSlug ?? otherCars[0]?.slug ?? null) : null);
+            }}
           />
         </aside>
       )}
@@ -392,17 +484,74 @@ export function Showroom({
         {tab === 'wheels' && spec.calipers && spec.calipers.length > 1 && (
           <CaliperSwatches calipers={spec.calipers} selected={caliperId} onSelect={setCaliper} />
         )}
+        {tab === 'dimensions' && specsColumn && (
+          <div className="pointer-events-none flex max-w-full flex-wrap items-center justify-center gap-2">
+            {!isComparing && <DimensionChips items={dims} selected={dimension} onSelect={setDimension} />}
+            <button
+              type="button"
+              aria-pressed={isComparing}
+              onClick={() => {
+                if (isComparing) {
+                  setCompareSlug(null);
+                  setCompareMaximized(false);
+                } else {
+                  setCompareSlug(otherCars[0]?.slug ?? null);
+                }
+              }}
+              className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-medium transition-colors ${FOCUS} ${
+                isComparing
+                  ? 'bg-neutral-900 text-white shadow-sm'
+                  : `text-neutral-700 ${GLASS}`
+              }`}
+            >
+              <span>◫</span>
+              <span>{isComparing ? 'Exit Comparison' : 'Compare with another model'}</span>
+            </button>
+          </div>
+        )}
         {tab === 'dimensions' && !specsColumn && (
           <div className="pointer-events-none flex max-w-full flex-wrap items-center justify-center gap-2">
             {/* the open sheet has the dimensions in it: the chips would stand over its foot */}
             {!specsOpen && <DimensionChips items={dims} selected={dimension} onSelect={setDimension} />}
             <button
               type="button"
-              aria-pressed={specsOpen}
-              onClick={() => setSpecsOpen((v) => !v)}
-              className={`pointer-events-auto rounded-full px-4 py-2 text-[12px] font-medium text-neutral-700 ${GLASS} ${FOCUS}`}
+              aria-pressed={specsOpen && !isComparing}
+              onClick={() => {
+                if (isComparing) {
+                  setCompareSlug(null);
+                  setSpecsOpen(true);
+                } else {
+                  setSpecsOpen((v) => !v);
+                }
+              }}
+              className={`pointer-events-auto rounded-full px-4 py-2 text-[12px] font-medium transition-colors ${FOCUS} ${
+                specsOpen && !isComparing
+                  ? 'bg-neutral-900 text-white shadow-sm'
+                  : `text-neutral-700 ${GLASS}`
+              }`}
             >
-              {specsOpen ? 'Show the car' : 'Specifications'}
+              {specsOpen && !isComparing ? 'Hide specifications' : 'Specifications'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={isComparing}
+              onClick={() => {
+                if (isComparing) {
+                  setCompareSlug(null);
+                  setSpecsOpen(false);
+                } else {
+                  setCompareSlug(otherCars[0]?.slug ?? null);
+                  setSpecsOpen(true);
+                }
+              }}
+              className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-4 py-2 text-[12px] font-medium transition-colors ${FOCUS} ${
+                isComparing
+                  ? 'bg-neutral-900 text-white shadow-sm'
+                  : `text-neutral-700 ${GLASS}`
+              }`}
+            >
+              <span>◫</span>
+              <span>{isComparing ? 'Close Compare' : 'Compare'}</span>
             </button>
           </div>
         )}

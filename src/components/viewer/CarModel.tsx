@@ -154,11 +154,14 @@ interface Props {
   vehicle: Vehicle;
   variant: Variant;
   url: string;
+  customPaintId?: string;
+  forceClearGlass?: boolean;
 }
 
-export function CarModel({ vehicle, variant, url }: Props) {
+export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass }: Props) {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const { cameraMode, paintId, caliperId, wheelId } = useVehicleStore();
+  const { cameraMode, paintId: storePaintId, caliperId, wheelId } = useVehicleStore();
+  const paintId = customPaintId !== undefined ? customPaintId : storePaintId;
   const invalidate = useThree((s) => s.invalidate);
   const model = useClonedScene(scene, prepareRig);
   useRigBinding(model, vehicle);
@@ -176,11 +179,12 @@ export function CarModel({ vehicle, variant, url }: Props) {
   const xray = useVehicleStore((s) => s.tab === 'xray') && Boolean(vehicle.xray) && hasCabin;
   // the cabin is mounted behind the exterior (ShowroomViewer): the windscreen and the front windows are clear glass once it is
   const cabinReady = useVehicleStore((s) => s.cabinReady);
+  const isCabinReady = forceClearGlass !== undefined ? forceClearGlass : cabinReady;
   // not on the Tech tab: its demos move the car, and the cabin does not move with it
   const clearTab = useVehicleStore((s) => s.tab !== 'tech');
   const shut = useVehicleStore((s) => s.shut);
-  useGlass(model, vehicle, inside, hasCabin, xray, cabinReady && clearTab);
-  useGlassStencil(model, hasCabin && cabinReady && clearTab && !inside && !xray && shut);
+  useGlass(model, vehicle, inside, hasCabin, xray, isCabinReady && clearTab);
+  useGlassStencil(model, hasCabin && isCabinReady && clearTab && !inside && !xray && shut);
   useXray(model, vehicle, xray);
   useStruts(model, vehicle);
   const picks = useOpeningPicks(model, vehicle, 'node');
