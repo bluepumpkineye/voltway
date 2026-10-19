@@ -44,6 +44,8 @@ def face(y, z, d=0.0):
     """Point on the tail cap at elevation (y, z) (left half), and normal."""
     z = max(CAP_LOW, min(CAP_HIGH, z))
     w, v = TAIL.wv_at(abs(y), z)
+    if abs(TAIL.point(w, v)[2] - z) > 0.001:
+        w, v, _ = wv_of(abs(y), z)
     p, n = TAIL.point(w, v), TAIL.normal(w, v)
     if d:
         p = tuple(p[i] + n[i] * d for i in range(3))
@@ -88,24 +90,133 @@ def bumper_top(y):
 
 
 # ----------------------------------------------------------- band construction
-def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, y_max=None,
-         off_fn=None, ymin=0.0, bevel=0.0):
-    """A strip of the tail cap between z-limits that depend on |y|: zlo(y), zhi(y).
+_GRID = {}
 
+
+def _grid():
+    """The tail cap sampled on a (w, v) grid, as arrays of its (y, z): the robust inverse's first guess."""
+    if not _GRID:
+        import numpy as np
+        ws = np.linspace(0.0, 1.0, 65)
+        vs = np.linspace(0.0, 1.0, 129)
+        W, V = np.meshgrid(ws, vs)
+        P = np.array([[TAIL.point(float(w), float(v)) for w in ws] for v in vs])
+        _GRID.update(W=W.ravel(), V=V.ravel(), Y=P[:, :, 1].ravel(), Z=P[:, :, 2].ravel())
+    return _GRID
+
+
+def wv_of(y, z):
+    """(w, v, miss) of the tail cap point nearest the elevation position (y, z): a grid search then a
+    2-D Newton polish. wv_at bisects on height assuming z rises with v at constant w, which it does not
+    round the corner under the backlight, where it lands on the flank 20 cm off; `miss` is the distance
+    (m) between the point found and (y, z), > 1 mm where the cap does not reach that position."""
+    import numpy as np
+    G = _grid()
+    k = int(np.argmin((G["Y"] - y) ** 2 + (G["Z"] - z) ** 2))
+    w, v = float(G["W"][k]), float(G["V"][k])
+    for _ in range(8):
+        p = TAIL.point(w, v)
+        fy, fz = p[1] - y, p[2] - z
+        if abs(fy) < 2e-5 and abs(fz) < 2e-5:
+            break
+        h = 1e-4
+        pw = TAIL.point(min(1.0, w + h), v)
+        pv = TAIL.point(w, min(1.0, v + h))
+        a11, a21 = (pw[1] - p[1]) / h, (pw[2] - p[2]) / h
+        a12, a22 = (pv[1] - p[1]) / h, (pv[2] - p[2]) / h
+        det = a11 * a22 - a12 * a21
+        if abs(det) < 1e-9:
+            break
+        dw = (a22 * fy - a12 * fz) / det
+        dv = (-a21 * fy + a11 * fz) / det
+        w = min(1.0, max(0.0, w - dw))
+        v = min(1.0, max(0.0, v - dv))
+    p = TAIL.point(w, v)
+    return w, v, math.hypot(p[1] - y, p[2] - z)
+
+
+def wv(y, z):
+    """(w, v) of the cap point at (y, z): wv_at where it lands, wv_of where it does not."""
+    w, v = TAIL.wv_at(y, z)
+    p = TAIL.point(w, v)
+    if abs(p[2] - z) > 0.006 or abs(p[1] - y) > 0.006:
+        w, v, _ = wv_of(y, z)
+    return w, v
+
+
+_ZTOP = {}
+
+
+def _reach_at(i):
+    """z_reach on the 20 mm grid: the highest z (up to CAP_HIGH) at which the cap exists at y."""
+    hit = _ZTOP.get(i)
+    if hit is None:
+        y = 0.02 * i
+        z = CAP_HIGH
+        while z > CAP_LOW and wv_of(y, z)[2] > 0.0015:
+            z -= 0.004
+        hit = z
+        _ZTOP[i] = hit
+    return hit
+
+
+def z_reach(y):
+    """The highest elevation at which the tail cap exists at |y| (below CAP_HIGH): past the width of the
+    backlight's foot the cap's top edge falls away round the corner, along the join ring."""
+    f = abs(y) / 0.02
+    i = int(f)
+    a, b = _reach_at(i), _reach_at(i + 1)
+    return a + (b - a) * (f - i)
+
+
+def edge_y(z):
+    """Half-width of the tail cap at height z: where it meets the quarter (the join ring)."""
+    return TAIL.half_width(max(CAP_LOW, min(CAP_HIGH, z))) * 0.9995
+
+
+def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, y_max=None,
+         off_fn=None, ymin=0.0, bevel=0.0, cut=False):
+    """A strip of the tail cap between z-limits that depend on |y|: zlo(y), zhi(y), the upper limit
+    held under the cap's own top edge (z_reach).
+
+    y_max None: a full-width band, whose side edge follows the cap's join ring (the quarter panel's
+    edge) at every height, the columns sliding in where the cap is narrower. Otherwise the band ends
+    at the constant y_max.
     off_fn(y, k) overrides `offset` (a shelf that stands proud by a varying amount)."""
     cols = []
-    zm = 0.5 * (zlo(0.4) + zhi(0.4))
-    ymax = (TAIL.half_width(max(CAP_LOW, min(CAP_HIGH, zm))) * 0.9995) if y_max is None else y_max
+    if y_max is None:
+        zs = [zlo(0.4) + (zhi(0.4) - zlo(0.4)) * k / 12.0 for k in range(13)]
+        ymax = max(edge_y(z) for z in zs)
+    else:
+        ymax = y_max
+    if cut:
+        # a band that sits near the cap's top edge (the lamp shelf, the light strips) ends where that
+        # edge falls below its lower limit (round the corner, with the join ring), instead of sliding
+        # down the corner as a sliver
+        y_cut = ymax
+        while y_cut > ymin + 0.02 and z_reach(y_cut) - 0.002 < zlo(y_cut) + 0.035:
+            y_cut -= 0.005
+        ymax = min(ymax, y_cut)
+
+    def row_z(y, fr):
+        z1 = min(zhi(y), z_reach(y) - 0.002) if cut else zhi(y)
+        z0 = min(zlo(y), z1 - 0.004)
+        return max(CAP_LOW, min(CAP_HIGH, z0 + (z1 - z0) * fr))
+
     for i in range(ny + 1):
         s = i / float(ny)
         s = 1.0 - (1.0 - s) ** 1.30               # columns packed toward the corner
-        y = ymin + (ymax - ymin) * s
         col = []
         for k in range(nz + 1):
-            z = zlo(y) + (zhi(y) - zlo(y)) * (k / float(nz))
-            z = max(CAP_LOW, min(CAP_HIGH, z))
-            w, v = TAIL.wv_at(y, z)
-            d = off_fn(y, k / float(nz)) if off_fn else offset
+            fr = k / float(nz)
+            y = ymin + (ymax - ymin) * s
+            z = row_z(y, fr)
+            if y_max is None:
+                for _ in range(3):                  # the column's y depends on the height it lands at
+                    y = ymin + (edge_y(z) - ymin) * s
+                    z = row_z(y, fr)
+            w, v = wv(y, z) if cut else TAIL.wv_at(y, z)
+            d = off_fn(y, fr) if off_fn else offset
             col.append(TAIL.offset(w, v, d) if d else TAIL.point(w, v))
         cols.append(col)
     ob = M.mesh_from_rows(name, cols, collection)
@@ -123,12 +234,12 @@ def build_tail(collection, lib):
     # the lamp cap: a black shelf, proud of the tailgate by 45 mm at its lower edge, 12 mm under the glass
     made.append(band("G9L_Tail_Lamp_Cap", lambda y: Z_CAP_BOT, lambda y: zt, 52, 6, collection,
                      lib["black_gloss"],
-                     off_fn=lambda y, k: 0.045 - 0.033 * k - 0.016 * max(0.0, y - 0.75),
-                     thickness=0.003, bevel=0.0))
+                     off_fn=lambda y, k: (0.045 - 0.033 * k) * _taper(y) + 0.002,
+                     thickness=0.003, bevel=0.0, cut=True))
     # the shelf's lower lip: a thin black skirt closing the gap between shelf and tailgate
     made.append(band("G9L_Tail_Lamp_Lip", lambda y: Z_CAP_BOT - 0.006, lambda y: Z_CAP_BOT, 52, 2,
                      collection, lib["black_gloss"],
-                     off_fn=lambda y, k: 0.045 * k - 0.016 * max(0.0, y - 0.75), thickness=0.003))
+                     off_fn=lambda y, k: 0.045 * k * _taper(y) + 0.002, thickness=0.003, cut=True))
     # the tailgate, to its smile shut line
     made.append(band("G9L_Tailgate", lambda y: gate_low(y) + 0.5 * GAP, lambda y: Z_CAP_BOT - 0.001,
                      56, 20, collection, lib["paint"], thickness=M.SKIN))
@@ -137,16 +248,22 @@ def build_tail(collection, lib):
                      56, 6, collection, lib["paint"], thickness=M.SKIN))
     # the black lower bumper
     made.append(band("G9L_Bumper_Black", lambda y: CAP_LOW, lambda y: bumper_top(y) + 0.001,
-                     56, 14, collection, lib["black_gloss"], thickness=0.004))
+                     56, 14, collection, lib["black_trim"], thickness=0.004))
     return made
 
 
 # ---------------------------------------------------------- tail lamp strips
+def _taper(y):
+    """1 across the tail, 0 at the corner: the shelf is proud along the cap's normal, which turns sideways
+    round the corner, so an untapered shelf ends as a shard standing out past the body's side."""
+    return 1.0 - geom.smoothstep((y - 0.60) / 0.20)
+
+
 def _shelf(y, z):
     """How far the lamp cap's face stands off the cap surface at (y, z): 45 mm at its lower edge,
-    12 mm under the glass, fading round the corners."""
+    12 mm under the glass, fading to the surface round the corners."""
     k = (z - Z_CAP_BOT) / (CAP_HIGH - Z_CAP_BOT)
-    return 0.045 - 0.033 * k - 0.016 * max(0.0, y - 0.75)
+    return (0.045 - 0.033 * k) * _taper(y) + 0.002
 
 
 def build_lamps(collection, lib):
@@ -155,13 +272,13 @@ def build_lamps(collection, lib):
     def strip(name, z0, z1, mat, lift, ny=60, y_end=0.80, thickness=0.0020):
         zm = 0.5 * (z0 + z1)
         return band(name, lambda y: z0, lambda y: z1, ny, 2, collection, mat,
-                    off_fn=lambda y, k: _shelf(y, zm) + lift, y_max=y_end, thickness=thickness)
+                    off_fn=lambda y, k: _shelf(y, zm) + lift, y_max=y_end, thickness=thickness, cut=True)
 
     # a dark smoked lens over the cap's face: the housing of the light
     made.append(band("G9L_Tail_Lens", lambda y: Z_CAP_BOT + 0.010, lambda y: CAP_HIGH - 0.012, 56, 4,
                      collection, lib["lamp_clear"],
                      off_fn=lambda y, k: _shelf(y, Z_CAP_BOT + 0.010 + 0.110 * k) + 0.0012,
-                     y_max=0.86, thickness=0.002))
+                     y_max=0.86, thickness=0.002, cut=True))
     made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.005, Z_LAMP_RED[0] + 0.004, lib["led_red"], 0.0030))
     made.append(strip("G9L_Tail_Strip_Low", Z_LAMP_RED[1] - 0.003, Z_LAMP_RED[1] + 0.003, lib["lamp_red_lens"],
                       0.0030))

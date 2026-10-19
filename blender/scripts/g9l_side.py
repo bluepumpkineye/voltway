@@ -90,14 +90,14 @@ def build_rocker(collection, lib):
     lo = _pts(ROCKER_LO_PX)
     # equal point counts along each edge, ends joined
     n = 64
-    strip = fittings.flank_patch("G9L_Rocker_Strip", lo, up, proud, collection, lib["black_gloss"],
+    strip = fittings.flank_patch("G9L_Rocker_Strip", lo, up, proud, collection, lib["black_trim"],
                                  0.0016, nk=4, n=n, y_ref=0.97)
     M.mirror_y(strip)
     M.finish(strip, thickness=0.0016, bevel=0.0)
     made.append(strip)
     # the side step: a flat black bar under the doors, set out from the sill
     x0, x1 = -0.985, 1.185
-    ob = _box("G9L_Step_Bar", x0, x1, 0.935, 1.0, 0.205, 0.256, collection, lib["black_gloss"])
+    ob = _box("G9L_Step_Bar", x0, x1, 0.935, 1.0, 0.205, 0.256, collection, lib["black_trim"])
     M.mirror_y(ob)
     made.append(ob)
     return made

@@ -149,7 +149,12 @@ Y_REARGLASS = Curve([
 def V_REARGLASS(x):
     if x >= X_KNEE:
         return V_RAIL(x)
-    return S.v_at_y_upper(x, Y_REARGLASS(x))
+    # the backlight's edge steps in from the roof rail's under the spoiler (the roof glass is wider than the
+    # backlight): a blend over 0.14 m behind the knee, because a jump here tears the sail and quarter
+    # panels' grids (their rows run between this edge and the belt) into a visible ridge
+    a = V_RAIL(X_KNEE)
+    b = S.v_at_y_upper(x, Y_REARGLASS(x))
+    return a + (b - a) * _smooth((X_KNEE - x) / 0.14)
 
 
 def V_QTOP(x):
@@ -205,7 +210,7 @@ PANELS = [
          nx=56, nv=40, arch=True, gap=dict(v0=False, x0=False), mat="paint"),
     # the black corner of the rear bumper under the diagonal, from the arch's foot round to the tail
     dict(name="G9L_Bumper_Side", x=(N.JOIN_R, -1.870), v=(0.030, V_SILL),
-         nx=24, nv=14, gap=dict(v0=False, x0=False, v1=False), mat="black_gloss"),
+         nx=24, nv=14, gap=dict(v0=False, x0=False, v1=False), mat="black_trim"),
     # hood flush to the cowl and the fender crown
     dict(name="G9L_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=54, nv=32, gap=dict(v1=False, x1=False, x0=False, v0=False), mat="paint"),
@@ -243,6 +248,14 @@ PANELS = [
     dict(name="G9L_Glass_DoorFront", x=(X_GF_REAR, 1.18),
          v=(lambda x: V_BELT(x) + 0.004, lambda x: V_DLO(x) - 0.004),
          nx=64, nv=26, glass="glass"),
+    # the B-pillar: a black-glass band between the two door panes. The greenhouse underlay already runs behind it, but
+    # the viewer's clear glass (src/components/viewer/clearGlass.ts) takes the underlay's TRIANGLES out within 5 cm of
+    # a clear pane's vertices, so a pillar strip narrower than 10 cm was eaten into a sawtooth; this band is a part of
+    # the body shell, which that pass leaves alone
+    dict(name="G9L_BPillar_Black", x=(lambda v: X_GR_FRONT(v) - 0.004, lambda v: X_GF_REAR(v) + 0.004),
+         v=(lambda x: V_BELT(x) + 0.004, lambda x: V_DLO(x) - 0.004),
+         nx=8, nv=26, mat="black_gloss", offset=-0.001, thickness=0.0,
+         gap=dict(x0=False, x1=False, v0=False, v1=False)),
     dict(name="G9L_Glass_DoorRear", x=(X_GR_REAR, X_GR_FRONT),
          v=(lambda x: V_BELT(x) + 0.004, lambda x: V_DLO(x) - 0.004),
          nx=44, nv=26, glass="glass_dark"),

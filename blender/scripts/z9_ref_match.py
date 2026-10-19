@@ -28,16 +28,18 @@ _ZC = 0.362 + (2042.5 - 1440.0) / _K
 _R.register("side_black", "denza-z9/exterior/c1_0036.jpg", SIZE,
             (FRONT_AXLE + (954.0 - 1920.0) / _K, D_SIDE, _ZC), (90.0, 0.0, 180.0), _K * (D_SIDE - 0.93))
 
-# c1_0038.jpg: the black car straight on from behind. Pitch 0 (the camera is level): the rear tyres' outer
-# walls (1068 and 2774 px, 1.9994 m: 853 px/m at depth D - 1.5) and the plate (478 px = the 480 mm sign:
-# 996 px/m at depth D - 2.6) give D = 9.1 m and f = 6483 px; the tyre bottoms (v 2266) then put the camera
-# 0.968 m up, which puts the tail lamp at z 0.91 (the side photograph's 0.90) and the roundel at 0.89.
+# c1_0038.jpg: the black car straight on from behind. Level camera: the rear tyres' outer walls (1068 and 2774 px,
+# 1.9994 m: 853 px/m at depth D - 1.5) and the plate (478 px = the 480 mm sign: 996 px/m at depth D - 2.6) give
+# D = 9.1 m and f = 6483 px; the tyre bottoms (v 2266) then put the camera 0.968 m up, which puts the tail lamp at
+# z 0.91 (the side photograph's 0.90) and the roundel at 0.89. (A solve with the pitch free, using the 1.5 m roof as
+# well, gives a camera 1.17 m up that puts the lamps 8 cm off the side photograph's: the tail plane's mapping is
+# the level camera's, and the roof outline is 4 cm high in this view: not used.)
 _R.register("rear_black", "denza-z9/exterior/c1_0038.jpg", SIZE,
             (-9.1, 0.0, 0.968), (90.0, 0.0, 270.0), 6483.0)
 
-# c1_0034.jpg: the black car straight on from the front, level. The front tyres' outer walls (1066 and 2774
-# px: +/-0.9825 at the front axle: 869 px/m at depth D - 1.625) and the nose plate (493 px = the 480 mm
-# sign: 1027 px/m at depth D - 2.6) give D = 7.96 m, f = 5505 px; the tyres' contact (v 2246) puts the
-# camera 0.927 m up.
+# c1_0034.jpg: the black car straight on from the front. A level camera (tyre walls 1066/2774 px and the 480 mm
+# plate's 493 px give D = 7.96 m) puts the roof and body wider than the photograph's, so it is solved with the pitch
+# free from the 1.5 m roof (side photograph), the tyre contacts and walls and the plate (z9_solve_front): the camera
+# is 0.52 m up, 8.11 m ahead, pitched up 3.7 deg, f 5561 px.
 _R.register("front_black", "denza-z9/exterior/c1_0034.jpg", SIZE,
-            (7.96, 0.0, 0.927), (90.0, 0.0, 90.0), 5505.0)
+            (8.107, 0.0, 0.516), (93.67, 0.0, 90.0), 5561.0)

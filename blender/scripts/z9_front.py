@@ -33,6 +33,54 @@ def _lamp_place(p, d=0.0):
     return PLACER.radial(p, LAMP_CENTRE, LAMP_BODY, d)
 
 
+# ------------------------------------------------- hardpoints read off the front photograph
+# c1_0034.jpg (the black car, straight on) through its solved camera (z9_ref_match "front_black": 8.107 m ahead, 0.516 m
+# up, pitched up 3.67 deg, f 5561 px; the shadows lifted so the matt-black grille and pockets read against the gloss
+# body). Pixels are turned into (|y|, z) ON the nose's own surface: a ray from the camera, the point on the plane at
+# the nose's depth there, again (the nose is a prow, 0.45 m deeper at the centre than at the corners).
+FRONT_CAM = dict(loc=(8.107, 0.0, 0.516), rot=(93.67, 0.0, 90.0), f=5561.0)
+
+
+def _px_yz(u, v):
+    from mathutils import Euler
+    R = Euler(tuple(math.radians(a) for a in FRONT_CAM["rot"]), 'XYZ').to_matrix()
+    loc = Vector(FRONT_CAM["loc"])
+    f = FRONT_CAM["f"]
+    d = R @ Vector(((u - 1920.0) / f, -(v - 1440.0) / f, -1.0))
+    x = 2.5
+    y = z = 0.0
+    for _ in range(4):
+        p = loc + d * ((x - loc.x) / d.x)
+        y, z = p.y, p.z
+        x = NOSE.x_at(abs(y), max(NOSE.Z_LO + 0.004, min(NOSE.Z_HI - 0.004, z)))
+    return (abs(y), z)
+
+
+def _yz_px(px):
+    return [_px_yz(u, v) for (u, v) in px]
+
+
+def _lerp(pts, y):
+    pts = sorted(pts)
+    if y <= pts[0][0]:
+        return pts[0][1]
+    for (y0, z0), (y1, z1) in zip(pts, pts[1:]):
+        if y0 <= y <= y1:
+            t = 0.0 if y1 == y0 else (y - y0) / (y1 - y0)
+            return z0 + (z1 - z0) * t
+    return pts[-1][1]
+
+
+# the side pockets (black leaf-shaped air curtains with the sensor modules; the body-colour fin wedges lie under their
+# slanting lower edge and the brow above them), the central grille opening, the thin dark bar above the plate
+POCKET_PX = [(1115, 1828), (1250, 1812), (1420, 1840), (1525, 1858), (1525, 1900), (1520, 1975), (1535, 2057),
+             (1400, 2025), (1250, 2005), (1095, 1985), (1088, 1930), (1095, 1870)]
+POCKET = _yz_px(POCKET_PX)
+GRILLE = [(-0.02, 0.335), (0.41, 0.335), (0.418, 0.300), (0.405, 0.170), (-0.02, 0.170)]
+BROW_UP = [(0.0, 0.500), (0.18, 0.512), (0.39, 0.538)]
+BROW_LO = [(0.0, 0.468), (0.18, 0.480), (0.39, 0.508)]
+
+
 # ------------------------------------------------------------------ helpers
 def _face(y, z, d=0.0):
     w, v = NOSE.wv_at(abs(y), z)
@@ -54,79 +102,84 @@ def _box(name, c, size, collection, mat):
 
 
 # ------------------------------------------------------------------ fascia
+def _cut_fascia(ob):
+    cutters = [C.prism_x("_cut_pocket_" + ob.name, POCKET, S.HALF_L + 0.30, S.HALF_L - 0.60),
+               C.prism_x("_cut_grille_" + ob.name, GRILLE, S.HALF_L + 0.30, S.HALF_L - 0.60)]
+    sheet = C.sheet_bvh(ob)
+    C.difference(ob, cutters, "front_cuts_", reset_materials=True)
+    C.prune_off_sheet(ob, sheet)
+
+
 def build_fascia(collection, lib):
     made = []
-    # 1. Painted front nose & bumper skin (top_to_centre=True closes seam to Z9_Hood)
+    # 1. Painted front nose & bumper skin (top_to_centre=True closes seam to Z9_Hood), the black pockets and the grille
+    # opening cut out of it
     fascia = FA.cap_panel(
         "Z9_Fascia", NOSE, collection, lib,
         N.NOSE_Z_LO + 0.002, N.NOSE_Z_HI - 0.0008,
-        0.0, 1.0, 40, 44, mat="paint", top_to_centre=True,
+        0.0, 1.0, 40, 44, mat="paint", top_to_centre=True, cuts=(_cut_fascia,),
     )
     made.append(fascia)
 
-    # 2. Central trapezoidal lower cooling grille & gloss-black surround (c1_0042.jpg: y 0..0.44, z 0.16..0.36)
+    # the dark apron behind the cuts: a recessed satin-black sheet from the chin to above the pockets (it shows only
+    # through the openings)
+    from carkit.body import panels as BP
+    rows, _ = BP.cap_rows(NOSE, 0.150, 0.585, 0.0, 1.0, 24, 40, offset=-0.012)
+    ap = M.mesh_from_rows("Z9_Apron", rows, collection)
+    M.orient(ap.data, geom.axial(1.0))
+    ap.data.materials.append(lib["black_trim"])
+    M.mirror_y(ap)
+    M.finish(ap, thickness=0.0025, bevel=0.0)
+    made.append(ap)
+
+    # 2. The grille behind its opening: a black mesh with the radiator's horizontal bars (c1_0034: four) and a
+    # square radar cover in the middle
     ny, nz = 24, 10
     g_cols = []
     for i in range(ny + 1):
-        ty = i / float(ny)
-        y = 0.44 * ty
-        z_lo = 0.165
-        z_hi = 0.355 - 0.020 * ty * ty
+        y = 0.43 * i / float(ny)
         col = []
         for j in range(nz + 1):
-            tz = j / float(nz)
-            z = z_lo + (z_hi - z_lo) * tz
-            p, _ = _face(y, z, d=0.003)
-            col.append(p)
+            z = 0.168 + (0.338 - 0.168) * j / float(nz)
+            col.append(_face(y, z, d=-0.020)[0])
         g_cols.append(col)
     grille = M.mesh_from_rows("Z9_Grille_Mesh", g_cols, collection)
-    grille.data.materials.append(lib["black_gloss"])
+    grille.data.materials.append(lib["black_trim"])
     M.mirror_y(grille)
     M.finish(grille, thickness=0.0025, bevel=0.0)
     made.append(grille)
-
-    # Horizontal satin-chrome / dark slats across the lower grille
-    for idx, z_slat in enumerate((0.210, 0.255, 0.300)):
+    for idx, z_slat in enumerate((0.200, 0.238, 0.276, 0.314)):
         s_lo, s_up = [], []
         for i in range(17):
-            y = 0.41 * (i / 16.0)
-            s_lo.append(_face(y, z_slat - 0.003, d=0.005)[0])
-            s_up.append(_face(y, z_slat + 0.003, d=0.005)[0])
+            y = 0.39 * (i / 16.0)
+            s_lo.append(_face(y, z_slat - 0.008, d=-0.012)[0])
+            s_up.append(_face(y, z_slat + 0.008, d=-0.012)[0])
         s_cols = [[s_lo[c], s_up[c]] for c in range(17)]
         slat = M.mesh_from_rows(f"Z9_Grille_Slat_{idx}", s_cols, collection)
         slat.data.materials.append(lib["trim_chrome"])
         M.mirror_y(slat)
         M.finish(slat, thickness=0.002, bevel=0.0)
         made.append(slat)
+    # the radar cover (c1_0034: 140 x 76 px = 0.16 x 0.09 m, centre z 0.24)
+    p_rad, _ = _face(0.0, 0.245, d=-0.004)
+    made.append(_box("Z9_Front_Radar", p_rad, (0.010, 0.160, 0.090), collection, lib["black_gloss"]))
 
-    # Central front radar module in lower grille (c1_0042.jpg: y=0, z=0.255)
-    p_rad, _ = _face(0.0, 0.255, d=0.007)
-    radar = _box("Z9_Front_Radar", p_rad, (0.010, 0.130, 0.068), collection, lib["black_gloss"])
-    made.append(radar)
+    # 3. The thin dark bar across the nose above the plate (the hood's lip / sensor bar)
+    ns = 20
+    cols = []
+    for i in range(ns + 1):
+        y = 0.39 * i / float(ns)
+        zl = _lerp(BROW_LO, y)
+        zu = _lerp(BROW_UP, y)
+        cols.append([_face(y, zl, d=0.003)[0], _face(y, zu, d=0.003)[0]])
+    brow = M.mesh_from_rows("Z9_Brow_Bar", cols, collection)
+    brow.data.materials.append(lib["black_trim"])
+    M.mirror_y(brow)
+    M.finish(brow, thickness=0.003, bevel=0.0)
+    made.append(brow)
 
-    # 3. Boomerang / triangular gloss-black side air-curtain intakes (c1_0042.jpg: y 0.38..0.86, z 0.22..0.48)
-    ny_c, nz_c = 20, 10
-    c_cols = []
-    for i in range(ny_c + 1):
-        u = i / float(ny_c)
-        y = 0.38 + (0.86 - 0.38) * u
-        z_lo = 0.230 - 0.020 * u
-        z_hi = 0.330 + 0.150 * (u ** 1.3)
-        col = []
-        for j in range(nz_c + 1):
-            v = j / float(nz_c)
-            z = z_lo + (z_hi - z_lo) * v
-            p, _ = _face(y, z, d=0.0035)
-            col.append(p)
-        c_cols.append(col)
-    curtain = M.mesh_from_rows("Z9_Side_Curtain", c_cols, collection)
-    curtain.data.materials.append(lib["black_gloss"])
-    M.mirror_y(curtain)
-    M.finish(curtain, thickness=0.0025, bevel=0.0)
-    made.append(curtain)
-
-    # Embedded front-side LiDAR module inside each boomerang side curtain (y=0.68, z=0.330)
-    p_lid, _ = _face(0.68, 0.330, d=0.006)
+    # the sensor module inside each pocket (c1_0034: a small vertical pod at the pocket's outer third)
+    p_lid, _ = _face(0.68, 0.350, d=-0.004)
     lidar_pod = _box("Z9_Front_Side_Lidar", p_lid, (0.012, 0.085, 0.036), collection, lib["lamp_clear"])
     M.mirror_y(lidar_pod)
     made.append(lidar_pod)
@@ -141,17 +194,18 @@ def build_fascia(collection, lib):
         ch_up.append(_face(y, 0.166, d=0.006)[0])
     ch_cols = [[ch_lo[c], ch_up[c]] for c in range(ns + 1)]
     chin = M.mesh_from_rows("Z9_Chin_Lip", ch_cols, collection)
-    chin.data.materials.append(lib["black_gloss"])
+    chin.data.materials.append(lib["black_trim"])
     M.mirror_y(chin)
     M.finish(chin, thickness=0.003, bevel=0.0)
     made.append(chin)
 
-    # 5. Front license plate mount & plate (centered at z=0.445, c1_0042.jpg)
-    p_plate, n_plate = _face(0.0, 0.445, d=0.006)
-    plate_mount = _box("Z9_Plate_Mount_Front", p_plate, (0.008, 0.450, 0.145), collection, lib["black_gloss"])
+    # 5. Front license plate mount & plate: the 480 x 140 mm sign (c1_0034 through its solved camera: 493 px wide,
+    # centre z 0.40; the first build put it at 0.445 and 440 mm wide, read from the wide-lens showroom shot)
+    p_plate, n_plate = _face(0.0, 0.400, d=0.006)
+    plate_mount = _box("Z9_Plate_Mount_Front", p_plate, (0.008, 0.500, 0.150), collection, lib["black_gloss"])
     made.append(plate_mount)
-    p_plate_f, _ = _face(0.0, 0.445, d=0.010)
-    made += fittings.plate("Z9_Plate_Front", p_plate_f, n_plate, collection, lib, w=0.440, h=0.140, depth=0.004,
+    p_plate_f, _ = _face(0.0, 0.400, d=0.010)
+    made += fittings.plate("Z9_Plate_Front", p_plate_f, n_plate, collection, lib, w=0.480, h=0.140, depth=0.004,
                            texts=[("DENZA Z9", 0.0, 0.038, False, True)],
                            mat="black_gloss", text_mat="machined")
 

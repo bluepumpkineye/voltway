@@ -98,9 +98,11 @@ Z_CREST = Curve([
 
 # Lateral widths (half). The photographs' outlines from front and rear: the widest section
 # (0.9995) runs from the rear wheel arch's front edge to the front arch; the nose face is 1.64
-# wide and the tailgate 1.55 wide at lamp height, so both ends turn in on big radii.
+# wide and the tailgate 1.55 wide at lamp height, so both ends turn in on big radii. The rear knots
+# (x < -2.0) are tuned so the tail cap leaves its join in the flank's own plan direction (2-3 degrees
+# instead of 14, the rear quarter's pleat); g9l_nose.JOIN_R and TAIL_WRAP go with them.
 Y_HIP = Curve([
-    (-HALF_L, 0.620), (-2.500, 0.800), (-2.400, 0.900), (-2.300, 0.940), (-2.100, 0.980),
+    (-HALF_L, 0.620), (-2.500, 0.8125), (-2.400, 0.900), (-2.300, 0.925), (-2.100, 0.975),
     (-1.900, 0.995), (-1.600, 0.9995), (-0.727, 0.9995), (0.015, 0.9995), (0.863, 0.9970),
     (1.287, 0.9900), (1.647, 0.9800), (1.950, 0.9700), (2.100, 0.9550), (2.200, 0.9350),
     (2.300, 0.9100), (2.400, 0.8700), (2.500, 0.8000), (HALF_L, 0.620),
@@ -109,7 +111,7 @@ Y_HIP = Curve([
 # The shoulder narrows hard over the rear quarter (the sail leans in: the rear photograph's body edge
 # at the belt's height is 0.77 half-wide at x -2.0, against 0.9995 at the hip).
 Y_SHOULDER = Curve([
-    (-HALF_L, 0.560), (-2.500, 0.690), (-2.400, 0.742), (-2.200, 0.775), (-2.000, 0.805),
+    (-HALF_L, 0.560), (-2.500, 0.6925), (-2.400, 0.752), (-2.200, 0.785), (-2.000, 0.8075),
     (-1.800, 0.845), (-1.500, 0.900), (-1.200, 0.945), (-0.800, 0.965), (-0.727, 0.968),
     (0.015, 0.972), (0.863, 0.965), (1.287, 0.950), (1.647, 0.935), (1.950, 0.920),
     (2.100, 0.905), (2.200, 0.885), (2.300, 0.860), (2.400, 0.820), (2.500, 0.750),
@@ -117,13 +119,13 @@ Y_SHOULDER = Curve([
 ])
 
 Y_ROOF = Curve([
-    (-HALF_L, 0.540), (-2.500, 0.590), (-2.330, 0.650), (-2.040, 0.700), (-1.450, 0.735),
+    (-HALF_L, 0.540), (-2.500, 0.5975), (-2.330, 0.645), (-2.040, 0.680), (-1.450, 0.735),
     (-0.500, 0.760), (0.333, 0.770), (0.863, 0.790), (COWL_X, 0.850),
     (1.605, 0.880), (2.128, 0.860), (2.442, 0.760), (HALF_L, 0.560),
 ])
 
 Y_ROCKER = Curve([
-    (-HALF_L, 0.650), (-2.500, 0.800), (-2.331, 0.900), (-1.684, 0.950), (-0.727, 0.965),
+    (-HALF_L, 0.650), (-2.500, 0.790), (-2.331, 0.885), (-1.684, 0.950), (-0.727, 0.965),
     (0.015, 0.970), (0.863, 0.970), (1.647, 0.965), (2.233, 0.925),
     (2.442, 0.850), (HALF_L, 0.640),
 ], mode="pchip")

@@ -107,8 +107,8 @@ export const denzaZ9: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/denza-z9-shadow.webp',
-      size: [8.23, 5.16],
-      centre: [0.002, 0.0],
+      size: [8.246, 5.16],
+      centre: [0.008, 0.0],
     },
     // the cabin (blender/scripts/z9_interior*.py, the Pamir Brown Nappa interior) with its Cycles light
     // baked in: export_z9.web_cabin()
@@ -204,7 +204,7 @@ export const denzaZ9: Vehicle = {
     wheels: [
       {
         id: 'multi-spoke-21',
-        name: '21-inch 14-Spoke Luxury Machined Alloy',
+        name: '21-inch Multi-Spoke Machined Alloy',
         nameZh: '21英寸多辐豪华精车轮毂',
         size: '21 in',
         tyres: '255/40 R21 · 275/40 R21',

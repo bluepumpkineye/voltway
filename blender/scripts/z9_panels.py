@@ -171,8 +171,10 @@ PANELS = [
          quarter_light=True),
     dict(name="Z9_Hood", x=(X_COWL, N.JOIN_F), v=(V_HOOD, 1.0),
          nx=60, nv=34, gap=dict(v1=False), mat="paint"),
-    dict(name="Z9_Decklid", x=(N.JOIN_R, X_BACKLIGHT), v=(V_LID_EDGE, 1.0),
-         nx=18, nv=30, gap=dict(v1=False, x0=False), mat="paint"),
+    # (the join runs ahead of the backlight's foot at the middle heights: JOIN_R -2.13 against -2.26, so a bare x range
+    # (JOIN_R, X_BACKLIGHT) is reversed there and the sheet folds over itself, the speckled strip under the rear glass)
+    dict(name="Z9_Decklid", x=(lambda v: min(N.JOIN_R(v), X_BACKLIGHT - 0.015), X_BACKLIGHT), v=(V_LID_EDGE, 1.0),
+         nx=24, nv=30, gap=dict(v1=False, x0=False), mat="paint"),
     dict(name="Z9_Roof_Rail", x=(X_QTR_R, X_COWL),
          v=(lambda x: V_GLASS_TOP(x) + 0.006, V_RAIL_TOP),
          nx=130, nv=10, gap=dict(x0=False), mat="paint"),
@@ -198,6 +200,11 @@ PANELS = [
     dict(name="Z9_Glass_DoorFront", x=(GB_F, X_COWL - 0.030),
          v=(V_BELT + 0.010, lambda x: min(V_A(x) - 0.020, V_GT(x))),
          nx=56, nv=28, glass="glass"),
+    # the B-pillar: a black-glass band between the door panes, as part of the body shell: the viewer's clear glass takes
+    # the underlay's triangles out within 5 cm of a clear pane, so the strip of underlay here came out as a sawtooth
+    dict(name="Z9_BPillar_Black", x=(lambda v: GB_R(v) - 0.004, lambda v: GB_F(v) + 0.004),
+         v=(V_BELT + 0.010, V_GT), nx=8, nv=28, mat="black_gloss", offset=-0.001, thickness=0.0,
+         gap=dict(x0=False, x1=False, v0=False, v1=False)),
     dict(name="Z9_Glass_DoorRear", x=(X_QTR_F + 0.030, GB_R),
          v=(V_BELT + 0.010, V_GT), nx=48, nv=28, glass="glass_dark"),
     dict(name="Z9_Glass_Quarter", x=(X_QTR_R + 0.004, X_QTR_F),

@@ -95,6 +95,15 @@ def build_library():
     _M.set_inputs(b, base=(0.84, 0.85, 0.87), metallic=1.0, roughness=0.16)
     lib["machined"] = m
 
+    # The photographed wheel's faces: satin silver blades (c1_0036: 170 sRGB, flat, with bright chamfers), not
+    # mirror chrome, and the white roundel cap
+    m, nt, b = _M.mat("M_Wheel_Silver")
+    _M.set_inputs(b, base=(0.30, 0.31, 0.33), metallic=1.0, roughness=0.40)
+    lib["wheel_silver"] = m
+    m, nt, b = _M.mat("M_Wheel_Cap")
+    _M.set_inputs(b, base=(0.55, 0.56, 0.60), metallic=0.0, roughness=0.28, coat=0.5, coat_rough=0.10)
+    lib["wheel_cap"] = m
+
     # Gloss black body trim (aero side curtains, lower grille, rocker panel, rear bumper apron)
     m, nt, b = _M.mat("M_Black_Gloss")
     _M.set_inputs(b, base=(0.010, 0.010, 0.012), metallic=0.0, roughness=0.10,
@@ -129,6 +138,13 @@ def build_library():
     m, nt, b = _M.mat("M_License_Plate_White")
     _M.set_inputs(b, base=(0.92, 0.93, 0.95), metallic=0.0, roughness=0.35, specular=0.35)
     lib["plate_white"] = m
+
+    # Black plastic trim (the lower intakes, aprons, rocker strips, bumper blacks): a soft satin black. A piano-black
+    # (coat 1) panel facing the camera mirrors the studio's white room and reads mid-grey in the showroom (95 sRGB
+    # against 60 for this); real trim is not a mirror either (c1_0002/c1_0034: dark, with a soft sheen).
+    m, nt, b = _M.mat("M_Black_Trim")
+    _M.set_inputs(b, base=(0.012, 0.012, 0.013), metallic=0.0, roughness=0.30, coat=0.0)
+    lib["black_trim"] = m
 
     return lib
 

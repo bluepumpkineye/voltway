@@ -25,7 +25,7 @@ if _HERE not in sys.path:
 
 def _fresh():
     bpy.ops.wm.read_homefile(use_empty=True)
-    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials")
+    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials")
                  or m == "carkit" or m.startswith("carkit.")]:
         sys.modules.pop(name, None)
 
@@ -45,6 +45,24 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         prefix, spec = "SU7Ultra_", SW.SPEC
         spec.pop("_faces", None)
         w, r, dr = (0.265, 0.3595, 0.215) if front else (0.305, 0.3582, 0.205)
+        empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
+        empty.matrix_world = Matrix.Identity(4)
+        return spec, col, empty, parts, lib
+    if design in ("z9", "g9l"):
+        # the Denza Z9's 21 in multi-spoke and the XPeng G9L's 22 in five-spoke (traced from c1_0036 / c1_0028)
+        if design == "z9":
+            import z9_materials as MT
+            import z9_wheels as ZW
+            prefix, spec = ZW.DESIGNS["luxury"]
+            w, r, dr = (0.275, 0.362, 0.185) if not front else (0.255, 0.362, 0.195)
+        else:
+            import g9l_materials as MT
+            import g9l_wheels as ZW
+            prefix, spec = ZW.DESIGNS["aero"]
+            w, r, dr = (0.265, 0.377, 0.185)
+        lib = MT.build_library()
+        col = B.fresh_collection("Wheels_" + design)
+        spec.pop("_faces", None)
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib

@@ -161,7 +161,7 @@ def build_rockers(collection, lib):
         b_cols.append([(p_b0[0], p_b0[1] + 0.005, p_b0[2]), (p_b1[0], p_b1[1] + 0.005, p_b1[2])])
 
     rocker = M.mesh_from_rows("Z9_Rocker_Panel", r_cols, collection)
-    rocker.data.materials.append(lib["black_gloss"])
+    rocker.data.materials.append(lib["black_trim"])
     M.mirror_y(rocker)
     M.finish(rocker, thickness=0.003, bevel=0.0)
     made.append(rocker)

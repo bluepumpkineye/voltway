@@ -25,11 +25,10 @@ from carkit.interior import fittings as F
 from carkit.interior.sweep import grid_mesh, tube, ellipse, smooth_path
 
 # ---------------------------------------------------------------- the shell
-# The panoramic glass (G9L_Glass_Roof, x -0.344 .. 0.50) shows through an opening in the headliner:
-# a black suede band at the front (visors, overhead console, mirror) and a closed headliner behind
-# it back to the roof's end.
-X_OPEN_F, X_OPEN_R = 0.400, -0.320
-Y_OPEN = 0.540                           # the opening's half-width
+# The roof glass (G9L_Glass_Roof, x -1.96 .. -0.48: the rear half of the roof, c1_0001-0006; ahead of it
+# the roof is paint) shows through an opening in the headliner: a closed headliner over the painted front
+# half (visors, overhead console, mirror) and a thin one behind the glass to the roof's end.
+X_OPEN_F, X_OPEN_R = PN.X_ROOF_GLASS_R - 0.020, PN.X_KNEE + 0.040
 X_HEADLINER_R = -2.040                   # the roof's trailing edge
 X_A_FOOT = 1.280
 Z_CARGO = GT.Z_CARGO                     # the cargo floor, flush with the sill plate (c3_0157)
@@ -58,9 +57,10 @@ def _head_rows(x0, x1, nx, v_in, v_out=v_head_edge, inset=0.045, nv=22):
 def build_headliner(col, lib):
     made = []
     centre = lambda x: 0.9995
-    open_v = lambda x: S.v_at_y_upper(x, Y_OPEN)
-    bands = (("int_headliner_F", PN.X_ROOF_F + 0.030, X_OPEN_F, 12),
-             ("int_headliner_R", X_OPEN_R, X_HEADLINER_R, 70))
+    # the opening's edge: the roof glass's own edge (the rail's inboard edge) and a frame of 35 mm
+    open_v = lambda x: S.v_along(x, PN.V_RAIL(x) + 0.004, 0.035)
+    bands = (("int_headliner_F", PN.X_ROOF_F + 0.030, X_OPEN_F, 36),
+             ("int_headliner_R", X_OPEN_R, X_HEADLINER_R, 8))
     for name, x0, x1, nx in bands:
         rows = _head_rows(x0, x1, nx, centre)
         for r in rows:
@@ -233,7 +233,7 @@ def build_closures(col, lib):
     x_trail = lambda z: max(PN.X_DOOR_R(0.5) + 0.010, DR._arch_front(z, 0.0) - 0.002)
     made += CB.wheelhouse_trim(
         S.BODY, col, lib["lower_card"], x_trail, -1.40,
-        FLOOR_Z + 0.02, 0.740, 0.980, 1.200, 0.062, vq, name="int_quarter",
+        FLOOR_Z + 0.02, 0.740, 0.980, 1.310, 0.062, vq, name="int_quarter",
         close_to=lambda z: rc.skin_y(x_trail(z), z) - rc.th(z) + 0.010)
     made += build_cowl_side(col, lib)
     made += build_cargo(col, lib)
@@ -254,12 +254,12 @@ def build_cowl_side(col, lib):
                              lambda x: (x, S.v_at_y_upper(x, 0.69)), lambda x: (x, S.v_at_y_upper(x, 0.86)),
                              depth=0.012, bulge=0.0, nt=8, name="int_cowl_top"))
     # and the slit between the dash's front end and the windscreen's lower edge: a plate on the pad's end up to the glass
-    x_c = 1.2815
+    x_c = PN.X_COWL - 0.004                  # the windscreen's base (the first fit, 1.2815, stood 9 cm ahead of the glass)
     rows = []
     for k in range(25):
         y = -0.80 + 1.60 * k / 24.0
         zg = z_glass(x_c, y)
-        rows.append([(x_c, y, zg - 0.022), (x_c, y, zg + 0.006)])
+        rows.append([(x_c, y, zg - 0.060), (x_c, y, zg + 0.006)])
     plate = grid_mesh("int_cowl_closure", rows, col, lib["lower_card"])
     M.orient(plate.data, lambda c: (-1.0, 0.0, 0.0))
     made.append(plate)
@@ -292,8 +292,10 @@ def build_cargo(col, lib):
     # the side walls, up to the glass's lower edge: they follow the skin at every height (the sail leans in above the
     # belt, a wall at the floor's width stands outside the body), and the belt's height is read at the last x the
     # belt line is defined for, not extrapolated to the tail, where it climbs to the roof
+    # (from x -1.20: the quarter trim ends at -1.40 and its inner face is 15 cm outboard of this wall, so a wall that
+    # starts at the cargo floor's front, -1.34, leaves a slot between them that the rear seat looks down)
     rows = []
-    for x in xs:
+    for x in [-1.20 + (x1 + 1.20) * k / 28.0 for k in range(29)]:
         zt = DR._belt_z(max(x, -1.80)) + 0.040
         rows.append([(x, half(x, Z_CARGO + (zt - Z_CARGO) * k / 10.0), Z_CARGO + (zt - Z_CARGO) * k / 10.0)
                      for k in range(11)])
@@ -325,7 +327,7 @@ def build_roof_fittings(col, lib):
     zg = S.surface_offset(MIRROR_C[0] + 0.05, S.v_at_y_upper(MIRROR_C[0] + 0.05, 0.0), -0.006)[2]
     made += CP.rear_view_mirror(col, lib, MIRROR_C, zg)
     # the overhead console on the front band (c3_0072: a dark panel with the lamps and keys)
-    xs = [0.500 - 0.100 * k / 8.0 for k in range(9)]
+    xs = [0.430 - 0.100 * k / 8.0 for k in range(9)]
     rows = []
     for x in xs:
         zr = S.Z_ROOF(x) - 0.046

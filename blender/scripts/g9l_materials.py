@@ -1,7 +1,9 @@
 """Material library for XPeng G9L: carkit's library in the G9L's factory finishes.
 
 The flagship model in the Autohome studio photographs (blender/reference/xpeng-g9l)
-is painted Provence Purple (普罗旺斯紫, swatch #4E2C3C), a deep metallic wine purple.
+is painted Provence Purple (普罗旺斯紫): a deep blue-violet (the photographed panels read 44,43,72 to 48,40,88 sRGB
+in the studio's mid-tones against the violet backdrop, lavender in the highlights; the first guess, #4E2C3C, was
+wine-red).
 Metallic is capped at 0.19 to respect the export quality gate (metallic <= 0.20).
 """
 from carkit import materials as _M
@@ -9,11 +11,12 @@ from carkit import materials as _M
 LIGHTS_ON = False
 TAIL_LIGHTS = 1.3
 
-# Provence Purple (普罗旺斯紫): swatch #4E2C3C
-# In linear RGB space: (0.075, 0.022, 0.044)
+# Provence Purple (普罗旺斯紫): sRGB #271E45, tuned in the showroom viewer, which brightens a paint
+# about 1.5x over its base colour (the photographed mid-tones are 44,43,72 to 48,40,88)
+# In linear RGB space: (0.0203, 0.0130, 0.0595)
 G9L_PURPLE = dict(
     name="M_Paint_G9L_Purple",
-    base=(0.075, 0.022, 0.044),
+    base=(0.0203, 0.0130, 0.0595),
     roughness=0.38,
     specular=0.25,
     coat_rough=0.05,
@@ -22,7 +25,7 @@ G9L_PURPLE = dict(
 )
 PAINT_METALLIC = 0.19            # strictly under the export gate's 0.20 ceiling
 PAINT_COAT = 0.40
-SHEEN = dict(weight=0.05, tint=(0.85, 0.60, 0.90), roughness=0.30)
+SHEEN = dict(weight=0.02, tint=(0.60, 0.55, 0.95), roughness=0.30)
 
 _M.CALIPERS.setdefault("gunmetal", dict(
     base=(0.20, 0.21, 0.22),
@@ -174,6 +177,13 @@ def build_library():
     m, nt, b = _M.mat("M_Frit_Black")
     _M.set_inputs(b, base=(0.003, 0.003, 0.004), metallic=0.0, roughness=0.07, specular=0.30, coat=0.0)
     lib["frit"] = m
+
+    # Black plastic trim (the lower intakes, aprons, rocker strips, bumper blacks): a soft satin black. A piano-black
+    # (coat 1) panel facing the camera mirrors the studio's white room and reads mid-grey in the showroom (95 sRGB
+    # against 60 for this); real trim is not a mirror either (c1_0002/c1_0034: dark, with a soft sheen).
+    m, nt, b = _M.mat("M_Black_Trim")
+    _M.set_inputs(b, base=(0.012, 0.012, 0.013), metallic=0.0, roughness=0.30, coat=0.0)
+    lib["black_trim"] = m
 
     return lib
 

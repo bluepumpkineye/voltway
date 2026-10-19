@@ -130,8 +130,8 @@ export const xpengG9l: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/xpeng-g9l-shadow.webp',
-      size: [8.144, 5.195],
-      centre: [0.012, 0.0],
+      size: [8.146, 5.195],
+      centre: [0.011, 0.0],
     },
     // the cabin (blender/scripts/g9l_interior*.py, the Bordeaux Red interior) with its Cycles light baked in:
     // export_g9l.web_cabin()
@@ -147,7 +147,7 @@ export const xpengG9l: Vehicle = {
       sun: { direction: [0.6959, 0.3477, 0.6284], color: '#ffdfae', intensity: 1.96 },
       ground: { height: 1.7, radius: 45 },
     },
-    heroColor: '#4E2C3C',
+    heroColor: '#3B2D66',
     // over the driver's seat (the cabin's H-point (0.20, 0.375, 0.69) + 0.59 up)
     driverEye: [0.18, 0.40, 1.28],
     proxyUrl: '/models/xpeng-g9l-proxy.glb',
@@ -155,7 +155,7 @@ export const xpengG9l: Vehicle = {
   configurator: {
     paintMaterial: 'M_Paint_G9L_Purple',
     paints: [
-      { id: 'provence-purple', name: 'Provence Purple', nameZh: '普罗旺斯紫', swatch: '#4E2C3C' },
+      { id: 'provence-purple', name: 'Provence Purple', nameZh: '普罗旺斯紫', swatch: '#3B2D66' },
       {
         id: 'everest-white',
         name: 'Everest White',

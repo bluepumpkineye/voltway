@@ -104,22 +104,131 @@ def lamp_bot(y):
 
 
 # ----------------------------------------------------------- band construction
+_GRID = {}
+
+
+def _grid():
+    """The tail cap sampled on a (w, v) grid, as arrays of its (y, z): the robust inverse's first guess."""
+    if not _GRID:
+        import numpy as np
+        ws = np.linspace(0.0, 1.0, 65)
+        vs = np.linspace(0.0, 1.0, 129)
+        W, V = np.meshgrid(ws, vs)
+        P = np.array([[TAIL.point(float(w), float(v)) for w in ws] for v in vs])
+        _GRID.update(W=W.ravel(), V=V.ravel(), Y=P[:, :, 1].ravel(), Z=P[:, :, 2].ravel())
+    return _GRID
+
+
+def wv_of(y, z):
+    """(w, v, miss) of the tail cap point nearest the elevation position (y, z): a grid search then a
+    2-D Newton polish. wv_at bisects on height assuming z rises with v at constant w, which it does not
+    round the corner under the backlight, where it lands on the flank 20 cm off; `miss` is the distance
+    (m) between the point found and (y, z), > 1 mm where the cap does not reach that position."""
+    import numpy as np
+    G = _grid()
+    k = int(np.argmin((G["Y"] - y) ** 2 + (G["Z"] - z) ** 2))
+    w, v = float(G["W"][k]), float(G["V"][k])
+    for _ in range(8):
+        p = TAIL.point(w, v)
+        fy, fz = p[1] - y, p[2] - z
+        if abs(fy) < 2e-5 and abs(fz) < 2e-5:
+            break
+        h = 1e-4
+        pw = TAIL.point(min(1.0, w + h), v)
+        pv = TAIL.point(w, min(1.0, v + h))
+        a11, a21 = (pw[1] - p[1]) / h, (pw[2] - p[2]) / h
+        a12, a22 = (pv[1] - p[1]) / h, (pv[2] - p[2]) / h
+        det = a11 * a22 - a12 * a21
+        if abs(det) < 1e-9:
+            break
+        dw = (a22 * fy - a12 * fz) / det
+        dv = (-a21 * fy + a11 * fz) / det
+        w = min(1.0, max(0.0, w - dw))
+        v = min(1.0, max(0.0, v - dv))
+    p = TAIL.point(w, v)
+    return w, v, math.hypot(p[1] - y, p[2] - z)
+
+
+def wv(y, z):
+    """(w, v) of the cap point at (y, z): wv_at where it lands, wv_of where it does not."""
+    w, v = TAIL.wv_at(y, z)
+    p = TAIL.point(w, v)
+    if abs(p[2] - z) > 0.006 or abs(p[1] - y) > 0.006:
+        w, v, _ = wv_of(y, z)
+    return w, v
+
+
+_ZTOP = {}
+
+
+def _reach_at(i):
+    """z_reach on the 20 mm grid: the highest z (up to CAP_HIGH) at which the cap exists at y."""
+    hit = _ZTOP.get(i)
+    if hit is None:
+        y = 0.02 * i
+        z = CAP_HIGH
+        while z > CAP_LOW and wv_of(y, z)[2] > 0.0015:
+            z -= 0.004
+        hit = z
+        _ZTOP[i] = hit
+    return hit
+
+
+def z_reach(y):
+    """The highest elevation at which the tail cap exists at |y| (below CAP_HIGH): past the width of the
+    backlight's foot the cap's top edge falls away round the corner, along the join ring."""
+    f = abs(y) / 0.02
+    i = int(f)
+    a, b = _reach_at(i), _reach_at(i + 1)
+    return a + (b - a) * (f - i)
+
+
+def edge_y(z):
+    """Half-width of the tail cap at height z: where it meets the quarter (the join ring)."""
+    return TAIL.half_width(max(CAP_LOW, min(CAP_HIGH, z))) * 0.9995
+
+
 def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, y_max=None, ymin=0.0,
-         off_fn=None, bevel=0.0):
-    """A strip of the tail cap between z-limits that depend on |y|: zlo(y), zhi(y)."""
+         off_fn=None, bevel=0.0, cut=False, hold=False):
+    """A strip of the tail cap between z-limits that depend on |y|: zlo(y), zhi(y).
+
+    y_max None: a full-width band, whose side edge follows the cap's join ring (the quarter panel's edge) at every
+    height, the columns sliding in where the cap is narrower: a band with one constant width stopped short of the ring
+    where the cap is wider (a dark slit down the corner) and spilled onto the flank where it is narrower (a flap)."""
     cols = []
-    zm = 0.5 * (zlo(0.4) + zhi(0.4))
-    ymax = (TAIL.half_width(max(CAP_LOW, min(CAP_HIGH, zm))) * 0.9995) if y_max is None else y_max
+    if y_max is None:
+        zs = [zlo(0.4) + (zhi(0.4) - zlo(0.4)) * k / 12.0 for k in range(13)]
+        ymax = max(edge_y(z) for z in zs)
+    else:
+        ymax = y_max
+    if cut:
+        # a band that sits on the cap's top edge (the ducktail's lip) ends where that edge falls below its lower
+        # limit (round the corner, with the join ring), and is held under the edge elsewhere
+        y_cut = ymax
+        while y_cut > ymin + 0.02 and z_reach(y_cut) - 0.002 < zlo(y_cut) + 0.008:
+            y_cut -= 0.005
+        ymax = min(ymax, y_cut)
+
+    def row_z(y, fr):
+        # hold: the band's top is kept under the cap's own top edge (it does not end there, as a cut band does)
+        z1 = min(zhi(y), z_reach(y) - 0.002) if (cut or hold) else zhi(y)
+        z0 = min(zlo(y), z1 - 0.004) if (cut or hold) else zlo(y)
+        return max(CAP_LOW, min(CAP_HIGH, z0 + (z1 - z0) * fr))
+
     for i in range(ny + 1):
         s = i / float(ny)
         s = 1.0 - (1.0 - s) ** 1.30
-        y = ymin + (ymax - ymin) * s
         col = []
         for k in range(nz + 1):
-            z = zlo(y) + (zhi(y) - zlo(y)) * (k / float(nz))
-            z = max(CAP_LOW, min(CAP_HIGH, z))
-            w, v = TAIL.wv_at(y, z)
-            d = off_fn(y, k / float(nz)) if off_fn else offset
+            fr = k / float(nz)
+            y = ymin + (ymax - ymin) * s
+            z = row_z(y, fr)
+            if y_max is None:
+                for _ in range(3):                  # the column's y depends on the height it lands at
+                    y = ymin + (edge_y(z) - ymin) * s
+                    z = row_z(y, fr)
+            w, v = wv(y, z) if (cut or hold) else TAIL.wv_at(y, z)
+            d = off_fn(y, fr) if off_fn else offset
             col.append(TAIL.offset(w, v, d) if d else TAIL.point(w, v))
         cols.append(col)
     ob = M.mesh_from_rows(name, cols, collection)
@@ -165,7 +274,7 @@ def build_tail(collection, lib):
     made = []
     # the upper tail: everything above the lamps' lower edge, under the ducktail lip
     made.append(band("Z9_Tail_Upper", lambda y: lamp_bot(min(y, 0.82)) - 0.0005, lambda y: CAP_HIGH, 56, 8,
-                     collection, lib["paint"]))
+                     collection, lib["paint"], hold=True))
     # the tailgate: from the bumper's top edge to the lamps (a slim gap above the bumper)
     made.append(band("Z9_Tailgate", lambda y: bumper_top(y) + 0.5 * GAP, lambda y: lamp_bot(min(y, 0.82)) - 0.5 * GAP,
                      56, 14, collection, lib["paint"]))
@@ -355,8 +464,34 @@ def build_lettering(collection, lib):
 # ------------------------------------------------------------ ducktail lip
 def build_ducktail(collection, lib):
     """The slim spoiler lip across the top of the tail (the side photograph's tip at z 1.0)."""
-    return [band("Z9_Ducktail_Lip", lambda y: CAP_HIGH - 0.012, lambda y: CAP_HIGH, 40, 2, collection, lib["paint"],
-                 off_fn=lambda y, k: 0.008 * k, y_max=0.86, thickness=0.003)]
+    return [band("Z9_Ducktail_Lip", lambda y: CAP_HIGH - 0.012, lambda y: CAP_HIGH, 40, 2, collection, lib["paint"], cut=True,
+                 off_fn=lambda y, k: 0.008 * k * (1.0 - geom.smoothstep((y - 0.55) / 0.22)) + 0.001, y_max=0.86, thickness=0.003)]
+
+
+def build_deck(collection, lib):
+    """The rear deck: the cap's top sheet, from the tail's upper edge (z_hi on the centreline) up and forward to the
+    join ring under the rear glass. No panel covered it (the tail bands stop at z_hi, the decklid starts at the
+    ring), so the dark hull showed there as a black band across the car; in the photographs (c1_0014..) it is
+    body colour. The sheet is the cap's own surface over v from where the ring reaches z_hi up to v = 1."""
+    S_ = S.BODY
+    v_a = 0.0
+    for k in range(401):
+        v = k / 400.0
+        if S_.section_v(TAIL.JOIN(v), v)[1] >= CAP_HIGH - 0.012:
+            v_a = v
+            break
+    nw, nv = 36, 24
+    cols = []
+    for i in range(nw + 1):
+        w = i / float(nw)
+        w = 1.0 - (1.0 - w) ** 1.25                   # packed toward the corner
+        cols.append([TAIL.offset(w, v_a + (1.0 - v_a) * j / float(nv), 0.0006) for j in range(nv + 1)])
+    ob = M.mesh_from_rows("Z9_Rear_Deck", cols, collection)
+    M.orient(ob.data, geom.axial(-1.0))
+    ob.data.materials.append(lib["paint"])
+    M.mirror_y(ob)
+    M.finish(ob, thickness=M.SKIN, bevel=0.0)
+    return [ob]
 
 
 # ------------------------------------------------------------- build all
@@ -369,4 +504,5 @@ def build_all(collection, lib):
     made += build_bumper(collection, lib)
     made += build_lettering(collection, lib)
     made += build_ducktail(collection, lib)
+    made += build_deck(collection, lib)
     return made
