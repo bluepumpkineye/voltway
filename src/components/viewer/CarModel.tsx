@@ -306,6 +306,9 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   const model = useClonedScene(scene);
   const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
   const invalidate = useThree((s) => s.invalidate);
+  React.useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') (window as unknown as { __invalidate?: () => void }).__invalidate = invalidate;
+  }, [invalidate]);
 
   // a car with a motorised centre screen: its frame is cut out of the merged cabin mesh and hung with the picture on a
   // pivot (ScreenDriver turns it). Done while rendering, so the live HMI below finds the picture under its pivot.
@@ -374,9 +377,12 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
         smoothBakedLight(g);
       }
       const baked = Boolean(g.getAttribute('bakedLight'));
+      // a cabin with an occlusion atlas on its second UV set (carkit.aoatlas) is lit by the hall instead
+      const atlas = !baked && Boolean(g.getAttribute('uv1'));
       for (const m of materialsOf(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
-        if (baked) {
+        if (atlas) hallLighting(m, probe);
+        else if (baked) {
           const id = m.userData.opening as OpeningId | undefined;
           const hinges = hingesOf(vehicle);
           bakedLighting(m, probe, id && hinges ? hinges.liftOf(id) : hinges?.lift.cabin);
@@ -434,6 +440,7 @@ const SPEC_OCC = { value: new THREE.Vector2(1.25, 0.05) };
  * this lifts it without re-baking. Exposed as window.__cabinGain in development.
  */
 const CABIN_GAIN = { value: 1 };
+
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as unknown as { __specOcc?: THREE.Vector2 }).__specOcc = SPEC_OCC.value;
   Object.defineProperty(window, '__cabinGain', {
@@ -445,6 +452,64 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   });
 }
 
+
+/**
+ * HIMA's cabin light: a bright, even hall environment shaded by a baked occlusion atlas, and nothing else (docs/hima-benchmark.md).
+ * The glTF's occlusionTexture (TEXCOORD_1, carkit.aoatlas) multiplies the environment's diffuse and specular light in three's own
+ * aomap_fragment; the scene's lamps and ambient light stay out. x = diffuse gain (times the car's `cabinGain`), y = reflection
+ * gain, both tunable live as window.__hallGain in development.
+ */
+const HALL_GAIN = { value: new THREE.Vector2(2.0, 1.4) };
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  (window as unknown as { __hallGain?: THREE.Vector2 }).__hallGain = HALL_GAIN.value;
+}
+
+/**
+ * How much of the atlas shows (three's aoMapIntensity: 1 is the bake as it is, 0 none). The long-range pass of the bake darkens
+ * a seat's flanks and the footwell like a dirty stain against the cream; at 0.6 the creases and seams stay and the leather
+ * stays clean. window.__hallAo changes it live in development (it applies to materials made after, so reload).
+ */
+const HALL_AO = 0.6;
+
+function hallLighting(m: THREE.MeshStandardMaterial, env: THREE.Texture | null) {
+  if (m.userData.baked) return;
+  m.userData.baked = true;
+  m.aoMapIntensity = HALL_AO;
+  if (env) {
+    m.envMap = env;
+    m.envMapIntensity = 1.0;
+  }
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uHallGain = HALL_GAIN;
+    shader.uniforms.uCabinGain = CABIN_GAIN;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('void main() {', 'uniform vec2 uHallGain;\nuniform float uCabinGain;\nvoid main() {')
+      .replace(
+        '#include <lights_fragment_maps>',
+        `#include <lights_fragment_maps>
+        iblIrradiance *= uHallGain.x * uCabinGain;
+        irradiance *= 0.0;
+        radiance *= uHallGain.y;
+        #ifdef USE_CLEARCOAT
+          clearcoatRadiance *= uHallGain.y;
+        #endif`,
+      )
+      .replace(
+        '#include <lights_fragment_end>',
+        `#include <lights_fragment_end>
+        reflectedLight.directDiffuse *= 0.0;
+        reflectedLight.directSpecular *= 0.0;
+        #ifdef USE_CLEARCOAT
+          clearcoatSpecularDirect *= 0.0;
+        #endif
+        #ifdef USE_SHEEN
+          sheenSpecularDirect *= 0.0;
+        #endif`,
+      );
+  };
+  m.customProgramCacheKey = () => 'cabin-hall-v1';
+  m.needsUpdate = true;
+}
 
 function bakedLighting(
   m: THREE.MeshStandardMaterial,
@@ -477,7 +542,7 @@ function bakedLighting(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         'void main() {',
-        'uniform float uBakeGain;\nuniform float uCabinGain;\nuniform float uOpen;\nuniform vec2 uSpecOcc;\nvarying vec3 vBakedLight;\nvarying vec3 vBakedLightOpen;\nvoid main() {',
+        'uniform float uBakeGain;\nuniform float uCabinGain;\nuniform float uOpen;\nuniform vec2 uSpecOcc;\nuniform vec4 uHall;\nuniform float uHallSpec;\nvarying vec3 vBakedLight;\nvarying vec3 vBakedLightOpen;\nvoid main() {',
       )
       .replace(
         '#include <lights_fragment_maps>',

@@ -453,17 +453,22 @@ def build_wheel(col, lib):
 
 
 # ------------------------------------------------------------------ seats
-def _seat_spec():
+def _seat_spec(k=1.0):
     """The front bucket (the SU7's, carkit.interior.seat) in cream with a taupe shell: the
     cushion and backrest in perforated cream Nappa. The 7X's headrest is a separate pillow on
     two posts above the shoulders (c3_0002), so the backrest's spine stops at the shoulders
-    (the SU7's carries its headrest on over the top)."""
+    (the SU7's carries its headrest on over the top) and the open top is capped (`end_cap`).
+
+    `k` scales the backrest's height: 1.0 is the spine as drawn from the SU7 (shoulders 0.70 m above the bight, which put the
+    front headrest's top at z 1.568, through the headliner at 1.553); the front seats use FRONT_BACK_K, the rear ones
+    (_rear_spec) their own 0.86."""
     from carkit.interior import seat as SE
     import copy
     sp = copy.deepcopy(SE.SU7_ULTRA_FRONT)
-    sp["backrest"]["spine"] = [(0.0, 0.0), (-0.045, 0.0957), (-0.13, 0.286), (-0.20, 0.4576),
-                               (-0.240, 0.556), (-0.272, 0.640), (-0.288, 0.676), (-0.294, 0.694),
-                               (-0.297, 0.700), (-0.296, 0.690), (-0.292, 0.672)]
+    base = [(0.0, 0.0), (-0.045, 0.0957), (-0.13, 0.286), (-0.20, 0.4576), (-0.240, 0.556),
+            (-0.272, 0.640), (-0.288, 0.676), (-0.294, 0.694), (-0.297, 0.700)]
+    sp["backrest"]["spine"] = [(x * k, z * k) for (x, z) in base]
+    sp["backrest"]["end_cap"] = True
     sp["backrest"]["half_w"] = Curve([(0.0, 0.262), (0.45, 0.272), (0.78, 0.262), (0.90, 0.244),
                                       (1.0, 0.200)], mode="pchip")
     sp["backrest"]["bolster"] = Curve([(0.0, 0.55), (0.30, 1.0), (0.58, 0.75), (0.80, 0.35),
@@ -476,19 +481,27 @@ def _seat_spec():
                       base="leather_taupe")
     sp["stitch_half_gap"] = 0.012
     # the headrest pillow, in seat-local coordinates (x back negative, z up from the bight)
-    sp["headrest"] = dict(w=0.318, h=0.235, t=0.098, r=0.058, gap=0.045, top=(-0.297, 0.700))
+    sp["headrest"] = dict(w=0.318, h=0.235, t=0.098, r=0.058, gap=0.045, top=(-0.297 * k, 0.700 * k))
     return sp
 
 
+# the front backrest's height against the SU7-drawn spine: the headrest's top then stands 0.89 m above the bight
+# (z 1.473), 8 cm under the headliner (1.553) as a real seat's does, instead of 0.98 m through it
+FRONT_BACK_K = 0.88
+
+
 def _rear_spec():
-    """The rear seats: the front seat, backrest 14 % shorter, the headrest a smaller pillow."""
+    """The rear seats: the full-height seat spine, backrest 14 % shorter, the headrest a smaller pillow."""
     import copy
-    sp = copy.deepcopy(_seat_spec())
+    sp = copy.deepcopy(_seat_spec(1.0))
     sp["backrest"]["spine"] = [(x * 0.95, z * 0.86) for (x, z) in sp["backrest"]["spine"]]
     hr = sp["headrest"]
     sp["headrest"] = dict(w=0.285, h=0.175, t=0.086, r=0.050, gap=0.040,
                           top=(hr["top"][0] * 0.95, hr["top"][1] * 0.86))
     return sp
+
+
+POLE = 0.04          # a pillow's pole ring, as a fraction of its rim
 
 
 def pillow(col, name, c, w, h, t, r, mat, tilt, n_in=6):
@@ -506,15 +519,29 @@ def pillow(col, name, c, w, h, t, r, mat, tilt, n_in=6):
     for k in range(n_in + 1):                       # front: centre -> rim
         s = k / float(n_in)
         rings.append(ring(s, half * (0.62 + 0.38 * (1.0 - s * s))))
-    rings[0] = [(c[0] + half * ct, c[1], c[2] - half * st)] * len(loop)
+    rings[0] = ring(POLE, half * (0.62 + 0.38 * (1.0 - POLE * POLE)))      # a tiny ring, closed below by a polygon
     rings.append(ring(1.012, 0.20 * half))
     rings.append(ring(1.016, 0.0))
     rings.append(ring(1.012, -0.20 * half))
     for k in range(n_in + 1):                       # back: rim -> centre
         s = 1.0 - k / float(n_in)
         rings.append(ring(s, -half * (0.62 + 0.38 * (1.0 - s * s))))
-    rings[-1] = [(c[0] - half * ct, c[1], c[2] + half * st)] * len(loop)
+    rings[-1] = ring(POLE, -half * (0.62 + 0.38 * (1.0 - POLE * POLE)))
     ob = grid_mesh(name, rings, col, mat, wrap_t=True)
+    # the two poles are polygons, not points: a point makes a fan of zero-area quads whose tangents are undefined, and the
+    # normal map there drew a smooth, dot-free square on the back of every headrest
+    import bmesh
+    n = len(loop)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+    last = len(bm.verts) - n
+    bm.faces.new([bm.verts[j] for j in reversed(range(n))])
+    bm.faces.new([bm.verts[last + j] for j in range(n)])
+    for f in bm.faces:
+        f.smooth = True
+    bm.to_mesh(ob.data)
+    bm.free()
     M.orient(ob.data, lambda q: (q[0] - c[0], q[1] - c[1], q[2] - c[2]))
     return ob
 
@@ -543,10 +570,11 @@ def build_seats(col, lib):
     from carkit.interior import seat as SE
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
-        parts, cush, back = SE.seat(col, lib, _seat_spec(), (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
+        front = _seat_spec(FRONT_BACK_K)
+        parts, cush, back = SE.seat(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
                                     name="int_seat_" + tag)
         made += parts
-        made += _headrest(col, lib, _seat_spec(), (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
+        made += _headrest(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
         made += _seat_shroud(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_%s_base" % tag)
     rear = _rear_spec()
     for tag, y in (("RL", REAR_Y), ("RR", -REAR_Y)):

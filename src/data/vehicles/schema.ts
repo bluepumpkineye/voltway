@@ -153,9 +153,9 @@ export interface VehicleAssets {
    */
   showroomOnly?: boolean;
   /**
-   * A multiplier on the cabin's baked light, 1 when unset (CarModel.tsx `CABIN_GAIN`): a pale
-   * cabin lit by daylight through the glass reads darker than the studio photographs of it, and
-   * this lifts it without re-baking.
+   * A multiplier on the cabin's light, 1 when unset (CarModel.tsx `CABIN_GAIN`; on the hall look it multiplies the
+   * diffuse light): a pale cabin lit by daylight through the glass reads darker than the studio photographs of it, and
+   * this lifts it (or, below 1, pulls a saturated one down) without re-baking.
    */
   cabinGain?: number;
   /**
@@ -163,7 +163,8 @@ export interface VehicleAssets {
    * baked in Blender (Cycles) into COLOR_0, see blender/scripts/carkit/bake.py.
    */
   interiorModelUrl?: string;
-  /** Equirectangular HDR shot from inside the cabin: what the trim reflects. */
+  /** Equirectangular HDR the cabin is lit and reflects by: shot from inside the cabin (a baked cabin) or the shared hall,
+   * `/models/cabin-hall.hdr` (a cabin with an occlusion atlas, docs/3d-pipeline.md, "The hall look"). */
   interiorProbeUrl?: string;
   /** The world the car stands in, in both views (export_gltf.OUTSIDE), or
    * only through the cabin's glass (`exterior: false`). */

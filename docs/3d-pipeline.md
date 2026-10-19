@@ -596,6 +596,93 @@ light probe. All are built in Blender and shipped as data; none costs a frame.
   writes `blender/renders/studio/<slug>_<shot>.png` (about 30 s a still at 256
   samples).
 
+### The hall look: a cabin lit the way HIMA's is (`carkit/aoatlas.py`, `carkit/hall_env.py`)
+
+Built 2026-10-19 for the Zeekr 7X after taking HIMA's interior apart (`hima-benchmark.md`, §5b). The vertex-baked cabin
+(`_BAKEDLIGHT`, above) lit every surface by outdoor daylight through the glass and carried it at one value per vertex: soft,
+directional, and blind to seams. HIMA's cabin has no light at all: a bright even hall environment, shaded by a texel
+occlusion atlas. The pieces:
+
+- **The occlusion atlas** (`carkit.aoatlas`). After `merge_for_export`: `cabin_objects` (modifiers applied), `unwrap` (a
+  second UV layer `UV_AO`, smart-projected at 66 degrees and packed in ONE multi-object edit session so every part shares
+  one 0-1 square; UV 0 stays the world-space projection the leather uses), `bake` (Cycles AO, 2048 x 2048, 512 samples,
+  the exterior and glass hidden so the windscreen is an opening) and `attach` (the image's red channel into every
+  material's "glTF Material Output" group, which the exporter ships as `occlusionTexture` on `TEXCOORD_1`; export with
+  `image_format='WEBP'`). Two bakes are multiplied: **0.25 m** for creases and seams, **1.1 m** at 55% for the footwell and
+  the shade under the dash. A 0.9 m single bake came out black (a cabin is a closed box with window-shaped holes). The 7X
+  covers 50% of the square and bakes in about a minute; the GLB is **1.7 MB** against 5.2 MB for the vertex-baked cabin,
+  because the vertex light and its second (doors open) set are gone.
+- **The hall** (`carkit.hall_env`, written to `public/models/cabin-hall.hdr`, 1024 x 512, shared by every car that uses the
+  look). Drawn from numbers, no photograph: floor 0.26, walls 0.28, ceiling 0.95 above 20 degrees, two 24-unit ceiling strips
+  along the car's length, a few pods, two dim side windows and twelve dark columns. Matched to HIMA's measured hall (median
+  0.28, a bright ceiling, strips at 7-55), not copied from it. Set in the vehicle data as `assets.interiorProbeUrl`.
+- **The shader** (`hallLighting()` in `CarModel.tsx`): picked when a cabin mesh has `uv1` and no `_bakedlight`. It sets the
+  hall as the material's `envMap`, scales the diffuse light by `HALL_GAIN.x` (2.0) times the car's `cabinGain` and the
+  reflections by `HALL_GAIN.y` (1.4), and zeroes the scene's lamps and ambient light. three.js' own `aomap_fragment` then
+  applies the atlas to indirect diffuse and (as specular occlusion) to the reflections. `window.__hallGain` tunes it live.
+- **The seated camera** (`anchors.ts`, `driverPose`): 46 degrees (it was 64) and the eye `EYE_BACK` = 0.12 m behind the
+  camera-matched point, as HIMA's is. This changes the driver anchor of every car.
+- **Command**: `export_zx.web_cabin(look='hall')`, about 3 minutes in a background Blender (it writes the hall too). A new car
+  copies `atlas_cabin()` and `export_interior(look=...)` from `export_zx.py`; nothing in the atlas is car-specific. A car on
+  `look="baked"` is untouched.
+
+**Cars on the hall look (all seven, 2026-10-19).** Per car: `web_cabin(look="hall")` in its export script, a fresh build of
+body and cabin, then `prepare_exterior()` (the door cards are joined on their hinges), the cluster picture, the atlas and the
+export with `image_format='WEBP'`: 2.5-3.5 minutes, no vertex light, no probe, no second (doors open) set. The cabin GLBs
+went from 5.1-6.0 MB to 1.6-2.2 MB with the same nodes and triangle counts (the ES8 gained 36 from an edit since its last export). Run one in a background Blender, never the open one:
+
+```
+blender -b --factory-startup --python run_hall.py -- export_gltf web_cabin "look='hall'"
+```
+
+where `run_hall.py` appends `blender/scripts` to `sys.path`, imports the module and calls the function (a `--python-expr` with a
+path that holds a space and a `;` is split by Windows' argument parser).
+
+| Car | Command | `cabinGain` | Atlas covered / mean AO | GLB |
+|---|---|---|---|---|
+| Zeekr 7X | `export_zx.web_cabin(look='hall')` | 1.3 (cream reads darker than the studio photographs) | not recorded | 1.7 MB |
+| Xiaomi SU7 Ultra | `export_gltf.web_cabin(look='hall')` | 1.0 | 47% / 0.33 | 1.6 MB |
+| Luxeed RX | `export_rx.web_cabin(look='hall')` | 1.0 | 46% / 0.33 | 1.9 MB |
+| NIO ES8 | `export_es8.web_cabin(look='hall')` | 1.0 | 44% / 0.36 | 1.9 MB |
+| Avatr 06T | `export_a06t.web_cabin(look='hall')` | 1.0 | 46% / 0.32 | 1.9 MB |
+| XPeng G9L | `export_g9l.web_cabin(look='hall')` | **0.65** | 45% / 0.37 | 1.8 MB |
+| Denza Z9 | `export_z9.web_cabin(look='hall')` | 1.0 | 46% / 0.32 | 2.2 MB |
+
+The G9L and the Z9 go through `cabin_tools` (`cabin_screens(cfg)`, `atlas_cabin(cfg)`, `export_interior(cfg, look=...)`); the
+SU7, RX, ES8 and A06T have their own `cabin_screens()` / `atlas_cabin()` / `export_interior(look=...)` / `web_cabin()` in
+`export_gltf.py`, `export_rx.py`, `export_es8.py`, `export_a06t.py`. The old per-car `<slug>-cabin.hdr` probes are no longer read
+(`interiorProbeUrl` is `/models/cabin-hall.hdr` for all seven) and were left on disk; the outside-world files are untouched. The
+SU7's, RX's and others' old cabin GLBs carried a baked picture on `screen_main`; the current `export_interior` ships the plain
+screen (the live HMI covers it), so the new GLBs have no such texture.
+
+**Retuning `cabinGain`** (`window.__cabinGain` live, then the car's data): measure a flat upward-facing upholstery patch in the
+viewer's capture (`toDataURL` in the same task as `advance()`) and in the maker's photograph of the same trim (`sharp`
+`extract().raw()`, mean of a lit cushion), and set the gain where their luminance agrees. The Z9's Pamir Brown seat is
+(125,96,90) at gain 1 against (120,102,102) in Autohome's photograph, so it stays at 1. The G9L's Bordeaux seat was (185,89,98)
+against (131,82,85), hence 0.65. The SU7, RX, ES8 and A06T have no comparable lit photograph (the SU7's is a night
+render, the ES8 and A06T have none) and read right at 1: white leather 240, black trim dark grey, the footwell carpet grey,
+no black pockets. The gain is one global (`CABIN_GAIN`), so a side-by-side compare of two cars with different gains shows the
+last mounted car's value on both.
+
+Atlas hygiene (2026-10-19, after the owner saw dark stains on the 7X's seats): the texels no island covers are **grown
+outward 24 texels and the rest filled white** (`aoatlas._dilate`); left black, the viewer's mip levels averaged the edge of
+every narrow leather panel with the black background. The long-range pass counts 40% (`mix`), and the viewer shows 60% of the
+atlas (`HALL_AO` = `aoMapIntensity`): at 1.0 the seats' flanks read as dirt against the cream.
+
+The 7X's seats (2026-10-19, `zx_interior._seat_spec(k)`, `carkit.interior.seat`): the "flap below the headrest" was the
+backrest's top, a swept tube whose spine ended in a three-point hook (`(-0.297, 0.700), (-0.296, 0.690), (-0.292, 0.672)`): the
+frames flipped at the turn and left a ragged, folded, open lid. The spine now stops at the shoulders and the tube is closed with a
+shallow dome (`backrest["end_cap"]`). The front seats were also 0.12 m too tall: the SU7's backrest spine (shoulders 0.70 m above
+the bight, its integrated headrest on top of that) with a separate headrest on top again put the headrest's top at z 1.568,
+through the headliner at 1.553. `FRONT_BACK_K` = 0.88 scales the spine, so the top is z 1.473, 8 cm clear. The cabin itself
+is not low: the headliner is 1.55-1.60 over the seats (the outer roof is 1.656). The headrest pillow's two poles were points, i.e.
+fans of zero-area quads with undefined tangents, which drew a smooth, dot-free square on the back of every headrest; they are now
+small polygons (`POLE`). `cabin_parts.pillow` (G9L, Z9) and `z9_interior`'s spine have the same shapes and are not fixed.
+
+Found on the way: the cluster's display picture is applied by `cabin_lighting()` for the vertex bake, so the hall path calls
+`cabin_screens()` itself or the cluster ships dark. The showroom rewrites its URL before the viewer chunk loads, so a look-dev
+flag read from `location.search` at module load is lost; use `localStorage`.
+
 Found on the way, worth knowing:
 
 - The brake calipers were wound inside-out (`carkit/parts/wheels.py`). A

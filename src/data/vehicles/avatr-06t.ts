@@ -112,7 +112,8 @@ export const avatr06t: Vehicle = {
       centre: [0.0, 0.0],
     },
     interiorModelUrl: '/models/avatr-06t-interior.glb',
-    interiorProbeUrl: '/models/avatr-06t-cabin.hdr',
+    // lit by the shared showroom hall, shaded by the cabin's occlusion atlas (docs/3d-pipeline.md, "The hall look")
+    interiorProbeUrl: '/models/cabin-hall.hdr',
     outside: {
       view: '/models/avatr-06t-outside.jpg',
       light: '/models/avatr-06t-outside-light.hdr',

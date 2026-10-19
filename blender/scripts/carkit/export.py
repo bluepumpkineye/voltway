@@ -133,11 +133,13 @@ def strip_attributes(objects, keep=SHIPPED_ATTRIBUTES):
 
 
 def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=None,
-           attributes=False):
+           attributes=False, image_format='AUTO'):
     """Export the groups' meshes as GLB. draco=None: only if over 20 MB.
     vertex_color: a colour attribute to ship as COLOR_0 (first primitive only
     in Blender 5.2 - see carkit.bake.EXPORT_ATTR); attributes: ship custom
-    "_NAME" attributes (SHIPPED_ATTRIBUTES: the baked light and occlusion)."""
+    "_NAME" attributes (SHIPPED_ATTRIBUTES: the baked light and occlusion);
+    image_format: 'AUTO' keeps each texture's own format, 'WEBP' re-encodes them all (the cabin's
+    occlusion atlas is a 2048 x 2048 picture)."""
     bpy.ops.object.select_all(action='DESELECT')
     n = 0
     for _, cname in groups:
@@ -170,7 +172,7 @@ def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=No
         export_tangents=True,
         export_normals=True,
         export_extras=False,
-        export_image_format='AUTO',
+        export_image_format=image_format,
     )
     if vertex_color:
         kwargs.update(export_vertex_color='NAME', export_vertex_color_name=vertex_color,

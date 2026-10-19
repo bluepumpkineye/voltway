@@ -268,7 +268,28 @@ def join_prefix(collection, prefix, name):
     return _X.join(name, names) if names else None
 
 
-def export_interior(cfg, draco=True):
+def cabin_screens(cfg):
+    """The generated displays (cfg['displays']: the instrument cluster) on their screens, as cabin_lighting() puts them
+    for the bake. The hall look has no bake, but the cluster must still ship lit."""
+    from carkit.qa import hmi_capture as HC
+    for nm, fn in cfg.get("displays", {}).items():
+        ob = bpy.data.objects.get(nm)
+        path = fn()
+        if ob is not None and path and not ob.get("plain_material"):
+            HC.apply(ob, path, 1.2)
+
+
+def atlas_cabin(cfg, samples=512):
+    """The cabin's occlusion atlas (carkit.aoatlas): a second UV set, a 2048 x 2048 Cycles AO bake with the exterior and
+    the glass out of the way, and the glTF occlusion wired into every cabin material. Runs on the merged export meshes."""
+    from carkit import aoatlas as AA
+    return AA.atlas_for(cfg["collection"], samples=samples)
+
+
+def export_interior(cfg, draco=True, look="baked"):
+    """look="baked": the cabin with its per-vertex Cycles light (bake_cabin, bake_cabin_open first).
+    look="hall": HIMA's cabin light - no vertex light, a 2048 occlusion atlas on a second UV set, lit in the viewer by
+    the shared hall environment (public/models/cabin-hall.hdr, carkit.hall_env; export_zx.web_cabin writes it)."""
     from carkit import build as B
     from carkit import export as _X
     from carkit.qa import hmi_capture as HC
@@ -286,5 +307,8 @@ def export_interior(cfg, draco=True):
     groups = [(cfg["node"], cfg["collection"])]
     merged = _X.merge_for_export(groups, cfg["protected"])
     clean_degenerate(merged)
+    if look == "hall":
+        atlas_cabin(cfg)
     dest = os.path.join(MODELS, cfg["slug"] + "-interior.glb")
-    return _X.export(dest, groups, cfg["node"], draco=draco, attributes=True)
+    return _X.export(dest, groups, cfg["node"], draco=draco, attributes=True,
+                     image_format='WEBP' if look == "hall" else 'AUTO')

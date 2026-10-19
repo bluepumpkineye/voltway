@@ -67,7 +67,7 @@ export const zeekr7x: Vehicle = {
     // the cabin (zx_interior*.py, the cream and taupe "purple/white" build) with its Cycles light
     // baked in: export_zx.web_full()
     interiorModelUrl: '/models/zeekr-7x-interior.glb',
-    interiorProbeUrl: '/models/zeekr-7x-cabin.hdr',
+    interiorProbeUrl: '/models/cabin-hall.hdr',
     // the cream cabin lit by the daylight that comes through the glass reads darker than the
     // studio photographs of it (cream ~210 sRGB there, ~185 here): lifted in the viewer
     cabinGain: 1.3,

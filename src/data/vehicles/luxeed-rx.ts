@@ -59,7 +59,8 @@ export const luxeedRx: Vehicle = {
     // (rx_interior.py, the white and red trim) with its Cycles light baked in
     modelUrl: '/models/luxeed-rx.glb',
     interiorModelUrl: '/models/luxeed-rx-interior.glb',
-    interiorProbeUrl: '/models/luxeed-rx-cabin.hdr',
+    // lit by the shared showroom hall, shaded by the cabin's occlusion atlas (docs/3d-pipeline.md, "The hall look")
+    interiorProbeUrl: '/models/cabin-hall.hdr',
     // Beijing: the paved square at Zhengyang Gate (Qianmen) on a clear spring
     // morning - Poly Haven "Zhengyang Gate" (Greg Zaal, CC0), turned as in
     // export_rx.OUTSIDE. Inside, the sun is behind-left and the gate tower

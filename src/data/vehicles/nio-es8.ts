@@ -91,7 +91,8 @@ export const nioEs8: Vehicle = {
       centre: [0.0, 0.0],
     },
     interiorModelUrl: '/models/nio-es8-interior.glb',
-    interiorProbeUrl: '/models/nio-es8-cabin.hdr',
+    // lit by the shared showroom hall, shaded by the cabin's occlusion atlas (docs/3d-pipeline.md, "The hall look")
+    interiorProbeUrl: '/models/cabin-hall.hdr',
     outside: {
       view: '/models/nio-es8-outside.jpg',
       light: '/models/nio-es8-outside-light.hdr',

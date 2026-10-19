@@ -97,7 +97,7 @@ BACK_COUNTS = [3, 5, 4, 4, 5, 3]            # 14 -> 15 -> ... -> 19 -> 0 (closed
 
 
 def _part(spec, lateral, name, collection, lib, mats, xf, stitch_gap, ns=44, stripe=None,
-          cap_from=None):
+          cap_from=None, end_cap=False):
     spine = [xf @ Vector((x, 0.0, z)) for (x, z) in spec["spine"]]
     hw, bol = spec["half_w"], spec["bolster"]
     ch = spec["centre_half"]
@@ -133,6 +133,20 @@ def _part(spec, lateral, name, collection, lib, mats, xf, stitch_gap, ns=44, str
     ic = len(rows) // 2
     _orient_to(sh, Vector(rows[ic][len(rows[0]) // 2]), -sw.normal(ic, col(7)))
     made.append(sh)
+    if end_cap:
+        # a backrest whose spine stops at the shoulders (a separate headrest stands above it) ends in an open tube:
+        # close it with a fan across the last section
+        # (a shallow dome: rings of the last section pulled to its centre and out along the spine, so the lid has smooth
+        # normals and no fan creases)
+        ring = [Vector(p) for p in sw.pts[-1]]
+        c0 = sum(ring, Vector()) / len(ring)
+        t_end = (Vector(spine[-1]) - Vector(spine[-2])).normalized()
+        rows = []
+        for sc, lift in ((1.0, 0.0), (0.85, 0.010), (0.62, 0.018), (0.36, 0.023), (0.12, 0.025), (0.0, 0.0255)):
+            rows.append([tuple(c0 + (p - c0) * sc + t_end * lift) for p in ring])
+        top = grid_mesh(name + "_Top", rows, collection, lib[mats["crown"]], wrap_t=True)
+        _orient_to(top, c0 + t_end * 0.0255, t_end)
+        made.append(top)
     if stripe:
         # a flat band down the centreline, just proud of the centre panel
         i0, i1 = int(n_s * stripe["i0"]), int(n_s * stripe["i1"])
@@ -170,7 +184,7 @@ def seat(collection, lib, spec, origin, name="int_seat", yaw=0.0):
     made += parts
     parts, back = _part(spec["backrest"], (0.0, -1.0, 0.0), name + "_Back", collection,
                         lib, mats, xf, spec["stitch_half_gap"], stripe=spec.get("stripe"),
-                        cap_from=spec.get("cap_from"))
+                        cap_from=spec.get("cap_from"), end_cap=spec["backrest"].get("end_cap", False))
     made += parts
     # the base: a dark frame from under the cushion down to the floor rails
     return made, cush, back

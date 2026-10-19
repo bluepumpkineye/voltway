@@ -147,6 +147,38 @@ how it works is in `docs/3d-pipeline.md`, "The studio look")
   costs no texture memory.
 - Paid bakers or generators: ruled out by the project rules.
 
+## 5b. The cabin: how HIMA's interior is made (observed 2026-10-19)
+
+The first pass (§2) looked at the exterior. The interior was taken apart on 2026-10-19 on the Stelato S9 (the hall's
+`?SN=50080100157`), through the page's own PlayCanvas runtime: every cabin material, its textures and its environment were
+read in the live page. As in §1, this records **techniques and numbers only**; no texture, cubemap or model was saved or reused.
+(The REA reverse-engineering MCP, github.com/morluto/rea, was asked for but could not be installed in the session: the permission
+classifier blocked the npm install. Everything below came from the runtime directly, which is the evidence REA's web-page
+tools would have reported.)
+
+**The cabin is cheap.** 75 materials, **about 20 textures** and 10 shared environment maps for the whole interior; about 400k
+triangles for shell, seats and door cards (shell 84k + 32k + 43k, seats about 100k, each door card 5-14k). Nothing in it is
+exotic: PlayCanvas' standard metalness material, a flat tint on nearly every surface.
+
+| What | How |
+|---|---|
+| Occlusion | **One 2048 x 2048 AO atlas for the whole cabin shell** on the second UV set, a second 2048 for the seats, a 1024 for the fabric parts. Every material of a part shares its atlas. It multiplies the environment's diffuse light and, with `occludeSpecular`, its reflections. This is what draws the seams, the shut lines, the crease under a visor. |
+| Light | **No light entities, ambient black.** The cabin is lit by its environment alone: 10 small (512 x 512, RGBP) cubemaps, 44 of the 75 materials on the same one. That one is a **bright, even parking-hall panorama** (not the dark light-rig of the exterior): measured in linear light the ceiling band is about 1.0, the walls and floor about 0.27, the median 0.28, the 99th percentile 7.5, the brightest strip 55, the mean 0.53. Diffuse light is the normal-dependent irradiance of that hall times the AO; the reflections are its strips. |
+| Leather | A flat tint (cream `#a3948b`), **metalness 0.3, gloss 0.45**, bump 0.7 with **one shared 512 grain normal map**. The partial metalness gives the leather a tinted, velvety sheen under the hall. |
+| Wood, trim | A 512 grain texture used as colour *and* gloss, metalness 0.2, gloss 0.8; chrome and speaker rings are metalness 1 with a **reflectivity of 1.5 to 8**, an art-directed boost on top of the hall; piano black is clearcoat 0.15, gloss 0.85. |
+| Stitching | Not geometry in the shell: thin **decal strips** with a 256 alpha texture, premultiplied blending, in the leather's own darker tint. |
+| Ambient light | The orange strip is an **additive-blended glow plane** with a 1024 mask (`blend` additive-alpha, tint `#e6683e`, opacity 0.6), not an emissive tube. |
+| Screens | Static pictures, 2048, as both colour and emissive (about 0.7). |
+| Camera and tone | The seated camera is a real-time one at **45 degrees**, ACES, exposure 1, MSAA; the eye sits well behind the wheel, so the wheel is low in the picture and the dash fills the width. |
+
+What this changes for Voltway (built for the Zeekr 7X, 2026-10-19; see `3d-pipeline.md`, "The hall look"):
+
+1. The cabin is lit by a bright, even hall and shaded by a **texel occlusion atlas**, not a per-vertex light baked under the
+   outdoor world. (§5 said a cabin re-bake was not worth it; the right change was not another bake but taking the sun out.)
+2. The seated camera is 46 degrees, 12 cm behind the camera-matched eye.
+3. Rolled out to all seven cars on 2026-10-19 (`3d-pipeline.md`, "The hall look": the SU7, RX, ES8, A06T, G9L and Z9 after the 7X).
+   Still open: stitching decals, additive glow for the ambient strip, per-material reflectivity.
+
 ## 6. Roadmap and status
 
 Decisions (owner, 2026-09-30): the white studio is the default scene with the

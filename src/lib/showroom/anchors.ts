@@ -79,6 +79,8 @@ export interface CarFrame {
 export const REF_ASPECT = 1.78;
 
 const D2R = Math.PI / 180;
+/** how far behind the camera-matched eye the seated pose stands, metres */
+const EYE_BACK = 0.12;
 
 function dirFrom(azDeg: number, elDeg: number): V3 {
   const a = azDeg * D2R;
@@ -162,7 +164,9 @@ function exteriorFit(s: Shot, L: number, W: number, H: number): number {
  */
 function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPose {
   const [x, y, z] = vehicle.assets.driverEye ?? [-0.38, 0.42, 1.18];
-  const pos: V3 = [x, z, -y];
+  // HIMA seats the eye further back than the photographs' (docs/hima-benchmark.md): with a 46 degree lens the wheel then
+  // sits low in the picture and the dash fills the width
+  const pos: V3 = [x - EYE_BACK, z, -y];
   return {
     id: 'driver',
     mode: 'interior',
@@ -170,7 +174,7 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPo
     // the camera pivots 15 cm ahead of the eye, so a drag turns the head
     // rather than swinging the eye across the cabin
     target: [pos[0] + 0.142, pos[1] - 0.038, pos[2] + 0.031],
-    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.min(88, 64 * (1 + (0.9 - aspect))) : 64,
+    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.min(88, 46 * (1 + (0.9 - aspect))) : 46,
     minDistance: 0.05,
     maxDistance: 0.3,
     minPolar: 0.2 * Math.PI,

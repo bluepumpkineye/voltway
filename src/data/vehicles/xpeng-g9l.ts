@@ -136,7 +136,11 @@ export const xpengG9l: Vehicle = {
     // the cabin (blender/scripts/g9l_interior*.py, the Bordeaux Red interior) with its Cycles light baked in:
     // export_g9l.web_cabin()
     interiorModelUrl: '/models/xpeng-g9l-interior.glb',
-    interiorProbeUrl: '/models/xpeng-g9l-cabin.hdr',
+    // lit by the shared showroom hall, shaded by the cabin's occlusion atlas (docs/3d-pipeline.md, "The hall look")
+    interiorProbeUrl: '/models/cabin-hall.hdr',
+    // the Bordeaux leather under the hall reads lighter and pinker than the studio photographs of it (seat ~131,82,85
+    // sRGB there, ~185,89,98 at gain 1): pulled down in the viewer
+    cabinGain: 0.65,
     // Poly Haven "Shanghai Riverside" (CC0), turned as the SU7's, the 7X's and the Z9's: inside, the skyline is ahead
     // through the windscreen and the sun behind; outside, the world turns 147.6 deg so the default camera has the
     // golden-hour sun at its back

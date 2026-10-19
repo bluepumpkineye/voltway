@@ -113,7 +113,8 @@ export const denzaZ9: Vehicle = {
     // the cabin (blender/scripts/z9_interior*.py, the Pamir Brown Nappa interior) with its Cycles light
     // baked in: export_z9.web_cabin()
     interiorModelUrl: '/models/denza-z9-interior.glb',
-    interiorProbeUrl: '/models/denza-z9-cabin.hdr',
+    // lit by the shared showroom hall, shaded by the cabin's occlusion atlas (docs/3d-pipeline.md, "The hall look")
+    interiorProbeUrl: '/models/cabin-hall.hdr',
     // Poly Haven "Shanghai Riverside" (CC0), turned exactly as the SU7's and the 7X's: inside, the skyline is
     // ahead through the windscreen and the sun behind; outside, the world turns 147.6 deg so the default camera
     // has the golden-hour sun at its back

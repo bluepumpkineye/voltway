@@ -72,7 +72,8 @@ export const xiaomiSu7Ultra: Vehicle = {
   assets: {
     modelUrl: '/models/su7-ultra.glb',
     interiorModelUrl: '/models/su7-ultra-interior.glb',
-    interiorProbeUrl: '/models/su7-ultra-cabin.hdr',
+    // lit by the shared showroom hall, shaded by the cabin's occlusion atlas (docs/3d-pipeline.md, "The hall look")
+    interiorProbeUrl: '/models/cabin-hall.hdr',
     // Poly Haven "Shanghai Riverside" (CC0). Inside, the skyline is ahead
     // through the windscreen and the sun behind; outside, the world turns
     // 147.6 deg so the default camera has the golden-hour sun at its back and

@@ -363,6 +363,8 @@ DEST_INTERIOR = os.path.join(MODELS, "zeekr-7x-interior.glb")
 DEST_PROBE = os.path.join(MODELS, "zeekr-7x-cabin.hdr")
 DEST_OUTSIDE = os.path.join(MODELS, "zeekr-7x-outside.jpg")
 DEST_OUTSIDE_LIGHT = os.path.join(MODELS, "zeekr-7x-outside-light.hdr")
+# the hall the cabin is lit by when it ships with an occlusion atlas (look="hall"), shared by every car that does
+DEST_HALL = os.path.join(MODELS, "cabin-hall.hdr")
 
 # The world the car stands in and the cabin looks out on: the Shanghai riverside (Poly Haven
 # "Shanghai Riverside", CC0), as the SU7's - the sun measured off it is the SU7's
@@ -501,7 +503,27 @@ def export_outside():
     return view, light
 
 
-def export_interior(draco=True):
+def cabin_screens():
+    """The generated instrument cluster on its display, as cabin_lighting() puts it for the bake (the hall look has no
+    bake, but the cluster must still ship lit)."""
+    import zx_interior as ZI
+    from carkit.qa import hmi_capture as HC
+    ob = bpy.data.objects.get("screen_cluster")
+    if ob is not None and not ob.get("plain_material"):
+        HC.apply(ob, ZI.cluster_image(), 1.2)
+
+
+def atlas_cabin(samples=512):
+    """The cabin's occlusion atlas (carkit.aoatlas): a second UV set, a 2048 x 2048 Cycles AO bake with the exterior and
+    the glass out of the way, and the glTF occlusion wired into every cabin material. Runs on the merged export meshes."""
+    from carkit import aoatlas as AA
+    return AA.atlas_for("ZX_Interior", samples=samples)
+
+
+def export_interior(draco=True, look="baked"):
+    """look="baked": the cabin as shipped so far, per-vertex Cycles light under the outdoor world (bake_cabin first).
+    look="hall": HIMA's cabin light - no vertex light, a 2048 occlusion atlas on a second UV set, lit in the viewer by
+    the shared hall environment (carkit.hall_env)."""
     from carkit import build as B
     from carkit.qa import hmi_capture as HC
     col = bpy.data.collections["ZX_Interior"]
@@ -516,7 +538,10 @@ def export_interior(draco=True):
     join_headliner()
     merged = _X.merge_for_export(INTERIOR_GROUPS, PROTECTED)
     clean_degenerate(merged)
-    return _X.export(DEST_INTERIOR, INTERIOR_GROUPS, "Zeekr7X_Cabin", draco=draco, attributes=True)
+    if look == "hall":
+        atlas_cabin()
+    return _X.export(DEST_INTERIOR, INTERIOR_GROUPS, "Zeekr7X_Cabin", draco=draco, attributes=True,
+                     image_format='WEBP' if look == "hall" else 'AUTO')
 
 
 def web_full(samples=256, probe_samples=384, draco=True, ao_samples=512):
@@ -546,10 +571,13 @@ def web_full(samples=256, probe_samples=384, draco=True, ao_samples=512):
     return res
 
 
-def web_cabin(samples=256, draco=True):
+def web_cabin(samples=256, draco=True, look="baked"):
     """The cabin alone: fresh build -> baked cabin (closed and open) -> the interior GLB, with
     the exterior, the probe and the outside world left as they are. ~8 min in a background
-    Blender; use it after a change that touches only the cabin's own geometry."""
+    Blender; use it after a change that touches only the cabin's own geometry.
+
+    look="hall" (about 4 min): no vertex light and no probe; the cabin ships with its occlusion atlas and the viewer lights
+    it from public/models/cabin-hall.hdr (written here)."""
     import time
     t = time.time()
     for m in [m for m in sys.modules if m.startswith("zx_") or m == "build_zx"]:
@@ -559,6 +587,13 @@ def web_cabin(samples=256, draco=True):
     import zx_interior_shell as SH
     SH.main()
     prepare_exterior()
+    if look == "hall":
+        from carkit import hall_env
+        cabin_screens()
+        hall_env.write(DEST_HALL)
+        res = {"interior": export_interior(draco=draco, look="hall")}
+        print("web_cabin (hall): %.0f s" % (time.time() - t))
+        return res
     stats = bake_cabin(samples, probe=False)
     print("bake: %.0f s" % (time.time() - t))
     stats_open = bake_cabin_open(samples)

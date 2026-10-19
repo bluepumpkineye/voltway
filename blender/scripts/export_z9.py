@@ -228,10 +228,14 @@ def web(draco=True):
 
 
 # ------------------------------------------------------------------ cabin
-def web_cabin(samples=256, probe_samples=384, draco=True, probe=True, outside=True):
+def web_cabin(samples=256, probe_samples=384, draco=True, probe=True, outside=True, look="baked"):
     """The Z9's cabin: fresh build of body and cabin -> two baked light sets (every part shut, then every door
     and the trunk lid open) -> public/models/denza-z9-interior.glb, the reflection probe
     (denza-z9-cabin.hdr) and the world seen through the glass. The exterior GLB is left as it is.
+
+    look="hall" (about 4 min): no vertex light, no second (doors open) set, no probe and no outside world; the cabin
+    ships with its occlusion atlas and the viewer lights it from public/models/cabin-hall.hdr (probe and outside are
+    ignored).
     In a background Blender (never the open session):
 
         blender -b --factory-startup --python-expr "import sys; sys.path.append(r'<repo>/blender/scripts'); \
@@ -248,6 +252,11 @@ def web_cabin(samples=256, probe_samples=384, draco=True, probe=True, outside=Tr
     SH.main()
     print("build: %.0f s" % (time.time() - t))
     prepare_exterior()
+    if look == "hall":
+        CT.cabin_screens(C.CFG)
+        res = {"interior": CT.export_interior(C.CFG, draco=draco, look="hall")}
+        print("web_cabin (hall): %.0f s" % (time.time() - t))
+        return res
     stats = CT.bake_cabin(C.CFG, samples, probe_samples, probe=probe)
     print("bake: %.0f s" % (time.time() - t))
     stats_open = CT.bake_cabin_open(C.CFG, samples)
