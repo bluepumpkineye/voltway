@@ -457,15 +457,17 @@ def build_wheel(col, lib):
 
 
 # ------------------------------------------------------------------ seats
-def _seat_spec():
+def _seat_spec(k=1.0):
     """The front bucket (the SU7's, carkit.interior.seat) in mocha Nappa: deep cushion, tall
-    backrest, a separate headrest pillow on two posts (c3_0001, c3_0036)."""
+    backrest, a separate headrest pillow on two posts (c3_0001, c3_0036). `k` scales the backrest's
+    height: 1.0 is the spine as drawn from the SU7; the front seats use FRONT_BACK_K."""
     from carkit.interior import seat as SE
     import copy
     sp = copy.deepcopy(SE.SU7_ULTRA_FRONT)
-    sp["backrest"]["spine"] = [(0.0, 0.0), (-0.045, 0.0957), (-0.13, 0.286), (-0.20, 0.4576),
-                               (-0.240, 0.556), (-0.272, 0.640), (-0.288, 0.676), (-0.294, 0.694),
-                               (-0.297, 0.700), (-0.296, 0.690), (-0.292, 0.672)]
+    base = [(0.0, 0.0), (-0.045, 0.0957), (-0.13, 0.286), (-0.20, 0.4576),
+            (-0.240, 0.556), (-0.272, 0.640), (-0.288, 0.676), (-0.294, 0.694), (-0.297, 0.700)]
+    sp["backrest"]["spine"] = [(x * k, z * k) for (x, z) in base]
+    sp["backrest"]["end_cap"] = True        # the spine stops at the shoulders; a dome closes the open tube
     sp["backrest"]["half_w"] = Curve([(0.0, 0.262), (0.45, 0.272), (0.78, 0.262), (0.90, 0.244),
                                       (1.0, 0.200)], mode="pchip")
     sp["backrest"]["bolster"] = Curve([(0.0, 0.55), (0.30, 1.0), (0.58, 0.75), (0.80, 0.35),
@@ -477,18 +479,27 @@ def _seat_spec():
                       shell="leather_seat", piping="leather_seat", stitch="thread",
                       base="leather_seat")
     sp["stitch_half_gap"] = 0.012
-    sp["headrest"] = dict(w=0.318, h=0.235, t=0.098, r=0.058, gap=0.045, top=(-0.297, 0.700))
+    sp["headrest"] = dict(w=0.318, h=0.235, t=0.098, r=0.058, gap=0.045, top=(-0.297 * k, 0.700 * k))
     return sp
 
 
+# the backrest's height against the SU7-drawn spine. The Z9's roof is only 1.50 m high, so at 1.0 the front headrests'
+# tops (z 1.503) stood through the glass roof (1.496) and the side headliner (1.456), and the rear ones (the spine drawn
+# 12 % shorter, z 1.335) 4 cm through the sloping rear headliner (1.306). 0.86 puts the front headrest's top at z 1.405,
+# 0.885 m above the bight like the 7X's, 5 cm under the side headliner and 9 cm under the glass; 0.76 puts the rear's at
+# z 1.251, 4 cm under the headliner (the rear photographs, c3_0016/0017, show a short back and a small headrest).
+FRONT_BACK_K = 0.86
+REAR_BACK_K = 0.76
+
+
 def _rear_spec():
-    """The rear seats: the front seat, backrest 12 % shorter, the headrest a smaller pillow."""
+    """The rear seats: the front seat as drawn, backrest shortened to REAR_BACK_K (24 %), the headrest a smaller pillow."""
     import copy
-    sp = copy.deepcopy(_seat_spec())
-    sp["backrest"]["spine"] = [(x * 1.02, z * 0.88) for (x, z) in sp["backrest"]["spine"]]
+    sp = copy.deepcopy(_seat_spec(1.0))
+    sp["backrest"]["spine"] = [(x * 1.02, z * REAR_BACK_K) for (x, z) in sp["backrest"]["spine"]]
     hr = sp["headrest"]
     sp["headrest"] = dict(w=0.285, h=0.175, t=0.086, r=0.050, gap=0.040,
-                          top=(hr["top"][0] * 1.02, hr["top"][1] * 0.88))
+                          top=(hr["top"][0] * 1.02, hr["top"][1] * REAR_BACK_K))
     return sp
 
 
@@ -496,10 +507,11 @@ def build_seats(col, lib):
     from carkit.interior import seat as SE
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
-        parts, cush, back = SE.seat(col, lib, _seat_spec(), (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
+        front = _seat_spec(FRONT_BACK_K)
+        parts, cush, back = SE.seat(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
                                     name="int_seat_" + tag)
         made += parts
-        made += CP.headrest(col, lib, _seat_spec(), (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
+        made += CP.headrest(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
         made += CP.seat_shroud(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_%s_base" % tag,
                                FLOOR_Z)
     rear = _rear_spec()

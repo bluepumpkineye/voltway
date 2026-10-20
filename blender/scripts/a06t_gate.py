@@ -247,6 +247,7 @@ def _gate_bottom(y):
 
 def build_boot(col=None, lib=None):
     import a06t_rear as RR
+    from carkit.geom import Curve
     from carkit import mesh as M
     from carkit.interior import cabin as CB
     from carkit.interior.sweep import grid_mesh
@@ -266,8 +267,20 @@ def build_boot(col=None, lib=None):
     pts = [(x, wy(x)) for (x, _) in pts]
     made.append(CB.wall(col, carpet, pts, lambda x, y: Z_FLOOR, lambda x, y: 0.86, nz=3,
                         name="int_boot_wall", facing=(0.0, -1.0, 0.0)))
-    made.append(CB.wall(col, trim, pts, lambda x, y: 0.86, lambda x, y: 1.04, nz=3,
-                        name="int_boot_trim", facing=(0.0, -1.0, 0.0)))
+    # The trim above the carpet leans in with height: the body narrows over the tail (its half-width at z 1.04 is 0.51 at the
+    # mouth and 0.73 at x -2.2, against the wall's 0.60 and 0.78), so a straight wall's upper edge stood out of the paint at
+    # the tail corners, a black fin and wing beside the lamp whenever the cabin was not stencilled to the glass (a door open)
+    hw_top = Curve([(-2.50, 0.404), (-2.45, 0.506), (-2.40, 0.556), (-2.35, 0.606), (-2.30, 0.617), (-2.25, 0.690),
+                    (-2.20, 0.732), (-2.15, 0.746), (-2.10, 0.772), (-2.05, 0.789), (-2.00, 0.807), (-1.95, 0.809),
+                    (-1.85, 0.826)], mode="pchip")
+    rows = []
+    for (x, y) in pts:
+        pull = max(0.0, y - (hw_top(x) - 0.030))
+        rows.append([(x, y - pull * (k / 3.0), 0.86 + (1.04 - 0.86) * k / 3.0) for k in range(4)])
+    tw = grid_mesh("int_boot_trim", rows, col, trim)
+    M.orient(tw.data, lambda c: (0.0, -1.0, 0.0))
+    M.mirror_y(tw)
+    made.append(tw)
     ys = [0.62 * k / 40.0 for k in range(41)]
     shelf, plate = [], []
     for y in ys:

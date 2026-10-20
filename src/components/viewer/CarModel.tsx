@@ -348,6 +348,18 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && s.tab !== 'xray' && s.tab !== 'tech' && s.shut);
   useCabinStencil(model, masked);
 
+  // The boot's carpet, trim and plate (INT_Boot_*) are the open hatch's to show. Shut, nothing of them is seen through the
+  // glass; but with a door open the cabin is no longer stencilled to the glass, and the shut line beside the hatch showed
+  // them as a black blade down each tail corner.
+  const bootShown = useVehicleStore((s) => s.openings.boot || s.tab === 'xray');
+  React.useEffect(() => {
+    model.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh && materialsOf(mesh).some((m) => m.name.startsWith('INT_Boot_'))) mesh.visible = bootShown;
+    });
+    invalidate();
+  }, [model, bootShown, invalidate]);
+
   // the door cards turn about the same hinges as the exterior doors
   useHingedNodes(model, vehicle, 'cardNode');
   useHiddenWhileOpen(model, vehicle, useVehicleStore((s) => s.cameraMode !== 'exterior'));

@@ -17,10 +17,13 @@ def smooth(t):
     return t * t * (3.0 - 2.0 * t)
 
 
+POLE = 0.04          # a pillow's pole ring, as a fraction of its rim
+
+
 def pillow(col, name, c, w, h, t, r, mat, tilt, n_in=6):
     """A puffed rounded-rectangle cushion (a headrest) centred at c, facing +x tilted by `tilt`
-    (negative: its face looks up as the seat reclines): rings from a centre point out to the rim and
-    back."""
+    (negative: its face looks up as the seat reclines): rings from a small pole ring out to the rim
+    and back, each pole closed by a polygon."""
     loop = F.round_rect_xy(-w / 2, w / 2, -h / 2, h / 2, r)
     ct, st = math.cos(tilt), math.sin(tilt)
 
@@ -32,15 +35,29 @@ def pillow(col, name, c, w, h, t, r, mat, tilt, n_in=6):
     for k in range(n_in + 1):                       # front: centre -> rim
         s = k / float(n_in)
         rings.append(ring(s, half * (0.62 + 0.38 * (1.0 - s * s))))
-    rings[0] = [(c[0] + half * ct, c[1], c[2] - half * st)] * len(loop)
+    rings[0] = ring(POLE, half * (0.62 + 0.38 * (1.0 - POLE * POLE)))      # a tiny ring, closed below by a polygon
     rings.append(ring(1.012, 0.20 * half))
     rings.append(ring(1.016, 0.0))
     rings.append(ring(1.012, -0.20 * half))
     for k in range(n_in + 1):                       # back: rim -> centre
         s = 1.0 - k / float(n_in)
         rings.append(ring(s, -half * (0.62 + 0.38 * (1.0 - s * s))))
-    rings[-1] = [(c[0] - half * ct, c[1], c[2] + half * st)] * len(loop)
+    rings[-1] = ring(POLE, -half * (0.62 + 0.38 * (1.0 - POLE * POLE)))
     ob = grid_mesh(name, rings, col, mat, wrap_t=True)
+    # the two poles are polygons, not points: a point makes a fan of zero-area quads whose tangents are undefined, and the
+    # normal map there drew a smooth, dot-free square on the back of every headrest
+    import bmesh
+    n = len(loop)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+    last = len(bm.verts) - n
+    bm.faces.new([bm.verts[j] for j in reversed(range(n))])
+    bm.faces.new([bm.verts[last + j] for j in range(n)])
+    for f in bm.faces:
+        f.smooth = True
+    bm.to_mesh(ob.data)
+    bm.free()
     M.orient(ob.data, lambda q: (q[0] - c[0], q[1] - c[1], q[2] - c[2]))
     return ob
 

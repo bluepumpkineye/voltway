@@ -27,6 +27,10 @@ spec (all metres/degrees; defaults: SU7 Ultra):
     segments        [(from_deg, to_deg, material role), ...] - angles
                     counter-clockwise from 3 o'clock, as the driver sees it
     marker          (centre_deg, half_width_deg, role) or None
+    rim_split       dict(front, back, half): the rim's section is cut in two round its length, `front`
+                    (a material role) on the half that faces the driver (the section's columns within
+                    `half` of the lateral axis, of 16), `back` on the rest - the G9L's leather rim over
+                    a grey underside. Applies to every angular segment.
 """
 import math
 
@@ -140,6 +144,18 @@ def rim(fr, spec, collection, lib, name="int_wheel_rim", ns=192):
             gap = next(j for j in range(1, len(idx)) if idx[j] != idx[j - 1] + 1)
             idx = idx[gap:] + idx[:gap]
         rows = [sw.pts[i] for i in idx] + [sw.pts[(idx[-1] + 1) % ns]]
+        split = spec.get("rim_split")
+        if split:
+            nt = len(rows[0])
+            half = split["half"]
+            front = [j % nt for j in range(-half, half + 1)]       # contiguous across the wrap at column 0
+            back = list(range(half, nt - half + 1))
+            for tag, cols, r in (("f", front, split["front"]), ("b", back, split["back"])):
+                ob = grid_mesh("%s_%d%s" % (name, k, tag), [[row[j] for j in cols] for row in rows],
+                               collection, lib[r])
+                _outward(ob, path)
+                made.append(ob)
+            continue
         ob = grid_mesh("%s_%d" % (name, k), rows, collection, lib[role], wrap_t=True)
         _outward(ob, path)
         made.append(ob)

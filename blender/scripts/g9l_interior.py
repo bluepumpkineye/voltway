@@ -186,6 +186,7 @@ def build_dash(col, lib):
     made.append(F.ngon_cap(col, "int_dash_EndL", list(sw.pts[0]), lib["leather_dash"], (0.0, 1.0, 0.0)))
     made.append(F.ngon_cap(col, "int_dash_EndR", list(sw.pts[-1]), lib["leather_dash"], (0.0, -1.0, 0.0)))
     made += build_dash_details(col, lib, sw)
+    made += build_glovebox(col, lib, sw)
     return made, sw
 
 
@@ -219,6 +220,95 @@ def build_dash_details(col, lib, sw):
     # the round light in the red face on the driver's side (c10_0006: a pale button)
     made += F.disc(col, "int_dash_Pearl", (FACE_X + 0.018, 0.560, 0.880), (-1.0, 0.0, 0.0), 0.012,
                    lib["chrome"], dome=0.002)
+    return made
+
+
+# ------------------------------------------------------------------ glove box
+GLOVE_Y = (-0.705, -0.165)             # the lid's extent across the passenger's side of the dash face
+GLOVE_Z = (0.505, 0.800)
+GLOVE_R = 0.034                        # corner radius
+GLOVE_PROUD = 0.012                    # how far the lid stands off the face
+
+
+def _face_xz(sw, y, z):
+    """The dash face's (x, normal) at (y, z): the sweep's grid row nearest y, interpolated along the face columns to
+    height z. The normal points to the driver (-x, and down: the face recedes below the knees)."""
+    i = min(range(len(sw.pts)), key=lambda k: abs(sw.pts[k][0][1] - y))
+    row = sw.pts[i]
+    j0, j1 = sw.col(12), sw.col(18)
+    for j in range(j0, j1):
+        a, b = row[j], row[j + 1]
+        if (a[2] - z) * (b[2] - z) <= 0.0 and a[2] != b[2]:
+            t = (z - a[2]) / (b[2] - a[2])
+            dx, dz = b[0] - a[0], b[2] - a[2]
+            n = Vector((dz, 0.0, -dx))
+            if n.x > 0.0:
+                n = -n
+            n.normalize()
+            return a[0] + dx * t, n
+    return row[j1][0], Vector((-1.0, 0.0, 0.0))
+
+
+def _rounded_rect(y0, y1, z0, z1, r, inset=0.0, n=14):
+    """A rounded rectangle's outline as (y, z) points, counter-clockwise from the middle of its upper edge, shrunk by
+    `inset`."""
+    y0, y1, z0, z1 = y0 + inset, y1 - inset, z0 + inset, z1 - inset
+    r = max(0.001, min(r - inset * 0.6, 0.5 * (y1 - y0) - 0.001, 0.5 * (z1 - z0) - 0.001))
+    pts = []
+    corners = ((y1 - r, z1 - r, 0.0), (y0 + r, z1 - r, 0.5 * math.pi), (y0 + r, z0 + r, math.pi),
+               (y1 - r, z0 + r, 1.5 * math.pi))
+    # start at the right end of the top edge, go left (toward -y for the lid on the passenger's side is "y1 to y0")
+    for (cy, cz, a0) in corners:
+        for k in range(n + 1):
+            a = a0 + 0.5 * math.pi * k / n
+            pts.append((cy + r * math.cos(a), cz + r * math.sin(a)))
+    return pts
+
+
+def build_glovebox(col, lib, sw):
+    """The passenger's glove box (c10_0002, the Sahara Orange press photographs): a wide lid stands a centimetre proud of
+    the lower dash's face, its edge rolled over, in a black reveal that leaves a dark seam all round it, with a thread line
+    inside the edge and a finger pocket under the upper edge. The face was one smooth sweep: the box read as a flat dash."""
+    made = []
+    y0, y1 = GLOVE_Y
+    z0, z1 = GLOVE_Z
+
+    def place(y, z, proud):
+        x, n = _face_xz(sw, y, z)
+        return (x + n.x * proud, y, z + n.z * proud)
+
+    def surface(name, inset_proud, mat, normal, rim_n=14):
+        rings = []
+        for inset, pr in inset_proud:
+            loop = _rounded_rect(y0, y1, z0, z1, GLOVE_R, inset=inset, n=rim_n)
+            rings.append([place(y, z, pr) for (y, z) in loop])
+        ob = grid_mesh(name, rings, col, mat, wrap_t=True)
+        cap = F.ngon_cap(col, name + "Cap", rings[-1], mat, normal)
+        M.orient(ob.data, lambda c: normal)
+        return [ob, cap]
+
+    # the reveal: a black plate a little larger than the lid, standing 3.5 mm off the face
+    d = GLOVE_PROUD
+    big = []
+    for inset, pr in ((-0.0075, 0.0), (-0.0045, 0.0030), (0.0, 0.0034)):
+        loop = _rounded_rect(y0, y1, z0, z1, GLOVE_R, inset=inset, n=14)
+        big.append([place(y, z, pr) for (y, z) in loop])
+    plate = grid_mesh("int_glove_reveal", big, col, lib["satin"], wrap_t=True)
+    M.orient(plate.data, lambda c: (-1.0, 0.0, -0.4))
+    made.append(plate)
+    # the lid: the edge rolls over in four steps, then the flat
+    lid = [(0.0, 0.0034), (0.0014, 0.0058), (0.0034, 0.0094), (0.0062, 0.0114), (0.0100, d), (0.040, d),
+           (0.100, d), (0.140, d)]
+    made += surface("int_glove_lid", lid, lib["leather_dash"], (-1.0, 0.0, -0.4))
+    # the thread line inside the edge
+    loop = _rounded_rect(y0, y1, z0, z1, GLOVE_R, inset=0.0125, n=14)
+    pts = [place(y, z, d + 0.0004) for (y, z) in loop]
+    pts.append(pts[0])
+    made.append(stitches("int_glove_stitch", pts, [Vector((-1.0, 0.0, -0.4))] * len(pts), col, lib["thread"]))
+    # the finger pocket under the lid's upper edge: a slot, dark inside, a rolled lip below it
+    ym = 0.5 * (y0 + y1)
+    slot = [place(ym + (t - 0.5) * 0.150, z1 - 0.026, d - 0.0005) for t in [k / 12.0 for k in range(13)]]
+    made.append(piping("int_glove_pocket", slot, col, lib["piano"], r=0.0050, lateral=(0.0, 1.0, 0.0)))
     return made
 
 
@@ -274,24 +364,26 @@ def cluster_image(path=None, w=1024, h=192):
 
 
 # ---------------------------------------------------------- steering wheel
-# a rounded-square rim, 0.37 wide and 0.35 tall (c10_0002, c10_0008): a superellipse with a slightly
-# flatter bottom
-G9L_LOOP = [(0.185, 0.0), (0.183, 0.058), (0.172, 0.105), (0.148, 0.136), (0.105, 0.151),
-            (0.0, 0.155), (-0.105, 0.151), (-0.148, 0.136), (-0.172, 0.105), (-0.183, 0.058),
-            (-0.185, 0.0), (-0.183, -0.058), (-0.172, -0.103), (-0.148, -0.134), (-0.105, -0.149),
-            (0.0, -0.153), (0.105, -0.149), (0.148, -0.134), (0.172, -0.103), (0.183, -0.058)]
+# a rounded rim, 0.37 wide and 0.335 tall (c10_0002, c10_0008, the press photographs of the Sahara Orange car): a
+# superellipse of exponent 2.5, fuller in the corners than a squircle (the first build's was 3.3 and read boxy). The
+# rim's leather is the cabin's (INT_Leather_Seat, which the trims recolour): orange in the orange cabin; its underside,
+# the half that faces the dash, is the grey pad.
 G9L_WHEEL = dict(
-    radius=0.182, loop=dict(pts=G9L_LOOP),
-    flat_bottom=-0.153, flat_top=0.155, section=(0.0195, 0.0210),
-    grip_swell=0.04,
-    segments=[(0.0, 180.0, "pad_grey"), (180.0, 360.0, "pad_grey")],
+    radius=0.182, loop=dict(a=0.186, b=0.168, n=2.5, ctrl=72),
+    flat_bottom=None, flat_top=None, section=(0.0200, 0.0215),
+    grip_swell=0.05,
+    segments=[(0.0, 180.0, "wheel_leather"), (180.0, 360.0, "wheel_leather")],
+    rim_split=dict(front="wheel_leather", back="pad_grey", half=4),
     marker=None,
-    hub=dict(w=0.250, h=0.108, sides=36, r_corner=0.0, dome=0.012, depth=0.05,
-             pad_role="leather_seat", housing_role="leather_seat"),
-    spokes=dict(v=0.004, h=0.070, t=0.026, u_in=0.110, pad=(0.050, 0.044), frame="chrome",
+    hub=dict(w=0.262, h=0.118, sides=36, r_corner=0.0, dome=0.012, depth=0.05,
+             pad_role="leather_seat", housing_role="leather_seat",
+             outline=[(0.131 * math.copysign(abs(math.cos(t)) ** (2.0 / 3.2), math.cos(t)),
+                       0.059 * math.copysign(abs(math.sin(t)) ** (2.0 / 3.2), math.sin(t)))
+                      for t in [2.0 * math.pi * k / 48.0 for k in range(48)]]),
+    spokes=dict(v=0.004, h=0.076, t=0.026, u_in=0.112, pad=(0.056, 0.064), frame="chrome",
                 pad_role="leather_seat", body_role="leather_seat"),
     lower_spoke=None,
-    buttons=[(0.118, -0.098, 0.0140, "satin", "chrome"), (-0.118, -0.098, 0.0140, "satin", "chrome")],
+    buttons=[(0.112, -0.092, 0.0135, "piano", "chrome"), (-0.112, -0.092, 0.0135, "piano", "chrome")],
     logo=None,
 )
 
@@ -305,20 +397,22 @@ def build_wheel(col, lib):
     for k, (a, b) in enumerate((((-w, h), (w, -h)), ((w, h), (-w, -h)))):
         A, B = Vector(fr.p(a[0], a[1], lift)), Vector(fr.p(b[0], b[1], lift))
         made.append(tube("int_wheel_X%d" % k, [tuple(A.lerp(B, t / 8.0)) for t in range(9)],
-                         ellipse(0.0022, 0.0022, 6), col, lib["chrome"], lateral=tuple(fr.A)))
+                         ellipse(0.0030, 0.0030, 6), col, lib["chrome"], lateral=tuple(fr.A)))
     return made
 
 
 # ------------------------------------------------------------------ seats
-def _seat_spec():
+def _seat_spec(k=1.0):
     """The front bucket (the SU7's, carkit.interior.seat) in bordeaux Nappa: tall backrest, deep
-    bolsters, a separate headrest on two posts (c3_0001, c3_0019)."""
+    bolsters, a separate headrest on two posts (c3_0001, c3_0019). `k` scales the backrest's
+    height: 1.0 is the spine as drawn from the SU7; the front seats use FRONT_BACK_K."""
     from carkit.interior import seat as SE
     import copy
     sp = copy.deepcopy(SE.SU7_ULTRA_FRONT)
-    sp["backrest"]["spine"] = [(0.0, 0.0), (-0.045, 0.0957), (-0.13, 0.286), (-0.20, 0.4576),
-                               (-0.245, 0.570), (-0.285, 0.665), (-0.308, 0.705), (-0.314, 0.722),
-                               (-0.316, 0.730), (-0.315, 0.720), (-0.311, 0.700)]
+    base = [(0.0, 0.0), (-0.045, 0.0957), (-0.13, 0.286), (-0.20, 0.4576),
+            (-0.245, 0.570), (-0.285, 0.665), (-0.308, 0.705), (-0.314, 0.722), (-0.316, 0.730)]
+    sp["backrest"]["spine"] = [(x * k, z * k) for (x, z) in base]
+    sp["backrest"]["end_cap"] = True        # the spine stops at the shoulders; a dome closes the open tube
     sp["backrest"]["half_w"] = Curve([(0.0, 0.268), (0.45, 0.280), (0.78, 0.270), (0.90, 0.250),
                                       (1.0, 0.205)], mode="pchip")
     sp["backrest"]["bolster"] = Curve([(0.0, 0.55), (0.30, 1.0), (0.58, 0.80), (0.80, 0.35),
@@ -330,18 +424,24 @@ def _seat_spec():
                       shell="leather_seat", piping="leather_seat", stitch="thread",
                       base="leather_seat")
     sp["stitch_half_gap"] = 0.012
-    sp["headrest"] = dict(w=0.300, h=0.220, t=0.090, r=0.060, gap=0.045, top=(-0.316, 0.730))
+    sp["headrest"] = dict(w=0.300, h=0.220, t=0.090, r=0.060, gap=0.045, top=(-0.316 * k, 0.730 * k))
     return sp
+
+
+# the backrest's height against the SU7-drawn spine. Measured 2026-10-19: the front headrests' tops (z 1.687) stand 5.6 cm
+# under the headliner (1.743) and the rear ones (z 1.566) 18 cm under the glass roof, so the spine is used as drawn.
+FRONT_BACK_K = 1.0
+REAR_BACK_K = 0.86
 
 
 def _rear_spec():
     """The rear bench's outer seats: the front seat, backrest 14 % shorter, a smaller headrest."""
     import copy
-    sp = copy.deepcopy(_seat_spec())
-    sp["backrest"]["spine"] = [(x * 1.02, z * 0.86) for (x, z) in sp["backrest"]["spine"]]
+    sp = copy.deepcopy(_seat_spec(1.0))
+    sp["backrest"]["spine"] = [(x * 1.02, z * REAR_BACK_K) for (x, z) in sp["backrest"]["spine"]]
     hr = sp["headrest"]
     sp["headrest"] = dict(w=0.270, h=0.185, t=0.082, r=0.052, gap=0.040,
-                          top=(hr["top"][0] * 1.02, hr["top"][1] * 0.86))
+                          top=(hr["top"][0] * 1.02, hr["top"][1] * REAR_BACK_K))
     return sp
 
 
@@ -349,10 +449,11 @@ def build_seats(col, lib):
     from carkit.interior import seat as SE
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
-        parts, cush, back = SE.seat(col, lib, _seat_spec(), (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
+        front = _seat_spec(FRONT_BACK_K)
+        parts, cush, back = SE.seat(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
                                     name="int_seat_" + tag)
         made += parts
-        made += CP.headrest(col, lib, _seat_spec(), (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
+        made += CP.headrest(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
         made += CP.seat_shroud(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_%s_base" % tag,
                                FLOOR_Z, role="lower_card")
     rear = _rear_spec()

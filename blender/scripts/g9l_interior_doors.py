@@ -68,16 +68,8 @@ def build_doors(col, lib):
         made.append(dc.band(pre + "Main", col, lib["leather_door"], lambda x: Z_LOWER_TOP - 0.002,
                             lambda x: _belt_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nx=64, nz=18,
                             edge_round=0.004, mirror=False))
-        # the tweeter bank at the front of the top: silver mesh slats in a chrome frame
-        zt = lambda x: _belt_z(x) - 0.020
-        made.append(dc.band(pre + "Speaker", col, lib["mesh_silver"], lambda x: zt(x) - 0.200, zt,
-                            proud=0.006, x0=lambda z: 0.66, x1=lambda z: xf(z) - 0.005, nx=36, nz=8,
-                            edge_round=0.003, mirror=False))
-        for nm, zf in (("Hi", lambda x: zt(x) + 0.0), ("Lo", lambda x: zt(x) - 0.200)):
-            pts = dc.curve([(x, zf(x)) for x in [0.66 + (xf(0.9) - 0.005 - 0.66) * k / 24.0
-                                                 for k in range(25)]], proud=0.0075)
-            made.append(piping(pre + "SpeakerFrame" + nm, pts, col, lib["chrome"], r=0.0015,
-                               lateral=(0.0, 0.0, 1.0)))
+        # the tweeter bank at the front of the top: a raised chrome-framed grille of fine silver louvres
+        made += _speaker(dc, pre, col, lib, side, xf)
         # the armrest ridge and its chrome pull
         made += _door_ridge(dc, pre + "Ridge", col, lib, side,
                             [(-0.020, 0.830), (0.150, 0.842), (0.340, 0.850), (0.600, 0.852)],
@@ -85,17 +77,128 @@ def build_doors(col, lib):
         pull = F.round_slab(col, pre + "Pull", (0.380, side * (dc.skin_y(0.380, 0.880) - DOOR_TH(0.880) - 0.012), 0.884),
                             0.085, 0.036, 0.010, 0.016, lib["chrome"], tilt=0.0)
         made.append(pull)
-        # the window switches: three small chrome toggles at the ridge's front end
-        for k in range(3):
-            xk = 0.560 + 0.034 * k
-            yk = side * (dc.skin_y(xk, 0.870) - DOOR_TH(0.870) - 0.010)
-            made.append(F.box(col, pre + "Key%d" % k, (xk, yk, 0.872), (0.020, 0.012, 0.012),
-                              lib["chrome"], r=0.002))
+        # the switch pack at the ridge's front end: window rockers, locks, the mirror fold
+        made += _switch_pack(dc, pre, col, lib, side)
         # the purple light line under the shoulder
         pts = dc.curve([(x, _belt_z(x) - 0.250) for x in [0.62 - 0.64 * k / 24.0 for k in range(25)]],
                        proud=0.008)
         made.append(piping(pre + "Ambient", pts, col, lib["ambient"], r=0.0018, lateral=(0.0, 0.0, 1.0)))
     made += build_rear_doors(col, lib)
+    return made
+
+
+def _prisms(name, col, mat, boxes):
+    """Closed rectangular prisms in one mesh: boxes = [(four back corners, four front corners)...], each a list of
+    xyz tuples in the order low-rear, low-front, high-front, high-rear."""
+    import bmesh
+    verts, faces = [], []
+    for back, front in boxes:
+        b = len(verts)
+        verts += list(back) + list(front)
+        faces += [[b + 4, b + 5, b + 6, b + 7], [b + 0, b + 3, b + 2, b + 1], [b + 0, b + 1, b + 5, b + 4],
+                  [b + 1, b + 2, b + 6, b + 5], [b + 2, b + 3, b + 7, b + 6], [b + 3, b + 0, b + 4, b + 7]]
+    ob = M.obj(name, verts, faces, col, mat, smooth=False)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.to_mesh(ob.data)
+    bm.free()
+    return ob
+
+
+def _loop_path(dc, outline, proud):
+    """A closed path along an outline of (x, z) corners with edges walked in steps, on the card's surface."""
+    pts = []
+    for (a, b) in zip(outline, outline[1:] + outline[:1]):
+        n = max(2, int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.012))
+        pts += [dc.point(a[0] + (b[0] - a[0]) * t / n, a[1] + (b[1] - a[1]) * t / n, proud) for t in range(n)]
+    pts.append(pts[0])
+    return pts
+
+
+def _speaker(dc, pre, col, lib, side, xf):
+    """The door's tweeter bank at the front of the shoulder (c3_0003, the Sahara Orange press photographs): a chrome-framed
+    grille that slants up toward the A-pillar, taller at the front than the rear, of fine vertical silver louvres over a
+    black plate, standing a centimetre proud of the card."""
+    x_r, x_f = 0.660, xf(0.95) - 0.006
+    belt = lambda x: _belt_z(x) - 0.020
+    t = lambda x: max(0.0, min(1.0, (x - x_r) / (x_f - x_r)))
+    z_hi = belt
+    z_lo = lambda x: belt(x) - (0.105 + 0.105 * t(x) ** 0.8)
+    made = []
+    # the black plate behind the louvres
+    made.append(dc.band(pre + "SpeakerPlate", col, lib["satin"], z_lo, z_hi, proud=0.0060,
+                        x0=lambda z: x_r, x1=lambda z: x_f, nx=24, nz=8, edge_round=0.002, mirror=False))
+    # the louvres: 6.8 mm pitch, 2.6 mm thick, 6 mm deep, standing on the plate
+    n = int((x_f - x_r - 0.016) / 0.0068)
+    boxes = []
+    for i in range(n + 1):
+        x = x_r + 0.008 + 0.0068 * i
+        zl, zh = z_lo(x) + 0.008, z_hi(x) - 0.008
+        w = 0.0013
+        back = [dc.point(x - w, zl, 0.0062), dc.point(x + w, zl, 0.0062), dc.point(x + w, zh, 0.0062),
+                dc.point(x - w, zh, 0.0062)]
+        front = [dc.point(x - w, zl, 0.0128), dc.point(x + w, zl, 0.0128), dc.point(x + w, zh, 0.0128),
+                 dc.point(x - w, zh, 0.0128)]
+        boxes.append((back, front))
+    made.append(_prisms(pre + "SpeakerLouvres", col, lib["brushed"], boxes))
+    # the chrome frame: a rim round the outline, a little higher than the louvres
+    outline = [(x_r, z_lo(x_r)), (x_f, z_lo(x_f)), (x_f, z_hi(x_f)), (x_r, z_hi(x_r))]
+    n = 20
+    pts = []
+    for k in range(n):
+        x = x_r + (x_f - x_r) * k / float(n)
+        pts.append(dc.point(x, z_lo(x), 0.0105))
+    pts.append(dc.point(x_f, z_lo(x_f), 0.0105))
+    for k in range(1, 6):
+        pts.append(dc.point(x_f, z_lo(x_f) + (z_hi(x_f) - z_lo(x_f)) * k / 6.0, 0.0105))
+    for k in range(n + 1):
+        x = x_f - (x_f - x_r) * k / float(n)
+        pts.append(dc.point(x, z_hi(x), 0.0105))
+    for k in range(1, 6):
+        pts.append(dc.point(x_r, z_hi(x_r) - (z_hi(x_r) - z_lo(x_r)) * k / 6.0, 0.0105))
+    pts.append(pts[0])
+    made.append(piping(pre + "SpeakerFrame", pts, col, lib["chrome"], r=0.0030, lateral=(0.0, 0.0, 1.0)))
+    # a lower lip: a second, thinner line under the frame, as the photographs show a stepped chrome edge
+    pts2 = [dc.point(x_r + (x_f - x_r) * k / float(n), z_lo(x_r + (x_f - x_r) * k / float(n)) - 0.007, 0.0075)
+            for k in range(n + 1)]
+    made.append(piping(pre + "SpeakerLip", pts2, col, lib["chrome"], r=0.0016, lateral=(0.0, 0.0, 1.0)))
+    return made
+
+
+def _switch_pack(dc, pre, col, lib, side, xc=0.572, zc=0.880):
+    """The window and lock switches in a dark gloss pod at the front of the armrest ridge (the Sahara Orange press
+    photographs): four chrome rockers across the top, the child lock and the mirror fold below, a frame round the pod."""
+    made = []
+    w, h = 0.158, 0.066
+    y = lambda x, z, pr: dc.point(x, z, pr)[1]
+    pod = F.box(col, pre + "SwitchPod", (xc, y(xc, zc, 0.0045), zc), (w, 0.009, h), lib["piano"], r=0.0035)
+    made.append(pod)
+    # the frame: chrome piping round the pod's face
+    corners = [(xc - w / 2 + 0.003, zc - h / 2 + 0.003), (xc + w / 2 - 0.003, zc - h / 2 + 0.003),
+               (xc + w / 2 - 0.003, zc + h / 2 - 0.003), (xc - w / 2 + 0.003, zc + h / 2 - 0.003)]
+    made.append(piping(pre + "SwitchFrame", _loop_path(dc, corners, 0.0090), col, lib["chrome"], r=0.0013,
+                       lateral=(0.0, 0.0, 1.0)))
+    # four window rockers: chrome pills with a dark pivot line across each
+    for k in range(4):
+        xk = xc - 0.057 + 0.038 * k
+        zk = zc + 0.016
+        made.append(F.box(col, pre + "Rocker%d" % k, (xk, y(xk, zk, 0.0100), zk), (0.027, 0.0070, 0.014),
+                          lib["chrome"], r=0.0030))
+        made.append(F.box(col, pre + "RockerLine%d" % k, (xk, y(xk, zk, 0.0128), zk), (0.026, 0.0012, 0.0014),
+                          lib["piano"], r=0.0004))
+    # the child lock and the window lock: two round buttons, and the mirror fold: a wide chrome pill
+    for k, (xk, r_) in enumerate(((xc - 0.054, 0.0085), (xc - 0.030, 0.0085))):
+        zk = zc - 0.0185
+        made += F.disc(col, pre + "Button%d" % k, (xk, y(xk, zk, 0.0100), zk), (0.0, -side, 0.0), r_, lib["brushed"],
+                       dome=0.0015, rim=0.0012, rim_mat=lib["chrome"])
+    xk, zk = xc + 0.036, zc - 0.0185
+    made.append(F.box(col, pre + "MirrorFold", (xk, y(xk, zk, 0.0098), zk), (0.052, 0.0062, 0.0125),
+                      lib["chrome"], r=0.0028))
+    # a status light in the corner
+    xk, zk = xc + 0.066, zc - 0.0185
+    made += F.disc(col, pre + "SwitchLight", (xk, y(xk, zk, 0.0092), zk), (0.0, -side, 0.0), 0.0022, lib["ambient"],
+                   dome=0.0005)
     return made
 
 

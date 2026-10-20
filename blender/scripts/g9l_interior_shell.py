@@ -214,18 +214,27 @@ def build_closures(col, lib):
     # kick panels: the side walls ahead of the door opening, floor to dash
     yk = 0.775
     x_open = PN.X_DOOR_F(0.5) - 0.040
+    # The wall steps in from the door opening (0.775) to the footwell's side (0.62) over 3 cm, and the dash's face stands at
+    # x 1.126: the step is in front of it, in the open, seen from the seat as a black column up the end of the dash. Black
+    # plastic belongs only down by the feet (as far as the door cards' own, 0.66); leather above it, as the photographs show.
     kick_y = Curve([(x_open, yk), (x_open + 0.030, 0.620), (1.34, 0.620)], mode="pchip")
-    made.append(CB.wall(col, lib["lower_card"],
-                        [(x_open + (1.34 - x_open) * k / 16.0, kick_y(x_open + (1.34 - x_open) * k / 16.0))
-                         for k in range(17)],
-                        lambda x, y: FLOOR_Z, lambda x, y: 1.12, name="int_kick",
+    kick_x = [x_open + (1.34 - x_open) * k / 16.0 for k in range(17)]
+    # ahead of x 1.14 it stays under the face of the dash, which recedes below the knees (z 0.84 at x 1.138, 0.42 at 1.41)
+    kick_top = Curve([(x_open, 0.800), (1.140, 0.800), (1.160, 0.730), (1.195, 0.640), (1.255, 0.550),
+                      (1.335, 0.470), (1.340, 0.465)], mode="pchip")
+    # black plastic to the door cards' own black (Z_LOWER_TOP), the cabin's leather above it
+    made.append(CB.wall(col, lib["lower_card"], [(x, kick_y(x)) for x in kick_x],
+                        lambda x, y: FLOOR_Z, lambda x, y: min(DR.Z_LOWER_TOP, kick_top(x)), name="int_kick",
+                        facing=(0.0, -1.0, 0.0)))
+    made.append(CB.wall(col, lib["leather_door"], [(x, kick_y(x)) for x in kick_x if kick_top(x) > DR.Z_LOWER_TOP + 0.01],
+                        lambda x, y: DR.Z_LOWER_TOP - 0.002, lambda x, y: kick_top(x), name="int_kick_up",
                         facing=(0.0, -1.0, 0.0)))
     kick_y = [(x_open, yk + (0.93 - yk) * k / 10.0) for k in range(11)]
     kick_top = lambda x, y: 1.06 + 0.10 * _smooth((y - 0.80) / 0.04)
     # black plastic low down, the door card's red leather above the sill line (c10_0002: the dash runs into the card)
-    made.append(CB.wall(col, lib["lower_card"], kick_y, lambda x, y: FLOOR_Z, lambda x, y: 0.80,
+    made.append(CB.wall(col, lib["lower_card"], kick_y, lambda x, y: FLOOR_Z, lambda x, y: DR.Z_LOWER_TOP,
                         name="int_kick_front", facing=(-1.0, 0.0, 0.0)))
-    made.append(CB.wall(col, lib["leather_dash"], kick_y, lambda x, y: 0.795, kick_top,
+    made.append(CB.wall(col, lib["leather_dash"], kick_y, lambda x, y: DR.Z_LOWER_TOP - 0.002, kick_top,
                         name="int_kick_front_up", facing=(-1.0, 0.0, 0.0)))
     # rear wheelhouse and quarter trims, closing out to the rear door card
     rc = DR.rear_card(1.0)

@@ -677,7 +677,33 @@ the bight, its integrated headrest on top of that) with a separate headrest on t
 through the headliner at 1.553. `FRONT_BACK_K` = 0.88 scales the spine, so the top is z 1.473, 8 cm clear. The cabin itself
 is not low: the headliner is 1.55-1.60 over the seats (the outer roof is 1.656). The headrest pillow's two poles were points, i.e.
 fans of zero-area quads with undefined tangents, which drew a smooth, dot-free square on the back of every headrest; they are now
-small polygons (`POLE`). `cabin_parts.pillow` (G9L, Z9) and `z9_interior`'s spine have the same shapes and are not fixed.
+small polygons (`POLE`).
+
+The Z9's and G9L's seats (2026-10-19, same day, `z9_interior._seat_spec(k)`, `g9l_interior._seat_spec(k)`, `cabin_parts.pillow`): both had
+the same hooked spine end (Z9 `(-0.297, 0.700), (-0.296, 0.690), (-0.292, 0.672)`, G9L the same after `(-0.316, 0.730)`) and both
+share `cabin_parts.pillow` with the zero-area poles. The hook is dropped and `backrest["end_cap"] = True` closes the tube; the pillow
+has the 7X's `POLE` ring and two polygon caps. Headrest tops against the roof, measured in a freshly built cabin (the car's body
+and `*_interior_shell.main()`, then for every pillow vertex the nearest layer above it of each ceiling object: `int_headliner*`,
+`int_roofrail`, the roof glass and paint, `Greenhouse_Black`, `Roof_Rear_Black`; a layer below it within 12 cm and none above means
+the vertex stands through that object):
+
+| Car | Seat | Spine as drawn | Chosen | Headrest top | Clearance (nearest ceiling) |
+|---|---|---|---|---|---|
+| Z9 | front | k = 1.0: z 1.503, **through** the glass roof (1.496), the side headliner (1.456) | `FRONT_BACK_K` = 0.86 | z 1.405 (0.885 m above the bight, as the 7X's 0.89) | 5 cm under `int_headliner_side`, 9 cm under the glass |
+| Z9 | rear | 0.88: z 1.335, **4 cm through** the sloping rear headliner (1.306) | `REAR_BACK_K` = 0.76 | z 1.251 | 4 cm under `int_headliner_R` |
+| G9L | front | z 1.687 | none (1.0) | z 1.687 | 5.6 cm under `int_headliner_F` (1.743) |
+| G9L | rear | z 1.566 | none (0.86) | z 1.566 | 18 cm under the glass roof |
+
+The Z9 is 1.50 m tall and its roof is glass over the front seats, so its headrests had to come down. The G9L's front headrests
+are 1.9 cm under `G9L_Shell_Shadow` (z 1.707), but that is a body hull that nothing draws from inside; `Z9_Shell_Shadow` and
+`G9L_Shell_Shadow` are left out of the ceiling test. The Z9's rear photographs (c3_0016/0017) show a short rear back and a small
+headrest under the quarter glass, which is why 0.76 is believable.
+
+**Never run two hall exports at once.** `aoatlas.atlas_for` saves its bake to `%TEMP%\cabin_ao_atlas.png` and the glTF exporter
+reads the file back, so two Blenders exporting in parallel mix their atlases: the Z9 export that ran beside the G9L's shipped
+the G9L's atlas for 32 of its 33 materials (the leather read as dark rectangles with stair-stepped edges, and the file was 230 KB
+bigger). The sign is a cabin GLB with two `cabin_ao_atlas` images (read its JSON chunk: `images[].name`; each cabin GLB must have
+exactly one, and all seven do after the re-export). The remedy is one export at a time, or a per-process temp path in `atlas_for`.
 
 Found on the way: the cluster's display picture is applied by `cabin_lighting()` for the vertex bake, so the hall path calls
 `cabin_screens()` itself or the cluster ships dark. The showroom rewrites its URL before the viewer chunk loads, so a look-dev
@@ -1327,6 +1353,10 @@ Interior and web:
 - Blender 5.2's `Image.save()` writes float `.hdr` through the sRGB curve. Write RGBE yourself (`bake.write_hdr`).
 - PMREM targets made in `useMemo` die under StrictMode's dev cleanup. Make them in an effect.
 - drei `ContactShadows` sees every layer-0 object and clears with the renderer's clear colour. Put backdrops on another layer and clear with alpha 0.
+- **A cabin piece that stands outside the paint shows only when a door is open (A06T, 2026-10-20).** Shut, the cabin is drawn only where clear glass is in front of it (`clearGlass.ts`, the stencil); with any door or the hatch open the stencil is off, so every cabin surface that is not behind the body shows. The A06T's rear-window sill and boot trim had been built to an older rear pane and tail: the sill stood 10-16 cm out of the glass (black wings either side of the rear window), the boot trim's top edge 5-9 cm out of the paint at the tail corners (a black fin by each lamp). Build a cabin piece against the exterior as it is now (`a06t_rear.pane()`, a body half-width measured at the piece's *top* height: the body narrows with height), and check it with a door open from behind and from the rear 3/4.
+- **Finding what draws a pixel**: swap every mesh's material for a flat colour that encodes its index in **three** channels (`r = i % 8, g = i / 8 % 8, b = i / 64`, steps of 32). Two channels alias at 256 meshes: the A06T's 267 made `int_rear_sill` read as `Blackout_mesh_1`, and a hidden mesh seemed to keep drawing. Read the canvas in the same task as `advance()`, and set the camera in the same call: the showroom drifts the camera back after a few idle seconds.
+- **A pane's lower corners follow the loft that carries them.** The G9L's backlight was bounded by the body's rear end (x -2.52); the loft turns down at the tail corners there, so the glass ended in a pointed tab 14 cm under the foot line, over the lamp shelf, as a black shard (`g9l_panels.Z_FOOT`). A shelf built along a surface normal that turns sideways round a corner needs a hard end (`g9l_rear.CAP_END`): past it the columns that follow the join ring snapped to cap points 8 cm lower and the band's end slid down the corner as a wedge.
+- **Panels built apart shade apart.** Where two exterior objects meet at an angle (the G9L's tail cap and quarter, ~35 degrees) each side shades with its own normals and the corner reads as a crease that breaks the reflections. `carkit.export.weld_normals(objs, box)` gives corners of different objects that coincide (8 mm) and face about the same way one averaged custom normal; `export_g9l.main` calls it for the tail corners.
 
 ---
 

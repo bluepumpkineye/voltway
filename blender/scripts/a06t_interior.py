@@ -1108,29 +1108,34 @@ def build_closures(col, lib):
         S.BODY, col, lib["leather_black"], lambda z: PN._DOOR_R_EDGE(z) - 0.002, -1.82,
         FLOOR_Z + 0.02, 0.672, 0.975, 1.205, 0.062, vq, name="int_quarter",
         close_to=lambda z: rc.skin_y(PN._DOOR_R_EDGE(z), z) - rc.th(z) + 0.010)
-    # the parcel shelf: from behind the rear seat backs to the backlight's base
-    # its rear end rises to the backlight's clear glass: the glass's lower
-    # part is backed by the painted tail cap (a06t_rear), which showed over a
-    # flat shelf from the rear seats
+    # the parcel shelf: from behind the rear seat backs to the backlight's base.
+    # The backlight's clear pane (a06t_rear.pane()) slopes down toward the tail: z 1.20 at x -2.21, 1.13 at -2.31, 1.00 at
+    # the tail (-2.47). The shelf and the sill below stay behind it: they were once built to a pane that rose toward the
+    # tail, so their rear ends stood 10-16 cm out of the glass, and with a door open (the cabin no longer stencilled to
+    # the glass) they showed as black wings either side of the rear window
+    import a06t_rear as RR
+    pane = RR.pane()
+    x_of0, z_a0 = pane.column(0.0)
+    pane_z = Curve([(pane.corner(x_of0(z), 0.0, z, z_a0), z) for z in
+                    [pane.z_bot(0.0) + (pane.z_top(0.0) - pane.z_bot(0.0)) * k / 24.0 for k in range(25)]],
+                   mode="pchip")
     pts = []
     for k in range(17):
         x = -1.56 - (2.46 - 1.56) * k / 16.0
-        pts.append((x, 1.050 + 0.105 * (k / 16.0) ** 1.8 + 0.035 * _smooth((x + 2.30) / -0.14)))
+        z = 1.050 + 0.105 * (k / 16.0) ** 1.8 + 0.035 * _smooth((x + 2.30) / -0.14)
+        pts.append((x, min(z, pane_z(x) - 0.014) if x < -2.10 else z))
     made.append(CB.bulkhead(col, lib["headliner"], pts,
                             lambda x, z: CB.skin_offset_y(S.BODY, x, z, 0.070, 0.80),
                             name="int_parcel_shelf", facing=(0.0, 0.0, 1.0)))
-    # the rear window's sill: from the shelf up to the clear glass's lower
-    # edge, which rises from z 1.19 on the centreline to 1.28 at its corners
-    # (the tail cap's painted top comes up round it - A06T_Glass_Rear measured)
-    xe = Curve([(0.00, -2.426), (0.12, -2.391), (0.24, -2.357), (0.36, -2.322), (0.48, -2.293),
-                (0.62, -2.268)])
-    ze = Curve([(0.00, 1.187), (0.12, 1.209), (0.24, 1.233), (0.36, 1.258), (0.48, 1.284),
-                (0.62, 1.290)])
+    # the rear window's sill: from the shelf down to the pane's lower edge (which meets the tail cap at x -2.47 on the
+    # centreline), a hand's breadth inside the glass and no wider than the pane
     rows = []
     for j in range(17):
-        y = 0.62 * j / 16.0
-        xa, za = -2.200, 1.112
-        xb, zb = xe(y) + 0.006, ze(y) - 0.010
+        y = min(0.53, pane.y_w - 0.015) * j / 16.0
+        x_of, z_a = pane.column(y)
+        zb = pane.z_bot(y) + 0.004
+        xb = pane.corner(x_of(zb), y, zb, z_a) + 0.014
+        xa, za = -2.200, 1.100
         rows.append([(xa + (xb - xa) * t, y, za + (zb - za) * (t ** 0.6)) for t in
                      [k / 6.0 for k in range(7)]])
     sl = grid_mesh("int_rear_sill", rows, col, lib["headliner"])
