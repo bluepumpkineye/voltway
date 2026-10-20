@@ -68,6 +68,7 @@ def _lerp(pts, y):
 # --------------------------------------------------------------- hardpoints
 Z_CAP_BOT = 1.147                      # the lamp cap's lower edge across the car
 Z_LAMP_RED = (1.226, 1.188)            # the two light strips
+CAP_END = 0.785                        # |y| where the lamp shelf and its lip end (see build_tail)
 GATE_LOW = sorted(_yz(CAM.GATE_LOW_PX))                       # tailgate's lower edge (y, z)
 BUMPER_TOP = sorted(_yz(CAM.REAR_BUMPER_TOP_PX))              # black bumper's top edge (y, z)
 REFLECTOR = _yz(CAM.REFLECTOR_PX)
@@ -232,13 +233,16 @@ def build_tail(collection, lib):
     made = []
     zt = CAP_HIGH
     # the lamp cap: a black shelf, proud of the tailgate by 45 mm at its lower edge, 12 mm under the glass
+    # (the shelf stops at CAP_END: beyond it the columns that follow the join ring snap to cap points 8 cm below the shelf
+    # and the end of the band slid down the corner as a wedge, a black shard standing off the quarter; by then the taper
+    # has brought it flush)
     made.append(band("G9L_Tail_Lamp_Cap", lambda y: Z_CAP_BOT, lambda y: zt, 52, 6, collection,
-                     lib["black_gloss"],
+                     lib["black_gloss"], y_max=CAP_END,
                      off_fn=lambda y, k: (0.045 - 0.033 * k) * _taper(y) + 0.002,
                      thickness=0.003, bevel=0.0, cut=True))
     # the shelf's lower lip: a thin black skirt closing the gap between shelf and tailgate
     made.append(band("G9L_Tail_Lamp_Lip", lambda y: Z_CAP_BOT - 0.006, lambda y: Z_CAP_BOT, 52, 2,
-                     collection, lib["black_gloss"],
+                     collection, lib["black_gloss"], y_max=CAP_END,
                      off_fn=lambda y, k: 0.045 * k * _taper(y) + 0.002, thickness=0.003, cut=True))
     # the tailgate, to its smile shut line
     made.append(band("G9L_Tailgate", lambda y: gate_low(y) + 0.5 * GAP, lambda y: Z_CAP_BOT - 0.001,

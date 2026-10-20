@@ -157,6 +157,41 @@ def V_REARGLASS(x):
     return a + (b - a) * _smooth((X_KNEE - x) / 0.14)
 
 
+# The backlight's foot. Its lower edge was the body's rear end (x -2.52), but the loft turns down there at the tail corners,
+# so the glass ended in a pointed tab 14 cm below the foot line (z 1.185 at |y| 0.64 against 1.33 on the centreline), hanging
+# over the lamp shelf as a black shard. The foot is the line z = Z_FOOT instead, and the sail's paint takes the corner below it.
+Z_FOOT = 1.245
+
+
+def X_REARGLASS_FOOT(v):
+    """x of the backlight's lower edge at v: where the body reaches Z_FOOT, no further back than -2.52."""
+    lo, hi = -2.52, -2.30
+    if S.section_v(lo, v)[1] >= Z_FOOT:
+        return lo
+    for _ in range(28):
+        mid = 0.5 * (lo + hi)
+        if S.section_v(mid, v)[1] < Z_FOOT:
+            lo = mid
+        else:
+            hi = mid
+    return hi
+
+
+def V_SAIL_TOP(x):
+    """The sail's upper edge: the backlight's side edge, or - behind the point where that edge falls below the foot - the foot line."""
+    v0 = V_REARGLASS(x)
+    if x > -2.30 or S.section_v(x, v0)[1] >= Z_FOOT:
+        return v0
+    lo, hi = v0, 1.0
+    for _ in range(28):
+        mid = 0.5 * (lo + hi)
+        if S.section_v(x, mid)[1] < Z_FOOT:
+            lo = mid
+        else:
+            hi = mid
+    return hi
+
+
 def V_QTOP(x):
     """Top of the quarter panel: the belt along the quarter glass, then up the C-pillar's sail to
     the backlight's edge."""
@@ -222,7 +257,7 @@ PANELS = [
     dict(name="G9L_Roof_Paint", x=(X_ROOF_GLASS_R, X_ROOF_F), v=(V_RAIL, 1.0),
          nx=44, nv=22, gap=dict(v1=False, x0=False, x1=False, v0=False), mat="paint"),
     # painted sail behind the glass tip, round the C-pillar to the backlight's edge
-    dict(name="G9L_Sail", x=(-2.52, X_TIP), v=(V_BELT, V_REARGLASS),
+    dict(name="G9L_Sail", x=(-2.52, X_TIP), v=(V_BELT, V_SAIL_TOP),
          nx=48, nv=28, gap=dict(v0=False, x0=False, x1=False), mat="paint"),
 
     # ---- the dark region under the side glass (the black frames show where glass stops)
@@ -266,7 +301,7 @@ PANELS = [
          v=(lambda x: V_BELT(x) + 0.004, lambda x: V_DLO(x) - 0.004),
          nx=40, nv=24, glass="glass_dark"),
     # the wide backlight under the spoiler
-    dict(name="G9L_Glass_Rear", x=(-2.52, X_KNEE - 0.006),
+    dict(name="G9L_Glass_Rear", x=(X_REARGLASS_FOOT, X_KNEE - 0.006),
          v=(V_REARGLASS, 0.9995), nx=44, nv=40, glass="glass_dark",
          gap=dict(v1=False, x0=False), offset=0.001),
 ]

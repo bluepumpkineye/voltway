@@ -81,6 +81,11 @@ BROW_UP = [(0.0, 0.500), (0.18, 0.512), (0.39, 0.538)]
 BROW_LO = [(0.0, 0.468), (0.18, 0.480), (0.39, 0.508)]
 
 
+# the front plate's lean (degrees; its face looks down by this much): the nose face's own pitch over the plate's height
+# (27 at its middle, 20 to 30 across it), so the plate stands the same few millimetres off the paint top to bottom
+PLATE_PITCH = 25.0
+
+
 # ------------------------------------------------------------------ helpers
 def _face(y, z, d=0.0):
     w, v = NOSE.wv_at(abs(y), z)
@@ -201,10 +206,17 @@ def build_fascia(collection, lib):
 
     # 5. Front license plate mount & plate: the 480 x 140 mm sign (c1_0034 through its solved camera: 493 px wide,
     # centre z 0.40; the first build put it at 0.445 and 440 mm wide, read from the wide-lens showroom shot)
-    p_plate, n_plate = _face(0.0, 0.400, d=0.006)
-    plate_mount = _box("Z9_Plate_Mount_Front", p_plate, (0.008, 0.500, 0.150), collection, lib["black_gloss"])
-    made.append(plate_mount)
-    p_plate_f, _ = _face(0.0, 0.400, d=0.010)
+    # The plate is a flat board: it takes the nose's pitch there (27 deg, an undercut face: PLATE_PITCH) and none of its yaw
+    # (the nose normal at the centre has a y component of 0.1), and a mount block as deep as the nose's recession across the
+    # plate's width (4 cm at the edges) fills the gap behind it. Before, the plate followed the nose's normal and the mount
+    # was an upright box, so the two crossed as a twisted wedge in front of the bumper.
+    pitch = math.radians(PLATE_PITCH)
+    n_plate = (math.cos(pitch), 0.0, -math.sin(pitch))
+    p_c, _ = _face(0.0, 0.400, d=0.006)
+    p_plate_f = (p_c[0], 0.0, p_c[2])
+    p_mount = tuple(p_plate_f[i] - n_plate[i] * 0.003 for i in range(3))
+    made += fittings.plate("Z9_Plate_Mount_Front", p_mount, n_plate, collection, lib, w=0.500, h=0.150, depth=0.080,
+                           mat="black_gloss", bevel=(0.003, 2, 30))
     made += fittings.plate("Z9_Plate_Front", p_plate_f, n_plate, collection, lib, w=0.480, h=0.140, depth=0.004,
                            texts=[("DENZA Z9", 0.0, 0.038, False, True)],
                            mat="black_gloss", text_mat="machined")

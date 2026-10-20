@@ -122,6 +122,77 @@ def merge_for_export(groups, protected=()):
 SHIPPED_ATTRIBUTES = ("_BAKEDLIGHT", "_BAKEDLIGHT_OPEN", "_BAKEDAO")
 
 
+def weld_normals(objects, box, tol=0.008, min_dot=0.35):
+    """Give the surfaces that meet along a seam between two objects one shared normal there.
+
+    Panels built apart (the G9L's tail cap and its quarter panel) shade each side of their join with their own normals, so
+    a corner that turns 30 degrees reads as a crease that breaks every reflection. Here every corner of every object's mesh
+    inside `box` ((x0, x1), (y0, y1), (z0, z1) in the world frame; the y range is tested on |y|) that has a corner of
+    ANOTHER object within `tol` metres, facing about the same way (dot > min_dot: the far side of a thin shell, and its
+    rim, do not), takes the average of them. Corner normals are replaced as custom normals; nothing moves.
+    Returns the number of corners changed."""
+    import numpy as np
+    from mathutils import kdtree
+
+    (x0, x1), (y0, y1), (z0, z1) = box
+    rows = []                                   # (object index, loop index, world position, world normal)
+    infos = []
+    for oi, ob in enumerate(objects):
+        me = ob.data
+        nl = len(me.loops)
+        if not nl:
+            infos.append(None)
+            continue
+        vi = np.empty(nl, dtype=np.int32)
+        me.loops.foreach_get("vertex_index", vi)
+        co = np.empty(len(me.vertices) * 3, dtype=np.float64)
+        me.vertices.foreach_get("co", co)
+        co = co.reshape(-1, 3)
+        mw = np.array(ob.matrix_world)
+        world = co @ mw[:3, :3].T + mw[:3, 3]
+        nr = np.empty(nl * 3, dtype=np.float32)
+        me.corner_normals.foreach_get("vector", nr)
+        nr = nr.reshape(-1, 3).astype(np.float64)
+        nw = nr @ mw[:3, :3].T
+        nw /= np.maximum(np.linalg.norm(nw, axis=1, keepdims=True), 1e-12)
+        pos = world[vi]
+        inside = ((pos[:, 0] >= x0) & (pos[:, 0] <= x1) & (np.abs(pos[:, 1]) >= y0) & (np.abs(pos[:, 1]) <= y1)
+                  & (pos[:, 2] >= z0) & (pos[:, 2] <= z1))
+        infos.append((nr, mw, nw))
+        for li in np.nonzero(inside)[0]:
+            rows.append((oi, int(li), pos[li], nw[li]))
+    if not rows:
+        return 0
+    tree = kdtree.KDTree(len(rows))
+    for i, r in enumerate(rows):
+        tree.insert(tuple(r[2]), i)
+    tree.balance()
+    new = {}
+    for i, (oi, li, p, n) in enumerate(rows):
+        acc, other = n.copy(), False
+        for (_, j, d) in tree.find_range(tuple(p), tol):
+            rj = rows[j]
+            if j == i or rj[0] == oi or float(np.dot(rj[3], n)) <= min_dot:
+                continue
+            acc += rj[3]
+            other = True
+        if other:
+            new.setdefault(oi, {})[li] = acc / np.linalg.norm(acc)
+    changed = 0
+    for oi, per_loop in new.items():
+        ob = objects[oi]
+        me = ob.data
+        nr, mw, nw = infos[oi]
+        out = nr.copy()                          # local-space normals as they are now
+        inv = np.linalg.inv(mw[:3, :3]).T        # world normal -> local
+        for li, n in per_loop.items():
+            v = inv @ n
+            out[li] = v / np.linalg.norm(v)
+        me.normals_split_custom_set([tuple(v) for v in out])
+        changed += len(per_loop)
+    return changed
+
+
 def strip_attributes(objects, keep=SHIPPED_ATTRIBUTES):
     """Drop every "_"-prefixed attribute that is not in `keep`: the glTF
     exporter ships them all, at 4 bytes a vertex a piece."""

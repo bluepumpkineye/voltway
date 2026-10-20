@@ -205,6 +205,9 @@ def main(draco=True, shadow=True):
     groups = exterior_groups()
     merged = _X.merge_for_export(groups)
     clean_degenerate(merged)
+    # the tail cap and the quarter panels are built apart and meet at the corner (x -2.36) at ~35 degrees: one normal across
+    # the seam, or the corner reads as a crease that breaks every reflection
+    print("seam normals welded:", _X.weld_normals(merged, ((-2.46, -2.28), (0.55, 1.00), (0.55, 1.40))))
     shadow_info = None
     if shadow:
         try:
