@@ -221,3 +221,39 @@ sources. In short:
 
 Colour values are approximate: they are matched by eye to the makers'
 imagery under our own studio rig, and the interface labels them as such.
+
+## 7. Door sounds and the wheel view (2026-10-21)
+
+Two things the owner asked for after looking at HIMA's hall (<https://hima.auto/3d-view/>), which we match in behaviour, not in assets.
+
+**Sounds of the openings.** A door, the bonnet and the tailgate make a noise as they move: the handle and the door coming off its
+seal as the part starts to open (`release`), and the thud and latch as it shuts (`shut`). The charge flap and the stop at the end of
+an opening swing are silent (no recording). The first version was synthesised in code and the owner rejected it as fake (2026-10-21);
+it was replaced the same day by the owner's own recordings, three files supplied for the purpose: `open-car-door.mp3` (a handle
+click, then the door popping open), `car-door-shut.mp3` (one shut) and `car-door-closing-and-opening.mp3` (7.5 s: a shut at 0.75 s,
+the handle and the door opening at 3.0 s, a second shut at 5.0 s). `scripts/tech-tools/cut-sounds.mjs` cuts five excerpts out of them
+(two openings, three shuts) into `public/sounds/*.wav` (mono, 44.1 kHz, short fades, peak 0.7 for an opening and 0.92 for a shut); the
+cut points were read off the loudness envelopes, and the long file's events were told apart by their shape and spectrum (a shut is a
+broadband thump preceded by the door's swish; an opening is a click, then a bass pop 0.2 s later, like the single opening file). The
+author could not listen: if a take is the wrong kind, change its times in the script and run it again. The owner said the same takes
+may be used for the tailgate and the bonnet: they play pitched down (bonnet 0.86, tailgate 0.93; the recordings are bass-heavy and a
+laptop speaker loses what goes lower). `src/lib/sound/engine.ts` plays them through the Web Audio API: the files are fetched when the
+page loads and decoded when the context is made (on the first press or key, since browsers keep audio silent until then; a cue before
+that is dropped); a take other than the last is chosen at random, each play is up to 3 per cent faster or slower; the same cue twice
+within 70 ms is one; cues that pile up (Close all) are spread by 45 ms and quietened; a part is panned by where it is in the picture
+and quietened by how far the camera is from it; from the seat the sound goes through a 1.4 kHz low-pass and is quieter. The timing comes
+from the hinges (`Hinges.listen` in src/lib/openings.ts): `release` at the start of an opening swing, `shut` as the closing swing
+ends (97 per cent of it, so the impact, which is 20 to 30 ms into each take, lands as the part meets its seal), nothing for the state
+the car is put in when it mounts. A speaker button in the top bar (next to the info button) turns it off; the choice is kept in
+`localStorage` (`voltway.sound`).
+Licence: the three recordings are royalty-free sound effects from Pixabay (the owner downloaded them, 2026-10-21), used under the
+Pixabay Content License, which allows free use, commercial use included, without attribution; the excerpts in `public/sounds/` are
+edited cuts of them (the originals are not in the repository).
+
+**The Wheels view.** HIMA's wheel anchor shows the front half of the car nearly side-on (a touch from the front), the wheel low and
+large (about 30 per cent of the picture's height), the nose at the left. Ours was a close-up of the wheel and its arch. The pose in
+`src/lib/showroom/anchors.ts` (`id === 'wheel'`) is now: azimuth 74 degrees, elevation 6, field of view 24; the camera orbits about the
+wheel itself, and the picture is slid so that the wheel sits to the right of the middle (a view offset of 10 per cent of the width, as
+the other poses slide for a device) with the nose in; the camera stands so that the picture is 45 per cent of the car's length tall,
+and on a narrow window far enough back to keep the nose and the door in (the picture is at least 60 per cent of the car's length
+wide). The visitor can still zoom in to the rim (minimum distance 1.3 m) and turn the car.

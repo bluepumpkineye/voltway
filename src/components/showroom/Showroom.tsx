@@ -13,7 +13,7 @@ import {
 import { LIGHT_MODES, type LightMode } from '@/lib/lights';
 import { visibleDemos } from '@/lib/tech/demos';
 import { chargeDemo } from '@/lib/tech/charging';
-import { BELOW_TOP, CarMenu, FOCUS, GLASS, InfoButton, SceneToggle, TabBar } from './Chrome';
+import { BELOW_TOP, CarMenu, FOCUS, GLASS, InfoButton, SceneToggle, SoundToggle, TabBar } from './Chrome';
 import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
 import { CaliperSwatches, DimensionChips, PaintSwatches, TrimSwatches, WheelChips } from './Swatches';
 import { CHARGE_COLUMN_W, ChargePanel } from './Charge';
@@ -394,6 +394,7 @@ export function Showroom({
               <span>Compare</span>
             </button>
             {canCity && <SceneToggle scene={sceneKind} onScene={setSceneKind} />}
+            {Boolean(vehicle.openings?.length) && <SoundToggle />}
             <InfoButton title={TITLES[tab]} note={NOTES[tab]} hint={hint} sources={sources} />
           </div>
         </div>

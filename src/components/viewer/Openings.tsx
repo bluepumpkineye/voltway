@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import type { OpeningId, Vehicle } from '@/data/vehicles/schema';
 import { hingesOf } from '@/lib/openings';
+import { PART_OF, playCue } from '@/lib/sound/engine';
 import { useVehicleStore } from '@/store/vehicle-store';
 
 const reducedMotion = () =>
@@ -17,19 +18,42 @@ const reducedMotion = () =>
  */
 export function OpeningsDriver({ vehicle }: { vehicle: Vehicle }) {
   const invalidate = useThree((s) => s.invalidate);
+  const camera = useThree((s) => s.camera);
   const hinges = hingesOf(vehicle);
 
   React.useEffect(() => {
     if (!hinges) return;
-    const follow = (open: Record<string, boolean>, snap: boolean) => {
-      for (const s of hinges.specs) hinges.aim(s.id, !!open[s.id], performance.now(), snap);
+    const follow = (open: Record<string, boolean>, snap: boolean, quiet = false) => {
+      for (const s of hinges.specs) hinges.aim(s.id, !!open[s.id], performance.now(), snap, quiet);
       invalidate();
     };
-    follow(useVehicleStore.getState().openings, true);
+    // the car is put in the state it was left in without a sound
+    follow(useVehicleStore.getState().openings, true, true);
     return useVehicleStore.subscribe((s, prev) => {
       if (s.openings !== prev.openings) follow(s.openings, reducedMotion());
     });
   }, [hinges, invalidate]);
+
+  // the noise each part makes: where it is in the picture pans it, how far it is from the camera quietens it, and from
+  // the seat it is heard through the cabin (src/lib/sound)
+  React.useEffect(() => {
+    if (!hinges) return;
+    const p = new THREE.Vector3();
+    return hinges.listen((id, cue) => {
+      const part = PART_OF[id];
+      const node = hinges.partOf(id);
+      let pan = 0;
+      let near = 0.8;
+      if (node) {
+        node.getWorldPosition(p);
+        near = 1 / (1 + 0.1 * p.distanceTo(camera.position));
+        // in the camera's own axes (it looks down -z): how far to the right of the middle of the picture the part is
+        p.applyMatrix4(camera.matrixWorldInverse);
+        pan = p.z > -0.1 ? Math.sign(p.x || 1) : THREE.MathUtils.clamp((p.x / -p.z) * 1.2, -1, 1);
+      }
+      playCue(part, cue, { pan, near, inside: useVehicleStore.getState().cameraMode === 'interior' });
+    });
+  }, [hinges, camera]);
 
   useFrame(() => {
     if (hinges?.step(performance.now())) invalidate();

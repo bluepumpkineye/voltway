@@ -201,22 +201,34 @@ export function resolveAnchor(
   const cx = (frame.xMin + frame.xMax) / 2;
 
   if (id === 'wheel') {
+    // HIMA's wheel view: nearly side-on, a touch from the front, the front half of the car in the picture with its
+    // wheel low and large, the nose at the left. The camera orbits about the wheel itself; the picture is slid so that
+    // the wheel sits to the right of the middle (a view offset, as the other poses' slides are), and the visitor can
+    // still come in to the rim as close as before.
     const w: V3 = frame.wheelFL ?? [cx + L * 0.28, 0.36, -W * 0.42];
-    const target: V3 = [w[0] - 0.12, w[1] + 0.02, w[2]];
-    const d = dirFrom(64, 7);
-    const dist = 2.7;
+    const inset = frame.inset ?? { right: 0, bottom: 0 };
+    const target: V3 = [w[0], w[1] + 0.04, w[2]];
+    const fov = 24;
+    const half = Math.tan((fov * D2R) / 2);
+    // the picture is half the car's length tall, and wide enough for the nose and the door in front of the wheel
+    // (a window narrower than that stands further back)
+    const visible = Math.max(0.45 * L, (0.6 * L) / Math.max(aspect * (1 - inset.right), 0.3));
+    const dist = visible / 2 / half;
+    const d = dirFrom(74, 6);
     return {
       id,
       mode: 'exterior',
       pos: [target[0] + d[0] * dist, target[1] + d[1] * dist, target[2] + d[2] * dist],
       target,
-      fov: 24,
+      fov,
       minDistance: 1.3,
-      maxDistance: 4.6,
+      maxDistance: dist * 1.7,
       minPolar: POLAR_MIN,
       maxPolar: POLAR_MAX,
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * 0.6,
+      liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
+      shiftFrac: inset.right / 2 - 0.1,
     };
   }
 

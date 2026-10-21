@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { setSoundOn, soundOn, subscribeSound } from '@/lib/sound/engine';
 import type { ShowroomScene, ShowroomTab } from '@/store/vehicle-store';
 
 /** The showroom's frosted-glass surface: light, quiet, and readable on white. */
@@ -104,6 +105,35 @@ export function SceneToggle({
         </button>
       ))}
     </div>
+  );
+}
+
+/** Sound on or off: the doors, the bonnet, the tailgate and the charge flap make a noise as they move (src/lib/sound). */
+export function SoundToggle() {
+  const on = React.useSyncExternalStore(subscribeSound, soundOn, () => true);
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={on ? 'Sound on: turn the door sounds off' : 'Sound off: turn the door sounds on'}
+      title={on ? 'Sound on' : 'Sound off'}
+      onClick={() => setSoundOn(!on)}
+      className={`pointer-events-auto grid h-9 w-9 place-items-center rounded-full hover:text-neutral-950 ${GLASS} ${FOCUS} ${
+        on ? 'text-neutral-700' : 'text-neutral-400'
+      }`}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+        <path d="M2.2 6.1h2.3l3.1-2.5v8.8L4.5 9.9H2.2z" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+        {on ? (
+          <>
+            <path d="M10 5.9c.9.6 1.4 1.3 1.4 2.1s-.5 1.5-1.4 2.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <path d="M11.8 4c1.5 1 2.3 2.4 2.3 4s-.8 3-2.3 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </>
+        ) : (
+          <path d="M10.4 6l3.6 4M14 6l-3.6 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        )}
+      </svg>
+    </button>
   );
 }
 
