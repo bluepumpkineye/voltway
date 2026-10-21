@@ -177,6 +177,9 @@ def open_hull(hulls=("Z9_Shell_Shadow",), reach=0.5, x_max=-1.6):
         dead = []
         for f in bm.faces:
             p = sh.matrix_world @ f.calc_center_median()
+            if p.x < X_BULKHEAD - 0.01 and p.z > Z_TRUNK - 0.03:
+                dead.append(f)          # the boot's volume is the cabin's carpeted box now: the hull's walls and roof there stand in it
+                continue
             if p.x > x_max or abs(p.y) > Y_SHUT + 0.005:
                 continue
             if tree.ray_cast(p, back, reach)[0] is not None or tree.ray_cast(p, up, reach)[0] is not None:
@@ -190,7 +193,8 @@ def open_hull(hulls=("Z9_Shell_Shadow",), reach=0.5, x_max=-1.6):
 
 
 # ---------------------------------------------------------------- the lid's inside (the cabin's int_tailgate)
-LINER_DEPTH = 0.040
+LINER_DEPTH = 0.014
+LINER_SHEETS = ("Z9_Decklid", "Z9_Ducktail_Lip", "Z9_Tail_Upper", "Z9_Tailgate")
 
 
 def _mat(name, base, rough=0.6, **kw):
@@ -203,59 +207,63 @@ def _mat(name, base, rough=0.6, **kw):
 
 
 def build_liner(col=None, depth=LINER_DEPTH):
-    """The lid's inside, for the cabin's GLB: a dark felt-grey liner `depth` under the skin, following the tail cap from
-    the gate's lower edge up to the ducktail and the decklid's underside behind it, with the origin on the hinge, so it
-    swings with the lid (int_tailgate)."""
-    import z9_rear as RR
+    """The lid's inside, for the cabin's GLB: a dark charcoal liner `depth` under the lid's own skin, with the origin on the
+    hinge, so it swings with the lid (int_tailgate).
+
+    It is an inward copy of the lid's paint sheets (the decklid, its ducktail lip and the two tail bands), cut at the lid's side
+    shut lines: whatever the lid's skin covers the liner covers, up to its edges. (The first version was built from the tail's
+    analytic surface and the decklid's top by rays, in two separate strips with a gap between them, and under an open lid the
+    paint's black back and two floating dark bands showed instead of one inner panel: reported 2026-10-21.)"""
     from carkit import export as X
-    from carkit import geom
-    from carkit import mesh as M
     if bpy.data.objects.get("Z9_Decklid") is None:          # a cabin built alone has no exterior to read
         return None
     col = col or bpy.data.collections["Z9_Interior"]
-    liner = _mat("INT_Hatch_Liner", (0.022, 0.022, 0.026), 0.85, specular=0.2)
+    liner = _mat("INT_Hatch_Liner", (0.060, 0.060, 0.066), 0.85, specular=0.2)
     h = hinge()
-    made = []
-    # the tail cap's own surface, `depth` in
-    tail = RR.TAIL
-    ny, nz = 40, 14
-    ymax = Y_SHUT - 0.010
-    cols = []
-    for i in range(ny + 1):
-        y = ymax * i / float(ny)
-        zlo = RR.bumper_top(y) + 0.020
-        zhi = RR.CAP_HIGH
-        c = []
-        for k in range(nz + 1):
-            z = zlo + (zhi - zlo) * k / float(nz)
-            w, v = tail.wv_at(y, z)
-            c.append(tail.offset(w, v, -depth))
-        cols.append(c)
-    low = M.mesh_from_rows("int_tailgate_tail", cols, col)
-    M.orient(low.data, geom.axial(1.0))
-    low.data.materials.append(liner)
-    M.mirror_y(low)
-    made.append(low.name)
-    # the decklid's underside: its top surface read by rays, `depth` down
-    deck = bpy.data.objects["Z9_Decklid"]
+    inside = Vector((-1.9, 0.0, 0.70))                     # a point in the cabin: the skin's outside is away from it
     dg = bpy.context.evaluated_depsgraph_get()
-    me = deck.evaluated_get(dg).to_mesh()
-    mw = deck.matrix_world
-    tree = BVHTree.FromPolygons([mw @ v.co for v in me.vertices], [list(p.vertices) for p in me.polygons])
-    rows = []
-    for i in range(13):
-        x = -2.305 + (HINGE_X + 0.01 - -2.305) * i / 12.0
-        row = []
-        for j in range(25):
-            y = (-0.570 + 1.140 * j / 24.0)
-            hit = tree.ray_cast(Vector((x, y, 2.0)), Vector((0.0, 0.0, -1.0)), 3.0)[0]
-            z = (hit.z if hit is not None else h.z + 0.04) - depth
-            row.append((x, y, z))
-        rows.append(row)
-    under = M.mesh_from_rows("int_tailgate_deck", rows, col)
-    M.orient(under.data, lambda c: (0.0, 0.0, -1.0))
-    under.data.materials.append(liner)
-    made.append(under.name)
+    made = []
+    for name in LINER_SHEETS:
+        src = bpy.data.objects.get(name)
+        if src is None:
+            continue
+        me = bpy.data.meshes.new_from_object(src.evaluated_get(dg))
+        me.transform(src.matrix_world)
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+        # the lid's middle only (the bands run on round the quarters)
+        ym = Y_SHUT - 0.012
+        for sign in (1.0, -1.0):
+            geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+            bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0.0, sign * ym, 0.0), plane_no=(0.0, 1.0, 0.0),
+                                   clear_outer=sign > 0, clear_inner=sign < 0)
+        # only the outer skin (a sheet that was thickened has an inner skin too: its faces look at the cabin)
+        bm.normal_update()
+        dead = [f for f in bm.faces if f.normal.dot(f.calc_center_median() - inside) <= 0.0]
+        if dead:
+            bmesh.ops.delete(bm, geom=dead, context='FACES_ONLY')
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+        bm.normal_update()
+        for v in bm.verts:
+            n = v.normal.copy()
+            if n.dot(v.co - inside) < 0.0:
+                n = -n
+            v.co -= n * depth
+        bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+        me2 = bpy.data.meshes.new("int_tailgate_%s_mesh" % name)
+        bm.to_mesh(me2)
+        nf = len(bm.faces)
+        bm.free()
+        if not nf:
+            bpy.data.meshes.remove(me2)
+            continue
+        me2.materials.append(liner)
+        for p in me2.polygons:
+            p.use_smooth = True
+        ob = bpy.data.objects.new("int_tailgate_" + name, me2)
+        col.objects.link(ob)
+        made.append(ob.name)
     ob = X.join("int_tailgate", made)
     ob.data.transform(Matrix.Translation(-h))
     ob.matrix_world = Matrix.Translation(h)
@@ -290,10 +298,18 @@ def build_seal(collection="Z9_Details"):
 
 
 # ---------------------------------------------------------------------- the boot
-Z_TRUNK = 0.720                  # the boot floor, level with the sill plate (c3_0230: the carpet runs flush to it)
+Z_TRUNK = 0.620                  # the boot floor, level with the lid's lower shut line (the bumper's top 0.588 + 0.02) and the sill plate
 X_BULKHEAD = -1.395              # the rear seats' bulkhead (z9_interior_shell.build_rear_closure)
-X_MOUTH = -2.52                  # the sill plate's rear edge
-Z_DECK = 1.000                   # the walls' top: just under the deck's shoulder at the lid's side edges
+X_MOUTH = -2.52                  # the sill plate's rear edge (read off the built tail where there is one: build_boot)
+Z_SHELF = 0.995                  # the parcel shelf's height behind the seats; it rises with the deck behind x -1.62
+# (The floor used to be at 0.72, 11 cm above the lid's lower edge: an open lid showed a hollow under the sill plate, a bright
+# plank floating across the opening with the cabin's mauve bulkhead under it. And the walls stopped at 1.0 with no ceiling, so
+# over them the cabin's trim and the roof's underside stood in the boot. Reported 2026-10-21.)
+
+
+def _smooth(t):
+    t = min(1.0, max(0.0, t))
+    return t * t * (3.0 - 2.0 * t)
 
 
 def _box(name, x0, x1, y0, y1, z0, z1, mat, col, smooth=False):
@@ -326,19 +342,46 @@ def _exterior_tree():
     return BVHTree.FromPolygons(verts, polys) if polys else None
 
 
+def boot_carpet():
+    """The boot's charcoal loop-pile carpet (black in the photographs' shade, but lit: a true black reads as a hole)."""
+    return _mat("INT_Boot_Carpet", (0.055, 0.055, 0.060), 0.96, specular=0.15)
+
+
+def _trim_quarter_behind(x_cut, z_cut):
+    """The cabin's quarter / wheelhouse trim (mauve door leather) runs on behind the bulkhead to x -1.88 and 5 cm into the
+    boot's sides: in the boot it showed as pink patches up the walls. Cut it off at the end wall, below the shelf."""
+    ob = bpy.data.objects.get("int_quarter")
+    if ob is None:
+        return 0
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    for co, no in (((x_cut, 0.0, 0.0), (1.0, 0.0, 0.0)), ((0.0, 0.0, z_cut), (0.0, 0.0, 1.0))):
+        bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces), plane_co=co, plane_no=no)
+    dead = []
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if c.x < x_cut and c.z < z_cut:
+            dead.append(f)
+    bmesh.ops.delete(bm, geom=dead, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(ob.data)
+    bm.free()
+    return len(dead)
+
+
 def build_boot(col, lib, half):
-    """What c3_0229/30 show behind the lid: a black loop-pile carpeted floor, carpet up the walls to the deck, a ribbed
-    steel sill plate with the lock in its middle, a speaker grille on the left wall and a tie-down hook on each.
-    `half(x, z)` is the bay's half-width inboard of the skin."""
+    """What c3_0229/30 show behind the lid: a charcoal loop-pile carpeted box (floor, walls, a ceiling under the parcel shelf,
+    an end wall in front of the seats' bulkhead), a ribbed steel sill plate with the lock in its middle flush with the
+    floor, a speaker grille on the left wall and a tie-down hook on each. `half(x, z)` is the bay's half-width inboard of
+    the skin. Every face a camera looking in through the open lid can see is the boot's own: none of the cabin's trim."""
     from carkit.interior.sweep import grid_mesh
     from carkit import mesh as M
-    steel = _mat("INT_Boot_Plate", (0.30, 0.30, 0.31), 0.35, metallic=0.9)
+    _trim_quarter_behind(X_BULKHEAD - 0.004, Z_SHELF - 0.005)
+    steel = _mat("INT_Boot_Plate", (0.13, 0.13, 0.14), 0.65, metallic=0.35)    # a flat bright plate mirrors the hall's lamps white
     satin = lib["satin"]
     speaker = lib.get("speaker", satin)
+    carpet = boot_carpet()
     made = []
-    import z9_rear as RR
-    xs = [X_BULKHEAD + (X_MOUTH + 0.04 - X_BULKHEAD) * k / 24.0 for k in range(25)]
-
     tree = _exterior_tree()
 
     def hw(x, z):
@@ -351,39 +394,88 @@ def build_boot(col, lib, half):
             if hit is not None:
                 y = min(y, hit.y - 0.030)
         return max(0.40, y)
+
+    def roof(x, y):
+        """The ceiling: just under the parcel shelf, and where the built exterior is there, 3.5 cm under its top (the
+        decklid and the glass), so it never stands through the body. A ray that misses the skin or lands on something
+        under the boot's reach (the ground-hugging underbody, past the tail's corner) is not the deck: the next column in
+        takes its place, else the ceiling dips there in a drip."""
+        z = Z_SHELF + 0.09 * _smooth((-1.62 - x) / 0.32) - 0.012
+        if tree is not None:
+            yy = abs(y)
+            while yy >= -1e-6:
+                hit = tree.ray_cast(Vector((x, yy, 2.5)), Vector((0.0, 0.0, -1.0)), 3.0)[0]
+                if hit is not None and hit.z > Z_TRUNK + 0.28:
+                    z = min(z, hit.z - 0.035)
+                    break
+                yy -= 0.05
+        return max(Z_TRUNK + 0.20, z)
+
+    # the mouth: the sill plate's rear edge, 2 cm inside the tail's skin at the floor's height
+    x_mouth = X_MOUTH
+    if tree is not None:
+        xs_hit = []
+        for y in (0.0, 0.25, 0.45):
+            hit = tree.ray_cast(Vector((-4.0, y, Z_TRUNK + 0.012)), Vector((1.0, 0.0, 0.0)), 4.0)[0]
+            if hit is not None:
+                xs_hit.append(hit.x)
+        if xs_hit:
+            x_mouth = max(xs_hit) + 0.020
+    xs = [X_BULKHEAD + (x_mouth + 0.04 - X_BULKHEAD) * k / 24.0 for k in range(25)]
+
+    # the floor
     rows = [[(x, hw(x, Z_TRUNK) * j / 12.0, Z_TRUNK) for j in range(13)] for x in xs]
-    carpet = _mat("INT_Boot_Carpet", (0.020, 0.020, 0.022), 0.96, specular=0.15)
     fl = grid_mesh("int_boot_floor", rows, col, carpet)
     M.orient(fl.data, lambda c: (0.0, 0.0, 1.0))
     M.mirror_y(fl)
     made.append(fl)
+    # the walls, up to the ceiling
     rows = []
     for x in xs:
-        zt = Z_DECK if x > -2.30 else Z_DECK - 0.06 * min(1.0, (-2.30 - x) / 0.10)
+        zt = roof(x, hw(x, Z_TRUNK + 0.3))
         rows.append([(x, hw(x, Z_TRUNK + (zt - Z_TRUNK) * k / 10.0), Z_TRUNK + (zt - Z_TRUNK) * k / 10.0)
                      for k in range(11)])
     wall = grid_mesh("int_boot_wall", rows, col, carpet)
     M.orient(wall.data, lambda c: (0.0, -1.0, 0.0))
     M.mirror_y(wall)
     made.append(wall)
-    # the sill plate: a ribbed strip along the opening's lower edge
+    # the ceiling: the underside of the parcel shelf and the deck behind it
+    rows = []
+    for x in xs:
+        yw = hw(x, roof(x, 0.0))
+        rows.append([(x, yw * j / 12.0, roof(x, yw * j / 12.0)) for j in range(13)])
+    rf = grid_mesh("int_boot_roof", rows, col, carpet)
+    M.orient(rf.data, lambda c: (0.0, 0.0, -1.0))
+    M.mirror_y(rf)
+    made.append(rf)
+    # the end wall, just in front of the bulkhead's boot face (which is the cabin's mauve carpet): charcoal like the rest
+    xe = X_BULKHEAD - 0.004
+    rows = []
+    for k in range(9):
+        z = Z_TRUNK + (roof(xe, 0.0) - Z_TRUNK) * k / 8.0
+        rows.append([(xe, hw(xe, z) * j / 12.0, z) for j in range(13)])
+    en = grid_mesh("int_boot_end", rows, col, carpet)
+    M.orient(en.data, lambda c: (-1.0, 0.0, 0.0))
+    M.mirror_y(en)
+    made.append(en)
+    # the sill plate: a ribbed strip along the opening's lower edge, flush with the floor
     ys = [-0.66 + 1.32 * k / 56.0 for k in range(57)]
     # the tail closes in sharply (its skin is 0.39 either side of the centreline at x -2.48), so the plate narrows with it
     cols = ((0.000, -0.004), (0.020, 0.002), (0.085, 0.004), (0.130, 0.001))
-    kx = [min(1.0, hw(X_MOUTH + dx, Z_TRUNK) / 0.66) for (dx, dz) in cols]
-    rows = [[(X_MOUTH + dx, y * kx[i], Z_TRUNK + dz) for i, (dx, dz) in enumerate(cols)] for y in ys]
+    kx = [min(1.0, hw(x_mouth + dx, Z_TRUNK) / 0.66) for (dx, dz) in cols]
+    rows = [[(x_mouth + dx, y * kx[i], Z_TRUNK + dz) for i, (dx, dz) in enumerate(cols)] for y in ys]
     sp = grid_mesh("int_boot_sill", rows, col, steel)
     M.orient(sp.data, lambda c: (0.0, 0.0, 1.0))
     made.append(sp)
-    made.append(_box("int_boot_lock", X_MOUTH + 0.030, X_MOUTH + 0.100, -0.060, 0.060, Z_TRUNK + 0.001,
+    made.append(_box("int_boot_lock", x_mouth + 0.030, x_mouth + 0.100, -0.060, 0.060, Z_TRUNK + 0.001,
                      Z_TRUNK + 0.008, satin, col))
     # the left wall's speaker grille (c3_0230: a black mesh panel at the corner), a hook on each wall
     xg = -1.80
-    yg = half(xg, 0.86)
+    yg = hw(xg, Z_TRUNK + 0.20)
     made.append(_box("int_boot_speaker", xg, xg + 0.200, yg - 0.004, yg + 0.002, Z_TRUNK + 0.050, Z_TRUNK + 0.230,
                      speaker, col))
     for s in (1.0, -1.0):
-        yh = s * half(-2.05, Z_TRUNK + 0.06)
+        yh = s * hw(-2.05, Z_TRUNK + 0.06)
         made.append(_box("int_boot_tie%s" % ("L" if s > 0 else "R"), -2.07, -2.03, min(yh, yh - s * 0.006),
                          max(yh, yh - s * 0.006), Z_TRUNK + 0.030, Z_TRUNK + 0.070, steel, col))
     return made

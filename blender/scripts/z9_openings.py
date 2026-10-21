@@ -35,9 +35,9 @@ DOORS = {
 ROWS = {
     "front": ("Z9_Door_Front", "Z9_Glass_DoorFront", "Z9_Handle_F", "Z9_Handle_Rim_F",
               "Z9_Mirror_Head", "Z9_Mirror_Stalk", "Z9_Mirror_Glass", "Z9_Mirror_Cam_Pod",
-              "Z9_Door_Z_Crease_F", "Z9_Door_Z_Shadow_F"),
+              "Z9_Door_Z_Crease_F", "Z9_Door_Z_Shadow_F", "Z9_Window_Belt_Chrome_F"),
     "rear": ("Z9_Door_Rear", "Z9_Glass_DoorRear", "Z9_Handle_R", "Z9_Handle_Rim_R",
-             "Z9_Door_Z_Crease_R", "Z9_Door_Z_Shadow_R"),
+             "Z9_Door_Z_Crease_R", "Z9_Door_Z_Shadow_R", "Z9_Window_Belt_Chrome_R"),
 }
 HINGE_Z = 0.60
 PAINT = "M_Paint_Z9_Purple"
@@ -100,6 +100,27 @@ def split_trim():
                           lambda c: PN.X_BPILLAR_F < c.x < X_FRONT_EDGE)
             RG._split_off(n, n + "_R", [((PN.X_BPILLAR_F, 0.0, 0.0), (1.0, 0.0, 0.0))],
                           lambda c: c.x < PN.X_BPILLAR_F)
+
+
+# The window's lower chrome (Z9_Window_Belt_Chrome) runs along the whole beltline, which is the top edge of both doors: with
+# the strip left whole on the body, a door swung open left a bright line standing across its doorway (reported 2026-10-21,
+# "a white line coming from the frame across the cabin"). Each door's stretch of it goes with the door; the strip behind the
+# rear door (along the quarter window) stays.
+BELT = "Z9_Window_Belt_Chrome"
+
+
+def split_belt():
+    import z9_gate as RG
+    if bpy.data.objects.get(BELT + "_F") is not None:
+        return
+    # the front door: from the B-pillar shut line forward (the strip ends at the A-pillar's foot, inside the door's leading edge)
+    RG._split_off(BELT, BELT + "_F", [((PN.X_BPILLAR_F, 0.0, 0.0), (1.0, 0.0, 0.0))],
+                  lambda c: c.x > PN.X_BPILLAR_F)
+    # the rear door: from its trailing shut line (at the height of the door's top corner, a little ahead of the belt's value)
+    # forward to the B-pillar shut line
+    x_back = PN.X_DOOR_R(PN.V_BELT) + 0.04
+    RG._split_off(BELT, BELT + "_R", [((x_back, 0.0, 0.0), (1.0, 0.0, 0.0))],
+                  lambda c: c.x > x_back)
 
 
 def split_doors():

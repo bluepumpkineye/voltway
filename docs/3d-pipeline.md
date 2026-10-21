@@ -1099,6 +1099,19 @@ export are driven by a config dict instead of copied scripts:
     The plate tray, the camera and the bumper stay on the body. The photographs show two black swan-neck hinge arms; the viewer
     draws two struts at the opening's front corners instead. `Z9_Door_Z_Crease` / `_Z_Shadow` run across both doors and the
     fender: `split_trim()` cuts them at the door edges so each door carries its stretch.
+  - *Z9 white line across the doorways, and the open boot (reported 2026-10-21).* (1) `Z9_Window_Belt_Chrome` (the belt strip, x from
+    the quarter glass to the cowl) was never split: with a door open its stretch stayed on the body and mirrored the studio as a
+    white bar across the opening. `z9_openings.split_belt()` (called from `export_z9.prepare_exterior`) cuts it at the B-pillar and
+    behind the rear door into `_F` / `_R` pieces that join the door nodes (ROWS); only the quarter-window stretch (x -1.54..-1.18)
+    stays on the body. (2) The boot was a floor 11 cm above the lid's lower edge, walls with no ceiling, the cabin's mauve bulkhead
+    behind it and a near-black carpet; the lid's liner was two strips with a gap. `z9_gate.build_boot` now builds a closed charcoal
+    box (floor at `Z_TRUNK` 0.62, walls to a ceiling under the shelf, an end wall in front of the bulkhead, a dark sill plate with
+    the lock, speaker and tie hooks); the ceiling and the side walls read the built exterior by ray (a miss or a hit under the boot's
+    reach is skipped, else the ceiling drips). `build_liner` is an inward copy of the lid's own paint sheets (one panel, 1.4 cm under
+    the skin). `open_hull` also deletes the hull's walls and roof behind the bulkhead, and `_trim_quarter_behind` cuts the cabin's
+    quarter trim (mauve leather, a pink patch up the walls) off behind the end wall. A flat steel plate mirrors the hall's lamps
+    white: keep it dark and rough. Find stray pieces with the probe recipe (colour-code every `int_*`, Workbench render from behind
+    and under the lid) and, in the viewer, hide each mesh and measure a region of the canvas.
   - *Cabin.* `cabin_tools.bake_cabin_open(cfg)` and `export_interior` take `cfg["join_cards"]` and `cfg["set_open"]`; the config
     also lists `int_door_*`, `int_rdoor_*` and `int_tailgate` as `protected` nodes. `export_<car>.web_cabin()` bakes closed, then
     open, then exports (32 samples took about 10 minutes in a background Blender; its stdout is buffered, so poll the GLB's

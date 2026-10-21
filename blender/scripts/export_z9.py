@@ -131,6 +131,7 @@ def prepare_exterior():
     OP.cut_underlay()         # the door windows out of the black underlay: it must not stay behind
     RG.build_seal()           # a black bead behind the lid's shut line
     OP.split_trim()           # the Z-line's stretch across each door goes with the door
+    OP.split_belt()           # and the window's lower chrome, the doors' top edge: it must not stay across the doorway
     OP.split_doors()          # a hinged node per door (the cabin's cards: join_cards)
     OP.open_hull()            # the hull behind them, so the cabin shows when one is open
     RG.split_tail()           # the trunk lid: decklid, upper tail, gate, lamp middles, roundel - one node
