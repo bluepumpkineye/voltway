@@ -334,7 +334,62 @@ export const xpengG9l: Vehicle = {
       simulated:
         'A simulation. The maker publishes that the car parks nose first and takes voice commands from outside; the path (a quarter turn about a point ahead of the rear axle on the rear steering, then straight in), the bay, the neighbours and the speed are ours. No voice interface is drawn: the button stands for the command.',
     },
+    {
+      id: 'sensors',
+      title: 'Autonomous Drive',
+      blurb:
+        'A city street between parked cars: someone steps out and the car brakes hard for them; further on it stops behind a car at a zebra crossing, waits for the people on it and moves off. Its cameras’ views are drawn from where they sit.',
+      driver: 'sensors',
+      scenario: 'city',
+      claims: [
+        {
+          text: 'The G9L runs XNGP, a level 2 system, on three in-house Turing chips (2,250 TOPS) on the top trims and two or one on the others; it has eleven exterior cameras with a stereo pair at the front, two in the cabin, twelve ultrasonic sensors and three millimetre-wave radars (seven on the top trims). The table lists no lidar.',
+          source: { label: 'Autohome configuration table, XPeng G9L (read 21 October 2026)', url: 'https://car.autohome.com.cn/config/series/8659.html' },
+        },
+        {
+          text: 'NGP, powered by VLA 2.0, was shown on test rides in Paris covering roundabouts, narrow streets, motorcycle traffic, pedestrian crossings and complex right-of-way situations.',
+          source: { label: 'XPeng, the G9L launched in Europe (14 October 2026)', url: 'https://www.xpeng.com/pressroom/news/01a139c634a4a12024aa8a02829e00f8' },
+        },
+        {
+          text: 'The G9L has automatic emergency braking at speeds of up to 150 km/h.',
+          source: { label: 'XPeng, the G9L launched in Europe (14 October 2026)', url: 'https://www.xpeng.com/pressroom/news/01a139c634a4a12024aa8a02829e00f8' },
+        },
+        {
+          text: 'A camera sits in the black divider at the middle of the grille and another above the rear plate; round ultrasonic sensors sit in the front and rear bumpers; a sensor pod sits at the top of the windscreen.',
+          source: { label: 'Autohome photo gallery of the G9L (series 8659), detail photographs', url: 'https://www.autohome.com.cn/8659/' },
+        },
+      ],
+      simulated:
+        'A simulation. The street, the people, the other cars, their speeds, what the car does and when are ours: no maker publishes a scenario. No field of view is published, so every camera view’s angle and the reach it is drawn to are ours, and the side views are drawn from the mirrors, where the photographs show no camera. A dot is a sensor a photograph shows (the nose, the tail, the windscreen pod); the radars are not drawn (the table counts three or seven). The people are stylised figures and the other cars are the other models’ stand-ins in neutral paint.',
+    },
   ],
+  // Where the sensors are, for Autonomous Drive, in the exterior model's space. The G9L has no lidar. Read off Autohome's photographs
+  // of the details (c12_0044, c12_0068, c1_0001, c1_0003) and set on the model's surface by a ray (about 5 to 10 cm good): the camera
+  // in the grille's black divider (the model's black trim spans 0.37 to 0.53 m at the middle; the lens sits at its top, under the
+  // plate), the camera above the rear plate (the model's machined badge at 0.88 m), the sensor pod behind the top of the windscreen
+  // (the glass begins at x = 0.45), and the round ultrasonic sensors in the bumpers: a pair either side of the front plate, a pair
+  // at the lower corners, and a pair at the rear corners. Eleven cameras and twelve ultrasonic sensors are counted; the ones the
+  // photographs show are marked, the rest are not drawn. The four views (forward from the pod, wide from the nose, backward from
+  // the tail, to each side from the mirror) are ours: no field of view is published.
+  sensors: {
+    views: [
+      { at: [0.52, 1.66, 0], yaw: 0, fov: 52, reach: 48 },
+      { at: [2.55, 0.5, 0], yaw: 0, fov: 120, reach: 16 },
+      { at: [0.85, 1.2, 1.02], yaw: -90, fov: 100, reach: 16, mirror: true },
+      { at: [-2.53, 0.9, 0], yaw: 180, fov: 110, reach: 24 },
+    ],
+    cameras: [{ at: [0.52, 1.66, 0] }, { at: [2.55, 0.5, 0] }, { at: [-2.53, 0.9, 0] }],
+    ultrasonic: [
+      { at: [2.515, 0.6, 0.45], mirror: true },
+      { at: [2.38, 0.4, 0.8], mirror: true },
+      { at: [-2.46, 0.48, 0.72], mirror: true },
+    ],
+    notes: {
+      vision: '11 exterior cameras, drawn as four views: forward, wide from the nose, backward, and to each side from the mirrors',
+      ultrasonic: '12; the photographs show the pairs in the front and rear bumpers',
+      cameras: '11; the photographs show the nose, the tail and the pod behind the windscreen',
+    },
+  },
   // The DC socket's mouth (the right rear quarter, behind the wheel: our estimate of the place, snapped to the model's skin
   // by a ray) and the direction out of it, in the viewer's axes. The model has no flap, so the Charging tab draws a socket here.
   chargePort: { mouth: [-1.7, 1.1, 0.9517], axis: [-0.0349, 0.2769, 0.9603], depth: 0.02 },

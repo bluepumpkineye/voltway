@@ -6,38 +6,20 @@ import { pauseDemo } from '@/lib/tech/actions';
 import { techClock, useTechClock } from '@/lib/tech/clock';
 import { toggleLayer, useLayers, type LayerId } from '@/lib/tech/layers';
 import { runPhase } from '@/lib/tech/phase';
-import type { SensorsReadout } from '@/lib/tech/sensors';
 import { useSensorsReadout } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { FOCUS, GLASS } from './Chrome';
 
 /** The groups of sensors the demo draws: the colour in the scene, what it is, and the car's own count where the maker gives one. */
 const GROUPS: { id: LayerId; label: string; note: string; color: string; has: (s: SensorSpec) => boolean }[] = [
-  { id: 'lidar', label: 'Roof lidar', note: 'The forward lidar', color: '#2f6bff', has: () => true },
+  { id: 'lidar', label: 'Roof lidar', note: 'The forward lidar', color: '#2f6bff', has: (s) => !!s.lidar },
   { id: 'side', label: 'Side lidars', note: 'Solid-state, one on each side', color: '#0fa594', has: (s) => !!s.sideLidar },
   { id: 'rear', label: 'Rear lidar', note: 'Solid-state, at the tail', color: '#8b5cf6', has: (s) => !!s.rearLidar },
   { id: 'surround', label: 'Surround cameras', note: 'Drawn as four diagonal beams', color: '#38a8ff', has: (s) => !!s.surround },
+  { id: 'vision', label: 'Camera views', note: 'What the cameras see, drawn from where each sits', color: '#4aa3ff', has: (s) => !!s.views?.length },
   { id: 'ultrasonic', label: 'Ultrasonic', note: 'Close-range sensors round the bumpers', color: '#f59e0b', has: (s) => s.ultrasonic.length > 0 },
   { id: 'cameras', label: 'Cameras', note: 'As photographed', color: '#9aa0a9', has: (s) => s.cameras.length > 0 },
 ];
-
-/** What the car is doing, in the panel's words. */
-function say(r: SensorsReadout): string {
-  switch (r.state) {
-    case 'cruising':
-      return 'Cruising with the traffic';
-    case 'following':
-      return 'Car ahead is braking: easing off to follow';
-    case 'waiting':
-      return r.leftClear ? 'Left lane clear' : 'Indicating left: a car is coming up fast, waiting';
-    case 'changing':
-      return 'Left lane clear: changing lane';
-    case 'passing':
-      return 'Overtaking the slower car';
-    case 'done':
-      return 'Overtaken: back to the set speed';
-  }
-}
 
 /**
  * Autonomous Drive's own panel, the showroom's and not the car's (the car's screen has no photographed page for it): the
@@ -75,12 +57,12 @@ export function SensorsTools({ vehicle }: { vehicle: Vehicle }) {
         </button>
         <div className="min-w-0 flex-1" aria-live="polite">
           <div className="flex items-center gap-1.5 truncate text-[13px] font-medium text-neutral-900">
-            {r?.indicator ? <span className="text-[#f59e0b]" aria-hidden>◀</span> : null}
-            <span className="truncate">{r ? say(r) : 'Loading the car…'}</span>
+            {r?.indicator ? <span className="text-[#f59e0b]" aria-hidden>{r.indicator > 0 ? '◀' : '▶'}</span> : null}
+            <span className="truncate">{r ? r.message : 'Loading the car…'}</span>
           </div>
           <div className="tnum truncate text-[11px] text-neutral-500">
             {r
-              ? `${Math.round(r.speed)} km/h${r.gap !== null ? ` · ${Math.max(0, r.gap).toFixed(0)} m to the car ahead` : ''} · ${r.tracked} cars tracked`
+              ? `${Math.round(r.speed)} km/h${r.gap !== null ? ` · ${Math.max(0, r.gap).toFixed(0)} m to the car ahead` : ''} · ${r.tracked} tracked${r.note ? ` · ${r.note}` : ''}`
               : ' '}
           </div>
         </div>

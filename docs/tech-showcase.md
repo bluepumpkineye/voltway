@@ -696,3 +696,60 @@ animation, not the car's display.
 Checked 2026-10-17: tsc, eslint; the RX's Park from your phone is unchanged (stops at 18.3 s, 0.46 m); played through in the Browser
 pane (the real Find a bay button, the stop, the pull-out). Not checked: a production build (the tree is shared with other work in
 progress), the nose-in parking of the G9L after the planner change (the search is ignored for it).
+
+## 17. Autonomous Drive: one scene per car (2026-10-21)
+
+**Owner request:** the Luxeed RX and the Avatr 06T showed the same scene (they used the same planner), so each gets its own, and the
+XPeng G9L gets Autonomous Drive too, on a road not used by the others.
+
+**The engine.** `src/lib/tech/sensors.ts` used to be one planner with the RX's overtake hard-wired. It is now a thin entry
+(`planSensors(layout, body, start, { scene, cars })`) over `src/lib/tech/drive.ts`, a generic engine, and one file per scene in
+`src/lib/tech/scenes/`. The engine does what the planner did: the car stays on the spot and the road rolls under it, the car holds a
+set speed, follows what is ahead (a PD controller on the gap and the speed difference), changes lane on a raised cosine, dips and
+rocks on its springs. A scene gives it a road, a list of road users (`ActorDef`: a car, a person or a box, each with a speed and a
+lateral place as functions of time) and a `decide(world)` that answers every step with a `Command` (set speed, a place to stop at,
+a lane change, the words for the readout, the actors to mark as a hazard). New in the engine: a stop-at-a-place controller (brakes
+late and firmly, like a driver, with a harder emergency limit of 8 m/s^2), a standstill gap for things that do not move
+(`follow.stopGap`), road users that face their way of travel (cars cutting in, cars coming the other way), people with a stride, and
+actors the sensors cannot see until a time (`unseenUntil`). The panel reads the scene's own words (`SensorsReadout.message`, `note`).
+The demo's data entry names its scene: `TechDemoSpec.scenario` ('overtake' | 'debris' | 'city').
+
+**Regression:** the overtake scene is the old planner moved unchanged; it was checked by running the committed planner (`git show b7788d4:src/lib/tech/sensors.ts`) and the new engine side by side, and the largest difference in the car's position, speed and heading, every other car's
+position, the states, the gaps and the tracked counts is 0 (timeline: following 2.8 s, waiting 5.0 s, lane change 8.35 s, done 18.9 s).
+
+| Scene | Cars | What happens (all ours) |
+|---|---|---|
+| `overtake` | RX, SU7 Ultra, NIO ES8 | the section 12 run: the car ahead brakes, the car follows, waits for the left lane, overtakes |
+| `debris` | Avatr 06T | expressway, 16.5 s: a slower car on the right drifts into the lane close ahead (the car eases off at 2.8 s, brakes at most 2.3 m/s^2, never closer than 25 m); a box lies in the lane 335 m on; the roof lidar marks it from 125 m (Huawei's "14 cm box at 120 m" for the 896-line lidar); the car checks the right lane, moves over at 9.1 s and goes round at 92 km/h while the car it was following swerves left; done at 13.6 s (2.5 m clear of the box) |
+| `city` | XPeng G9L | street, 22 s: 50 km/h between parked cars; at 1.5 s a person steps out from behind them into the lane and the car stops from 50 km/h in about 2 s, 4 m short; then a zebra crossing: a car ahead and one beside stop for four people, the car stops 3.8 m behind the first, waits (about 3 s) until the crossing is clear and moves off; one more car comes the other way and stops at its own line |
+
+**What is published, for the two new panels.** 06T: Avatr's page ("Huawei Qiankun ADS 3.0, 896-line roof LiDAR, ultra-wide surround
+vision"; "end-to-end GOD and PDP network") and Huawei's 14 cm at 120 m (2026-03-04, the figure for its 896-line lidar). G9L: Autohome's
+table for series 8659, read in the Browser pane 2026-10-21: XNGP, level 2; three Turing chips (2,250 TOPS) on the top trims, two or
+one on the others; 11 exterior cameras with a stereo pair at the front, two in the cabin; 12 ultrasonic sensors; three millimetre-wave
+radars (seven on two trims); no lidar row. XPeng's G9L release (2026-10-14; Paris, 2026-10-12): NGP on VLA 2.0 shown on test rides with
+roundabouts, narrow streets, motorcycle traffic, pedestrian crossings and complex right-of-way; automatic emergency braking up to
+150 km/h; the page says nothing about sensors. The table's tick marks (lane change, traffic lights, hands-off) are icons and could not
+be read as text, so none is claimed.
+
+**The G9L's sensors** (`xpeng-g9l.ts`, `SensorSpec`, now with `lidar` optional and a new `views`): read off Autohome photographs
+(c12_0044 rear, c12_0068 and c1_0001/0003 front) and set on the model's surface with a ray (about 5 to 10 cm good; `scripts/tech-tools/glb-rays.mjs`
+loads a Draco GLB and casts rays): the camera in the grille's black divider (2.55, 0.50, 0), the camera above the rear
+plate (-2.53, 0.90, 0), the sensor pod behind the top of the windscreen (0.52, 1.66, 0), round ultrasonic sensors beside the front plate
+(2.515, 0.60, +-0.45), at the lower front corners (2.38, 0.40, +-0.80) and at the rear corners (-2.46, 0.48, +-0.72). The four camera
+views drawn (forward 52 degrees to 48 m from the pod, wide 120 degrees to 16 m from the nose, backward 110 degrees to 24 m from the
+tail, and to each side 100 degrees to 16 m from the mirrors) are ours; the side ones are drawn from the mirrors because no photograph
+shows a side camera (the small oval on the front wing is not claimed as one). The panel's new switch is "Camera views"; the marks on the
+road users follow it where there is no lidar.
+
+**The street** (`viewer/TechCity.tsx`, reusing TechStreet's lamp and tree): asphalt, kerbs and footways stand under the car; the dashes,
+lamps, trees and the building facades repeat every 24 m and are rolled by the rig as far as that (`CarRig.attachRoad(g, base, period)`);
+the zebra bars and the stop lines roll with the road. The far side's buildings hide when the camera is out beyond them (as TechStreet's
+do). `RoadStage.city` (carpet.ts) carries the layout. People are stylised figures (`figure()` in TechSensors.tsx: capsules, limbs
+swinging with the distance walked, so scrubbing the clock keeps the stride right); a box is a cardboard-coloured cuboid; both get the
+sensors' marks (a ring on the floor for a person, corner brackets for the rest; amber and pulsing for a hazard).
+
+Checked 2026-10-21: tsc, eslint; the engine's timelines printed and every actor's closest approach checked (`scripts/tech-tools/scene-test.mjs`, run with `node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/scene-test.mjs city`: nobody
+nearer than 1 m to a neighbouring car, 2.5 m from the box, 4 m from the person who steps out, 3.8 m behind the stopped car); played
+through in the Browser pane (06T, G9L, RX). Not done: the SU7 and ES8 still play the overtake (the SU7's is the one the owner asked to
+match Xiaomi's clip); a production build in a copy; the owner's look.

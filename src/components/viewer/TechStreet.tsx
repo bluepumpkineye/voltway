@@ -408,7 +408,7 @@ function DeadEnd({ street }: { street: StreetStage }) {
 
 // ------------------------------------------------------------------------------------------ the props
 
-function paint(g: THREE.BufferGeometry, hex: string): THREE.BufferGeometry {
+export function paint(g: THREE.BufferGeometry, hex: string): THREE.BufferGeometry {
   const c = new THREE.Color(hex);
   const n = g.getAttribute('position').count;
   const col = new Float32Array(n * 3);
@@ -418,7 +418,7 @@ function paint(g: THREE.BufferGeometry, hex: string): THREE.BufferGeometry {
 }
 
 /** Non-indexed pieces with one colour each, merged into a single geometry (one draw call a prop). */
-function merged(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+export function merged(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const flat = parts.map((p) => {
     const g = p.index ? p.toNonIndexed() : p;
     g.deleteAttribute('uv');
@@ -427,7 +427,7 @@ function merged(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return mergeGeometries(flat)!;
 }
 
-function lampGeometry() {
+export function lampGeometry() {
   const pole = new THREE.CylinderGeometry(0.045, 0.07, 5.4, 10).translate(0, 2.7, 0);
   const foot = new THREE.CylinderGeometry(0.11, 0.14, 0.5, 10).translate(0, 0.25, 0);
   const arm = new THREE.BoxGeometry(1.5, 0.07, 0.07).translate(0.72, 5.42, 0);
@@ -436,7 +436,7 @@ function lampGeometry() {
   return merged([paint(pole, '#9ea3ab'), paint(foot, '#8d9199'), paint(arm, '#9ea3ab'), paint(head, '#b9bdc4'), paint(lens, '#f5f1e4')]);
 }
 
-function treeGeometry() {
+export function treeGeometry() {
   const trunk = new THREE.CylinderGeometry(0.07, 0.11, 2.3, 8).translate(0, 1.15, 0);
   const pit = new THREE.CylinderGeometry(0.55, 0.55, 0.03, 18).translate(0, 0.015, 0);
   const crown = (r: number, x: number, y: number, z: number, hex: string) => paint(new THREE.IcosahedronGeometry(r, 1).translate(x, y, z), hex);

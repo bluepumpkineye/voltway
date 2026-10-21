@@ -42,6 +42,7 @@ const COLOR = {
   surround: '#38a8ff',
   ultrasonic: '#f59e0b',
   camera: '#ffffff',
+  vision: '#4aa3ff',
 } as const;
 
 const DEG = Math.PI / 180;
@@ -66,17 +67,19 @@ function Scene({ vehicle, spec, sensors, runtime }: { vehicle: Vehicle; spec: Se
     return rig.attachRoad(g, rig.rac.x);
   }, [rig]);
 
+  // what marks the road users the sensors have: the lidar's switch, or on a car without a lidar the camera views'
+  const sense: LayerId = spec.lidar ? 'lidar' : 'vision';
   return (
     <group>
       <CarCoverage vehicle={vehicle} spec={spec} runtime={runtime} />
       {/* the lanes run along the car's own centre line at the start, and the road rolls under the car */}
       <group position-z={-rig.rac.y}>
         <group ref={road}>
-          <LaneStrip sensors={sensors} />
-          <LeadLink sensors={sensors} />
+          <LaneStrip sensors={sensors} sense={sense} />
+          <LeadLink sensors={sensors} sense={sense} />
           {sensors.traffic.map((c, i) => (
             <React.Suspense key={c.id} fallback={null}>
-              <Traffic car={c} tone={TRAFFIC_TONES[i % TRAFFIC_TONES.length]} />
+              <Traffic car={c} tone={TRAFFIC_TONES[i % TRAFFIC_TONES.length]} sense={sense} />
             </React.Suspense>
           ))}
         </group>
@@ -116,6 +119,7 @@ export function CarCoverage({
     [rac.x, rac.y, runtime.body.front, runtime.body.rear],
   );
   const surroundAt = React.useMemo<[number, number, number]>(() => [middle[0], 0.7, middle[2]], [middle]);
+  const lidar = spec.lidar;
   const side = spec.sideLidar;
   const sideOther = React.useMemo<[number, number, number] | null>(() => (side ? [side[0], side[1], -side[2]] : null), [side]);
   const tail = spec.rearLidar;
@@ -125,18 +129,32 @@ export function CarCoverage({
 
   const mirrored = <T extends { at: [number, number, number]; mirror?: boolean }>(list: T[]) =>
     list.flatMap((s) => (s.mirror ? [s.at, [s.at[0], s.at[1], -s.at[2]] as [number, number, number]] : [s.at]));
+  // the camera views, the mirrored ones turned to the other side (yaw is positive to the left)
+  const views = React.useMemo(
+    () =>
+      (spec.views ?? []).flatMap((v) =>
+        v.mirror ? [v, { ...v, at: [v.at[0], v.at[1], -v.at[2]] as [number, number, number], yaw: -v.yaw }] : [v],
+      ),
+    [spec.views],
+  );
 
   return (
     <group ref={car}>
       {/* the forward lidar: the RX's wide path and tele path, one unit; where the maker publishes a field of view, that one */}
       {has('lidar') &&
+        lidar &&
         (spec.lidarFov ? (
-          <Fan layer={sw('lidar')} at={spec.lidar} yaw={0} range={REACH.wide * 1.3} fov={spec.lidarFov * DEG} color={COLOR.lidar} alpha={0.2} hz={0.5} rings />
+          <Fan layer={sw('lidar')} at={lidar} yaw={0} range={REACH.wide * 1.3} fov={spec.lidarFov * DEG} color={COLOR.lidar} alpha={0.2} hz={0.5} rings />
         ) : (
           <>
-            <Fan layer={sw('lidar')} at={spec.lidar} yaw={0} range={REACH.wide} fov={FOV.wide} color={COLOR.lidar} alpha={0.2} hz={0.42} rings />
-            <Fan layer={sw('lidar')} at={spec.lidar} yaw={0} range={REACH.tele} fov={FOV.tele} color={COLOR.lidar} alpha={0.18} hz={0.9} phase={1.3} />
+            <Fan layer={sw('lidar')} at={lidar} yaw={0} range={REACH.wide} fov={FOV.wide} color={COLOR.lidar} alpha={0.2} hz={0.42} rings />
+            <Fan layer={sw('lidar')} at={lidar} yaw={0} range={REACH.tele} fov={FOV.tele} color={COLOR.lidar} alpha={0.18} hz={0.9} phase={1.3} />
           </>
+        ))}
+      {/* a car without a lidar: what its cameras see, from where each one sits (angles and reach are ours) */}
+      {has('vision') &&
+        views.map((v, i) => (
+          <Fan key={`view${i}`} layer={sw('vision')} at={v.at} yaw={v.yaw * DEG} range={v.reach} fov={v.fov * DEG} color={COLOR.vision} alpha={0.17} hz={0.4} phase={i * 1.7} />
         ))}
       {/* the solid-state lidars: the sides, and the tail */}
       {has('side') && side && sideOther && (
@@ -153,11 +171,11 @@ export function CarCoverage({
           <Fan key={deg} layer={sw('surround')} at={surroundAt} yaw={deg * DEG} range={surroundReach} fov={FOV.surround} color={COLOR.surround} alpha={0.2} hz={0} />
         ))}
 
-      {has('lidar') && <ScanRing at={middle} layer={sw('lidar')} />}
+      {(has('lidar') || has('vision')) && (lidar || views.length > 0) && <ScanRing at={middle} layer={sw(lidar ? 'lidar' : 'vision')} />}
       {has('ultrasonic') && <Pulses footprint={footprint} layer={sw('ultrasonic')} />}
 
       {/* where the sensors are: filled, photographed; a ring, reported or not published */}
-      {has('lidar') && <Marker layer={sw('lidar')} at={spec.lidar} color={COLOR.lidar} />}
+      {has('lidar') && lidar && <Marker layer={sw('lidar')} at={lidar} color={COLOR.lidar} />}
       {has('side') && side && sideOther && (
         <>
           <Marker layer={sw('side')} at={side} color={COLOR.side} ring />
@@ -514,32 +532,32 @@ export function cornerBrackets(length: number, width: number, leg: number): Floa
   return new Float32Array(pts);
 }
 
-/**
- * One of the other cars: another modelled car's stand-in in neutral paint, on the baked floor shadow of the real one.
- * Round its feet, brackets that say how the sensors see it: white when it is in reach, blue for the car being followed,
- * amber for a car in the way of the lane change. Its brake lamps are two red bars.
- */
-function Traffic({ car, tone }: { car: TrafficCar; tone: string }) {
+/** A road user: another modelled car's stand-in, a person, or a box lying in the road. */
+function Traffic({ car, tone, sense }: { car: TrafficCar; tone: string; sense: LayerId }) {
+  if (car.kind === 'person') return <Person actor={car} sense={sense} />;
+  if (car.kind === 'box') return <Box actor={car} sense={sense} />;
   const vehicle = getVehicle(car.slug);
   const url = vehicle?.assets.proxyUrl;
   if (!vehicle || !url) return null;
-  return <TrafficModel car={car} tone={tone} url={url} shadow={vehicle.assets.studioShadow} />;
+  return <TrafficModel car={car} tone={tone} url={url} shadow={vehicle.assets.studioShadow} sense={sense} />;
 }
 
-function TrafficModel({ car, tone, url, shadow }: { car: TrafficCar; tone: string; url: string; shadow: Parameters<typeof GroundShadow>[0]['shadow'] | undefined }) {
-  const { model, centre } = useStandIn(url, tone);
-  const root = React.useRef<THREE.Group>(null);
-  const lamps = React.useRef<THREE.Group>(null);
+/**
+ * How the sensors mark a road user: corner brackets round its feet, white when it is in reach, blue for the car being followed,
+ * amber for a hazard (a car in the way of the lane change, something in the lane), with a second, wider set for anything but the
+ * plain case. Returns the brackets to draw and what to do each frame.
+ */
+function useMarks(actor: TrafficCar, sense: LayerId, size: { length: number; width: number }) {
   const brackets = React.useRef<THREE.LineSegments>(null);
   const outer = React.useRef<THREE.LineSegments>(null);
   const geo = React.useMemo(() => {
     const make = (grow: number, leg: number) => {
       const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(cornerBrackets(car.length + 0.5 + grow, car.width + 0.5 + grow, leg), 3));
+      g.setAttribute('position', new THREE.BufferAttribute(cornerBrackets(size.length + 0.5 + grow, size.width + 0.5 + grow, leg), 3));
       return g;
     };
-    return { inner: make(0, Math.min(1.1, car.length * 0.2)), outer: make(0.34, Math.min(1.5, car.length * 0.28)) };
-  }, [car.length, car.width]);
+    return { inner: make(0, Math.min(1.1, size.length * 0.2)), outer: make(0.34, Math.min(1.5, size.length * 0.28)) };
+  }, [size.length, size.width]);
   React.useEffect(
     () => () => {
       geo.inner.dispose();
@@ -547,15 +565,9 @@ function TrafficModel({ car, tone, url, shadow }: { car: TrafficCar; tone: strin
     },
     [geo],
   );
-  useFrame(() => {
-    const g = root.current;
-    if (!g) return;
-    const t = techClock.t;
-    g.position.set(car.x(t), 0, -car.y(t));
-    if (lamps.current) lamps.current.visible = car.braking(t);
-    const tr = car.track(t);
-    const sensed = tr !== 'out';
-    const lit = sensed && getLayers().lidar;
+  const update = (t: number) => {
+    const tr = actor.track(t);
+    const lit = tr !== 'out' && getLayers()[sense];
     if (brackets.current) {
       brackets.current.visible = lit;
       if (lit) {
@@ -568,6 +580,46 @@ function TrafficModel({ car, tone, url, shadow }: { car: TrafficCar; tone: strin
       outer.current.visible = lit && tr !== 'tracked';
       if (outer.current.visible) (outer.current.material as THREE.LineBasicMaterial).color.set(TRACK_COLOR[tr as Exclude<Track, 'out'>]);
     }
+  };
+  const nodes = (
+    <>
+      <lineSegments ref={brackets} geometry={geo.inner} position-y={0.04} renderOrder={7} visible={false}>
+        <lineBasicMaterial color="#ffffff" transparent opacity={0.55} depthWrite={false} toneMapped={false} />
+      </lineSegments>
+      <lineSegments ref={outer} geometry={geo.outer} position-y={0.04} renderOrder={7} visible={false}>
+        <lineBasicMaterial color="#ffffff" transparent opacity={0.8} depthWrite={false} toneMapped={false} />
+      </lineSegments>
+    </>
+  );
+  return { update, nodes };
+}
+
+/**
+ * One of the other cars: another modelled car's stand-in in neutral paint, on the baked floor shadow of the real one, turned
+ * the way it is heading (a car moving across a lane leans into it, one coming the other way is turned round). Its brake lamps
+ * are two red bars.
+ */
+function TrafficModel({
+  car, tone, url, shadow, sense,
+}: {
+  car: TrafficCar;
+  tone: string;
+  url: string;
+  shadow: Parameters<typeof GroundShadow>[0]['shadow'] | undefined;
+  sense: LayerId;
+}) {
+  const { model, centre } = useStandIn(url, tone);
+  const root = React.useRef<THREE.Group>(null);
+  const lamps = React.useRef<THREE.Group>(null);
+  const marks = useMarks(car, sense, car);
+  useFrame(() => {
+    const g = root.current;
+    if (!g) return;
+    const t = techClock.t;
+    g.position.set(car.x(t), 0, -car.y(t));
+    g.rotation.y = car.yaw(t);
+    if (lamps.current) lamps.current.visible = car.braking(t);
+    marks.update(t);
   });
   const red = { color: '#ff3a2e', toneMapped: false } as const;
   return (
@@ -585,40 +637,160 @@ function TrafficModel({ car, tone, url, shadow }: { car: TrafficCar; tone: strin
           </mesh>
         ))}
       </group>
-      <lineSegments ref={brackets} geometry={geo.inner} position-y={0.04} renderOrder={7} visible={false}>
-        <lineBasicMaterial color="#ffffff" transparent opacity={0.55} depthWrite={false} toneMapped={false} />
-      </lineSegments>
-      <lineSegments ref={outer} geometry={geo.outer} position-y={0.04} renderOrder={7} visible={false}>
-        <lineBasicMaterial color="#ffffff" transparent opacity={0.8} depthWrite={false} toneMapped={false} />
-      </lineSegments>
+      {marks.nodes}
     </group>
   );
 }
 
-// ----------------------------------------------------- the left lane and the link
+/** What is lying in the road: a cardboard-coloured box with a strip of tape, the one thing in the scene that is not grey. */
+function Box({ actor, sense }: { actor: TrafficCar; sense: LayerId }) {
+  const root = React.useRef<THREE.Group>(null);
+  const marks = useMarks(actor, sense, { length: actor.length + 0.3, width: actor.width + 0.3 });
+  useFrame(() => {
+    const g = root.current;
+    if (!g) return;
+    const t = techClock.t;
+    g.position.set(actor.x(t), 0, -actor.y(t));
+    marks.update(t);
+  });
+  const h = 0.42;
+  return (
+    <group ref={root}>
+      <mesh position-y={h / 2} rotation-y={0.35}>
+        <boxGeometry args={[actor.length, h, actor.width]} />
+        <meshStandardMaterial color="#b08d62" roughness={0.9} />
+      </mesh>
+      <mesh position-y={h + 0.002} rotation-y={0.35}>
+        <boxGeometry args={[0.08, 0.004, actor.width + 0.004]} />
+        <meshStandardMaterial color="#d9c9a8" roughness={0.8} />
+      </mesh>
+      {marks.nodes}
+    </group>
+  );
+}
+
+/** a walking figure, built once: a stylised person of the height of an adult, in the demo's greys. Modelled facing +x. */
+function figure() {
+  const mat = new THREE.MeshStandardMaterial({ color: '#d9dce2', roughness: 0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#8e949c', roughness: 0.7 });
+  const group = new THREE.Group();
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.5, 4, 10), mat);
+  torso.position.y = 1.2;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.115, 14, 10), mat);
+  head.position.y = 1.72;
+  group.add(torso, head);
+  // a limb swings about the z axis (the figure's side to side) from its top
+  const limb = (r: number, len: number, pivotY: number, z: number, m: THREE.Material) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(0, pivotY, z);
+    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(r, len - 2 * r, 4, 8), m);
+    mesh.position.y = -len / 2;
+    pivot.add(mesh);
+    group.add(pivot);
+    return pivot;
+  };
+  const legs = [limb(0.075, 0.9, 0.9, -0.09, dark), limb(0.075, 0.9, 0.9, 0.09, dark)];
+  const arms = [limb(0.055, 0.7, 1.45, -0.24, mat), limb(0.055, 0.7, 1.45, 0.24, mat)];
+  const geos: THREE.BufferGeometry[] = [];
+  group.traverse((o) => {
+    if (o instanceof THREE.Mesh) geos.push(o.geometry);
+  });
+  return {
+    group,
+    legs,
+    arms,
+    dispose: () => {
+      geos.forEach((g) => g.dispose());
+      mat.dispose();
+      dark.dispose();
+    },
+  };
+}
 
 /**
- * The left lane, laid out while the car means to move into it: amber while a car is in the way, green once it is clear.
- * Drawn in the road's frame, from behind the car to ahead of it.
+ * A person on the street: walking, running or waiting, facing the way they go, their legs and arms swinging with the distance
+ * they have covered (so a clock that is scrubbed or paused shows a stride that agrees with the road). A ring on the floor is the
+ * sensors' mark (white in reach, amber when they are a hazard); a person the sensors cannot see yet has none.
  */
-function LaneStrip({ sensors }: { sensors: Scenario }) {
+function Person({ actor, sense }: { actor: TrafficCar; sense: LayerId }) {
+  const root = React.useRef<THREE.Group>(null);
+  const ring = React.useRef<THREE.Mesh>(null);
+  const pulse = React.useRef<THREE.Mesh>(null);
+  const fig = React.useMemo(() => figure(), []);
+  React.useEffect(() => () => fig.dispose(), [fig]);
+  const y0 = React.useMemo(() => actor.y(0), [actor]);
+  useFrame(() => {
+    const g = root.current;
+    if (!g) return;
+    const t = techClock.t;
+    g.position.set(actor.x(t), 0, -actor.y(t));
+    g.rotation.y = actor.yaw(t);
+    const walked = Math.abs(actor.y(t) - y0);
+    const pace = actor.pace(t);
+    const amp = pace > 0.1 ? Math.min(0.75, 0.25 + pace * 0.18) : 0;
+    const phase = walked * 4.2;
+    fig.legs[0].rotation.z = Math.sin(phase) * amp;
+    fig.legs[1].rotation.z = -Math.sin(phase) * amp;
+    fig.arms[0].rotation.z = -Math.sin(phase) * amp * 0.8;
+    fig.arms[1].rotation.z = Math.sin(phase) * amp * 0.8;
+    const tr = actor.track(t);
+    const lit = tr !== 'out' && getLayers()[sense];
+    if (ring.current) {
+      ring.current.visible = lit;
+      if (lit) {
+        const m = ring.current.material as THREE.MeshBasicMaterial;
+        m.color.set(TRACK_COLOR[tr as Exclude<Track, 'out'>]);
+        m.opacity = tr === 'tracked' ? 0.6 : 1;
+      }
+    }
+    if (pulse.current) {
+      pulse.current.visible = lit && tr === 'warn';
+      if (pulse.current.visible) {
+        const k = (t * 1.4) % 1;
+        pulse.current.scale.setScalar(0.9 + k * 0.9);
+        (pulse.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - k);
+      }
+    }
+  });
+  return (
+    <group ref={root}>
+      <primitive object={fig.group} />
+      <mesh ref={ring} rotation-x={-Math.PI / 2} position-y={0.04} renderOrder={7} visible={false}>
+        <ringGeometry args={[0.62, 0.7, 40]} />
+        <meshBasicMaterial color="#ffffff" transparent depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={pulse} rotation-x={-Math.PI / 2} position-y={0.045} renderOrder={7} visible={false}>
+        <ringGeometry args={[0.62, 0.68, 40]} />
+        <meshBasicMaterial color="#f59e0b" transparent depthWrite={false} toneMapped={false} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+// ----------------------------------------------------- the lane being moved into and the link
+
+/**
+ * The lane the car means to move into, laid out while it does: amber while a car is in the way, green once it is clear. Drawn in
+ * the road's frame, from behind the car to ahead of it.
+ */
+function LaneStrip({ sensors, sense }: { sensors: Scenario; sense: LayerId }) {
   const mesh = React.useRef<THREE.Mesh>(null);
   useFrame(() => {
     const m = mesh.current;
     if (!m) return;
     const t = techClock.t;
     const r = sensors.readout(t);
-    const show = r.indicator === 1 && getLayers().lidar;
+    const show = r.lane !== null && getLayers()[sense];
     m.visible = show;
-    if (!show) return;
+    if (!show || !r.lane) return;
     const e = sensors.ego(t);
     const back = 32;
     const front = 18;
     m.scale.set(back + front, 1, 1);
-    m.position.set(e.x + (front - back) / 2, 0.022, -LANE);
+    m.position.set(e.x + (front - back) / 2, 0.022, -r.lane.y);
     const mat = m.material as THREE.MeshBasicMaterial;
-    mat.color.set(r.leftClear ? '#22c55e' : '#f59e0b');
-    mat.opacity = (r.leftClear ? 0.3 : 0.28 + 0.1 * Math.sin(t * 7)) * (r.state === 'changing' ? 0.75 : 1);
+    mat.color.set(r.lane.clear ? '#22c55e' : '#f59e0b');
+    mat.opacity = (r.lane.clear ? 0.3 : 0.28 + 0.1 * Math.sin(t * 7)) * (r.state === 'changing' ? 0.75 : 1);
   });
   return (
     <mesh ref={mesh} rotation-x={-Math.PI / 2} renderOrder={4} visible={false}>
@@ -629,7 +801,7 @@ function LaneStrip({ sensors }: { sensors: Scenario }) {
 }
 
 /** A line along the floor from the car's nose to the tail of the car it is following. */
-function LeadLink({ sensors }: { sensors: Scenario }) {
+function LeadLink({ sensors, sense }: { sensors: Scenario; sense: LayerId }) {
   const mesh = React.useRef<THREE.Mesh>(null);
   useFrame(() => {
     const m = mesh.current;
@@ -637,7 +809,7 @@ function LeadLink({ sensors }: { sensors: Scenario }) {
     const t = techClock.t;
     const r = sensors.readout(t);
     const lead = r.gap !== null ? sensors.traffic.find((c) => c.track(t) === 'lead') : undefined;
-    m.visible = !!lead && getLayers().lidar;
+    m.visible = !!lead && getLayers()[sense];
     if (!lead || r.gap === null) return;
     const e = sensors.ego(t);
     const x0 = e.x + sensors.egoLength / 2;

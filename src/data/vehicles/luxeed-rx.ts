@@ -351,6 +351,7 @@ export const luxeedRx: Vehicle = {
       blurb:
         'A three-lane road with traffic in every lane. The car’s lidars and ultrasonic sensors, drawn from where they sit, as the car ahead brakes, the car follows it, waits for the left lane to clear and overtakes.',
       driver: 'sensors',
+      scenario: 'overtake',
       claims: [
         {
           text: 'The RX carries 38 sensors, among them the world’s highest-spec mass-produced 896-line dual-optical-path image-grade lidar and three high-precision solid-state lidars.',

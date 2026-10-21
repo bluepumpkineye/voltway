@@ -60,6 +60,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       ride: { carpet: carpetOn, modeId },
       params: spec.params ?? {},
       chassis: { pivot: compassPivot, angleDeg: compassAngle },
+      scenario: spec.scenario,
     });
     return { spec, body, ...b, trailLine: b.trail ? trailOf(b.track) : null };
     // the rig is the same object for the car's life; `rigged` says when its wheels arrive

@@ -8,7 +8,7 @@ import { planLaunch, type LaunchRun } from './launch';
 import { ASSIST_MOTION, planPark, PARK_MOTION, type BodyBox, type ParkSpeed, type ParkStage, type Pose } from './park';
 import type { Chassis, RideMode } from './ride';
 import { planBoost, type BoostRun } from './boost';
-import { planSensors, ROLES, type SensorsRun } from './sensors';
+import { planSensors, type SceneId, type SensorsRun } from './sensors';
 import { planSwivel, type SwivelRun } from './swivel';
 import { planCompass, planCrab, planPivotPark, planUTurn, type Pivot, type StreetNeighbour, type StreetRun } from './street';
 
@@ -33,6 +33,8 @@ export interface DemoContext {
   params: Record<string, number>;
   /** the compass turn's choices: which front wheel it turns about, and how far (degrees) */
   chassis: { pivot: Pivot; angleDeg: number };
+  /** which of the driver's scenes the demo plays (`TechDemoSpec.scenario`) */
+  scenario?: string;
 }
 
 /** A demo's motion, built for one car. */
@@ -252,16 +254,15 @@ const charge: Driver = {
 };
 
 /**
- * Autonomous Drive: the car cruises on a three-lane road among other cars, its sensors' coverage is drawn, the car ahead
- * brakes, the car follows it, waits for the left lane to clear, changes lane and overtakes. The scenario is ours
- * (sensors.ts); the road rolls under the car like the launch's, and the traffic is the other modelled cars' stand-ins.
+ * Autonomous Drive: the car drives itself among other road users and its sensors' coverage is drawn. Which road and what happens
+ * on it is the demo's `scenario` (sensors.ts): an expressway where the car overtakes, an expressway where a car cuts in and
+ * something lies in the lane, or a city street with a person stepping out and a zebra crossing. The scenarios are ours; the road
+ * rolls under the car like the launch's, and the traffic is the other modelled cars' stand-ins.
  */
 const sensors: Driver = {
-  build: ({ vehicle, layout, body, start }) => {
-    // the other modelled cars first, then the demo's own (a road never shows the same car twice in a row), as many as the traffic needs
-    const cars = streetCars(vehicle);
-    const traffic = ROLES.map((_, i) => cars[i % Math.max(cars.length, 1)] ?? { slug: '', length: 4.9, width: 1.9 });
-    const run = planSensors(layout, body, start, { traffic });
+  build: ({ vehicle, layout, body, start, scenario }) => {
+    // the other modelled cars first, then the demo's own (a road never shows the same car twice in a row); each scene takes as many as it needs
+    const run = planSensors(layout, body, start, { scene: scenario as SceneId | undefined, cars: streetCars(vehicle) });
     return {
       track: run.track,
       stops: [],

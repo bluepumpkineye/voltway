@@ -8,6 +8,7 @@ import { humpAt, type Hump } from '@/lib/tech/ride';
 import { rigOf } from '@/lib/tech/rig';
 import { useRuntime } from '@/lib/tech/session';
 import { STAGE_LAYER } from './StudioShowroom';
+import { CityStreet } from './TechCity';
 
 /**
  * The road of a treadmill demo (the Magic Carpet's run): a strip of asphalt and the rubber speed humps across
@@ -23,6 +24,7 @@ import { STAGE_LAYER } from './StudioShowroom';
 export function TechRoad({ vehicle }: { vehicle: Vehicle }) {
   const road = useRuntime()?.road;
   if (!road) return null;
+  if (road.city) return <CityStreet road={road} city={road.city} vehicle={vehicle} />;
   return road.lanes ? <Highway road={road} lanes={road.lanes} vehicle={vehicle} /> : <Road road={road} vehicle={vehicle} />;
 }
 

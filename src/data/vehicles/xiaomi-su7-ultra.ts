@@ -256,6 +256,7 @@ export const xiaomiSu7Ultra: Vehicle = {
       blurb:
         'A three-lane road with traffic in every lane. The roof lidar and the surround cameras, drawn from where they sit, as the car ahead brakes, the car follows it, waits for the left lane to clear and overtakes.',
       driver: 'sensors',
+      scenario: 'overtake',
       claims: [
         {
           text: 'The SU7 Ultra carries one 128-line Hesai lidar (up to 200 m), eleven surround cameras (two of 8 megapixels, nine of 3), twelve ultrasonic sensors and two NVIDIA DRIVE Orin X chips (508 TOPS) running Xiaomi HAD, a level 2 system.',

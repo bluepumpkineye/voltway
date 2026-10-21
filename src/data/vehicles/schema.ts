@@ -415,6 +415,11 @@ export interface TechDemoSpec {
    * it in the driver's seat (the swivel screen's demo, whose subject is a part of the cabin).
    */
   view?: 'cabin';
+  /**
+   * Which of the driver's scenes the demo plays, for a driver that has several (Autonomous Drive's: 'overtake', 'debris',
+   * 'city', src/lib/tech/sensors.ts). Left out, the driver's first.
+   */
+  scenario?: string;
 }
 
 /**
@@ -451,8 +456,8 @@ export interface ChargingSpec {
  * x forward, y up, z toward the passenger side). `mirror` puts a second one on the other side (z negated).
  */
 export interface SensorSpec {
-  /** the forward lidar's window, in the roof housing (photographed) */
-  lidar: [number, number, number];
+  /** the forward lidar's window, in the roof housing (photographed); left out for a car that has none (the G9L is camera and radar only) */
+  lidar?: [number, number, number];
   /**
    * The forward lidar's field of view where the maker publishes one, degrees (the SU7's Hesai AT128: 120 by 25.4); the
    * drawing's reach is ours. Without it the demo draws the Luxeed RX's two paths (a wide and a tele one).
@@ -471,11 +476,17 @@ export interface SensorSpec {
    * SU7), from the middle of the car: illustrative, and the panel says so.
    */
   surround?: boolean;
+  /**
+   * What the cameras of a car without a lidar see, drawn as flat sectors on the floor from where each sits (illustrative: no
+   * field of view is published): its place, the way it looks (degrees from straight ahead, positive to the left), its angle and
+   * the reach it is drawn to, m. `mirror` adds the same on the other side, looking the mirror way.
+   */
+  views?: { at: [number, number, number]; yaw: number; fov: number; reach: number; mirror?: boolean }[];
   /** cameras and ultrasonic sensors that the photographs show, as far as they could be read off them */
   cameras: { at: [number, number, number]; mirror?: boolean }[];
   ultrasonic: { at: [number, number, number]; mirror?: boolean }[];
   /** what each switch on the demo's panel says it is (a tooltip): the maker's counts, where it gives them */
-  notes?: Partial<Record<'lidar' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround', string>>;
+  notes?: Partial<Record<'lidar' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround' | 'vision', string>>;
 }
 
 /**

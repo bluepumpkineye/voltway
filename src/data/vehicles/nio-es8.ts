@@ -379,6 +379,7 @@ export const nioEs8: Vehicle = {
       blurb:
         'Watchtower sensor layout featuring ultra-long-range 1550nm roof LiDAR, 8MP high-resolution cameras, and 1,016 TOPS computing power.',
       driver: 'sensors',
+      scenario: 'overtake',
       claims: [
         {
           text: 'Aquila Super Sensing system integrates 33 high-performance sensing units including roof LiDAR and 8MP cameras.',

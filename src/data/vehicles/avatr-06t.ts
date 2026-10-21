@@ -285,15 +285,26 @@ export const avatr06t: Vehicle = {
     {
       id: 'ads3',
       title: 'Huawei Qiankun ADS 3.0',
-      blurb: 'End-to-end GOD (General Obstacle Detection) and PDP (Prediction Decision Planning) network with 896-line roof LiDAR.',
+      blurb:
+        'An expressway: a slower car moves into the lane close ahead and the car eases off; then something is lying in the lane, which the 896-line roof lidar marks well before the car reaches it, and the car checks the right lane and goes round it.',
       driver: 'sensors',
+      scenario: 'debris',
       claims: [
         {
           text: 'Equipped with Huawei Qiankun ADS 3.0 autonomous driving system, 896-line high-precision roof LiDAR, and ultra-wide surround vision.',
           source: { label: 'Avatr Official', url: 'https://www.avatr.com/en/06T' },
         },
+        {
+          text: 'The system is built on an end-to-end GOD (General Obstacle Detection) network and a PDP (Prediction Decision Planning) network.',
+          source: { label: 'Avatr Official', url: 'https://www.avatr.com/en/06T' },
+        },
+        {
+          text: 'Huawei’s 896-line lidar recognises a 14 cm box at 120 m.',
+          source: { label: 'Huawei Qiankun, 4 March 2026', url: 'https://auto.huawei.com/cn/news/2026/2026-3-4-lidar' },
+        },
       ],
-      simulated: 'Simulated visualization of Huawei Qiankun ADS 3.0 perceptive sensor array and LiDAR beam fields.',
+      simulated:
+        'A simulation. The road, the other cars, the box, their speeds, what the car does and when are ours: no maker publishes a scenario. The box stands for the general obstacles the GOD network is described as detecting, and the cut-in for what the PDP network is described as predicting; the maker shows neither. The 14 cm at 120 m is Huawei’s figure for its 896-line lidar, used here as the distance at which the box is first marked; the beams’ angles and the reach they are drawn to are ours (no field of view is published). The other cars are the other models’ stand-ins in neutral paint.',
     },
     {
       id: 'star-ring',

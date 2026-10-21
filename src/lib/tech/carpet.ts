@@ -36,6 +36,26 @@ export interface RoadStage {
   markings?: { period: number; length: number; joint: number };
   /** a road of several lanes (Autonomous Drive's): how many and how wide; it is drawn with dashed lane lines and solid edge lines, not the broken edge lines above */
   lanes?: { count: number; width: number };
+  /** a city street (Autonomous Drive on the G9L): kerbs, footways, painted lines and crossings */
+  city?: CityRoad;
+}
+
+/**
+ * A street the car drives along, in the road's frame (x along it from the car's start, y across it, left of the car's lane
+ * positive). The asphalt, the kerbs and the footways stand under the car; what repeats (`period`) is rolled by the rig as far
+ * as its period; the crossings and the stop lines roll with the road.
+ */
+export interface CityRoad {
+  nearKerb: number;
+  farKerb: number;
+  /** the width of each footway beyond a kerb, m */
+  footway: number;
+  /** the repeat of the lamps, trees, buildings and joints, m */
+  period: number;
+  /** painted lines along the street */
+  lines: { y: number; dash: boolean; color: 'white' | 'yellow' }[];
+  crossings: { x: number; length: number }[];
+  stopLines: { x: number; y0: number; y1: number }[];
 }
 
 export interface CarpetRun {
