@@ -131,30 +131,45 @@ def _rail_w(x):
     return 0.040 + 0.055 * _ramp(x, 0.40, 0.25)
 
 
-def V_RAIL(x):
-    """The rail's inboard edge: the A-pillar's, ahead of the header; the roof's, behind it."""
+def _wtop(x):
+    """Width of the body-colour rail on the roof's top, inboard of the loft's rail line: 75 mm along the roof (the
+    panoramic glass stands inside white rails), thinning to 20 mm at the spoiler where the glass runs on into the backlight."""
+    return 0.020 + 0.055 * _ramp(x, -1.15, 1.6)
+
+
+def _rail_old(x):
+    """The rail's inboard edge as it was drawn from the glass line: DLO + a rail 40 mm wide (the A-pillar's, 95 mm, ahead of the header)."""
     return S.v_along(x, V_DLO(x), _rail_w(x))
+
+
+def V_RAIL(x):
+    """The rail's inboard edge: the A-pillar's, ahead of the header; behind it the line of the roof glass's outer edge, which
+    is a distance in plan inboard of the roof's rail line (the photographs: a white rail ~7 cm wide on the roof, the glass
+    wraps no further down the shoulder), blended from the A-pillar's edge over 0.3 m."""
+    if x >= X_ROOF_F:
+        return _rail_old(x)
+    t = _smooth((X_ROOF_F - x) / 0.30)
+    y_old = S.section_v(x, _rail_old(x))[0]
+    y_new = S.Y_ROOF(x) - _wtop(x)
+    return S.v_at_y_upper(x, y_old + (y_new - y_old) * t)
 
 
 V_A = V_RAIL
 
 
-# Backlight edges, from the rear photograph: the glass is +/-0.62 wide under the spoiler and
-# +/-0.66 at its foot
+# Backlight edges, from the rear photograph (c1_0030, read through its solved camera): the glass's side edges run from
+# +/-0.535 under the spoiler (x -2.0) to +/-0.68 at the lamp strip's upper edge; the white sail beyond the edge is a thin
+# sliver from behind (the greenhouse leans in at ~25 degrees). The edge IS the loft's roof rail there (g9l_surface.Y_ROOF
+# follows it), and at the knee it meets the roof glass's edge (Y_ROOF - _wtop) exactly, so the two panes share one line.
 Y_REARGLASS = Curve([
-    (-2.52, 0.640), (-2.40, 0.652), (-2.20, 0.640), (-2.05, 0.620), (X_KNEE, 0.610),
+    (-2.52, 0.690), (-2.40, 0.655), (-2.20, 0.595), (-2.05, 0.545), (X_KNEE, 0.535),
 ])
 
 
 def V_REARGLASS(x):
     if x >= X_KNEE:
         return V_RAIL(x)
-    # the backlight's edge steps in from the roof rail's under the spoiler (the roof glass is wider than the
-    # backlight): a blend over 0.14 m behind the knee, because a jump here tears the sail and quarter
-    # panels' grids (their rows run between this edge and the belt) into a visible ridge
-    a = V_RAIL(X_KNEE)
-    b = S.v_at_y_upper(x, Y_REARGLASS(x))
-    return a + (b - a) * _smooth((X_KNEE - x) / 0.14)
+    return S.v_at_y_upper(x, Y_REARGLASS(x))
 
 
 # The backlight's foot. Its lower edge was the body's rear end (x -2.52), but the loft turns down there at the tail corners,
@@ -201,6 +216,16 @@ def V_QTOP(x):
     return V_BELT(x) + (V_REARGLASS(x) - V_BELT(x)) * t
 
 
+def V_SAIL_LOW(x):
+    """The sail's lower edge: the quarter panel's top (it butts, no shut line, so the sail is not drawn twice over the quarter),
+    or - behind the quarter panel's end - the belt."""
+    if x >= N.JOIN_R(0.8):
+        return V_QTOP(x)
+    # behind the quarter panel the sail's foot is the tail cap's top edge (z 1.268; 13 mm under it): the paint that fills the
+    # wedge between the cap, the lamp shelf's end and the backlight's edge, running to a point at the corner
+    return S.v_at_z(x, 1.255, S.V_SHOULDER, 1.0)
+
+
 # glass divisions as x of the line at the height of v (raked lines)
 _GF_REAR = Curve(_by_z(CAM.GLASS_F_REAR_PX, 0.88), mode="pchip")
 _GR_FRONT = Curve(_by_z(CAM.GLASS_R_FRONT_PX, 0.88), mode="pchip")
@@ -242,7 +267,7 @@ PANELS = [
     dict(name="G9L_Door_Rear", x=(X_DOOR_R, X_BPILLAR), v=(V_SILL, V_BELT),
          nx=38, nv=38, arch=True, gap=dict(v0=False), mat="paint"),
     dict(name="G9L_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_SILL, V_QTOP),
-         nx=56, nv=40, arch=True, gap=dict(v0=False, x0=False), mat="paint"),
+         nx=56, nv=40, arch=True, gap=dict(v0=False, x0=False, v1=False), mat="paint"),
     # the black corner of the rear bumper under the diagonal, from the arch's foot round to the tail
     dict(name="G9L_Bumper_Side", x=(N.JOIN_R, -1.870), v=(0.030, V_SILL),
          nx=24, nv=14, gap=dict(v0=False, x0=False, v1=False), mat="black_trim"),
@@ -251,13 +276,13 @@ PANELS = [
          nx=54, nv=32, gap=dict(v1=False, x1=False, x0=False, v0=False), mat="paint"),
 
     # A-pillar and roof rail: the body-colour strip between the glass and the roof
-    dict(name="G9L_Roof_Rail", x=(X_KNEE, X_COWL), v=(V_DLO, V_RAIL),
+    dict(name="G9L_Roof_Rail", x=(X_TIP, X_COWL), v=(V_DLO, V_RAIL),
          nx=120, nv=12, gap=dict(x0=False, x1=False, v0=False, v1=False), mat="paint"),
     # painted roof between the rails: from the header back over the front seats
     dict(name="G9L_Roof_Paint", x=(X_ROOF_GLASS_R, X_ROOF_F), v=(V_RAIL, 1.0),
          nx=44, nv=22, gap=dict(v1=False, x0=False, x1=False, v0=False), mat="paint"),
     # painted sail behind the glass tip, round the C-pillar to the backlight's edge
-    dict(name="G9L_Sail", x=(-2.52, X_TIP), v=(V_BELT, V_SAIL_TOP),
+    dict(name="G9L_Sail", x=(-2.52, X_TIP), v=(V_SAIL_LOW, V_SAIL_TOP),
          nx=48, nv=28, gap=dict(v0=False, x0=False, x1=False), mat="paint"),
 
     # ---- the dark region under the side glass (the black frames show where glass stops)

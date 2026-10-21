@@ -410,21 +410,24 @@ def build_plate(collection, lib):
 # ------------------------------------------------------------------ spoiler
 def build_spoiler(collection, lib):
     """A black roof spoiler: the roof's end, overhanging the backlight by 0.07 m, swept and
-    pointed at its ends (c1_0028 crop d: the tip at x -2.03, z 1.64)."""
+    pointed at its ends (c1_0028 crop d: the tip at x -2.03, z 1.64; the rear photographs: the tips stand at
+    |y| 0.55, on the roof's rail line). It follows the roof's crown: every section stands on the loft's surface at
+    the knee, so the ends sit on the rail and do not hang in the air."""
     made = []
     ns = 36
     k = S.KNEE_X
-    zr = S.Z_ROOF(k)
+    y_end = S.Y_ROOF(k) - 0.006
     cols = []
     for i in range(ns + 1):
         t = i / float(ns)
-        y = 0.640 * t
-        x_te = k - 0.070 + 0.050 * t ** 2.2                    # trailing edge sweeps forward at the ends
-        z_te = zr - 0.045 - 0.050 * t ** 3
+        y = y_end * t
+        zr = S.section_v(k, S.v_at_y_upper(k, y))[1]           # the roof's height at the knee, at this y
+        x_te = k - 0.070 + 0.055 * t ** 2.2                    # trailing edge sweeps forward at the ends
+        z_te = zr - 0.042 - 0.004 * t ** 2
         cols.append([(k + 0.030, y, zr - 0.012), (x_te, y, z_te), (x_te + 0.012, y, z_te - 0.020),
                      (k + 0.030, y, zr - 0.040)])
     ob = M.mesh_from_rows("G9L_Spoiler", cols, collection)
-    M.orient(ob.data, geom.away_from((k + 0.03, 0.0, zr - 0.06)))
+    M.orient(ob.data, geom.away_from((k + 0.03, 0.0, S.Z_ROOF(k) - 0.06)))
     ob.data.materials.append(lib["black_gloss"])
     M.mirror_y(ob)
     M.finish(ob, thickness=0.004, bevel=0.0008)

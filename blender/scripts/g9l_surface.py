@@ -52,9 +52,9 @@ TAIL_PTS = [
     (-2.240, 1.505), (-2.160, 1.565), (-2.080, 1.620), (-2.020, 1.665), (KNEE_X, 1.705),
 ]
 ROOF_PTS = [
-    (KNEE_X, 1.705), (-1.900, 1.715), (-1.700, 1.738), (-1.500, 1.757), (-1.300, 1.773),
-    (-1.100, 1.787), (-0.900, 1.797), (-0.700, 1.802), (-0.500, 1.805), (-0.300, 1.803),
-    (-0.100, 1.798), (0.100, 1.789), (0.250, 1.775), (0.400, 1.742), (0.600, 1.640),
+    (KNEE_X, 1.705), (-1.900, 1.714), (-1.700, 1.735), (-1.500, 1.753), (-1.300, 1.767),
+    (-1.100, 1.778), (-0.900, 1.786), (-0.700, 1.791), (-0.500, 1.794), (-0.300, 1.794),
+    (-0.100, 1.790), (0.100, 1.782), (0.250, 1.769), (0.400, 1.739), (0.600, 1.640),
     (0.800, 1.508), (1.000, 1.372), (1.100, 1.300), (COWL_X, 1.262),
 ]
 HOOD_PTS = [
@@ -108,19 +108,26 @@ Y_HIP = Curve([
     (2.300, 0.9100), (2.400, 0.8700), (2.500, 0.8000), (HALF_L, 0.620),
 ])
 
-# The shoulder narrows hard over the rear quarter (the sail leans in: the rear photograph's body edge
-# at the belt's height is 0.77 half-wide at x -2.0, against 0.9995 at the hip).
+# The shoulder / greenhouse base is far narrower than the hip. Read in 3-D from two solved cameras (the right rear
+# three-quarter photograph c1_0031 and the left front one c1_0025: ray / plane intersections with the door lines whose x
+# the side photograph gives) and from the rear photograph's silhouette: the belt's half-width is 0.86 at the front door's
+# leading edge, 0.82 at the B-pillar, 0.79 at the rear door's edge and 0.71 at the quarter glass's rear tip - the
+# slab-sided body this module used to describe (0.93 at the B-pillar) was 11-12 cm too wide per side, which is what made
+# the G9L read as a van. The crease sits ~3 cm outboard of the belt (Section.step_in).
 Y_SHOULDER = Curve([
-    (-HALF_L, 0.560), (-2.500, 0.6925), (-2.400, 0.752), (-2.200, 0.785), (-2.000, 0.8075),
-    (-1.800, 0.845), (-1.500, 0.900), (-1.200, 0.945), (-0.800, 0.965), (-0.727, 0.968),
-    (0.015, 0.972), (0.863, 0.965), (1.287, 0.950), (1.647, 0.935), (1.950, 0.920),
+    (-HALF_L, 0.720), (-2.500, 0.735), (-2.400, 0.745), (-2.200, 0.750), (-2.000, 0.752),
+    (-1.800, 0.765), (-1.500, 0.800), (-1.200, 0.822), (-0.800, 0.836), (-0.030, 0.852),
+    (0.500, 0.870), (0.863, 0.890), (1.287, 0.935), (1.647, 0.935), (1.950, 0.920),
     (2.100, 0.905), (2.200, 0.885), (2.300, 0.860), (2.400, 0.820), (2.500, 0.750),
     (HALF_L, 0.600),
 ])
 
+# The roof rail's half-width. The rear photograph's silhouette gives 0.55 at the spoiler's tips (x -2.0, z 1.71), 0.58 at
+# z 1.64, 0.62 at z 1.55 and 0.70 at z 1.35; the front photograph's windscreen header corner is 0.68 (rail 0.77). A teardrop
+# greenhouse: widest at the header, tapering in plan towards the tail over leaning glass.
 Y_ROOF = Curve([
-    (-HALF_L, 0.540), (-2.500, 0.5975), (-2.330, 0.645), (-2.040, 0.680), (-1.450, 0.735),
-    (-0.500, 0.760), (0.333, 0.770), (0.863, 0.790), (COWL_X, 0.850),
+    (-HALF_L, 0.700), (-2.500, 0.690), (-2.330, 0.640), (-2.200, 0.600), (-2.040, 0.555), (-1.450, 0.600),
+    (-1.000, 0.650), (-0.500, 0.705), (0.333, 0.770), (0.863, 0.790), (COWL_X, 0.850),
     (1.605, 0.880), (2.128, 0.860), (2.442, 0.760), (HALF_L, 0.560),
 ])
 
@@ -144,7 +151,8 @@ BODY = LoftBody(
     y_rocker=Y_ROCKER, undercut=UNDERCUT, z_crest=Z_CREST,
     v_shoulder=V_SHOULDER, cowl_x=COWL_X, backlight_x=BACKLIGHT_X,
     sill_height=0.140, core_z=0.78, crease="soft",
-    section=Section(step_in=0.032, step_max=0.030, tumble=(0.38, 0.58, 0.50, 0.38)),
+    section=Section(step_in=0.032, step_max=0.030, tumble=(0.38, 0.58, 0.50, 0.38),
+                    upper_door=(0.45, 0.008, 0.62)),
 )
 
 z_rocker = BODY.z_rocker

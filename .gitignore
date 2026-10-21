@@ -36,3 +36,7 @@ demo-video/
 public/demo/
 *.mp4
 
+
+# Temporary test models and HDRs
+public/models/_*
+public/models/*-ao.glb

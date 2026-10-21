@@ -5,10 +5,10 @@ driver's seat and use the central infotainment screen the way you would in the
 car, watch the car charge, and see what its technology does. Every control on
 the dashboard changes what the vehicle reports back.
 
-The site is one page, the showroom, in the manner of the HIMA 3D hall. Five cars
-have one: the Xiaomi SU7 Ultra, Luxeed RX, Zeekr 7X, Xpeng G9L and Denza Z9. Two
-more (Avatr 11, Nio ES7) are in the database with specifications and cited
-sources, and wait for a model.
+The site is one page, the showroom, in the manner of the HIMA 3D hall. Eight cars
+have one: the Xiaomi SU7 Ultra, Luxeed RX, Zeekr 7X, Xpeng G9L, Denza Z9, Avatr 06T,
+Nio ES8 and BYD Seal 07 EV. Two more (Avatr 11, Nio ES7) are in the database with
+specifications and cited sources, and wait for a model.
 
 ## Running it
 
@@ -25,7 +25,7 @@ car menu at the top-left changes car.
 | Route | What it does |
 |---|---|
 | `/` | The showroom, opened on the first car |
-| `/showroom/[slug]` | The showroom for one car (`xiaomi-su7-ultra`, `luxeed-rx`, `zeekr-7x`, `xpeng-g9l`, `denza-z9`); a slug with no showroom goes to `/` |
+| `/showroom/[slug]` | The showroom for one car (`xiaomi-su7-ultra`, `luxeed-rx`, `zeekr-7x`, `xpeng-g9l`, `denza-z9`, `avatr-06t`, `nio-es8`, `byd-seal`); a slug with no showroom goes to `/` |
 | `/vehicles`, `/vehicles/[slug]`, `/compare` | Retired (the old Voltway site); they redirect to `/` and `/showroom/[slug]`. Everything the vehicle page held is in the showroom's Specifications tab |
 | `/capture/hmi/[slug]`, `/capture/view/[slug]` | Tools of the 3D pipeline (the HMI at native size, the viewer through a locked camera); development only, they are not found in a production build |
 
@@ -54,7 +54,7 @@ a demonstration's facts behind the "Simulation" button on its playback bar.
   reads. The dock adds Front / Rear, a high beam and a brake pedal; on a narrow
   window the screen opens as a sheet, on a phone the dock's switch stands in for
   it ([`docs/lights.md`](docs/lights.md)). Each car's screen is rebuilt from the
-  maker's own: HyperOS (SU7 Ultra), HarmonyOS (RX), ZEEKR OS (7X), DiLink (Z9) and
+  maker's own: HyperOS (SU7 Ultra), HarmonyOS (RX), ZEEKR OS (7X), DiLink (Z9, Seal 07 EV) and
   XOS (G9L).
 - **Wheels:** the Luxeed RX's three photographed designs and its caliper colours;
   the Zeekr 7X's three designs with orange or silver calipers. The other cars have
