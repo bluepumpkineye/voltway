@@ -7,7 +7,7 @@ the dashboard changes what the vehicle reports back.
 
 The site is one page, the showroom, in the manner of the HIMA 3D hall. Eight cars
 have one: the Xiaomi SU7 Ultra, Luxeed RX, Zeekr 7X, Xpeng G9L, Denza Z9, Avatr 06T,
-Nio ES8 and BYD Seal 07 EV. Two more (Avatr 11, Nio ES7) are in the database with
+Nio ES8 and BYD Seal. Two more (Avatr 11, Nio ES7) are in the database with
 specifications and cited sources, and wait for a model.
 
 ## Running it
@@ -54,7 +54,7 @@ a demonstration's facts behind the "Simulation" button on its playback bar.
   reads. The dock adds Front / Rear, a high beam and a brake pedal; on a narrow
   window the screen opens as a sheet, on a phone the dock's switch stands in for
   it ([`docs/lights.md`](docs/lights.md)). Each car's screen is rebuilt from the
-  maker's own: HyperOS (SU7 Ultra), HarmonyOS (RX), ZEEKR OS (7X), DiLink (Z9, Seal 07 EV) and
+  maker's own: HyperOS (SU7 Ultra), HarmonyOS (RX), ZEEKR OS (7X), DiLink (Z9, Seal) and
   XOS (G9L).
 - **Wheels:** the Luxeed RX's three photographed designs and its caliper colours;
   the Zeekr 7X's three designs with orange or silver calipers. The other cars have

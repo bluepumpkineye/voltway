@@ -1,16 +1,13 @@
-"""BYD Seal EV (比亚迪 海豹, Autohome Series 6394, 2025/2026/2027) body surface.
+"""BYD Seal (比亚迪 海豹, Autohome Series 6394, the 2022-2024 body) body surface.
 
-The section maths lives in carkit.body.loft (LoftBody). This module defines the
-BYD Seal's DATA: dimensions and profile curves for the Ocean X electric sports sedan,
-calibrated to Autohome Series 6394 studio turnarounds and technical specs.
+The section maths lives in carkit.body.loft (LoftBody). This module defines the BYD Seal's DATA:
+dimensions and profile curves of the Ocean X electric sports sedan, READ FROM PHOTOGRAPHS (see
+seal_cam.py: the side camera is solved from the blue car's c1_0513.jpg rim lips and the 2.920 m
+wheelbase; the roof/hood/deck centreline below is that photo's silhouette in metres).
 
-Real dimensions (Autohome Series 6394, BYD Seal 650 Smart Driving / 600 AWD Performance):
-    4800 x 1875 x 1460 mm
-    wheelbase 2920 mm
-    track 1620 mm front / 1625 mm rear
-    tyres 235/45 R19 front & rear
-    overhangs: 880 mm front / 1000 mm rear
-    loaded hub height: ~0.3470 m
+Real dimensions (Autohome Series 6394):
+    4800 x 1875 x 1460 mm, wheelbase 2920 mm, track 1620 / 1625 mm, tyres 235/45 R19
+    overhangs 880 / 1000 mm (read off the photo: 0.892 / 0.996)
 """
 from carkit.geom import Curve, Joined
 from carkit.body import LoftBody, Section
@@ -19,114 +16,115 @@ from carkit.body import LoftBody, Section
 LENGTH, WIDTH, HEIGHT = 4.800, 1.875, 1.460
 HALF_L = LENGTH / 2.0                # 2.4000
 HALF_W = WIDTH / 2.0                 # 0.9375
-WHEELBASE = 2.900
-FRONT_OVERHANG = 0.860
-REAR_OVERHANG = LENGTH - WHEELBASE - FRONT_OVERHANG  # 1.0400 (lengthened rear overhang for balanced sedan-coupe proportions)
-FRONT_AXLE = HALF_L - FRONT_OVERHANG                 # 1.5400
-REAR_AXLE = FRONT_AXLE - WHEELBASE                   # -1.3600
-WHEEL_R = 0.3470                                     # loaded hub height (235/45 R19)
+WHEELBASE = 2.920
+FRONT_OVERHANG = 0.880
+REAR_OVERHANG = LENGTH - WHEELBASE - FRONT_OVERHANG  # 1.000
+FRONT_AXLE = HALF_L - FRONT_OVERHANG                 # +1.520
+REAR_AXLE = FRONT_AXLE - WHEELBASE                   # -1.400
+WHEEL_R = 0.343                                      # loaded hub height (235/45 R19: 0.347 free)
 TRACK_F, TRACK_R = 1.620, 1.625
-ARCH_R = 0.3740                                      # muscular wheelhouse opening radius
+ARCH_R = 0.390                                       # wheelhouse opening radius (arch crown z 0.733)
 
 V_SHOULDER = 0.530
 
-# Cab-rearward sports sedan proportions: extended hood-to-windshield ratio (COWL_X = 0.850)
-# and lengthened rear deck for authentic sedan-coupe balance (KNEE_X = -1.960)
-COWL_X = 0.8500                                      # windscreen base / A-pillar foot
-KNEE_X = -1.9600                                     # fastback backlight base / lengthened rear deck
+# windscreen base on the centreline (the hood meets the screen at x 1.07, z 0.966 in the photo) and
+# the backlight's foot where the glass hands over to the short boot lid
+COWL_X = 1.0700
+KNEE_X = -2.0000
 BACKLIGHT_X = KNEE_X
 
-# Longitudinal profile calibrated to BYD Seal Ocean X coupe-fastback silhouette:
-# - Extended, low-plunging shark-nose hood from cowl (x = 0.850, z = 0.956) down to x = 2.305 m (z = 0.686)
-# - Smooth, single continuous flowing roofline arc (zero bubble/hump) peaking smoothly at 1.442 m (x = -0.12)
-#   and flowing into the lengthened sedan-coupe rear deck (x = -1.960.. -2.400 m)
+# Centreline of the roof, read from c1_0513 (the blue car's side silhouette, y = 0 plane):
+# hood 0.97 -> 0.70 over 1.2 m, screen at ~29 degrees, one flat arc peaking at x -0.36 (z 1.446),
+# a long fastback glass (23 degrees) that eases to a short boot lid, ending in the duck-tail lip.
 Z_ROOF = Joined(COWL_X, Curve([
-    (-2.4000, 0.9680), (-2.2800, 0.9800), (-2.1200, 0.9940), (-1.9600, 1.0100),
-    (-1.7200, 1.0760), (-1.4500, 1.1680), (-1.1800, 1.2620), (-0.9200, 1.3420),
-    (-0.6600, 1.4000), (-0.4000, 1.4320), (-0.1200, 1.4420), ( 0.1200, 1.4250),
-    ( 0.3400, 1.3720), ( 0.5400, 1.2780), ( 0.7200, 1.1250), ( 0.8500, 0.9560),
+    (-2.4000, 1.0150), (-2.3300, 1.0200), (-2.2600, 1.0270), (-2.1840, 1.0360),
+    (-2.0620, 1.0660), (-1.9410, 1.1040), (-1.8200, 1.1550), (-1.6980, 1.2070),
+    (-1.5770, 1.2560), (-1.4560, 1.3010), (-1.3340, 1.3400), (-1.2130, 1.3740),
+    (-1.0920, 1.3980), (-0.9700, 1.4150), (-0.8490, 1.4280), (-0.7280, 1.4360),
+    (-0.6060, 1.4420), (-0.4850, 1.4450), (-0.3640, 1.4460), (-0.2420, 1.4440),
+    (-0.1210, 1.4360), ( 0.0000, 1.4220), ( 0.1220, 1.4040), ( 0.2430, 1.3770),
+    ( 0.3640, 1.3370), ( 0.4860, 1.2920), ( 0.6070, 1.2360), ( 0.7280, 1.1740),
+    ( 0.8500, 1.1070), ( 0.9700, 1.0370), ( 1.0700, 0.9660),
 ], mode="pchip"), Curve([
-    ( 0.8500, 0.9560), ( 1.0200, 0.9400), ( 1.2200, 0.9200), ( 1.4400, 0.8940),
-    ( 1.6500, 0.8620), ( 1.8500, 0.8180), ( 2.0300, 0.7660), ( 2.1800, 0.7220),
-    ( 2.2600, 0.6980), ( 2.3050, 0.6860),
+    ( 1.0700, 0.9660), ( 1.1530, 0.9610), ( 1.2740, 0.9520), ( 1.3950, 0.9430),
+    ( 1.5170, 0.9320), ( 1.6380, 0.9140), ( 1.7600, 0.8920), ( 1.8800, 0.8630),
+    ( 2.0000, 0.8230), ( 2.0600, 0.8050), ( 2.1500, 0.7750), ( 2.2500, 0.7250),
+    ( 2.3050, 0.6950),
 ], mode="pchip"))
 
+# underbody: the black sill's top edge is z 0.25-0.29 (c1_0506), sill_height 0.15 below it
 Z_FLOOR = Curve([
-    (-2.4000, 0.2520), (-2.2400, 0.2380), (-2.0400, 0.2180), (-1.8200, 0.1860),
-    (-1.5800, 0.1640), (-1.3600, 0.1520), ( 0.0000, 0.1440), ( 1.5400, 0.1520),
-    ( 1.8000, 0.1580), ( 1.9800, 0.1550), ( 2.1500, 0.1500), ( 2.2600, 0.1420),
-    ( 2.3050, 0.1380),
+    (-2.4000, 0.2000), (-2.2400, 0.1850), (-2.0400, 0.1700), (-1.8200, 0.1450),
+    (-1.5800, 0.1250), (-1.3600, 0.1180), ( 0.0000, 0.1050), ( 1.5400, 0.1150),
+    ( 1.8000, 0.1250), ( 1.9800, 0.1300), ( 2.1500, 0.1300), ( 2.2600, 0.1250),
+    ( 2.3050, 0.1200),
 ])
 
-# Taut, athletic arch-hugging hip line
+# widest point over the arches. On the doors it IS the Ocean Wave crease: the sharp ridge across
+# both doors (c1_0513 with contrast stretched: z 0.75 at the fender gill, peaking at 0.862 over the
+# door split, falling to 0.80 at the rear door's edge), the surface under it a dark concave scoop
 Z_HIP = Curve([
-    (-2.4000, 0.6380), (-2.0400, 0.6800), (-1.6400, 0.7220), (-1.3600, 0.7360),
-    (-1.0200, 0.7100), (-0.5000, 0.6940), ( 0.0000, 0.6920), ( 0.6500, 0.7020),
-    ( 1.1800, 0.7260), ( 1.5400, 0.7400), ( 1.8200, 0.7160), ( 2.0600, 0.6680),
-    ( 2.3050, 0.5950),
+    (-2.4000, 0.5200), (-2.0400, 0.5400), (-1.7000, 0.5400), (-1.4500, 0.5400),
+    (-1.2500, 0.6400), (-1.0000, 0.8200), (-0.6000, 0.8620), (-0.3000, 0.8600),
+    ( 0.1000, 0.8300), ( 0.5500, 0.7900), ( 1.0000, 0.7400), ( 1.1800, 0.7000),
+    ( 1.5400, 0.6600), ( 1.8200, 0.6500), ( 2.0600, 0.6200), ( 2.3050, 0.5700),
 ])
 
-# Taut, athletic 'Ocean Wave' beltline / shoulder crease sweeping from front fender to rear haunch
+# the crease below the glass: the belt (glass base) read on the doors is z 0.965 at the A-pillar
+# foot (x 0.93) rising to 1.073 at the rear door's tail (x -1.19); the section's step adds ~0.03
 Z_SHOULDER = Curve([
-    (-2.4000, 0.9640), (-2.2200, 0.9700), (-1.9600, 0.9740), (-1.6800, 0.9680),
-    (-1.3600, 0.9620), (-0.9800, 0.9440), (-0.4200, 0.9200), ( 0.2500, 0.9020),
-    ( 0.8500, 0.8900), ( 1.1200, 0.8780), ( 1.3800, 0.8660), ( 1.5600, 0.8540),
+    (-2.4000, 0.9550), (-2.2600, 0.9600), (-2.0000, 1.0000), (-1.6000, 1.0380),
+    (-1.1900, 1.0420), (-0.6300, 1.0220), (-0.1800, 1.0020), ( 0.3700, 0.9750),
+    ( 0.9300, 0.9350), ( 1.1000, 0.9000), ( 1.3800, 0.8780), ( 1.5600, 0.8560),
     ( 1.7900, 0.8220), ( 1.9900, 0.7840), ( 2.1700, 0.7360), ( 2.2600, 0.7020),
     ( 2.3050, 0.6840),
 ])
 
-# Centerline crest with subtle hood center power-dome spine from windshield base to front edge
+# centreline crest: the roof is gently crowned, the hood has a low central ridge
 Z_CREST = Joined(COWL_X, Curve([
-    (-2.4000,  0.0060), (-2.1000,  0.0080), (-1.8000,  0.0080), (-1.5000,  0.0020),
-    (-1.1200, -0.0120), (-0.5000, -0.0180), ( 0.0000, -0.0180), ( 0.3500, -0.0220),
-    ( 0.6000, -0.0220), ( 0.7600, -0.0080), ( 0.8500,  0.0060),
+    (-2.4000,  0.0060), (-2.1000,  0.0080), (-1.8000,  0.0000), (-1.5000, -0.0100),
+    (-1.1200, -0.0220), (-0.5000, -0.0300), ( 0.0000, -0.0300), ( 0.3500, -0.0280),
+    ( 0.6000, -0.0200), ( 0.7600, -0.0100), ( 1.0700,  0.0060),
 ]), Curve([
-    ( 0.8500,  0.0060), ( 1.0200,  0.0140), ( 1.2800,  0.0220), ( 1.5600,  0.0250),
-    ( 1.8200,  0.0220), ( 2.0400,  0.0160), ( 2.2000,  0.0100), ( 2.3050,  0.0040),
+    ( 1.0700,  0.0000), ( 1.2800, -0.0040), ( 1.5600, -0.0080), ( 1.8200, -0.0100),
+    ( 2.0400, -0.0090), ( 2.2000, -0.0060), ( 2.3050, -0.0030),
 ]))
 
-# Tightened, muscular front & rear fender flares with taut athletic waist tuck at mid-door
+# half-width over the arches: 1875 mm overall
 Y_HIP = Curve([
-    (-2.4000, 0.8120), (-2.2400, 0.8460), (-2.0000, 0.8880), (-1.7400, 0.9260),
-    (-1.5200, 0.9440), (-1.3600, 0.9480), (-1.1200, 0.9300), (-0.8000, 0.9020),
-    (-0.4000, 0.8900), ( 0.0500, 0.8900), ( 0.5500, 0.9000), ( 1.0500, 0.9240),
-    ( 1.3600, 0.9440), ( 1.5400, 0.9470), ( 1.7400, 0.9360), ( 1.9000, 0.9120),
-    ( 2.0400, 0.8650), ( 2.1500, 0.8120), ( 2.2400, 0.7520), ( 2.3050, 0.7080),
+    (-2.4000, 0.7900), (-2.2400, 0.8200), (-2.0000, 0.8600), (-1.7400, 0.9050),
+    (-1.5200, 0.9340), (-1.3600, 0.9375), (-1.1200, 0.9200), (-0.8000, 0.8920),
+    (-0.4000, 0.8800), ( 0.0500, 0.8800), ( 0.5500, 0.8900), ( 1.0500, 0.9140),
+    ( 1.3600, 0.9340), ( 1.5400, 0.9375), ( 1.7400, 0.9260), ( 1.9000, 0.9020),
+    ( 2.0400, 0.8560), ( 2.1500, 0.8030), ( 2.2400, 0.7440), ( 2.3050, 0.7000),
 ], mode="pchip")
 
 Y_SHOULDER = Curve([
-    (-2.4000, 0.7680), (-2.1000, 0.8000), (-1.7800, 0.8360), (-1.3600, 0.8800),
+    (-2.4000, 0.7400), (-2.1000, 0.7700), (-1.7800, 0.8100), (-1.3600, 0.8550),
     (-1.0000, 0.8580), (-0.4500, 0.8400), ( 0.1000, 0.8400), ( 0.6000, 0.8500),
     ( 0.9500, 0.8600), ( 1.5000, 0.8750), ( 1.8000, 0.8560), ( 2.0600, 0.8260),
     ( 2.3050, 0.7920),
 ], mode="pchip")
 
-# Narrowed, tapered coupe-sedan greenhouse roof rail + muscular front fender crowns
+# roof rail half-width / fender crowns
 Y_ROOF = Curve([
-    (-2.4000, 0.6550), (-2.2600, 0.6780), (-2.0800, 0.7050), (-1.7900, 0.7120),
-    (-1.4900, 0.6620), (-1.1600, 0.5980), (-0.8400, 0.5480), (-0.4700, 0.5220),
-    (-0.1000, 0.5180), ( 0.2500, 0.5450), ( 0.5200, 0.6250), ( 0.7400, 0.7050),
-    ( 0.8500, 0.7280), ( 1.1500, 0.7480), ( 1.5200, 0.7600), ( 1.8800, 0.7420),
+    (-2.4000, 0.5200), (-2.2600, 0.5400), (-2.0800, 0.5600), (-1.7900, 0.5750),
+    (-1.4900, 0.5750), (-1.1600, 0.5800), (-0.8400, 0.5850), (-0.4700, 0.5850),
+    (-0.1000, 0.5850), ( 0.2500, 0.5750), ( 0.5200, 0.6200), ( 0.7400, 0.6750),
+    ( 0.8500, 0.7000), ( 1.1500, 0.7400), ( 1.5200, 0.7600), ( 1.8800, 0.7420),
     ( 2.1800, 0.6620), ( 2.3050, 0.6020),
 ])
 
-# Tapered cabin greenhouse base over broad rear haunches (creates muscular rear fender shoulder deck)
+# greenhouse base over the broad rear haunches
 Y_GLASS = Curve([
-    (-2.4000, 0.6900), (-2.0800, 0.7200), (-1.7500, 0.7420), (-1.4000, 0.7680),
-    (-1.0200, 0.7980), (-0.5000, 0.8220), ( 0.1000, 0.8300), ( 0.6500, 0.8380),
+    (-2.4000, 0.6500), (-2.0800, 0.6750), (-1.7500, 0.6950), (-1.4000, 0.7200),
+    (-1.0200, 0.7650), (-0.5000, 0.8000), ( 0.1000, 0.8300), ( 0.6500, 0.8380),
     ( 0.8500, 0.8450), ( 2.4000, 0.8500),
 ], mode="pchip")
 
-# Sculpted twin hood power domes inboard of the fender crowns
-Z_DOME = Curve([
-    (-2.4000, 0.0000), ( 0.8500, 0.0000), ( 1.0000, 0.0060), ( 1.3000, 0.0150),
-    ( 1.6500, 0.0180), ( 1.9500, 0.0140), ( 2.1800, 0.0060), ( 2.3050, 0.0000),
-], mode="pchip")
-
-Y_DOME = Curve([
-    (-2.4000, 0.5200), ( 0.8500, 0.5400), ( 1.2500, 0.5000), ( 1.6500, 0.4400),
-    ( 2.0000, 0.3600), ( 2.3050, 0.2600),
-], mode="pchip")
+# no hood domes on the Seal: one smooth bonnet with a soft central crown
+Z_DOME = None
+Y_DOME = None
 
 Y_ROCKER = Curve([
     (-2.4000, 0.7350), (-2.1400, 0.8120), (-1.9000, 0.8380), (-1.4000, 0.8520),
@@ -134,19 +132,19 @@ Y_ROCKER = Curve([
     ( 1.8900, 0.8480), ( 2.0200, 0.8350), ( 2.1100, 0.8080), ( 2.3050, 0.7320),
 ], mode="pchip")
 
-# Deep BYD Seal sculpted lower-door undercut (Ocean wave side scallop)
+# lower-door concavity: the scoop under the Ocean Wave crease
 UNDERCUT = Curve([
-    (-2.4000, 0.0000), (-1.7000, 0.0000), (-1.0500, 0.0220), (-0.5200, 0.0360),
-    ( 0.0000, 0.0380), ( 0.5900, 0.0340), ( 1.0800, 0.0180), ( 1.5200, 0.0000),
-    ( 2.4000, 0.0000),
+    (-2.4000, 0.0000), (-1.7000, 0.0000), (-1.3000, 0.0200), (-1.0000, 0.0400),
+    (-0.5000, 0.0500), ( 0.0000, 0.0500), ( 0.5000, 0.0450), ( 0.9500, 0.0300),
+    ( 1.3000, 0.0100), ( 1.5200, 0.0000), ( 2.4000, 0.0000),
 ], mode="pchip")
 
-# Custom section recipe with organic arch-to-shoulder tension and crisp Ocean Wave beltline
 SEAL_SECTION = Section(
-    upper_door=(0.78, 0.006, 0.64),
-    step_max=0.034,
+    upper_door=(0.55, 0.006, 0.64),
+    step_max=0.030,
     step_in=0.016,
     glass_mid=0.42,
+    tumble=(0.50, 0.50, 0.56, 0.40),
 )
 
 # ------------------------------------------------------------------ the loft
@@ -158,7 +156,7 @@ BODY = LoftBody(
     y_rocker=Y_ROCKER, undercut=UNDERCUT, z_crest=Z_CREST,
     y_glass=Y_GLASS, z_dome=Z_DOME, y_dome=Y_DOME,
     v_shoulder=V_SHOULDER, cowl_x=COWL_X, backlight_x=BACKLIGHT_X,
-    sill_height=0.145, core_z=0.625, crease="sharp", section=SEAL_SECTION,
+    sill_height=0.150, core_z=0.625, crease="sharp", section=SEAL_SECTION,
 )
 
 z_rocker = BODY.z_rocker

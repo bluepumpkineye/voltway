@@ -11,11 +11,15 @@ from carkit import materials as _M
 LIGHTS_ON = False
 TAIL_LIGHTS = 1.3
 
-# Arctic Blue (北冰蓝): official BYD Seal signature hero color, sRGB #82B2D6 -> linear RGB (0.228, 0.458, 0.680)
+# Arctic Blue (北冰蓝): the Seal's signature blue-grey. Read from the maker's studio photograph (the
+# owner's first reference): body mid-tones sRGB (81,103,123), light panels (120,145,173), shade (55,71,86)
+# - a dusty steel blue with a cool pearl, NOT a sky blue. The base is the mid-tone over the viewer's
+# ~1.35x brightening: viewer door median read (110,127,145) from (60,82,104) so the base went to
+# sRGB (48,71,97) = #304761 -> linear below (target viewer median ~ (88,110,134)).
 SEAL_ARCTIC_BLUE = dict(
     name="M_Paint_Seal_Blue",
-    base=(0.228, 0.458, 0.680),
-    roughness=0.28,
+    base=(0.0296, 0.0630, 0.1195),
+    roughness=0.30,
     specular=0.25,
     coat_rough=0.04,
     peel=0.008,
@@ -23,7 +27,7 @@ SEAL_ARCTIC_BLUE = dict(
 )
 PAINT_METALLIC = 0.16            # strictly under the export gate's 0.20 ceiling
 PAINT_COAT = 0.55
-SHEEN = dict(weight=0.04, tint=(0.75, 0.88, 1.00), roughness=0.25)
+SHEEN = dict(weight=0.05, tint=(0.62, 0.76, 0.92), roughness=0.30)
 
 _M.CALIPERS.setdefault("seal_silver", dict(
     base=(0.48, 0.50, 0.54),
@@ -52,8 +56,14 @@ def _sheen(m):
 
 
 def build_library():
+    # SEAL_PAINT_GAIN: the dashboard's car pictures are rendered in Blender's studio rig, which is about
+    # 1.5x darker than the web viewer's light on the same base colour; they are shot with the gain set
+    import os
+    gain = float(os.environ.get("SEAL_PAINT_GAIN", "1.0"))
+    paint = dict(SEAL_ARCTIC_BLUE)
+    paint["base"] = tuple(min(1.0, c * gain) for c in SEAL_ARCTIC_BLUE["base"])
     lib = _M.build_library(
-        paint=SEAL_ARCTIC_BLUE,
+        paint=paint,
         rim="seal_aero_alloy",
         caliper="seal_silver",
         lights_on=LIGHTS_ON,
@@ -71,7 +81,7 @@ def build_library():
 
     # Tail lamp deep smoked ruby lens
     m, nt, b = _M.mat("M_Lamp_RedLens")
-    _M.set_inputs(b, base=(0.028, 0.003, 0.005), metallic=0.0, roughness=0.04,
+    _M.set_inputs(b, base=(0.012, 0.0025, 0.004), metallic=0.0, roughness=0.04,
                   coat=1.0, coat_rough=0.015, ior=1.52, specular=0.65)
     lib["lamp_red_lens"] = m
 

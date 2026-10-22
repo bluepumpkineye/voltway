@@ -105,8 +105,8 @@ export const bydSeal: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/byd-seal-shadow.webp',
-      size: [7.8, 4.9],
-      centre: [-0.002, 0.0],
+      size: [7.832, 5.061],
+      centre: [0.002, 0.0],
     },
     interiorModelUrl: '/models/byd-seal-interior.glb',
     interiorProbeUrl: '/models/cabin-hall.hdr',
@@ -117,7 +117,7 @@ export const bydSeal: Vehicle = {
       sun: { direction: [0.6959, 0.3477, 0.6284], color: '#ffdfae', intensity: 1.96 },
       ground: { height: 1.7, radius: 45 },
     },
-    heroColor: '#82B2D6',
+    heroColor: '#66809F',
     driverEye: [0.05, 0.33, 1.12],
     proxyUrl: '/models/byd-seal-proxy.glb',
   },
@@ -128,7 +128,7 @@ export const bydSeal: Vehicle = {
         id: 'arctic-blue',
         name: 'Arctic Blue',
         nameZh: '北冰蓝',
-        swatch: '#82B2D6',
+        swatch: '#66809F',
       },
       {
         id: 'mystic-green',
@@ -193,8 +193,8 @@ export const bydSeal: Vehicle = {
     wheels: [
       {
         id: 'aero-19',
-        name: '19-inch 5-Y Petal Aero Blade Alloy',
-        nameZh: '19英寸五辐气动精车铝合金轮毂',
+        name: '19-inch Five-Spoke Turbine Alloy',
+        nameZh: '19英寸五辐涡轮铝合金轮毂',
         size: '19 in',
         tyres: '235/45 R19',
         node: 'BYDSeal_Wheels',
@@ -216,8 +216,8 @@ export const bydSeal: Vehicle = {
       axis: 'z',
       deg: 74,
       struts: [
-        { body: [0.98, 0.85, -0.62], moving: [1.20, 0.88, -0.62] },
-        { body: [0.98, 0.85, 0.62], moving: [1.20, 0.88, 0.62] },
+        { body: [1.20, 0.86, -0.62], moving: [1.42, 0.90, -0.62] },
+        { body: [1.20, 0.86, 0.62], moving: [1.42, 0.90, 0.62] },
       ],
     },
     {
@@ -273,7 +273,7 @@ export const bydSeal: Vehicle = {
     packKwh: 80.64,
     architectureV: 800,
     connector: 'GB/T',
-    port: { side: 'right', published: true, where: 'Right rear quarter' },
+    port: { side: 'left', published: true, where: 'Left rear quarter' },
     claims: [
       {
         text: 'Equipped with e-Platform 3.0 Evo full-domain 800V silicon carbide high-voltage platform, supporting high-power boost charging from 10% to 80% SoC in 25 minutes.',

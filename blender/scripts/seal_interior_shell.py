@@ -244,8 +244,9 @@ def build_rear_closure(col, lib):
                             lambda x, z: 0.68, n=14, name="int_bulkhead", facing=(1.0, 0.0, 0.0)))
 
     def shelf_z(x):
-        return 0.975 + 0.08 * _smooth((-1.52 - x) / 0.28)
-    xs = [xb + (X_HEADLINER_R - xb) * k / 24.0 for k in range(25)]
+        # up to the backlight's foot (x -2.0, z 1.086 on this body: the glass runs down to the boot lid)
+        return 0.975 + 0.100 * _smooth((-1.45 - x) / 0.55)
+    xs = [xb + (-1.99 - xb) * k / 30.0 for k in range(31)]
     rows = []
     for x in xs:
         hw = min(0.74, S.section_v(x, S.v_at_z(x, shelf_z(x), 0.30, 0.99))[0] - 0.040)

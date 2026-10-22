@@ -25,29 +25,29 @@ SKIN = M.SKIN
 
 # ----------------------------------------------------------------- stations
 X_COWL = S.COWL_X            # +0.8500 m: windscreen base / A-pillar foot (cab-rearward silhouette)
-X_BPILLAR_F = -0.1100        # front door | rear door shut line
-X_BACKLIGHT = S.BACKLIGHT_X  # -1.9600 m: fastback backlight base (lengthened rear deck)
+X_BPILLAR_F = -0.1700        # front door | rear door shut line (photo: -0.15 low, -0.26 at the roof)
+X_BACKLIGHT = S.BACKLIGHT_X  # -2.0000 m: fastback backlight base
 X_ROOF_F = 0.2200            # windscreen header
 X_ROOF_R = -1.1200           # backlight header
-X_QTR_F = -0.9200            # rear door window / quarter glass divider
-X_QTR_R = -1.3800            # sleek coupe quarter glass rear apex
+X_QTR_F = -1.0500            # rear door window / quarter glass divider (photo: -1.0 top, -1.1 low)
+X_QTR_R = -1.4800            # quarter glass tip (photo: x -1.477, z 1.149)
 
 # Narrowed coupe-sedan greenhouse glass height
 V_BELT = S.V_SHOULDER + 0.030
 V_REARGLASS = 0.700          # fastback backlight width
 
-# Curved front & rear door shut lines scaled to 2920 mm wheelbase & cab-rearward cowl
+# Door shut lines, read from the white car's side photograph (seal_cam.DOOR_F_EDGE_PX / DOOR_R_EDGE_PX,
+# converted at the skin plane y 0.92): the front door's leading edge stands at x 0.93-0.956 and
+# the rear door's trailing edge sweeps from the belt (x -1.2) diagonally FORWARD to the sill (x -0.63)
 _DOOR_F_EDGE = Curve([
-    (0.199, 0.865), (0.274, 0.868), (0.389, 0.882), (0.518, 0.892),
-    (0.648, 0.895), (0.777, 0.888), (0.867, 0.868), (0.937, 0.852),
-    (1.076, 0.845),
+    (0.200, 0.928), (0.251, 0.934), (0.329, 0.940), (0.472, 0.950), (0.615, 0.956),
+    (0.744, 0.955), (0.830, 0.951), (0.901, 0.943), (0.968, 0.915), (1.080, 0.880),
 ], mode="pchip")
 
 _DOOR_R_EDGE = Curve([
-    (0.199, -0.710), (0.289, -0.740), (0.419, -0.860), (0.488, -0.910),
-    (0.548, -0.950), (0.613, -0.990), (0.678, -1.040), (0.733, -1.090),
-    (0.792, -1.120), (0.872, -1.140), (0.942, -1.130), (1.037, -1.070),
-    (1.116, -1.055),
+    (0.200, -0.600), (0.266, -0.631), (0.287, -0.666), (0.338, -0.716), (0.395, -0.766),
+    (0.453, -0.823), (0.553, -0.908), (0.654, -0.993), (0.700, -1.040), (0.768, -1.100),
+    (0.840, -1.190), (0.912, -1.242), (0.984, -1.256), (1.069, -1.205), (1.200, -1.150),
 ], mode="pchip")
 
 
@@ -99,7 +99,7 @@ _QTR_TIP = []
 
 def V_QTR_TIP():
     if not _QTR_TIP:
-        _QTR_TIP.append(S.v_at_z(X_QTR_R, 1.105, S.V_SHOULDER, 1.0))
+        _QTR_TIP.append(S.v_at_z(X_QTR_R, 1.149, S.V_SHOULDER, 1.0))
     return _QTR_TIP[0]
 
 
@@ -247,8 +247,8 @@ def build_panels(collection, lib):
 
 
 # ------------------------------------------------------------------ hidden
-def build_shadow_shell(collection, lib, name="Seal_Shell_Shadow"):
-    ob = BP.shadow_shell(N.BODY, collection, lib, name, nx=100, inset=0.068, shrink=0.950)
+def build_shadow_shell(collection, lib, name="Seal_Shell_Shadow", skins=()):
+    ob = BP.shadow_shell(N.BODY, collection, lib, name, nx=140, nv=80, inset=0.068, shrink=0.950)
     for sfx in ("_F", "_R"):
         cap_ob = bpy.data.objects.get(name + sfx)
         if cap_ob is not None:
@@ -257,12 +257,93 @@ def build_shadow_shell(collection, lib, name="Seal_Shell_Shadow"):
         z_min = S.Z_FLOOR(v.co.x) + 0.045
         if v.co.z < z_min:
             v.co.z = z_min
-        if v.co.x > 0.90 and v.co.z > 0.67:
-            v.co.z = min(v.co.z, 0.67 - (v.co.x - 0.90) * 0.11)
-        if v.co.x < -1.15 and v.co.z > 0.84:
-            v.co.z = min(v.co.z, 0.84 + (v.co.x + 1.15) * 0.08)
     ob.data.update()
+    if skins:
+        clear_shell(ob, skins)
     return ob
+
+
+def clear_shell(shell, skins, gap=0.015, core_z=0.70):
+    """Pull the shell in to `gap` under the built skin, along rays from its core line (see
+    zx_panels.clear_shell: the shell is the loft shrunk about that line and over the concave
+    arch lips and pillars its chords cut through the skin, black shards in the paint)."""
+    from mathutils import Vector
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    verts, faces = [], []
+    for ob in skins:
+        ev = ob.evaluated_get(dg)
+        me = ev.to_mesh()
+        base = len(verts)
+        verts += [ob.matrix_world @ v.co for v in me.vertices]
+        faces += [[base + i for i in p.vertices] for p in me.polygons]
+        ev.to_mesh_clear()
+    tree = BVHTree.FromPolygons(verts, faces)
+    mw = shell.matrix_world
+    inv = mw.inverted()
+    me = shell.data
+
+    def ray(p):
+        c = Vector((p.x, 0.0, core_z))
+        d = p - c
+        n = d.length
+        if n < 1e-6:
+            return None
+        d /= n
+        hit = tree.ray_cast(c, d, n + 0.25)[0]
+        if hit is None:
+            return None
+        return c, d, n, (hit - c).length
+
+    moved = set()
+    for v in me.vertices:
+        r = ray(mw @ v.co)
+        if r and r[2] > r[3] - gap:
+            c, d, n, reach = r
+            v.co = inv @ (c + d * max(0.0, reach - gap))
+            moved.add(v.index)
+    for _ in range(3):
+        again = False
+        for f in me.polygons:
+            r = ray(mw @ f.center)
+            if not r or r[2] <= r[3] - 0.5 * gap:
+                continue
+            deficit = r[2] - (r[3] - 0.5 * gap)
+            for i in f.vertices:
+                q = ray(mw @ me.vertices[i].co)
+                if q:
+                    c, d, n, _reach = q
+                    me.vertices[i].co = inv @ (c + d * max(0.0, n - deficit))
+                    moved.add(i)
+            again = True
+        me.update()
+        if not again:
+            break
+    # whatever still stands at or above the skin (a quad across a concave fold) goes: seen from outside
+    # it is a black shard in the paint; the shell is only a hidden dark backing
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    dead = []
+    for f in bm.faces:
+        p = mw @ f.calc_center_median()
+        c = Vector((p.x, 0.0, core_z))
+        d = c - p
+        n = d.length
+        if n < 1e-6:
+            continue
+        d /= n
+        start = p - d * 0.002
+        hit = tree.ray_cast(start, d, n)[0]
+        if hit is not None:
+            dead.append(f)
+    bmesh.ops.delete(bm, geom=dead, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(me)
+    bm.free()
+    me.update()
+    print("shadow shell: %d vertices pulled under the skin, %d faces left standing proud removed" % (len(moved), len(dead)))
+    return len(moved)
 
 
 def build_wheel_liners(collection, lib):
@@ -284,7 +365,7 @@ def build_underbody(collection, lib):
 def build_all(collection, lib):
     made = []
     made += build_panels(collection, lib)
-    made.append(build_shadow_shell(collection, lib))
+    made.append(build_shadow_shell(collection, lib, skins=list(made)))
     made += build_wheel_liners(collection, lib)
     made.append(build_underbody(collection, lib))
     return made

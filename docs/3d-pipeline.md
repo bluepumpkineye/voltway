@@ -1264,6 +1264,37 @@ calipers are silver; the Ultra and the 103 kWh Max show orange ones.
   photographs `12_75351_168`, `12_75351_34`); the calipers are the same sector in every design, and
   the silver one is the orange material recoloured (a dielectric, not aluminium).
 
+### The BYD Seal (`seal_*`): rebuilt from camera-matched photographs (2026-10-22)
+
+The first Seal was a Z9-derived guess; this is the real 2022-24 sedan (4800 x 1875 x 1460 mm, wheelbase 2920, 235/45 R19).
+References are Autohome series **6394** (not `blender/reference/byd-seal`, which is the Seal 07 EV, series 8462):
+`blender/reference/byd-seal-ev/exterior/c1_0513` (blue car side: silhouette and colour), `c1_0506` (white car side: shut
+lines), `c1_0511` / `c1_0515` (blue front / rear). The gallery pages are `car.autohome.com.cn/pic/series-t/6394-1-p<N>.html`.
+
+- **Cameras** (`seal_cam.py`, `seal_ref_match.py`): the side cameras come from both rim lips and the wheelbase (702 px/m,
+  level, 1.195 m high; D 14 m is set by the car's length), the front and rear from the tyre walls, the 440 mm plate sign, the
+  roof crest and the screen's base (front: 11.75 m ahead, 0.615 m up, pitched UP 1.43 degrees; rear: 12.5 m behind, 0.624 m,
+  UP 1.19 degrees). A positive vertical shift of the far points means the camera is pitched up: getting that sign wrong
+  put the badge at z 0.17 instead of 0.63.
+- **Surface** (`seal_surface.py`, `seal_nose.py`): the centreline profile is the photograph's silhouette in metres; the widths
+  were fixed by silhouette error against traced outlines through the front and rear cameras (`row edge` of the model's
+  alpha against the photo's outline: the first guess had the roof 4-8 cm too wide). `Z_HIP` is the Ocean Wave crease on
+  the doors (0.75 at the fender gill, 0.862 over the door split) and drops to 0.54 over the rear haunch, where the
+  photograph's flank tucks in above z 0.5.
+- **Panels**: the rear door's trailing edge sweeps diagonally FORWARD from x -1.2 at the belt to -0.63 at the sill; the
+  front plate is 440 mm; the lid's side shut lines stand at y +-0.60.
+- **Front/rear** are bands placed on the caps from pixel outlines (`_px_yz`, `CAM.rear_yz`); lamps are placed by ray-casting the
+  photograph's own rays onto the built meshes (`refmatch.on_mesh`), so a lamp that wraps a corner lands where the photo
+  has it. The layers of a lamp must rise in order (housing, lens, then DRL/projectors above the lens): a lens built last
+  hid the projectors.
+- **Wheels** (`seal_wheels.py`): five-fold pinwheel traced with `scripts/wheel-trace` (unwarp, centrefit, `segment.cjs`
+  of the silver edges as an inlay, the pockets between the arms as windows); `wheel_preview.face_on('seal')`.
+- **Shadow shell**: pulled under the skin with `clear_shell` (inset 0.068, shrink 0.95); without it the shell showed through
+  the arch lips as black shards in the web.
+- Run: `export_seal.web()` (60 s) then `node scripts/make-proxy.mjs byd-seal`; the cabin `export_seal.web_cabin(look="hall",
+  outside=False)` (2.5 min); `seal_cabin.leakqa()` (13 min, background Blender; the log appears only at the end);
+  `seal_cabin.hmi_art()` for the dashboard's car pictures.
+
 ### Judging the web result against the photo
 
 ```python

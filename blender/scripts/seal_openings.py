@@ -31,7 +31,7 @@ DOORS = {
 }
 ROWS = {
     "front": ("Seal_Door_Front", "Seal_Glass_DoorFront", "Seal_Handle_F", "Seal_Handle_Rim_F",
-              "Seal_Mirror_Head", "Seal_Mirror_Stalk", "Seal_Mirror_Glass", "Seal_Mirror_Cam_Pod",
+              "Seal_Mirror_Head", "Seal_Mirror_Stalk", "Seal_Mirror_Glass",
               "Seal_Ocean_Wave_Line_F"),
     "rear": ("Seal_Door_Rear", "Seal_Glass_DoorRear", "Seal_Handle_R", "Seal_Handle_Rim_R",
              "Seal_Ocean_Wave_Line_R"),

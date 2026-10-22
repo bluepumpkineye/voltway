@@ -1,91 +1,85 @@
-"""BYD Seal EV 19-inch 10-spoke angular turbine-blade alloy wheels (235/45 R19 front & rear).
+"""BYD Seal 19-inch five-spoke "turbine" alloy wheels (235/45 R19 front and rear), traced from the blue
+car's side photograph (blender/reference/byd-seal-ev/exterior/c1_0513.jpg, REAR wheel, ellipse ratio
+0.986 at (2945.5, 2038.9) px, the axle corrected -2, -3 px; scripts/wheel-trace, memory wheel-tracing-method).
 
-Calibrated to BYD Seal AWD Performance trim wheel designs (Autohome Series 6394, c1_0004.jpg):
-- 10 angular swept turbine blades with dual-tone finish (machined bright face + gloss-black pocket)
-- Bounded strictly within the 19-inch rim radius (r_rim = 0.240 m < lip 0.254 m) so zero geometry
-  ever intersects the tyre sidewall
-- Polished machined flange lip and central hub cap with BYD emblem
+What the wheel is: five repeats of a pinwheel face. Each spoke is a narrow arm from the hub that widens
+into a flat paddle; the paddle's leading edges are machined silver (a "boomerang": up the arm to
+r 0.64, swinging back toward the rim, then along the rim as an L round the paddle's black ribbed panel),
+the panels and arms are gloss black, and between the arms near the hub the brake disc shows through five
+open pockets. A plain machined ring is the rim's flange; a black roundel cap sits in the hub. The silver
+outlines are the voted mean of the five repeats (segment.cjs lum 140-255); the pockets are read off the
+mean picture (angle degrees counter-clockwise from 3 o'clock seen from outside, radius / the lip radius).
 """
 import math
 from carkit.geom import Curve
 from carkit.parts import wheels as W
 
-LIP_19 = 0.2540     # 19-inch rim lip radius (m)
-TAB = 0.945         # visible machined flange landing
+LIP = 0.2633        # the rim lip radius (m): the photograph's lip circle against the tyre (0.768 of its radius)
+TAB = 0.975         # the face's edge: outside it the machined flange ring
 
 CALIPER = dict(
     span_deg=34.0, span_rear=28.0, r_inner=0.118, d_out=0.028, steps=16
 )
 
-# Progressive dish curve dropping from rim flange to central hub
 DISH = Curve([
     (0.000, 0.045), (0.070, 0.045), (0.095, 0.036), (0.135, 0.024),
-    (0.180, 0.014), (0.220, 0.008), (0.254, 0.000),
+    (0.180, 0.014), (0.220, 0.008), (0.2633, 0.000),
 ], mode="pchip")
 
-# 10-spoke directional turbine/blade-style multi-spoke alloy design for BYD Seal AWD Performance
-SPEC_SEAL_TURBINE_10 = W.preset(
-    "su7_ultra_hairpin",
-    rim_d=2.0 * LIP_19,
+# the open pockets between the arms near the hub (the disc and caliper show through)
+WINDOWS = [
+    [(31.0, 0.58), (45.0, 0.60), (60.0, 0.60), (75.0, 0.59), (86.0, 0.585),
+     (87.0, 0.40), (80.0, 0.345), (60.0, 0.335), (40.0, 0.345), (31.0, 0.39)],
+]
+
+# the machined edges: the boomerang (arm, swing, L round the panel) and the rim-ring segment
+SILVER_L = [(25.6, 0.978), (24.5, 0.976), (23.9, 0.965), (24.3, 0.748), (24.7, 0.734), (27.6, 0.705), (28.2, 0.704),
+            (28.7, 0.710), (28.4, 0.843), (28.1, 0.854), (28.3, 0.881), (27.9, 0.887), (28.1, 0.934), (28.6, 0.948),
+            (31.2, 0.947), (33.2, 0.948), (36.5, 0.949), (40.1, 0.949), (49.9, 0.952), (52.4, 0.935), (52.8, 0.921),
+            (53.8, 0.915), (53.9, 0.904), (55.1, 0.895), (55.8, 0.887), (55.9, 0.880), (59.6, 0.835), (67.4, 0.766),
+            (76.5, 0.710), (80.5, 0.693), (90.4, 0.663), (92.6, 0.650), (93.2, 0.634), (93.6, 0.581), (94.4, 0.205),
+            (95.3, 0.190), (95.5, 0.178), (98.8, 0.179), (99.8, 0.193), (99.2, 0.300), (98.8, 0.568), (98.2, 0.642),
+            (92.6, 0.690), (84.2, 0.711), (79.6, 0.727), (74.4, 0.750), (68.2, 0.788), (62.8, 0.834), (58.8, 0.875),
+            (51.6, 0.974), (38.1, 0.973), (35.0, 0.977)]
+SILVER_RING = [(-10.6, 0.964), (-9.6, 0.957), (-8.1, 0.956), (9.9, 0.959), (14.0, 0.959), (18.8, 0.959),
+               (19.9, 0.953), (20.2, 0.967), (19.7, 0.978), (18.4, 0.979), (4.5, 0.979), (-9.5, 0.974), (-10.6, 0.971)]
+
+SPEC_SEAL_TURBINE_5 = W.preset(
+    "blade_5",
+    rim_d=2.0 * LIP,
     flange=(0.118, 0.125, 0.50),
-    flange_face=(1.0 - TAB) * LIP_19,
+    flange_face=(1.0 - TAB) * LIP,
     dish=DISH,
     pinstripe=False,
     roll_left=math.pi,
-    spokes=dict(
-        style="blade",
-        count=10,
-        phase=math.pi / 10.0,
-        depth=0.026,
-        bevel=0.0016,
-        params=dict(
-            r_hub=0.084,
-            r_rim=0.242,       # Strictly inside rim lip 0.254 m (no tyre sidewall clipping!)
-            w_hub=0.018,
-            w_rim=0.038,
-            twist=0.30,        # Pronounced directional turbine blade sweep
-            twist_power=1.35,
-            split=0.46,        # Sharp machined leading blade vs gloss-black aero pocket
-            drop=0.020,
-        ),
-        face_mat="machined",
-    ),
-    hub=dict(
-        depth=0.045,
-        setback=0.006,
-        cap_rise=0.004,
-        cap_r=0.030,
-        cap_logo=dict(
-            quads=[
-                ((-0.016, -0.006), (-0.016, 0.006), (-0.008, 0.006), (-0.008, -0.006)),
-                ((-0.004, -0.006), (-0.004, 0.006), (0.004, 0.006), (0.004, -0.006)),
-                ((0.008, -0.006), (0.008, 0.006), (0.016, 0.006), (0.016, -0.006)),
-            ],
-            h=0.005,
-            mat="logo_chrome",
-        ),
-    ),
+    tyre=dict(bulge=1.035, shoulder=0.014),
+    hub=dict(depth=0.045, setback=0.006, cap_rise=0.004, cap_r=0.030),
     lugs=dict(count=5, pcd_r=0.0520, r=0.0090, deg=18.0, rise=0.003),
     disc=dict(style="plain", inner_r=0.115, thickness=0.028),
     caliper=CALIPER,
-    tyre=dict(bulge=1.035, shoulder=0.014),
     mats=dict(
         tyre="rubber",
         rim="black_gloss",
         lip="machined",
         lugs="wheel_silver",
-        cap="black_gloss",
+        cap="wheel_cap",
         disc="iron",
         barrel="black_gloss",
-        accent="machined",
+        accent="black_gloss",
         caliper="caliper",
     ),
 )
+SPEC_SEAL_TURBINE_5["spokes"] = dict(
+    style="traced", count=5, phase=0.0, depth=0.016, bevel=0.0016, mat="black_gloss",
+    r_in=0.040, r_out=TAB * LIP, nr=18, seg=72, step_deg=2.0, step_r=0.025,
+    windows=WINDOWS,
+    inlay=dict(mat="machined", polys=[SILVER_L, SILVER_RING], lift=0.0005),
+)
 
 DESIGNS = {
-    "turbine_10": ("BYDSeal_", SPEC_SEAL_TURBINE_10),
+    "turbine_5": ("BYDSeal_", SPEC_SEAL_TURBINE_5),
 }
-DEFAULT = "turbine_10"
+DEFAULT = "turbine_5"
 
 
 def corners(surface):

@@ -13,23 +13,24 @@ import bmesh
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-HINGE_X = -2.040                          # decklid hinge axis synchronized with int_tailgate in byd-seal-interior.glb
+HINGE_X = -2.000                          # decklid hinge axis (the backlight's foot) synchronized with int_tailgate in byd-seal-interior.glb
 OPEN_DEG = 80.0
 GROUP = ("BYDSeal_Tailgate", "Seal_GateGrp")
 NODE = "BYDSeal_Tailgate"
 
 # Whole objects that live in the lid (each holds both sides)
 PARTS = (
-    "Seal_Decklid", "Seal_Ducktail_Lip",
-    "Seal_Badge_BYD", "Seal_Badge_BYD_Zh", "Seal_Badge_Seal",
+    "Seal_Decklid", "Seal_Ducktail_Lip", "Seal_Ducktail_Trim",
+    "Seal_Badge_BYD_Zh", "Seal_Badge_EV", "Seal_Badge_Seal",
 )
+SLOGAN = "Seal_Slogan_"                   # the BUILD YOUR DREAMS letters (one object each)
 # The bands the shut line cuts: only the middle (|y| < Y_SHUT) goes with the lid; the rest stays on the quarters
 CUT = (
     "Seal_Tail_Upper", "Seal_Tailgate_Skin", "Seal_Tail_Housing", "Seal_Tail_Lens",
     "Seal_Tail_Through_Bar", "Seal_Tail_Chrome_Bar",
-    "Seal_Tail_Red_Upper", "Seal_Tail_Red_Lower", "Seal_Tail_Dot_Matrix",
+    "Seal_Tail_Dot_Matrix", "Seal_Lid_ShutLine_Arc",
 )
-Y_SHUT = 0.650                            # the lid's side shut line at the tail
+Y_SHUT = 0.600                            # the lid's side shut line at the tail (c1_0515: y 0.58-0.60)
 
 _HINGE = []
 
@@ -141,6 +142,7 @@ def split_tail():
         ob = bpy.data.objects.get(p)
         if ob:
             lid_obs.append(ob)
+    lid_obs += [o for o in bpy.data.objects if o.name.startswith(SLOGAN)]
     for c in CUT:
         ob = bpy.data.objects.get(c + "_C")
         if ob:
