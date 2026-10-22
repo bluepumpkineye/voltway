@@ -71,9 +71,9 @@ CFG = dict(
                "int_tailgate"},
     join_cards=_join_cards,
     set_open=_set_open,
-    eyes={"driver": (0.05, 0.33, 1.12), "passenger": (0.05, -0.33, 1.12),
-          "rear_left": (-0.92, 0.34, 1.08), "rear_right": (-0.92, -0.34, 1.08),
-          "rear_mid": (-0.92, 0.0, 1.08)},
+    eyes={"driver": (0.06, 0.355, 1.12), "passenger": (0.06, -0.355, 1.12),
+          "rear_left": (-0.95, 0.43, 1.08), "rear_right": (-0.95, -0.43, 1.08),
+          "rear_mid": (-0.95, 0.0, 1.08)},
     cameras=cameras,
     displays={"screen_cluster": lambda: _zi().cluster_image()},
     build_module="build_seal",
@@ -90,8 +90,8 @@ CFG = dict(
                             "parcel", "bulkhead", "sill", "visor", "rvmirror", "overhead", "head_speaker",
                             "roofrail", "tweeter", "quarter")),
     },
-    hmi_seat_points={"FL": (-0.05, 0.33, 0.82), "FR": (-0.05, -0.33, 0.82), "RL": (-1.02, 0.34, 0.80),
-                     "RR": (-1.02, -0.34, 0.80), "wheel": (0.54, 0.33, 0.89)},
+    hmi_seat_points={"FL": (0.00, 0.36, 0.82), "FR": (0.00, -0.36, 0.82), "RL": (-1.02, 0.43, 0.80),
+                     "RR": (-1.02, -0.43, 0.80), "wheel": (0.50, 0.385, 0.89)},
 )
 
 

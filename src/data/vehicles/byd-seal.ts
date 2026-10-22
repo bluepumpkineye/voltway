@@ -118,7 +118,7 @@ export const bydSeal: Vehicle = {
       ground: { height: 1.7, radius: 45 },
     },
     heroColor: '#66809F',
-    driverEye: [0.05, 0.33, 1.12],
+    driverEye: [0.06, 0.355, 1.12],
     proxyUrl: '/models/byd-seal-proxy.glb',
   },
   configurator: {
@@ -175,6 +175,7 @@ export const bydSeal: Vehicle = {
         colors: {
           INT_Leather_Seat: '#C8623A',
           INT_Leather_Door: '#C8623A',
+          INT_Leather_Perf: '#C8623A',
           INT_Thread_Seat: '#E27C55',
         },
       },
@@ -186,6 +187,7 @@ export const bydSeal: Vehicle = {
         colors: {
           INT_Leather_Seat: '#202226',
           INT_Leather_Door: '#202226',
+          INT_Leather_Perf: '#202226',
           INT_Thread_Seat: '#3A3D42',
         },
       },
