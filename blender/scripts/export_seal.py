@@ -127,6 +127,7 @@ def prepare_exterior():
     OP.cut_underlay()
     RG.build_seal()
     OP.split_trim()
+    OP.split_belt()
     OP.split_doors()
     OP.open_hull()
     RG.split_tail()

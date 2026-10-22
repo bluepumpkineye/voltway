@@ -6,6 +6,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import type { Vehicle } from '@/data/vehicles/schema';
 import {
   frontEmissive,
+  isLampMaterial,
   lampTargets,
   lightsOf,
   lightsRig,
@@ -231,7 +232,7 @@ function findLamp(model: THREE.Object3D, look: LampLook): LampSet | null {
   model.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
     const own = materialsOf(o).filter(
-      (m): m is THREE.MeshStandardMaterial => m instanceof THREE.MeshStandardMaterial && m.name === look.material,
+      (m): m is THREE.MeshStandardMaterial => m instanceof THREE.MeshStandardMaterial && isLampMaterial(look, m.name),
     );
     if (!own.length) return;
     for (const m of own) if (!mats.has(m)) mats.set(m, m.emissiveIntensity * (m.emissive.getHex() > 0 ? 1 : 0));

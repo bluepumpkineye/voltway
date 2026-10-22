@@ -423,7 +423,7 @@ Driving this from the Blender MCP:
 | `SU7Ultra_Blackout` (`*_blackout`) | node | hidden in the cabin view |
 | `SU7Ultra_Body`, `SU7Ultra_Wheels` | node | hidden in the cabin view on single-file cars |
 | `*Ambient*` | material | emission driven by the HMI (colour, brightness, on/off) |
-| `*led_white*` | material | headlamps: the front LED lines, lit by the showroom (docs/lights.md; also `M_LED_Red_Tail`, the tail LED, and `M_Lamp_Reflector` where a car lists it as its projector lens; a car whose tail is one lens bar names that material in `Vehicle.lights`) |
+| `*led_white*` | material | headlamps: the front LED lines, lit by the showroom (docs/lights.md; also `M_LED_Red_Tail` or `M_LED_Red`, the tail LED (both match by default), and `M_Lamp_Reflector` where a car lists it as its projector lens; a car whose tail is one lens bar names that material in `Vehicle.lights`) |
 | `INT_Screen` | material | screen backing |
 | `M_Glass`, `M_Glass_Privacy` | material | a clear or privacy tint from inside |
 | `*_Wheels` | node, origin on the front-left wheel centre | the showroom's wheel pose and the wheelbase ruler |
@@ -808,6 +808,54 @@ flies to the anchor that shows it (`OPENING_ANCHOR` in the store).
 Budgets with the moving parts as separate nodes: the RX exterior is about
 390k triangles and ~70 primitives (draw calls), against 383k and 32 before;
 with the cabin mounted about 130 calls.
+
+### Nothing may span a doorway (the white line across open doors)
+
+**Symptom.** With the doors open, a thin white or grey line (or a black wedge) hangs across the doorway at the belt
+line. It is invisible shut. Reported on the RX (silver bar, 2026-10-06), the 7X (black wedge, three times, 2026-10-08/09),
+the Z9 (white line, 2026-10-21) and the Seal (belt trim, 2026-10-22): the same bug four times.
+
+**Cause.** A door is its own glTF node that swings about the hinge. Anything built into the body (a mirrored object
+that runs the length of the car) stays where it is when the door opens. A **long thin trim strip** (the belt
+chrome or gloss-black belt trim, a crease or wave line) is the worst offender: gloss black or chrome mirrors the
+white studio, so it reads as a white bar. A sheet (the black greenhouse underlay, the shadow hull) left under a
+door's glass reads as a black wedge. Both look correct with the doors shut, and a build that only checks shut
+renders cannot see them.
+
+**Rule.** Every exterior object that runs across a door's width must be cut at the door's shut lines and the
+piece inside the door joined into that door's node. Only the stretch outside the doors (the quarter-window
+stretch, the fender, the haunch) stays on the body.
+
+**Recipe** (copy `seal_openings.split_belt()` / `split_trim()`, or `z9_openings.split_belt()`):
+
+1. `RG._split_off(name, name + "_F", [two bisect planes], keep)` cuts the front door's piece (B-pillar shut line to
+   the door's LEADING edge at the strip's own height) and a second call cuts the rear door's piece (the rear
+   door's TRAILING edge at that height to the B-pillar shut line). `_split_off` bakes the Mirror modifier, so both
+   sides are cut.
+2. Put the new names in the door's `ROWS` entry (`ROWS["front"]`, `ROWS["rear"]`); `split_doors()` takes one side
+   of each, joins it into `<Car>_Door_<key>` and moves the origin to the hinge. A name a split step did not
+   make is skipped (only the skin and the glass are required).
+3. Call the split from `export_<car>.prepare_exterior()` BEFORE `split_doors()`.
+4. Take the cut positions from the door edges at the strip's own height (`_DOOR_F_EDGE(z)`, `_DOOR_R_EDGE(z)` or the
+   panels' `X_DOOR_*`), never from constants copied from another car or another height: the Seal's wave line was cut
+   at fixed x values 7-9 cm inside each door's edge and left a stub floating on the fender.
+5. Store the door skin's outline on the node (`door["outline"] = [x0, z0, x1, z1, ...]`, closed position): the probe
+   below reads it.
+
+**Check, on every new car, before any export:**
+
+```
+blender -b --factory-startup --python blender/scripts/porting/door_probe.py -- <car>
+```
+
+It builds the exterior, runs the car's `prepare_exterior()`, opens every door and tests every non-door vertex
+against each door's outline: a thin STRIP along the door's width, or a SHEET of 20+ vertices well inside the
+outline, is reported as `STANDING ...` and drawn red in `blender/renders/door_probe_<car>_{side,f34,r34}.png`. The
+last line must read `DOOR PROBE: 0 object(s) standing in a doorway`. `-- <car> --skip split_belt` switches one
+function of `<car>_openings` off to prove the probe still catches the bug (the Seal then reports
+`Seal_Window_Belt_Trim`). In the viewer, also open all four doors (`__store.getState().setOpening('doorFL', true)` and
+so on) and look at the car from the side and both rear/front three-quarters: look at the DOORWAY, not the window.
+Never add a per-door dark pane to hide a leftover (see the 7X notes below): remove the leftover.
 
 ### The SU7 Ultra's openings (`su7_openings.py`, `su7_bays.py`, `su7_trunk.py`)
 
@@ -1289,6 +1337,9 @@ lines), `c1_0511` / `c1_0515` (blue front / rear). The gallery pages are `car.au
   hid the projectors.
 - **Wheels** (`seal_wheels.py`): five-fold pinwheel traced with `scripts/wheel-trace` (unwarp, centrefit, `segment.cjs`
   of the silver edges as an inlay, the pockets between the arms as windows); `wheel_preview.face_on('seal')`.
+- **Doors open (2026-10-22)**: `Seal_Window_Belt_Trim` (gloss-black belt strip) was never split and stood across both doorways;
+  `seal_openings.split_belt()` now cuts it into `_F` / `_R` pieces that join the door nodes, and the wave line's cuts are
+  computed from the door edges (`_wave_edges()`). `porting/door_probe.py -- seal` reports 0.
 - **Shadow shell**: pulled under the skin with `clear_shell` (inset 0.068, shrink 0.95); without it the shell showed through
   the arch lips as black shards in the web.
 - Run: `export_seal.web()` (60 s) then `node scripts/make-proxy.mjs byd-seal`; the cabin `export_seal.web_cabin(look="hall",
@@ -1318,6 +1369,7 @@ W.patches(p, {"windscreen": (380, 170, 900, 260), ...})    # sRGB means per box
 - [ ] Parts from the catalogue, contact sheet reviewed; nothing invented
 - [ ] Materials: patch values within ~10 sRGB of the photos
 - [ ] Exterior at or under 400k tris, `fingerprint` baseline saved
+- [ ] Doors open: `porting/door_probe.py -- <car>` reports 0 objects standing in a doorway (every long belt/crease/chrome strip is split into the doors); all four doors opened in the viewer from the side and both 3/4s
 - [ ] Cabin camera solved, hardpoints recorded with their sources
 - [ ] Leak report under 0.2% on 6–8 seat views
 - [ ] Render at the matched camera; patch values match the press render
@@ -1377,6 +1429,7 @@ Exterior:
 Interior and web:
 
 - A dash-top slot, a missing belt cap or a short headliner shows as a paint sliver in the viewer. Run the leak finder, not your eyes.
+- **A trim strip that runs the length of the greenhouse stays on the body when the doors open** and mirrors the studio as a white bar across every doorway (RX, 7X, Z9, Seal: four times). Split every long belt/crease/chrome object at the door edges and join the pieces into the door nodes; run `porting/door_probe.py` (see "Nothing may span a doorway"). Cut at the door's edges AT THE STRIP'S HEIGHT, not at constants.
 - Blender 5.2 glTF exports `COLOR_0` for the first primitive only. Ship baked data as a custom `_ATTR`.
 - Metals bake black under DIFFUSE; set metallic to 0 for the bake.
 - A probe with the lights at full strength mirrors the softbox into every footwell; with none, the trim goes flat. Mix them at about 30%.

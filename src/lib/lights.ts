@@ -187,6 +187,8 @@ export interface LampLook {
   /** the material's emissive strength with the lamp off, when it is not the build's own; and fully lit */
   off?: number;
   on: number;
+  /** other names the same lit part goes by in other exports (the match is case-insensitive) */
+  aliases?: string[];
 }
 
 export const DEFAULT_LIGHTS: { front: LampLook; rear: LampLook; projector?: LampLook } = {
@@ -194,7 +196,9 @@ export const DEFAULT_LIGHTS: { front: LampLook; rear: LampLook; projector?: Lamp
   front: { material: 'M_LED_White', color: '#eaf2ff', halo: '#8fb6ff', off: 0.15, on: 1.7 },
   // a deep red: the more it is driven, the more a saturated red rolls toward pink, so the core stays red
   // and the halo carries the light
-  rear: { material: 'M_LED_Red_Tail', color: '#ff1a0f', halo: '#ff1608', on: 2.4 },
+  // the tail LED is `M_LED_Red_Tail` in the RX, SU7 and 06T exports and `M_LED_Red` in the Seal, Z9, ES8 and G9L ones:
+  // matching only the first meant the brake button did nothing on those four (2026-10-22)
+  rear: { material: 'M_LED_Red_Tail', aliases: ['M_LED_Red'], color: '#ff1a0f', halo: '#ff1608', on: 2.4 },
 };
 
 export interface ResolvedLights {
@@ -203,7 +207,18 @@ export interface ResolvedLights {
   projector?: LampLook;
 }
 
-const merge = (base: LampLook, over?: LampSpec): LampLook => ({ ...base, ...(over ?? {}) } as LampLook);
+/** A car's override of a lamp. Naming another material drops the default's aliases (they belong to the default name). */
+const merge = (base: LampLook, over?: LampSpec): LampLook => {
+  const out = { ...base, ...(over ?? {}) } as LampLook;
+  if (over?.material && !over.aliases) delete out.aliases;
+  return out;
+};
+
+/** True when a material name is this lamp's lit part. */
+export function isLampMaterial(look: LampLook, name: string): boolean {
+  const n = name.toLowerCase();
+  return n === look.material.toLowerCase() || (look.aliases ?? []).some((a) => a.toLowerCase() === n);
+}
 
 /** A car's lamps: the defaults, with whatever its data says differently. */
 export function lightsOf(spec: LightsSpec | undefined): ResolvedLights {

@@ -79,6 +79,19 @@ colours and the strengths per lamp.
 | Xiaomi SU7 Ultra | `M_LED_White`: the lightsaber lines | none | `M_LED_Red_Tail`: the bar and the end blocks (the lid's part follows the lid) |
 | Luxeed RX | `M_LED_White`: the line and its dots | `M_Lamp_Reflector` (`projector: {}`): the two lenses, lit with the low beam | `M_LED_Red_Tail` |
 | Zeekr 7X | `M_LED_White`: the twin bars | none | `M_Lamp_RedLens`, dark as built (`off: 0`): the tail is one red lens bar with no LED under it, so the lens is the lit part |
+| Avatr 06T | `M_LED_White` | `M_Lamp_Reflector` (`projector: {}`) | `M_LED_Red_Tail` |
+| BYD Seal, Denza Z9, XPeng G9L | `M_LED_White` | none | `M_LED_Red` (the default's alias, see below): the tail light guide |
+| NIO ES8 | `M_LED_White` | `M_Lamp_Reflector` (`projector: {}`) | `M_LED_Red` (alias) |
+
+**The tail LED has two names.** The RX, SU7 and 06T exports call it `M_LED_Red_Tail`; the Seal, Z9, ES8 and G9L builds
+(`seal_materials`, `z9_materials`, `g9l_materials`) call it `M_LED_Red`. The default rear lamp matches both
+(`DEFAULT_LIGHTS.rear.aliases`, `isLampMaterial`, case-insensitive); a car that names a different material in
+`Vehicle.lights.rear.material` drops the aliases. Until 2026-10-22 only `M_LED_Red_Tail` matched, so on the four cars
+named `M_LED_Red` the Dashboard's Brake lights button, the rear lamp switch of the car's screen and the Autonomous Drive
+brake lamps did nothing at all (no error: `findLamp` just found no material). **Check on every new car:** open the Dashboard
+tab, view Rear, hold Brake lights: the tail bar must glow red with a wash on the floor, and the console must print
+`[lights] glow points front N, projector N, rear N` with the rear N above 0. Never rely on the material name matching by luck:
+list the exterior GLB's materials (`M_LED_*`, `M_Lamp_*`) when a car is first exported.
 
 **No whole-lamp emission.** Only the light pipes emit; the housings, lenses and reflectors around them stay
 inert, which is what stops a lamp reading as a glowing blob. The 7X's red lens is a 4 cm bar, not a lamp

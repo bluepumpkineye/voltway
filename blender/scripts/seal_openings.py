@@ -32,9 +32,9 @@ DOORS = {
 ROWS = {
     "front": ("Seal_Door_Front", "Seal_Glass_DoorFront", "Seal_Handle_F", "Seal_Handle_Rim_F",
               "Seal_Mirror_Head", "Seal_Mirror_Stalk", "Seal_Mirror_Glass",
-              "Seal_Ocean_Wave_Line_F"),
+              "Seal_Ocean_Wave_Line_F", "Seal_Window_Belt_Trim_F"),
     "rear": ("Seal_Door_Rear", "Seal_Glass_DoorRear", "Seal_Handle_R", "Seal_Handle_Rim_R",
-             "Seal_Ocean_Wave_Line_R"),
+             "Seal_Ocean_Wave_Line_R", "Seal_Window_Belt_Trim_R"),
 }
 HINGE_Z = 0.60
 PAINT = "M_Paint_Seal_Blue"
@@ -82,20 +82,54 @@ def _group(name):
 
 
 TRIM = ("Seal_Ocean_Wave_Line",)
-X_FRONT_EDGE = 0.882
-X_REAR_EDGE = -1.075
+
+
+def _wave_edges():
+    """Where the Ocean Wave line meets each door's shut line: the door's edge x at the line's own height there.
+    (Fixed values left a 7-9 cm stub of the line on the body inside each door's outline, floating when the door
+    opened.)"""
+    import seal_side as SD
+    wave = S.Curve(sorted(SD.WAVE_PTS), mode="pchip")
+    xf, xr = 0.95, -1.15
+    for _ in range(3):
+        xf = PN._DOOR_F_EDGE(wave(xf)) - 0.004
+        xr = PN._DOOR_R_EDGE(wave(xr)) + 0.004
+    return xf, xr
 
 
 def split_trim():
     import seal_gate as RG
+    x_front, x_rear = _wave_edges()
     for n in TRIM:
         if bpy.data.objects.get(n + "_F") is None:
             RG._split_off(n, n + "_F", [((PN.X_BPILLAR_F, 0.0, 0.0), (1.0, 0.0, 0.0)),
-                                        ((X_FRONT_EDGE, 0.0, 0.0), (1.0, 0.0, 0.0))],
-                          lambda c: PN.X_BPILLAR_F < c.x < X_FRONT_EDGE)
+                                        ((x_front, 0.0, 0.0), (1.0, 0.0, 0.0))],
+                          lambda c: PN.X_BPILLAR_F < c.x < x_front)
             RG._split_off(n, n + "_R", [((PN.X_BPILLAR_F, 0.0, 0.0), (1.0, 0.0, 0.0)),
-                                        ((X_REAR_EDGE, 0.0, 0.0), (1.0, 0.0, 0.0))],
-                          lambda c: X_REAR_EDGE < c.x < PN.X_BPILLAR_F)
+                                        ((x_rear, 0.0, 0.0), (1.0, 0.0, 0.0))],
+                          lambda c: x_rear < c.x < PN.X_BPILLAR_F)
+
+
+BELT = "Seal_Window_Belt_Trim"
+
+
+def split_belt():
+    """The gloss-black belt strip along the window line runs the length of the greenhouse. Left whole it stays on
+    the body when the doors swing and mirrors the studio as a white bar across each doorway. Cut it into the
+    front door's piece (B-pillar shut line to the door's leading edge at the belt) and the rear door's (the
+    rear door's trailing edge at the belt to the B-pillar shut line); both swing with their doors. Only the
+    stretch by the quarter window stays on the body."""
+    import seal_gate as RG
+    if bpy.data.objects.get(BELT + "_F") is not None:
+        return
+    z_belt = S.section_v(0.90, PN.V_BELT)[1]
+    x_front = PN._DOOR_F_EDGE(z_belt) - 0.002
+    x_back = PN.X_DOOR_R(PN.V_BELT) + 0.04
+    RG._split_off(BELT, BELT + "_F", [((PN.X_BPILLAR_F, 0.0, 0.0), (1.0, 0.0, 0.0)),
+                                      ((x_front, 0.0, 0.0), (1.0, 0.0, 0.0))],
+                  lambda c: PN.X_BPILLAR_F < c.x < x_front)
+    RG._split_off(BELT, BELT + "_R", [((x_back, 0.0, 0.0), (1.0, 0.0, 0.0))],
+                  lambda c: x_back < c.x < PN.X_BPILLAR_F)
 
 
 def split_doors():
@@ -110,7 +144,11 @@ def split_doors():
         col = _group("Seal_DoorGrp_" + key)
         parts = []
         for n in ROWS[d["row"]]:
-            src = bpy.data.objects[n]
+            src = bpy.data.objects.get(n)
+            if src is None:
+                if n in ROWS[d["row"]][:2]:                 # the skin and the glass are not optional
+                    raise KeyError(n)
+                continue                                    # a trim piece a split_* step did not make
             ob = _side_object(src, d["side"], "%s_%s" % (n, key))
             col.objects.link(ob)
             parts.append(ob.name)

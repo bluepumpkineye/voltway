@@ -513,6 +513,8 @@ export interface SwivelSpec {
 export interface LampSpec {
   /** the exterior's material that is the lit part (case-insensitive) */
   material?: string;
+  /** other names the same part goes by (the default tail LED matches both `M_LED_Red_Tail` and `M_LED_Red`) */
+  aliases?: string[];
   /** the light of the lamp itself, sRGB */
   color?: string;
   /** the glow round it, sRGB */

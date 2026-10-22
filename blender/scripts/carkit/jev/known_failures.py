@@ -194,6 +194,14 @@ FAILURES = {
         looks_like="A saved .hdr is too bright/washed or gamma-shifted.",
         cause="Image.save() writes float .hdr through the sRGB curve in 5.2.",
         fix="Write RGBE yourself with bake.write_hdr."),
+    "doorway_strip_on_body": dict(
+        looks_like="With the doors open a thin white/grey line (or a black wedge) hangs across the doorway at the belt "
+                   "line; invisible with the doors shut. A long trim strip or a sheet is left on the body.",
+        cause="A belt/crease/chrome strip (or the greenhouse underlay / shadow hull) is built into the body, so it "
+              "does not swing with the door; gloss black and chrome mirror the white studio. Seen on the RX, 7X, Z9, Seal.",
+        fix="Cut every object that runs across a door width at the door's shut lines (at the strip's own height) with "
+            "_split_off, add the pieces to the door's ROWS entry and call the split before split_doors(); verify with "
+            "blender/scripts/porting/door_probe.py -- <car> (must report 0) and by opening all four doors in the viewer."),
     "next_chunk_locked": dict(
         looks_like="Next.js dev server errno -4094 or a locked .next chunk on Windows.",
         cause="A wedged dev server holding the .next folder.",
