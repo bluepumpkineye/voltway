@@ -55,7 +55,7 @@ def build_library():
 
     # Star-ring taillamp lens: deep wine-red smoked acrylic over dual LED blades
     m, nt, b = _M.mat("M_Lamp_RedLens")
-    _M.set_inputs(b, base=(0.085, 0.004, 0.006), metallic=0.0, roughness=0.06,
+    _M.set_inputs(b, base=(0.030, 0.003, 0.004), metallic=0.0, roughness=0.06,
                   coat=1.0, coat_rough=0.02, ior=1.52, specular=0.5)
     lib["lamp_red_lens"] = m
 
@@ -92,6 +92,11 @@ def build_library():
     _M.set_inputs(b, base=(0.010, 0.010, 0.012), metallic=0.0, roughness=0.12,
                   coat=1.0, coat_rough=0.03, ior=1.45)
     lib["accent"] = m
+
+    # Satin black plastic trim (rocker cladding, lower intakes, aprons, bumper blacks)
+    m, nt, b = _M.mat("M_Black_Trim")
+    _M.set_inputs(b, base=(0.012, 0.012, 0.013), metallic=0.0, roughness=0.30, coat=0.0)
+    lib["black_trim"] = m
 
     # Ventilated cast-iron brake disc
     m, nt, b = _M.mat("M_Disc_Iron")

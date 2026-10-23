@@ -44,30 +44,37 @@ FONT_DIR = os.path.join(os.path.dirname(bpy.app.binary_path), "%d.%d" % bpy.app.
                         "datafiles", "fonts")
 
 # --------------------------------------------------------------- hardpoints
-GATE_Y = 0.600
-GATE_EDGE = [(0.000, 0.665), (0.150, 0.668), (0.280, 0.675), (0.380, 0.695),
-             (0.460, 0.725), (0.520, 0.760), (0.570, 0.810), (GATE_Y, 0.870),
-             (GATE_Y, 0.960), (GATE_Y, 1.020)]
+GATE_Y = 0.591
+# the tailgate's side edge runs straight down at y 0.591 to z 0.83, then rounds into the lower edge
+# (z 0.66) with a ~0.15 m radius (c1_0006)
+GATE_EDGE = [(0.000, 0.660), (0.250, 0.660), (0.380, 0.662), (0.450, 0.667), (0.507, 0.692),
+             (0.550, 0.727), (0.578, 0.771), (GATE_Y, 0.830), (GATE_Y, 0.930), (GATE_Y, 1.020)]
 # on up past the cap's top (rear view); points the rays miss are skipped
 GATE_TOP = (1.060, 1.100, 1.140, 1.180, 1.220)
 
-LAMP_UPPER = [(0.100, 0.952), (0.300, 0.952), (0.500, 0.950), (0.650, 0.948),
-              (0.730, 0.945), (0.775, 0.940), (0.795, 0.932), (0.800, 0.920)]
-LAMP_LOWER = [(0.100, 0.900), (0.300, 0.900), (0.500, 0.898), (0.650, 0.896),
-              (0.730, 0.896), (0.775, 0.900), (0.795, 0.908), (0.800, 0.920)]
+# The tail lamp is one thin black bar across the whole tailgate (c1_0006: z 0.93..0.987 at the
+  # centre), its outer ends wrapping the corners and tapering to a point at y 0.85; lit it is a single
+  # thin red line (design-list_03)
+LAMP_UPPER = [(0.000, 0.987), (0.300, 0.987), (0.560, 0.985), (0.650, 0.980), (0.736, 0.972),
+              (0.790, 0.958), (0.830, 0.932), (0.852, 0.906)]
+LAMP_LOWER = [(0.000, 0.930), (0.300, 0.930), (0.560, 0.931), (0.650, 0.929), (0.736, 0.923),
+              (0.790, 0.915), (0.830, 0.908), (0.852, 0.906)]
 LAMP_TIP = LAMP_UPPER[-1][0]
-LAMP_START = LAMP_UPPER[0][0]
+LAMP_START = 0.0
 LAMP_GAP = 0.006
 LAMP_NS = (30, 26)             # stations: gate unit, outer unit
-BAND_Z = (0.884, 0.968)        # the gloss-black band behind the lamps
+BAND_Z = (0.926, 0.990)        # the gloss-black band behind the lamps
 
 SPOILER = (1.005, 1.030)       # z of the ducktail lip's lower and upper edge
-GLASS_LOW = [(0.558, 1.090), (0.540, 1.060), (0.510, 1.032), (0.465, 1.012),
-             (0.410, 1.002), (0.350, 0.998), (0.180, 0.996), (0.000, 0.996)]
-Z_BLACK = 0.520                # top of the gloss black bumper
-PLATE_RECESS = geom.round_rect(0.0, 0.280, 0.720, 0.840, 0.024, open_inboard=True)
+# the glass's lower edge: flat at z 1.093 across, rounding up into the sides (c1_0006)
+GLASS_LOW = [(0.552, 1.160), (0.545, 1.128), (0.530, 1.108), (0.500, 1.098),
+             (0.450, 1.094), (0.350, 1.093), (0.180, 1.093), (0.000, 1.093)]
+Z_BLACK = 0.620                # top of the gloss black bumper (0.58 at the corners)
+# the plate's black surround: a hexagon, pointed at the sides (c1_0006: y +-0.325, z 0.706..0.887)
+PLATE_RECESS = [(-0.02, 0.706), (0.150, 0.706), (0.245, 0.712), (0.300, 0.745), (0.325, 0.796),
+                (0.300, 0.848), (0.245, 0.882), (0.150, 0.887), (-0.02, 0.887)]
 PLATE_DEPTH = 0.0070
-REFLECTOR = (0.320, 0.640, 0.458, 0.474)
+REFLECTOR = (0.270, 0.620, 0.507, 0.521)     # the red reflective strips each side (c1_0006)
 
 
 # ----------------------------------------------------------------- helpers
@@ -197,6 +204,22 @@ def _cut_corner(ob):
     C.prune_off_sheet(ob, sheet)
 
 
+# the diffuser pocket in the black bumper: a darker recess whose upper edge rises to the red reflector
+# strips and dips to the centre (c1_0006: y 0.707 z 0.350 -> y 0.434 z 0.518 -> centre z 0.447)
+DIFFUSER = [(-0.02, 0.447), (0.0, 0.447), (0.124, 0.463), (0.206, 0.494), (0.266, 0.515), (0.434, 0.518),
+            (0.537, 0.511), (0.608, 0.487), (0.650, 0.427), (0.707, 0.350), (0.730, 0.300), (0.730, 0.285),
+            (-0.02, 0.285)]
+DIFFUSER_DEPTH = 0.040
+
+
+def _cut_diffuser(ob):
+    L = S.HALF_L
+    c = C.prism_x("_diffuser_" + ob.name, DIFFUSER, -L - 0.30, -L + 0.40)
+    sheet = C.sheet_bvh(ob)
+    C.difference(ob, [c], "diffuser_", reset_materials=True)
+    C.prune_off_sheet(ob, sheet)
+
+
 def black_stand(w):
     return 0.008 - 0.005 * geom.smoothstep((w - 0.85) / 0.15)
 
@@ -206,13 +229,15 @@ def build_tail(collection, lib):
     made.append(FA.cap_panel("A06T_Tail_Upper", TAIL, collection, lib, Z_BLACK - 0.060,
                              N.TAIL_Z_HI - 0.0008, 0.0, 1.0, 44, 44, mat="paint",
                              top_to_centre=True, cuts=(_cut_gate, _cut_recess, _cut_pane)))
-    made += FA.valance("A06T_Tail_Valance", TAIL, collection, lib, lambda w: Z_BLACK,
+    made += FA.valance("A06T_Tail_Valance", TAIL, collection, lib,
+                       lambda w: Z_BLACK - 0.045 * geom.smoothstep(w),
                        stand=black_stand, nw=44, nz=26, mat="black_gloss",
-                       thickness=0.0030, cuts=(_cut_corner,))
+                       thickness=0.0030, cuts=(_cut_corner, _cut_diffuser))
     x_face = FA.recessed_x(TAIL, 0.0)
+    made.append(_pocket("A06T_Rear_Diffuser", DIFFUSER, DIFFUSER_DEPTH, collection, lib["shadow"], x_face))
     made.append(_pocket("A06T_Rear_PlateRecess", PLATE_RECESS, PLATE_DEPTH, collection,
-                        lib["paint"], x_face))
-    p, n = on_rear(0.0, 0.780, 0.002)
+                        lib["black_gloss"], x_face))
+    p, n = on_rear(0.0, 0.796, 0.002)
     made += fittings.plate("A06T_Plate_Rear", p, n, collection, lib, w=0.440, h=0.140,
                            texts=[("AVATR 06T", 0.0, 0.038, False, True)],
                            mat="black_gloss", text_mat="machined")
@@ -263,29 +288,13 @@ def _lamp_edges(y0, y1, n):
 
 
 def build_lightbar(collection, lib):
-    """Dual-line star-ring lamps, a lit pipe along each edge of a smoked red
-    lens, over a gloss-black band that runs across the tailgate."""
+    """One thin black lamp bar across the tailgate with a single red line lit along it."""
     made = []
     out = geom.away_from((-2.10, 0.30, 0.93))
     crown = (lambda k, n: 0.0032 + 0.0010 * math.sin(math.pi * k / n))
-    pipe = (lambda k: 0.0050)
+    pipe = (lambda k: 0.0042)
     red = lib["led_red_tail"]
     g = 0.5 * LAMP_GAP
-    # the gloss-black band: gate part and body part (it crosses the shut line)
-    bz0, bz1 = BAND_Z
-    for tag, (y0, y1) in (("Gate", (0.0, GATE_Y - g)), ("Body", (GATE_Y + g, LAMP_TIP + 0.004))):
-        n = 24
-        rows = []
-        for i in range(n + 1):
-            y = y0 + (y1 - y0) * i / float(n)
-            rows.append([on_rear(y, z, 0.0016)[0] for z in (bz0, 0.5 * (bz0 + bz1), bz1)])
-        band = M.grid("A06T_Tail_Band" + tag, rows, collection, lib["black_gloss"], out)
-        M.solidify(band, 0.002)
-        if tag == "Gate":
-            M.mirror_y(band)
-        else:
-            M.mirror_y(band)
-        made.append(band)
     for tag, (y0, y1), n in (("", (LAMP_START, GATE_Y - g), LAMP_NS[0]),
                              ("Out", (GATE_Y + g, LAMP_TIP), LAMP_NS[1])):
         lo, up = _lamp_edges(y0, y1, n)
@@ -294,17 +303,14 @@ def build_lightbar(collection, lib):
                                bevel=(0.0010, 2, 30)))
         made += lamps.seals("A06T_Lightbar_Seal" + tag, lo, up, lamp_place, collection,
                             lib["grille"], out, width=0.0040, d=0.0008)
-        made.append(lamps.band_between("A06T_Lightbar_PipeUp" + tag, lo, up, range(n),
-                                       (0.80, 0.86, 0.92), lamp_place, pipe,
-                                       collection, red, out))
         made.append(lamps.band_between("A06T_Lightbar_Pipe" + tag, lo, up, range(n),
-                                       (0.08, 0.14, 0.20), lamp_place, pipe,
+                                       (0.26, 0.31, 0.36), lamp_place, pipe,
                                        collection, red, out))
     return made
 
 
 # -------------------------------------------------------------- backlight
-X_PANE_TOP = PN.X_FRIT + 0.025
+X_PANE_TOP = S.KNEE_X - 0.015
 PANE_EDGE = 0.014
 PANE_LIFT = 0.0008
 PANE_BACK = 0.005
@@ -517,39 +523,41 @@ def build_spoiler(collection, lib):
 
 
 def build_roof_blade(collection, lib):
-    """The roof's painted end is a prominent spoiler blade over the backlight
-    (c1_0005/0006: it stands ~12 mm proud with a black shadow slot under it);
-    the rear camera sits in the black frit band behind it."""
-    xe = PN.X_BLADE
-    n = 30
-    y_max = 0.525
-    prof = ((-0.004, 0.0006), (0.000, 0.0120), (0.045, 0.0110), (0.120, 0.0060),
-            (0.250, 0.0000))
-    rows, shade = [], []
-    for i in range(n + 1):
-        y = y_max * i / float(n)
-        taper = 1.0 - geom.smoothstep((y - 0.40) / (y_max - 0.40))
-        row = []
-        for dx, off in prof:
-            x = xe + dx
-            v = S.v_at_y_upper(x, y) if y > 0.0 else 1.0
-            p, nr = S.surface(x, v), S.surface_normal(x, v)
-            d = 0.0006 + (off - 0.0006) * taper if off > 0.0006 else off
-            row.append(tuple(p[k] + nr[k] * d for k in range(3)))
-        rows.append(row)
-        srow = []
-        for dx in (-0.022, -0.004):
-            x = xe + dx
-            v = S.v_at_y_upper(x, y) if y > 0.0 else 1.0
-            p, nr = S.surface(x, v), S.surface_normal(x, v)
-            srow.append(tuple(p[k] + nr[k] * 0.0008 for k in range(3)))
-        shade.append(srow)
-    blade = M.grid("A06T_Roof_Blade", rows, collection, lib["paint"],
-                   geom.away_from((xe + 0.1, 0.0, 1.0)))
+    """The roof's rear end: the painted roof continues past the glass's top as a thin spoiler plate
+    (c1_0004/0005: its tip stands ~7 cm over the glass, x -2.08..-2.11, with a black underside); the
+    rear camera sits in the black band under it."""
+    x_s, x_k = -1.800, S.KNEE_X
+    y_max, n_y, n_x = 0.520, 26, 14
+    t_tip = 0.014
+
+    def z_roof(x, y):
+        return S.section_v(x, S.v_at_y_upper(x, y))[1]
+
+    top_rows, bot_rows = [], []
+    for j in range(n_y + 1):
+        y = y_max * j / float(n_y)
+        yk = min(y, y_max)
+        x_te = PN.X_BLADE + 0.050 * (y / y_max) ** 2
+        z_k = z_roof(x_k + 0.02, yk)
+        m = (z_roof(x_k + 0.02, yk) - z_roof(x_s, yk)) / (x_k + 0.02 - x_s)       # the roof's slope
+        top, bot = [], []
+        for i in range(n_x + 1):
+            t = i / float(n_x)
+            x = x_s + (x_te - x_s) * t
+            z = z_roof(x, yk) if x >= x_k + 0.02 else z_k + m * (x - (x_k + 0.02))
+            lift = 0.0008 if x >= x_k + 0.02 else 0.0008
+            th = t_tip * geom.smoothstep((t - 0.25) / 0.6)
+            taper = 1.0 - 0.5 * geom.smoothstep((y / y_max - 0.75) / 0.25)
+            top.append((x, y, z + lift))
+            bot.append((x, y, z + lift - th * taper))
+        top_rows.append(top)
+        bot_rows.append(bot)
+    blade = M.grid("A06T_Roof_Blade", top_rows, collection, lib["paint"], geom.away_from((-1.9, 0.0, 0.9)))
     M.mirror_y(blade)
-    line = M.grid("A06T_Roof_BladeShadow", shade, collection, lib["black_gloss"],
-                  geom.away_from((xe, 0.0, 1.0)))
-    M.mirror_y(line)
+    under = M.grid("A06T_Roof_BladeShadow", bot_rows, collection, lib["black_gloss"],
+                   geom.away_from((-1.9, 0.0, 2.0)))
+    M.mirror_y(under)
+    # the camera in the band under the spoiler
     xc = 0.5 * (PN.X_KNEE + PN.X_FRIT)
     zc = S.surface(xc, 1.0)[2]
     cam = fittings.rounded_panel("A06T_Spoiler_Camera", (xc, 0.0, zc + 0.004),
@@ -557,7 +565,7 @@ def build_roof_blade(collection, lib):
                                  lambda q, d: ((q[0] - d, q[1], q[2]), (-1.0, 0.0, 0.0)),
                                  xc, collection, lib["lamp_smoked"], d=0.0,
                                  outward=(-1.0, 0.0, 0.0))
-    return [blade, line, cam]
+    return [blade, under, cam]
 
 
 # ---------------------------------------------------------- bumper details
@@ -573,8 +581,8 @@ def build_bumper_details(collection, lib):
     made.append(ref)
     rows = []
     for i in range(25):
-        y = 0.600 * i / 24.0
-        rows.append([on_tail(y, z, 0.012)[0] for z in (0.272, 0.284)])
+        y = 0.136 + 0.664 * i / 24.0
+        rows.append([on_tail(y, z, 0.012)[0] for z in (0.347, 0.357)])
     strip = M.grid("A06T_Diffuser_Strip", rows, collection, lib["chrome"], geom.axial(-1.0))
     M.mirror_y(strip)
     made.append(strip)
@@ -584,7 +592,7 @@ def build_bumper_details(collection, lib):
 # ---------------------------------------------------------------- badges
 def _emblem(collection, lib, y, z, name="A06T_Tail_Emblem"):
     p, n = on_tail(y, z, 0.0012)
-    hw, hh, t = 0.024, 0.046, 0.0055
+    hw, hh, t = 0.0175, 0.021, 0.0035
     ring = [(0.0, hh), (hw, hh * 0.15), (0.0, -hh), (-hw, hh * 0.15)]
     verts, faces = [], []
 
@@ -619,9 +627,9 @@ def build_badges(collection, lib):
         made.append(t)
         return t
 
-    made.append(_emblem(collection, lib, 0.0, 0.975))
-    badge("A06T_Badge_Brand", "阿维塔", 0.068, 0.440, 0.848, cjk, weight=0.0004)
-    badge("A06T_Badge_Model", "06T", 0.036, -0.440, 0.848, inter, weight=0.0004,
+    made.append(_emblem(collection, lib, 0.0, 1.055))
+    badge("A06T_Badge_Brand", "阿维塔", 0.062, 0.463, 0.871, cjk, weight=0.0004)
+    badge("A06T_Badge_Model", "06T", 0.034, -0.463, 0.871, inter, weight=0.0004,
           spacing=1.6)
     return made
 
@@ -630,7 +638,6 @@ def build_all(collection, lib):
     made = []
     made += build_tail(collection, lib)
     made += build_lightbar(collection, lib)
-    made += build_spoiler(collection, lib)
     made += build_roof_blade(collection, lib)
     made += build_rear_glass(collection, lib)
     made += build_wiper(collection, lib)

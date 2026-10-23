@@ -25,7 +25,7 @@ if _HERE not in sys.path:
 
 def _fresh():
     bpy.ops.wm.read_homefile(use_empty=True)
-    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials", "seal_wheels", "seal_materials")
+    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials", "seal_wheels", "seal_materials", "a06t_wheels", "a06t_materials")
                  or m == "carkit" or m.startswith("carkit.")]:
         sys.modules.pop(name, None)
 
@@ -56,6 +56,18 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         col = B.fresh_collection("Wheels_seal")
         spec.pop("_faces", None)
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, 0.235, 0.343, 0.178, 180.0)
+        empty.matrix_world = Matrix.Identity(4)
+        return spec, col, empty, parts, lib
+    if design == "a06t":
+        # the Avatr 06T's 20 in turbine (traced from c1_0004's rear wheel)
+        import a06t_materials as MT
+        import a06t_wheels as ZW
+        prefix, spec = ZW.DESIGNS["turbine5"]
+        lib = MT.build_library()
+        col = B.fresh_collection("Wheels_a06t")
+        spec.pop("_faces", None)
+        w, r, dr = (0.255, 0.369, 0.190) if front else (0.255, 0.369, 0.180)
+        empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
     if design in ("z9", "g9l"):

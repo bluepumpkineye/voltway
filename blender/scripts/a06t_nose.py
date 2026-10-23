@@ -10,45 +10,45 @@ from carkit.geom import Curve
 from carkit.body import WrapCap, CarBody
 
 # ---------------------------------------------------------------- shut lines
-# Front: bumper meets the front fender just ahead of the wheel opening
-# (FRONT_AXLE + ARCH_R = 1.962) and runs up behind the F-type headlamp wing
-# to the hood shut line at x 2.18.
+# Front: the fascia meets the fender at the lamp pocket's rear edge (x 2.05, a little ahead of
+# the wheel opening, FRONT_AXLE + ARCH_R = 1.985), and runs up over the fender to the hood's
+# leading shut line at x 2.26.
 JOIN_F = Curve([
-    (0.00, 2.260), (0.10, 2.210), (0.22, 2.130), (0.34, 2.055),
-    (0.44, 2.030), (0.52, 2.040), (0.62, 2.075), (0.74, 2.115),
-    (0.86, 2.155), (0.94, 2.175), (1.00, 2.180),
+    (0.00, 2.300), (0.10, 2.250), (0.22, 2.150), (0.34, 2.075),
+    (0.44, 2.052), (0.52, 2.060), (0.62, 2.095), (0.74, 2.155),
+    (0.82, 2.205), (0.88, 2.250), (0.94, 2.295), (0.98, 2.318), (1.00, 2.328),
 ])
 
-# Rear: behind the rear wheel opening (REAR_AXLE - ARCH_R = -1.862), rising
-# behind the star-ring taillamp wrap-around to the shooting-brake ducktail.
+# Rear: behind the rear wheel opening (REAR_AXLE - ARCH_R = -1.785), rising behind the lamp
+# bar's wrap onto the quarter to the tailgate's top corner.
 JOIN_R = Curve([
-    (0.00, -2.290), (0.10, -2.260), (0.22, -2.215), (0.34, -2.195),
-    (0.46, -2.190), (0.56, -2.205), (0.66, -2.240), (0.76, -2.285),
-    (0.86, -2.340), (0.94, -2.380), (1.00, -2.415),
+    (0.00, -2.290), (0.10, -2.250), (0.22, -2.170), (0.34, -2.130),
+    (0.46, -2.120), (0.56, -2.140), (0.66, -2.190), (0.76, -2.245),
+    (0.86, -2.290), (0.94, -2.318), (1.00, -2.330),
 ])
 
 # ------------------------------------------- centreline profiles, x given z
-# Diving peregrine-falcon nose, read off c1_0001/c1_0004: the face is nearly
-# upright from the splitter lip (z 0.15) to a rounded top edge at z ~0.70, then
-# the hood rolls back and up to x 2.18 at z 0.80.
+# Nose from the side silhouette (c1_0004, plane y 0.25): an upright face at x 2.47 from the
+# chin to the bonnet's rounded leading edge, which rolls back over a radius of ~0.35 m.
 NOSE_X_OF_Z = Curve([
-    (0.150, 2.405), (0.190, 2.438), (0.240, 2.458), (0.300, 2.468),
-    (0.400, 2.470), (0.500, 2.468), (0.600, 2.462), (0.650, 2.450),
-    (0.700, 2.420), (0.740, 2.370), (0.770, 2.300), (0.790, 2.230),
-    (0.800, 2.180),
+    (0.195, 2.415), (0.260, 2.425), (0.330, 2.428), (0.390, 2.440),
+    (0.440, 2.468), (0.500, 2.470), (0.560, 2.470), (0.610, 2.466),
+    (0.655, 2.447), (0.685, 2.418), (0.716, 2.386), (0.746, 2.346),
+    (0.759, 2.328),
 ])
-NOSE_Z_LO, NOSE_Z_HI = 0.150, 0.800
+# the cap ends at the bonnet's leading edge (c1_0002: z 0.759 at the centre rising to 0.79 at the corner)
+NOSE_Z_LO, NOSE_Z_HI = 0.195, 0.759
 
 
-# Shooting-brake tail: sculpted ducktail at z 1.035, slightly recessed band
-# under the star-ring taillamps (z 0.72..0.88), and athletic lower diffuser
-# extending to x -2.470.
+# Tail from the silhouette: a bumper bulge to x -2.47 at z 0.52, the tailgate's face at -2.405
+# above the lamp bar, folding forward over the tailgate's top edge into the glass.
 TAIL_X_OF_Z = Curve([
-    (0.255, -2.420), (0.320, -2.455), (0.410, -2.470), (0.520, -2.470),
-    (0.620, -2.458), (0.720, -2.446), (0.820, -2.445), (0.910, -2.458),
-    (0.980, -2.468), (1.015, -2.470), (1.035, -2.470),
+    (0.255, -2.405), (0.320, -2.435), (0.400, -2.455), (0.470, -2.466),
+    (0.520, -2.470), (0.560, -2.466), (0.600, -2.440), (0.640, -2.414),
+    (0.690, -2.404), (0.760, -2.405), (0.850, -2.414), (0.920, -2.412),
+    (0.970, -2.408), (1.000, -2.402), (1.025, -2.390), (1.060, -2.360), (1.093, -2.330),
 ], mode="pchip")
-TAIL_Z_LO, TAIL_Z_HI = 0.255, 1.035
+TAIL_Z_LO, TAIL_Z_HI = 0.255, 1.093
 
 # ------------------------------------------------------------- wrap blending
 WRAP = Curve([

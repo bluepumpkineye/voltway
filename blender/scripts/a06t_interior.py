@@ -236,7 +236,11 @@ def build_library():
 # computed per station, see dash_section); 3 is the brow, 3-6 the steep upper
 # face, 6-8 the black glass band, 8-11 the white band, 11-13 the recess behind
 # the red roll, 13-18 the lower dash.
+# The windscreen's base is at x 1.12 on the 06T (c1_0004), so the dash top runs 0.3 m further forward than
+# on the RX it was taken from: points 0-3 are a long low top from the cowl, 4-7 the old glass-following
+# climb to the brow (the brow is point 7).
 DASH_SECTION = [
+    (1.100, None), (1.020, None), (0.940, None), (0.860, None),
     (0.800, None), (0.740, None), (0.690, None), (0.668, None),
     (0.645, 1.138), (0.626, 1.116), (0.616, 1.105),
     (0.608, 1.059), (0.600, 1.013),
@@ -244,11 +248,12 @@ DASH_SECTION = [
     (0.578, 0.936), (0.586, 0.920),
     (0.610, 0.862), (0.650, 0.780), (0.720, 0.690), (0.810, 0.620), (0.960, 0.560),
 ]
-DASH_COUNTS = [8, 6, 4, 4, 4, 3, 5, 5, 3, 3, 3, 2, 2, 5, 6, 6, 6, 8]
-DASH_PANELS = [("TopPad", 0, 6, "dash_top"), ("Band", 6, 8, "band_glass"),
-               ("White", 8, 11, "leather_white"), ("Recess", 11, 13, "satin"),
-               ("Lower", 13, 18, "leather_black")]
-GLASS_GAP = (0.016, 0.014, 0.014, 0.020)
+DASH_COUNTS = [5, 5, 5, 5, 8, 6, 4, 4, 4, 3, 5, 5, 3, 3, 3, 2, 2, 5, 6, 6, 6, 8]
+DASH_PANELS = [("TopPad", 0, 10, "dash_top"), ("Band", 10, 12, "band_glass"),
+               ("White", 12, 15, "leather_white"), ("Recess", 15, 17, "satin"),
+               ("Lower", 17, 22, "leather_black")]
+GLASS_GAP = (0.016, 0.016, 0.016, 0.016, 0.016, 0.014, 0.014, 0.020)
+DASH_TOP_RISE = 0.28            # the long top's slope up from the cowl (z 1.0 at x 1.1)
 
 
 def dash_section(i, s):
@@ -257,8 +262,10 @@ def dash_section(i, s):
     for k, (x, z) in enumerate(DASH_SECTION):
         if z is None:
             z = z_glass(x, y) - GLASS_GAP[k]
-            if k == 3:
-                z = max(z, 1.128)
+            if k < 7:
+                z = min(z, 1.000 + DASH_TOP_RISE * (1.100 - x))
+            else:
+                z = min(z, 1.128)          # the brow stays at the RX's height (the glass is 0.1 m higher here)
         out.append((x, z))
     return out
 
@@ -274,7 +281,7 @@ def build_dash(col, lib):
     for nm, c0, c1, role in DASH_PANELS:
         made.append(sw.mesh("int_dash_" + nm, col, lib[role], j0=sw.col(c0), j1=sw.col(c1)))
     # chrome line along the band's bottom edge
-    p, n = sw.iso_col(sw.col(8), lift=0.0012)
+    p, n = sw.iso_col(sw.col(12), lift=0.0012)
     made.append(piping("int_dash_Chrome", p, col, lib["chrome"], r=0.0018,
                        lateral=(1.0, 0.0, 0.0)))
     # the red roll: a padded welt ~22 mm tall under the white band, door to door
@@ -299,7 +306,7 @@ def build_dash(col, lib):
     i0 = min(range(len(ys)), key=lambda i: abs(ys[i] - 0.545))
     i1 = min(range(len(ys)), key=lambda i: abs(ys[i] - 0.275))
     made.append(sw.mesh("int_dash_HUD", col, lib["screen_glass"], i0=i0, i1=i1,
-                        j0=sw.col(3) + 1, j1=sw.col(5) - 1, offset=0.0015))
+                        j0=sw.col(7) + 1, j1=sw.col(9) - 1, offset=0.0015))
     made += build_band_vents(col, lib, sw)
     made += build_dash_ends(col, lib, sw)
     # the red "RX" on the white band at the passenger's end (passenger34_high)
@@ -320,7 +327,7 @@ def build_band_vents(col, lib, sw):
         ia = min(range(len(ys)), key=lambda i: abs(ys[i] - ya))
         ib = min(range(len(ys)), key=lambda i: abs(ys[i] - yb))
         i0, i1 = min(ia, ib), max(ia, ib)
-        j0, j1 = sw.col(6) + 1, sw.col(8) - 1
+        j0, j1 = sw.col(10) + 1, sw.col(12) - 1
         made.append(sw.mesh("int_dash_Vent%s" % ("L" if side > 0 else "R"), col, lib["satin"],
                             i0=i0, i1=i1, j0=j0, j1=j1, offset=0.0010))
         # the chrome surround round the vent's opening
@@ -425,7 +432,9 @@ def build_screens(col, lib):
         pos = (0.552, y_pos, 0.962)
         tilt = math.radians(20.0)
         yaw = math.radians(-side * 28.0)
-        body = F.slab("int_mirror_scr_body_" + tag, pos, MIRROR_SCR_W + 0.016, MIRROR_SCR_H + 0.016,
+        # built at the origin like its screen, then moved by the matrix: built at `pos` it was moved twice and stood
+        # 1.9 m up and 1.4 m out, a black square floating over the car whenever a door was open
+        body = F.slab("int_mirror_scr_body_" + tag, (0.0, 0.0, 0.0), MIRROR_SCR_W + 0.016, MIRROR_SCR_H + 0.016,
                       0.012, 0.006, tilt, col, lib["piano"])
         body.matrix_world = Matrix.Translation(Vector(pos)) @ Matrix.Rotation(yaw, 4, 'Z')
         made.append(body)
@@ -1101,12 +1110,16 @@ def build_closures(col, lib):
     # rear wheelhouse and quarter trims, closing out to the rear door card
     rc = rear_card(1.0)
     vq = max(PN.V_BELT(x) for x in (-1.40, -1.55)) + 0.10
-    # the hump wall stands inboard of the wheel liner's inner wall (|y| 0.70)
+    # the hump wall stands inboard of the wheel liner's inner wall (|y| 0.670: y_outer 0.920 less its 0.250 depth)
     # and rolls over above its top (0.93): lower, the liner showed behind the
     # rear door from both rows (carkit.qa.leaks)
+    # (the rear door's trailing edge now stands level with the wheel arch's rear half, so the arch liner's front
+    # quarter, x -0.96 .. -1.17, stood inboard of the door card, in the cabin: below z 0.70 the trim runs forward
+    # over it)
     made += CB.wheelhouse_trim(
-        S.BODY, col, lib["leather_black"], lambda z: PN._DOOR_R_EDGE(z) - 0.002, -1.82,
-        FLOOR_Z + 0.02, 0.672, 0.975, 1.205, 0.062, vq, name="int_quarter",
+        S.BODY, col, lib["leather_black"],
+        lambda z: PN._DOOR_R_EDGE(z) - 0.002 + 0.25 * (1.0 - _smooth((z - 0.70) / 0.25)), -1.82,
+        FLOOR_Z + 0.02, 0.650, 0.975, 1.205, 0.062, vq, name="int_quarter",
         close_to=lambda z: rc.skin_y(PN._DOOR_R_EDGE(z), z) - rc.th(z) + 0.010)
     # the parcel shelf: from behind the rear seat backs to the backlight's base.
     # The backlight's clear pane (a06t_rear.pane()) slopes down toward the tail: z 1.20 at x -2.21, 1.13 at -2.31, 1.00 at

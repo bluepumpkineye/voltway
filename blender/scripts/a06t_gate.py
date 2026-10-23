@@ -212,7 +212,7 @@ def cut_underlay(under="A06T_Roof_Rear_Black", x_front=-1.84, half=0.57):
 
 # ------------------------------------------------------------------- the boot
 Z_FLOOR = 0.665
-X_MOUTH, X_BULK = -2.44, -1.585
+X_MOUTH, X_BULK = -2.385, -1.585
 WALL_Y = None
 
 
@@ -220,8 +220,8 @@ def _wall_y():
     global WALL_Y
     if WALL_Y is None:
         from carkit.geom import Curve
-        WALL_Y = Curve([(-2.46, 0.600), (-2.34, 0.690), (-2.20, 0.780), (-2.06, 0.815),
-                        (-1.96, 0.780), (-1.88, 0.705), (-1.82, 0.672), (-1.56, 0.672)],
+        WALL_Y = Curve([(-2.40, 0.585), (-2.34, 0.640), (-2.26, 0.725), (-2.14, 0.795), (-2.06, 0.815),
+                        (-1.96, 0.780), (-1.88, 0.700), (-1.82, 0.650), (-1.56, 0.650)],
                        mode="pchip")
     return WALL_Y
 
@@ -263,20 +263,27 @@ def build_boot(col=None, lib=None):
     M.orient(fl.data, lambda c: (0.0, 0.0, 1.0))
     M.mirror_y(fl)
     made.append(fl)
-    pts = [(-2.46 + (-1.58 + 2.46) * k / 44.0, 0.0) for k in range(45)]
+    pts = [(X_MOUTH + (-1.58 - X_MOUTH) * k / 44.0, 0.0) for k in range(45)]
     pts = [(x, wy(x)) for (x, _) in pts]
     made.append(CB.wall(col, carpet, pts, lambda x, y: Z_FLOOR, lambda x, y: 0.86, nz=3,
                         name="int_boot_wall", facing=(0.0, -1.0, 0.0)))
     # The trim above the carpet leans in with height: the body narrows over the tail (its half-width at z 1.04 is 0.51 at the
     # mouth and 0.73 at x -2.2, against the wall's 0.60 and 0.78), so a straight wall's upper edge stood out of the paint at
     # the tail corners, a black fin and wing beside the lamp whenever the cabin was not stencilled to the glass (a door open)
-    hw_top = Curve([(-2.50, 0.404), (-2.45, 0.506), (-2.40, 0.556), (-2.35, 0.606), (-2.30, 0.617), (-2.25, 0.690),
-                    (-2.20, 0.732), (-2.15, 0.746), (-2.10, 0.772), (-2.05, 0.789), (-2.00, 0.807), (-1.95, 0.809),
-                    (-1.85, 0.826)], mode="pchip")
+    hw_top = Curve([(-2.40, 0.682), (-2.30, 0.722), (-2.20, 0.752), (-2.10, 0.776), (-2.00, 0.795),
+                    (-1.90, 0.805), (-1.85, 0.806)], mode="pchip")
+    def inside_tail(x, y, z):
+        # the cap is only 2 cm thick at the corners and runs forward with height: keep the trim 12 mm in front of it
+        try:
+            tx = RR.on_tail(min(abs(y), 0.74), z)[0][0]
+        except Exception:
+            return x
+        return max(x, tx + 0.012)
     rows = []
     for (x, y) in pts:
         pull = max(0.0, y - (hw_top(x) - 0.030))
-        rows.append([(x, y - pull * (k / 3.0), 0.86 + (1.04 - 0.86) * k / 3.0) for k in range(4)])
+        rows.append([(inside_tail(x, y - pull * (k / 3.0), 0.86 + (1.04 - 0.86) * k / 3.0),
+                      y - pull * (k / 3.0), 0.86 + (1.04 - 0.86) * k / 3.0) for k in range(4)])
     tw = grid_mesh("int_boot_trim", rows, col, trim)
     M.orient(tw.data, lambda c: (0.0, -1.0, 0.0))
     M.mirror_y(tw)
@@ -462,7 +469,7 @@ def build_boot_details(col=None):
                      zm + 0.020, lamp, col))
     made.append(_box("int_boot_pull", -2.255, -2.205, -0.050, 0.050, Z_FLOOR - 0.004, Z_FLOOR + 0.0015,
                      rubber, col))
-    made.append(_box("int_boot_latch", -2.468, -2.395, -0.056, 0.056, 0.668, 0.684, steel, col))
+    made.append(_box("int_boot_latch", -2.392, -2.335, -0.056, 0.056, 0.668, 0.684, steel, col))
     return made
 
 
@@ -483,7 +490,7 @@ def build_seal(collection="A06T_Details"):
 
 
 # ----------------------------------------------------------------- the greenhouse
-GREENHOUSE = ("A06T_Roof_Paint", "A06T_Roof_Rail", "A06T_Glass_Roof", "A06T_Glass_Windshield",
+GREENHOUSE = ("A06T_Roof_Paint", "A06T_Roof_Rail", "A06T_Roof_Edge", "A06T_Glass_Roof", "A06T_Glass_Windshield",
               "A06T_Glass_Quarter")
 GREENHOUSE_GROUP = ("Avatr06T_Greenhouse", "A06T_GreenhouseGrp")
 

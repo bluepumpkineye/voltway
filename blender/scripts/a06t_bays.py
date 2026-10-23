@@ -15,14 +15,18 @@ from mathutils.bvhtree import BVHTree
 from carkit.bay import (smooth, inset_poly, radial, finish as _finish, prism as _prism,
                         rrect as _rrect, disc as _disc, is_cw as _cw)
 
-HOOD_HALF = [(0.802, 0.833), (1.0, 0.810), (1.3, 0.770), (1.6, 0.731), (1.9, 0.661),
-             (2.07, 0.607), (2.14, 0.440), (2.205, 0.0)]
-HOOD_HINGE = (0.84, 1.06)      # (x, z) of the hinge axis, along y, under the rear edge
+# the hood's half-width along it: its side shut lines run from the cowl corners to the nose's corners
+# (a06t_panels.Y_HOOD, c1_0002)
+HOOD_HALF = [(1.120, 0.775), (1.255, 0.760), (1.600, 0.713), (1.970, 0.666), (2.150, 0.585),
+             (2.220, 0.535), (2.270, 0.465), (2.300, 0.385), (2.318, 0.250), (2.330, 0.0)]
+HOOD_HINGE = (1.14, 1.04)      # (x, z) of the hinge axis, along y, under the rear edge
 HOOD_DEG = 62.0
 APRON_DROP = 0.050             # the apron's height under the hood's top surface
 TUB_DEPTH = 0.250
-SEAL = [(0.995, 0.0), (0.995, 0.405), (1.012, 0.450), (1.060, 0.466), (1.20, 0.462),
-        (1.35, 0.442), (1.44, 0.405), (1.495, 0.330), (1.52, 0.200), (1.525, 0.0)]
+# the tub's seal, plan view (left half): an inverted pill, narrow at the back, widest ahead of the middle
+# (c12_0002: the seal spans ~80 % of the opening's width)
+SEAL = [(1.360, 0.0), (1.360, 0.260), (1.385, 0.370), (1.440, 0.470), (1.550, 0.545), (1.700, 0.575),
+        (1.850, 0.565), (1.970, 0.520), (2.050, 0.450), (2.100, 0.350), (2.120, 0.200), (2.125, 0.0)]
 WALL = [(0.0, 0.0), (0.004, -0.007), (0.010, -0.022), (0.018, -0.075), (0.028, -0.165),
         (0.042, -0.225), (0.062, -0.250)]
 
@@ -59,7 +63,7 @@ class Hood:
 
 
 def rim_outline(inset=0.050, n=64):
-    x0, x1 = 0.87, 2.10
+    x0, x1 = 1.19, 2.27
     xs = [x0 + (x1 - x0) * k / n for k in range(n + 1)]
     right = [(x, -max(0.05, hood_half(x) - inset)) for x in xs]
     h = max(0.05, hood_half(x1) - inset)
@@ -99,7 +103,7 @@ def build_frunk(collection="A06T_Details"):
     seal = seal_outline()
     if _cw(rim) != _cw(seal):
         seal = seal[::-1]
-    ctr = (1.26, 0.0)
+    ctr = (1.75, 0.0)
     ro, so = radial(rim, ctr), radial(seal, ctr)
     bm = bmesh.new()
     vo = [bm.verts.new((x, y, zA(x, y))) for (x, y) in ro]
@@ -123,7 +127,7 @@ def build_frunk(collection="A06T_Details"):
     path = [(x, y, zA(x, y) + 0.005) for (x, y) in seal]
     made.append(tube("A06T_Frunk_Seal", path, ellipse(0.0085, 0.0075, 8), col, satin, closed=True,
                      lateral=(0.0, 0.0, 1.0)))
-    X0, X1, HY = 1.17, 1.45, 0.215
+    X0, X1, HY = 1.58, 1.92, 0.280
     rows = []
     for i in range(25):
         x = X0 + (X1 - X0) * i / 24.0
@@ -138,23 +142,23 @@ def build_frunk(collection="A06T_Details"):
         rows.append(row)
     made.append(grid_mesh("A06T_Frunk_Mat", rows, col, satin))
     for k, sy in enumerate((-1, 1)):
-        made.append(_disc("A06T_Frunk_Pad%d" % k, 1.31, sy * 0.115, 0.045,
+        made.append(_disc("A06T_Frunk_Pad%d" % k, 1.70, sy * 0.150, 0.050,
                           lambda x, y: zF(x) + 0.0115, 0.004, col, satin))
-    made.append(_prism("A06T_Frunk_CoverWasher", _rrect(1.35, -0.346, 0.043, 0.045, 0.012), zA, 0.008, col, satin, 0.0045))
-    made.append(_prism("A06T_Frunk_CoverBattery", _rrect(1.33, 0.360, 0.058, 0.060, 0.016), zA, 0.008, col, satin, 0.0045))
+    made.append(_prism("A06T_Frunk_CoverWasher", _rrect(1.56, -0.655, 0.045, 0.026, 0.010), zA, 0.008, col, satin, 0.0045))
+    made.append(_prism("A06T_Frunk_CoverBattery", _rrect(1.56, 0.655, 0.045, 0.026, 0.010), zA, 0.008, col, satin, 0.0045))
     for k, sy in enumerate((-1, 1)):
-        made.append(_prism("A06T_Frunk_CoverLip%d" % k, _rrect(1.95, sy * 0.24, 0.026, 0.020, 0.006), zA, 0.006, col, satin, 0.003))
-    for k, (x, y) in enumerate(((1.19, -0.48), (1.18, 0.45), (1.50, -0.47), (1.49, 0.47))):
+        made.append(_prism("A06T_Frunk_CoverLip%d" % k, _rrect(2.00, sy * 0.30, 0.026, 0.020, 0.006), zA, 0.006, col, satin, 0.003))
+    for k, (x, y) in enumerate(((1.27, -0.66), (1.27, 0.66), (1.92, -0.58), (1.92, 0.58))):
         made.append(_disc("A06T_Frunk_Stop%d" % k, x, y, 0.022, zA, 0.012, col, satin))
-    made.append(_prism("A06T_Frunk_Vent", _rrect(0.935, -0.28, 0.026, 0.120, 0.004), zA, 0.006, col, grey, 0.004))
-    made.append(_prism("A06T_Frunk_Latch", _rrect(1.95, 0.0, 0.034, 0.020, 0.018), zA, 0.004, col, shadow, 0.0025))
+    made.append(_prism("A06T_Frunk_Vent", _rrect(1.205, 0.0, 0.016, 0.300, 0.004), zA, 0.006, col, grey, 0.004))
+    made.append(_prism("A06T_Frunk_Latch", _rrect(2.20, 0.0, 0.040, 0.085, 0.020), zA, 0.004, col, shadow, 0.0025))
     return made
 
 
 def build_hood_liner(col, inset=0.14):
     from carkit.interior.sweep import grid_mesh
     hood = Hood()
-    xa, xb = 0.98, 2.05
+    xa, xb = 1.20, 2.25
     xm, hl = 0.5 * (xa + xb), 0.5 * (xb - xa)
     rows = []
     for i in range(29):

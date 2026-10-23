@@ -29,7 +29,9 @@ DOORS = {
 }
 ROWS = {
     "front": ("A06T_Door_Front", "A06T_Glass_DoorFront", "A06T_Handle_F",
-              "A06T_Mirror_Head", "A06T_Mirror_Stalk", "A06T_Mirror_Glass"),
+              "A06T_Mirror_Head", "A06T_Mirror_Cam1Bowl", "A06T_Mirror_Cam1Lens",
+              "A06T_Mirror_Cam2Bowl", "A06T_Mirror_Cam2Lens", "A06T_Mirror_Strip",
+              "A06T_Blade_Door"),
     "rear": ("A06T_Door_Rear", "A06T_Glass_DoorRear", "A06T_Handle_R"),
 }
 HINGE_Z = 0.60
@@ -91,6 +93,7 @@ def split_doors():
             col.objects.link(ob)
             parts.append(ob.name)
         door = X.join("A06T_Door_" + key, parts)
+        door["outline"] = [c for p in loop for c in (p.x, p.z)]        # porting/door_probe.py
         h = hinge(key)
         door.data.transform(Matrix.Translation(-h))
         door.matrix_world = Matrix.Translation(h)
@@ -234,12 +237,26 @@ def build_frame(key, skin_loop):
     outer = [(p.x, p.z) for p in skin]
     path, radii = [], []
     n = len(card)
+
+    def seg_dist(px, pz):
+        # to the skin's outline as a polyline: the distance to its vertices alone jumps with their spacing
+        best = 1e9
+        for i in range(len(outer)):
+            (ax, az), (bx, bz) = outer[i - 1], outer[i]
+            dx, dz = bx - ax, bz - az
+            L2 = dx * dx + dz * dz
+            u = 0.0 if L2 < 1e-12 else max(0.0, min(1.0, ((px - ax) * dx + (pz - az) * dz) / L2))
+            best = min(best, math.hypot(px - (ax + u * dx), pz - (az + u * dz)))
+        return best
+    gaps = [seg_dist(c.x, c.z) for c in card]
+    kg = 3
+    gaps = [sum(gaps[(i + j) % n] for j in range(-kg, kg + 1)) / (2 * kg + 1) for i in range(n)]
     for i in range(n):
         a, b = card[i - 1], card[(i + 1) % n]
         t = Vector((b.x - a.x, 0.0, b.z - a.z))
         t.normalize()
         nx, nz = t.z, -t.x
-        gap = min(math.hypot(card[i].x - ox, card[i].z - oz) for (ox, oz) in outer)
+        gap = gaps[i]
         r = max(0.003, min(0.012, 0.45 * gap))
         off = min(0.014, 0.5 * gap)
         path.append((card[i].x + nx * off, card[i].y - side * 0.004, card[i].z + nz * off))

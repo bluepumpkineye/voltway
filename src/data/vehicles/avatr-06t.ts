@@ -108,7 +108,7 @@ export const avatr06t: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/avatr-06t-shadow.webp',
-      size: [8.15, 5.10],
+      size: [7.96, 5.08],
       centre: [0.0, 0.0],
     },
     interiorModelUrl: '/models/avatr-06t-interior.glb',
@@ -187,9 +187,9 @@ export const avatr06t: Vehicle = {
     ],
     wheels: [
       {
-        id: 'twin5',
-        name: '20" 5-Twin-Spoke Machined Black',
-        nameZh: '20英寸五辐双联精车轮毂',
+        id: 'turbine5',
+        name: '20" 5-Blade Turbine Black',
+        nameZh: '20英寸五叶涡轮轮毂',
         size: '20"',
         tyres: '255/45 R20 front · 265/45 R20 rear',
         node: 'Avatr06T_Wheels',
