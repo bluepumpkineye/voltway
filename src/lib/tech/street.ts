@@ -309,7 +309,7 @@ export function planCrab(layout: Layout, body: BodyBox, start: Pose, opts: CrabO
       { y: kerbY + bayW + laneW, x0: x0 + 1.5, x1: x1 - 1.5, dash: true },
     ],
     // the stretch of kerb the car goes to is marked as a bay of its own
-    bays: [rectOf(bayX0 + 0.3, bayX1 - 0.3, kerbY, kerbY + bayW)],
+    bays: [rectOf(start.x + dx - body.rear - 0.35, start.x + dx + body.front + 0.35, kerbY, kerbY + bayW)],
     cars: [...cars, ...decor],
     props: [
       // the trees stand on the far footway, behind the car as the camera sees it; the near one has lamps only

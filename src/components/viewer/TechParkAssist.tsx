@@ -48,20 +48,36 @@ export function TechParkAssist({ vehicle }: { vehicle: Vehicle }) {
   ) {
     const street = runtime.chassis.stage;
     const mode = runtime.demoId === 'crab' ? 'crab' : 'e3park';
-    const targetBay = street.bays[0];
-    if (targetBay) {
-      // Adjacent parked cars on the same kerbside row
-      const neighbours = street.cars.filter(
-        (c) => Math.abs(c.rect.y - targetBay.y) < 1.6 && Math.abs(c.rect.x - targetBay.x) < 22,
-      );
-      activeStage = {
-        kind: 'parallel',
-        mode,
-        bays: [{ rect: targetBay, target: true }],
-        neighbours,
-        search: null,
-      };
-    }
+
+    // The bay where the car eventually parks: centered right below the parked car
+    const dur = techClock.duration;
+    const end = runtime.sample(dur);
+    const carLen = runtime.body.front + runtime.body.rear;
+    const offsetAlongHeading = (runtime.body.front - runtime.body.rear) / 2;
+    const cos = Math.cos(end.yaw);
+    const sin = Math.sin(end.yaw);
+    const parkedX = end.x + cos * offsetAlongHeading;
+    const parkedY = end.y + sin * offsetAlongHeading;
+
+    const targetBay: Rect = {
+      x: parkedX,
+      y: parkedY,
+      yaw: end.yaw,
+      length: carLen + 0.7,
+      width: Math.min(2.4, Math.max(2.1, runtime.body.halfWidth * 2 + 0.35)),
+    };
+
+    // Adjacent parked cars on the same kerbside row
+    const neighbours = street.cars.filter(
+      (c) => Math.abs(c.rect.y - targetBay.y) < 1.6 && Math.abs(c.rect.x - targetBay.x) < 22,
+    );
+    activeStage = {
+      kind: 'parallel',
+      mode,
+      bays: [{ rect: targetBay, target: true }],
+      neighbours,
+      search: null,
+    };
   }
 
   if (!activeStage) return null;
