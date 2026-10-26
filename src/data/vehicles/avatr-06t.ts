@@ -265,6 +265,7 @@ export const avatr06t: Vehicle = {
       { at: [2.35, 0.45, 0.72], mirror: true },
       { at: [-2.38, 0.46, 0.72], mirror: true },
     ],
+    surround: true,
   },
   chargePort: { mouth: [-1.92, 1.05, -0.87], axis: [-0.09, 0.46, -0.88], depth: 0.02 },
   charging: {
@@ -319,6 +320,23 @@ export const avatr06t: Vehicle = {
         },
       ],
       simulated: 'Cockpit view highlighting the panoramic wrap-around display and digital mirror screens.',
+    },
+    {
+      id: 'park',
+      title: 'Remote parking assist',
+      blurb:
+        'Step out, open the app and the car screens the bays with Qiankun ADS 3.0 sensors, identifies the vacant bay with a flashing P, and backs itself in between two parked cars. Or pull it out remotely.',
+      driver: 'park',
+      devices: ['phone', 'dashboard'],
+      params: { search: 12 },
+      claims: [
+        {
+          text: 'Equipped with Huawei Qiankun ADS 3.0, the Avatr supports Remote Parking Assist (RPA) and Valet Parking Assist (AVP), handling narrow spaces down to 0.4 m clearance.',
+          source: { label: 'Avatr Official, Qiankun ADS 3.0', url: 'https://www.avatr.com' },
+        },
+      ],
+      simulated:
+        'A simulation of Qiankun ADS 3.0 remote parking: blue surround camera beams screen the bays, the target slot is marked with a flashing P, and the car reverses in smoothly.',
     },
   ],
   sources: [

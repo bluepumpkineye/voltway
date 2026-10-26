@@ -89,7 +89,7 @@ class LoftBody:
                  v_shoulder=0.520, cowl_x=None, backlight_x=None,
                  sill_height=0.150, n_lower=44, n_upper=40, core_z=0.62,
                  crease="sharp", section=None, name="body", z_dome=None, y_dome=None,
-                 y_glass=None, z_step=None, soft=None):
+                 y_glass=None, z_step=None, soft=None, section_at=None):
         self.name = name
         self.LENGTH, self.WIDTH, self.HEIGHT = length, width, height
         self.HALF_L = length / 2.0
@@ -127,6 +127,12 @@ class LoftBody:
         # with a deck sloping up to the C-pillar: a crease at the doors' height
         # there built a flat shelf that hid the mirrors from behind.
         self.Z_STEP, self.SOFT = z_step, soft
+        # Optional per-station overrides of the section constants: a callable of x returning a dict of
+        # Section attributes (tumble, step_in, rail_in, rail_crest, step_max...) or None. The recipe's
+        # constants are the greenhouse's (glass leaning in above a beltline step); ahead of the cowl the
+        # same constants fold the fender into a groove under the hood's edge, so a car that needs a
+        # crowned hood overrides them there, blended in x by the caller.
+        self.SECTION_AT = section_at
         self.k = section or Section()
         self._section_cache = {}
         self._split_cache = {}
@@ -159,6 +165,13 @@ class LoftBody:
         if hit is not None:
             return hit
         k = self.k
+        if self.SECTION_AT is not None:
+            ov = self.SECTION_AT(x)
+            if ov:
+                import copy
+                k = copy.copy(k)
+                for name, val in ov.items():
+                    setattr(k, name, val)
         zf, zh, zs = self.Z_FLOOR(x), self.Z_HIP(x), self.Z_SHOULDER(x)
         yh, ys, yr, yrf = self.Y_HIP(x), self.Y_SHOULDER(x), self.Y_ROCKER(x), self.Y_ROOF(x)
         zr = self.z_rocker(x)

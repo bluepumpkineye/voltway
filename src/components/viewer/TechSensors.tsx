@@ -166,7 +166,7 @@ export function CarCoverage({
       {has('rear') && tail && <Fan layer={sw('rear')} at={tail} yaw={180 * DEG} range={REACH.rear} fov={FOV.rear} color={COLOR.rear} alpha={0.17} hz={0.5} phase={4} />}
       {/* the surround cameras: four diagonal beams from the middle of the car, as the maker's own animation draws them */}
       {has('surround') &&
-        spec.surround &&
+        (spec.surround || parts?.includes('surround')) &&
         [-40, 40, -140, 140].map((deg) => (
           <Fan key={deg} layer={sw('surround')} at={surroundAt} yaw={deg * DEG} range={surroundReach} fov={FOV.surround} color={COLOR.surround} alpha={0.2} hz={0} />
         ))}

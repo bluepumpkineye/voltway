@@ -753,3 +753,36 @@ Checked 2026-10-21: tsc, eslint; the engine's timelines printed and every actor'
 nearer than 1 m to a neighbouring car, 2.5 m from the box, 4 m from the person who steps out, 3.8 m behind the stopped car); played
 through in the Browser pane (06T, G9L, RX). Not done: the SU7 and ES8 still play the overtake (the SU7's is the one the owner asked to
 match Xiaomi's clip); a production build in a copy; the owner's look.
+
+## 18. The Seal's God's Eye: a traffic-light scene and a roof lidar (2026-10-26)
+
+**Owner request:** the Seal's two Tech chips (`ctb`, `godseye`) named drivers that did not exist. Research said CTB is a static structure with nothing to animate
+and God's Eye is worth building: model the roof lidar from reference photos for approval, then the sensor spec and a traffic-light scene.
+CTB is still a dead chip (left alone: not asked).
+
+**What is published** (Autohome's table for the 2025 Seal, read 2026-10-26 at car.autohome.com.cn/config/spec/71666.html; the series page hides the
+equipment rows): the 650 and 600 AWD Smart Driving trims run DiPilot 300 (level 2) on one Orin-X (254 TOPS): one lidar, eleven exterior cameras with a
+stereo pair at the front, two in the cabin, twelve ultrasonic sensors, five mm-wave radars; traffic-light recognition is listed only for them. The 510 Smart
+Navigation is DiPilot 100 (Orin-N, 84 TOPS, twelve cameras, no lidar, remote parking). BYD sells it as God's Eye, B = DiPilot 300 (Gasgoo). Not published:
+the lidar's make or field of view (Hesai supplies BYD's lidars, no source ties a model to the Seal), so the 120 degree fan is ours and the panel says so.
+
+**The lidar** (`blender/scripts/seal_lidar.py`, called from `seal_front.build_all`, material `M_Lidar_Window`): read from Autohome photographs of the
+650 Smart Driving (spec 71665, kept in blender/reference/byd-seal-ev/lidar with `_sources.md`; indexes 16, 17, 18 of that listing, the silver car of the
+same listing has none): a low black housing on the windscreen header, 0.275 m wide at the glass, 0.057 m high, 0.19 m long, raked front with one dark
+trapezoid window, concave cheeks, the tail melting into the roof. Its front edge stands 2.6 cm ahead of the model's windscreen top edge (x 0.23, by ray);
+the base sinks only 8 mm into the glass (the glass is clear: anything deeper shows inside the cabin). It is in `BYDSeal_Details`, so the showroom
+car shows it whichever trim is chosen (the 510 has none: said in the demo's text). Comparison sheet: blender/renders/byd-seal-lidar-vs-photo.jpg.
+
+**The sensors** (`byd-seal.ts` `sensors`, glTF axes): lidar window [0.261, 1.40, 0]; the camera pair behind the glass [0.33, 1.335, +-0.03]; the nose and
+tail cameras are the model's own; a camera under each mirror [0.70, 1.015, +-0.965]; round ultrasonic sensors in the front bumper, a pair beside the
+plate (+-0.335, z 0.41) and a pair at the upper corners (+-0.74, z 0.56), read off the front photograph (the nose camera's height came out at 0.505,
+which is where the model has it). Four camera views are drawn (forward, wide from the nose, backward, to each side from the mirrors); every angle and
+reach is ours. `lidarFov: 120` is now allowed to be ours (schema comment).
+
+**The scene** (`src/lib/tech/scenes/trafficlight.ts`, scenario `trafficlight`, 27 s, ours throughout): 50 km/h behind another car on the G9L's street; the
+light at a zebra crossing turns amber at 3.6 s and red at 6.0 s (green again at 17.4 s); the car recognises it from 110 m, stops behind the car ahead at the
+line (waiting from 12.3 s), people cross while it is red, and it moves off 1.2 s after green behind the cars ahead. New: `CitySignal` in carpet.ts, drawn by
+`viewer/TechSignal.tsx` (a mast and arm with a head over each lane, the lit lamp follows the clock, the sensors' corner marks stand round the head over the car's
+lane while the car has it). `stopAndGo` and `walker` are now exported from `scenes/city.ts`. Checked: `scene-test.mjs trafficlight` (nearest car 1.4 m,
+lead 3.75 m, people 3.2 m, accel -2.6 to 1.7 m/s^2), played in the Browser pane through amber, red, waiting, green and moving off; tsc and eslint clean.
+Not done: a production build in a copy, the owner's look at the lidar and the scene, the 510's demo without a lidar (it shows the pod).

@@ -24,7 +24,7 @@ if _HERE not in sys.path:
     sys.path.append(_HERE)
 
 MODULES = (
-    "seal_surface", "seal_nose", "seal_panels", "seal_front", "seal_rear", "seal_side",
+    "seal_surface", "seal_nose", "seal_panels", "seal_lidar", "seal_front", "seal_rear", "seal_side",
     "seal_wheels", "seal_materials", "scene_setup",
 )
 COLLECTIONS = ("Seal_Body", "Seal_Details", "Seal_Wheels")

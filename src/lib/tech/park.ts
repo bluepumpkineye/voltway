@@ -279,7 +279,7 @@ export function planPark(layout: Layout, body: BodyBox, start: Pose, motion: Mot
     const depth = mouthY - backY;
     const bayCentreY = (mouthY + backY) / 2;
     // a search first drives the lane's length past the bays: the car then begins that far before the stop
-    const approach = !noseIn ? (opts.search ?? 0) : 0;
+    const approach = opts.search ?? 0;
     const searchSegs: Segment[] = approach > 0 ? [{ kind: 'move', distance: approach, label: 'search' }] : [];
     const origin = approach > 0 ? { ...start, x: start.x - approach } : start;
     const track = new Track(layout, [...searchSegs, ...w.inSegs, ...w.outSegs], motion, origin);
@@ -290,7 +290,8 @@ export function planPark(layout: Layout, body: BodyBox, start: Pose, motion: Mot
       const end = track.span(0)?.tEnd ?? 0;
       let found = end;
       for (let t = 0; t <= end; t += 0.02) {
-        if (track.sample(t).x + body.front >= bayX + pitch / 2 + 0.3) {
+        const targetX = noseIn ? bayX - pitch * 0.8 : bayX + pitch / 2 + 0.3;
+        if (track.sample(t).x + body.front >= targetX) {
           found = t;
           break;
         }

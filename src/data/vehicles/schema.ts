@@ -459,8 +459,9 @@ export interface SensorSpec {
   /** the forward lidar's window, in the roof housing (photographed); left out for a car that has none (the G9L is camera and radar only) */
   lidar?: [number, number, number];
   /**
-   * The forward lidar's field of view where the maker publishes one, degrees (the SU7's Hesai AT128: 120 by 25.4); the
-   * drawing's reach is ours. Without it the demo draws the Luxeed RX's two paths (a wide and a tele one).
+   * The forward lidar's field of view, degrees: the maker's where it publishes one (the SU7's Hesai AT128: 120 by 25.4), else
+   * an angle that is ours (the Seal's 120: the car's notes and demo text must say so); the drawing's reach is ours either way.
+   * Without it the demo draws the Luxeed RX's two paths (a wide and a tele one).
    */
   lidarFov?: number;
   /**

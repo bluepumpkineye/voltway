@@ -287,6 +287,7 @@ export const luxeedRx: Vehicle = {
       { at: [-2.49, 0.86, 0] },
     ],
     ultrasonic: [{ at: [2.32, 0.48, 0.74], mirror: true }],
+    surround: true,
     notes: {
       lidar: '896 lines, a wide and a tele light path',
       side: '2, solid-state, drawn from the fender gill',
@@ -328,6 +329,7 @@ export const luxeedRx: Vehicle = {
         'Step out, open the app and the car backs itself into a tight bay between two parked cars, then drives out again. Or start it from the car’s own screen.',
       driver: 'park',
       devices: ['phone', 'dashboard'],
+      params: { search: 12 },
       claims: [
         {
           text: 'Remote parking is standard equipment on the Luxeed RX.',

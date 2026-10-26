@@ -1340,6 +1340,13 @@ lines), `c1_0511` / `c1_0515` (blue front / rear). The gallery pages are `car.au
 - **Doors open (2026-10-22)**: `Seal_Window_Belt_Trim` (gloss-black belt strip) was never split and stood across both doorways;
   `seal_openings.split_belt()` now cuts it into `_F` / `_R` pieces that join the door nodes, and the wave line's cuts are
   computed from the door edges (`_wave_edges()`). `porting/door_probe.py -- seal` reports 0.
+- **Roof lidar (2026-10-26)**: `seal_lidar.py` (called from `seal_front.build_all`) adds the low black pod of the DiPilot 300 trims
+  (650 / 600 AWD Smart Driving), read from Autohome's photos of spec 71665 (blender/reference/byd-seal-ev/lidar): the earlier
+  "the Seal has no roof LiDAR" holds for the 2022-24 car and the 510 Smart Navigation only. Its front edge stands 2.6 cm ahead of
+  the model's windscreen top edge and its base sinks only 8 mm into the clear glass (deeper shows inside the cabin). The glass
+  reflects the pod in renders: a "taller" pod in a front view is the reflection, check the side view.
+- **Seats (2026-10-26)**: the front seats have a shoulder-height backrest and a separate perforated headrest on two posts
+  (`seal_seats.build_front_headrest`); the integrated headrest with an oval window was dropped at the owner's request.
 - **Shadow shell**: pulled under the skin with `clear_shell` (inset 0.068, shrink 0.95); without it the shell showed through
   the arch lips as black shards in the web.
 - Run: `export_seal.web()` (60 s) then `node scripts/make-proxy.mjs byd-seal`; the cabin `export_seal.web_cabin(look="hall",

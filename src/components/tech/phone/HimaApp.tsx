@@ -374,8 +374,15 @@ function Remote({
     openSettings('assist');
   };
 
+  const clock = useTechClock();
+  const search = runtime?.stage?.search;
+  const isScanning = Boolean(search && phase === 'parking' && clock.t < search.found);
+  const isBayFound = Boolean(search && phase === 'parking' && clock.t >= search.found && clock.t < search.end);
+
   const title =
-    phase === 'parking' ? `Parking in… ${pct}%`
+    isScanning ? 'Screening for bay…'
+    : isBayFound ? 'Target slot identified'
+    : phase === 'parking' ? `Parking in… ${pct}%`
     : phase === 'leaving' ? `Parking out… ${pct}%`
     : paused ? 'Paused'
     : phase === 'parked' ? 'Parked in the bay'
@@ -383,6 +390,8 @@ function Remote({
     : 'Rear-in, bay on your right';
   const sub =
     phase === 'ready' ? 'Stand clear of the car and its path, and keep it in sight.'
+    : isScanning ? 'Sensors screening parking bays along the lane.'
+    : isBayFound ? 'Target bay locked. Stopping to reverse in.'
     : moving ? 'The car is steering itself. Pause at any time.'
     : paused ? 'The car has stopped where it is.'
     : phase === 'parked' ? 'Ready to drive out again whenever you are.'

@@ -282,6 +282,7 @@ export const nioEs8: Vehicle = {
       { at: [2.55, 0.42, 0.48], mirror: true },
       { at: [-2.52, 0.44, 0.51], mirror: true },
     ],
+    surround: true,
   },
   chargePort: { mouth: [-1.835, 0.963, -0.912], axis: [-0.028, 0.257, -0.966], depth: 0.022 },
   charging: {
@@ -392,6 +393,28 @@ export const nioEs8: Vehicle = {
       ],
       simulated: 'Simulated visualization of NIO Aquila Watchtower LiDAR and surround sensing fields in multi-lane traffic.',
     },
+    {
+      id: 'park',
+      title: 'Remote Parking Assist · RPA',
+      blurb:
+        'Aquila Super Sensing with roof Watchtower LiDAR and 12 ultrasonic radars scans surroundings to autonomously steer, brake, and slide into narrow bays while controlled from the NIO mobile app.',
+      driver: 'park',
+      devices: ['phone', 'dashboard'],
+      params: { search: 12 },
+      claims: [
+        {
+          text: 'NIO Remote Parking Assist (RPA) enables drivers to stand outside the vehicle and park the ES8 into tight perpendicular, parallel, and diagonal parking bays via the NIO App.',
+          source: { label: 'NIO Official - Banyan Smart System', url: 'https://www.nio.cn/es8' },
+        },
+        {
+          text: 'Aquila 33-sensor array with ultralong-range roof LiDAR and 360-degree ultrasonic sensing maps the parking environment and spots free bays in real time.',
+          source: { label: 'NIO Official - ES8 Specifications', url: 'https://www.nio.cn/es8' },
+        },
+      ],
+      simulated:
+        'A simulation of autonomous reverse-in parking. Watchtower LiDAR and surround cameras screen for available bays, lock onto the target slot with flashing indicators, and complete precise maneuvers while synchronized with the mobile app and dashboard.',
+    },
+
     {
       id: 'nomi',
       title: 'NOMI Mate 2.0 AI Companion',

@@ -21,6 +21,7 @@ from mathutils import Vector
 
 import seal_surface as S
 import seal_nose as N
+import seal_lidar as LD
 import seal_cam as CAM
 from carkit import geom
 from carkit import mesh as M
@@ -451,4 +452,5 @@ def build_all(collection, lib):
     made += build_headlamps(collection, lib)
     made += build_emblem(collection, lib)
     made += build_hood_features(collection, lib)
+    made += LD.build_all(collection, lib)
     return made

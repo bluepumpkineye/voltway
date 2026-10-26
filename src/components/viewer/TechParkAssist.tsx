@@ -19,7 +19,7 @@ export function TechParkAssist({ vehicle }: { vehicle: Vehicle }) {
   const runtime = useRuntime();
   const stage = runtime?.stage;
   const spec = vehicle.sensors;
-  if (!runtime || !stage?.search || !spec) return null;
+  if (!runtime || !stage?.bays?.some((b) => b.target) || !spec) return null;
   return <Overlay vehicle={vehicle} spec={spec} stage={stage} runtime={runtime} />;
 }
 
@@ -33,7 +33,7 @@ function Overlay({ vehicle, spec, stage, runtime }: { vehicle: Vehicle; spec: Se
       <CarCoverage vehicle={vehicle} spec={spec} runtime={runtime} parts={['surround', 'ultrasonic', 'cameras']} surroundReach={8} />
       <BayMark stage={stage} runtime={runtime} />
       {stage.neighbours.map((n, i) => (
-        <Bracketed key={i} n={n} runtime={runtime} />
+        <Bracketed key={i} n={n} stage={stage} runtime={runtime} />
       ))}
     </group>
   );
@@ -91,14 +91,14 @@ function BayMark({ stage, runtime }: { stage: ParkStage; runtime: Runtime }) {
   const root = React.useRef<THREE.Group>(null);
   const map = React.useMemo(() => pTexture(), []);
   React.useEffect(() => () => map.dispose(), [map]);
-  const found = stage.search!.found;
+  const found = stage.search?.found ?? 0;
   useFrame(() => {
     const t = techClock.t;
     const stop = techClock.snapshot().stops[0] ?? Infinity;
     const car = runtime.sample(t);
     // in: when the bay has been seen; out: as the car backs toward it, and for good once it has parked
     const d = Math.hypot(car.x - bay.x, car.y - bay.y);
-    const a = smooth(found, found + 0.5, t) * smooth(2.6, 4.4, d) * (t < stop - 1e-3 ? 1 : 0);
+    const a = (stage.search ? smooth(found, found + 0.5, t) : 1) * smooth(2.6, 4.4, d) * (t < stop - 1e-3 ? 1 : 0);
     if (root.current) root.current.visible = a > 0.01;
     const pulse = 0.85 + 0.15 * Math.sin(t * 5);
     if (fill.current) fill.current.opacity = 0.28 * a * pulse;
@@ -122,7 +122,7 @@ function BayMark({ stage, runtime }: { stage: ParkStage; runtime: Runtime }) {
 }
 
 /** A parked car the car has passed: white corner marks on the floor round it. */
-function Bracketed({ n, runtime }: { n: Pick<ParkNeighbour, 'rect'>; runtime: Runtime }) {
+function Bracketed({ n, stage, runtime }: { n: Pick<ParkNeighbour, 'rect'>; stage: ParkStage; runtime: Runtime }) {
   const rect: Rect = n.rect;
   const root = React.useRef<THREE.LineSegments>(null);
   const geo = React.useMemo(() => {
@@ -136,7 +136,7 @@ function Bracketed({ n, runtime }: { n: Pick<ParkNeighbour, 'rect'>; runtime: Ru
     if (!m) return;
     // seen once the nose is within reach of it (the side sensors are in the front half of the car)
     const car = runtime.sample(techClock.t);
-    const seen = car.x + runtime.body.front + 1.5 >= rect.x - 0.5;
+    const seen = stage.search ? car.x + runtime.body.front + 1.5 >= rect.x - 0.5 : true;
     m.visible = seen;
     if (seen) (m.material as THREE.LineBasicMaterial).opacity = 0.55 + 0.1 * Math.sin(techClock.t * 3 + rect.x);
   });

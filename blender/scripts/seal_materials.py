@@ -121,6 +121,11 @@ def build_library():
                   coat=1.0, coat_rough=0.03)
     lib["black_gloss"] = m
 
+    # The roof lidar's window: smoked, glossy, a little bluer than the housing
+    m, nt, b = _M.mat("M_Lidar_Window")
+    _M.set_inputs(b, base=(0.004, 0.005, 0.009), metallic=0.0, roughness=0.05, coat=1.0, coat_rough=0.02)
+    lib["lidar_window"] = m
+
     # Matte/satin black bumper & diffuser trim
     m, nt, b = _M.mat("M_Cap_Black")
     _M.set_inputs(b, base=(0.012, 0.012, 0.014), metallic=0.0, roughness=0.32, specular=0.30)

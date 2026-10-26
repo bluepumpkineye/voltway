@@ -2,6 +2,7 @@
 
     loft     LoftBody - the flank surface S(x, v) from profile curves
     caps     WrapCap - nose and tail patches C(w, v), G1 to the flank
+             WrapCapG1 - the same, G1 at every height by construction (a Bezier plan outline)
     model    CarBody - loft + caps as one surface: project, proud, side_point
     panels   panel grids with real shut lines, cap grids, shell, liners, tray
     fascia   bumper kit: split nose, recessed mouth, walls, tunnels, blades,
@@ -10,5 +11,5 @@
              dimensions
 """
 from .loft import LoftBody, Section
-from .caps import WrapCap
+from .caps import WrapCap, WrapCapG1
 from .model import CarBody

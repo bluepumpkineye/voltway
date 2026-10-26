@@ -572,8 +572,8 @@ export function Showroom({
             {demo.driver === 'sensors' && <SensorsTools vehicle={vehicle} />}
             {demo.driver === 'boost' && !boostSheet && <BoostTools />}
             {isChassisDriver(demo.driver) && <ChassisTools driver={demo.driver} />}
-            {demo.driver === 'park' && demo.params?.noseIn === 1 && <NoseInTools />}
-            {demo.driver === 'park' && (demo.params?.search ?? 0) > 0 && <ParkAssistTools />}
+            {demo.driver === 'park' && demo.params?.noseIn === 1 && (!demo.devices || demo.devices.length === 0) && <NoseInTools />}
+            {demo.driver === 'park' && (demo.params?.search ?? 0) > 0 && (!demo.devices || demo.devices.length === 0) && <ParkAssistTools />}
           </>
         )}
         {playing && (

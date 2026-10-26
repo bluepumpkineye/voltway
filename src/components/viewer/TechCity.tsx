@@ -8,6 +8,7 @@ import type { CityRoad, RoadStage } from '@/lib/tech/carpet';
 import { rigOf } from '@/lib/tech/rig';
 import { useDusk } from './Lights';
 import { STAGE_LAYER } from './StudioShowroom';
+import { Signal } from './TechSignal';
 import { lampGeometry, treeGeometry } from './TechStreet';
 
 /**
@@ -233,6 +234,9 @@ export function CityStreet({ road, city, vehicle }: { road: RoadStage; city: Cit
             <planeGeometry args={[0.38, l.y1 - l.y0]} />
             <meshBasicMaterial color={PAINT} transparent opacity={0.94} {...mark} />
           </mesh>
+        ))}
+        {(city.signals ?? []).map((sg, i) => (
+          <Signal key={i} signal={sg} />
         ))}
       </group>
     </group>

@@ -1,6 +1,7 @@
 import type { Layout } from './kinematics';
 import { simulate, type SceneFactory, type SensorsRun } from './drive';
 import { cityScene } from './scenes/city';
+import { trafficLightScene } from './scenes/trafficlight';
 import { debrisScene } from './scenes/debris';
 import { CRUISE, LANE, overtakeScene } from './scenes/overtake';
 
@@ -13,6 +14,7 @@ import { CRUISE, LANE, overtakeScene } from './scenes/overtake';
  *  - `overtake`: an expressway, the car ahead brakes, the car follows, waits for the left lane and overtakes (RX, SU7, ES8)
  *  - `debris`: an expressway, a car cuts in, then something lies in the lane and the car goes round it (06T)
  *  - `city`: a street between parked cars, someone steps out, then a zebra crossing with people on it (G9L)
+ *  - `trafficlight`: a street, a signalled zebra crossing: the light turns amber and red, the car stops behind the one ahead, people cross, green (Seal)
  *
  * Published (the makers, Autohome's configuration tables, Huawei, Hesai) is what each car's panel cites: how many of each sensor,
  * the SU7's lidar field of view, and so on. Ours, said on each panel: every scenario (the roads, the traffic, the speeds, the
@@ -26,9 +28,9 @@ export type { Actor as TrafficCar, ActorKind, SensorsReadout, SensorsRun, Track 
 /** the drawn reach of the sensors (illustrative: the real ones see further), m */
 export const REACH = { wide: 26, tele: 62, side: 18, rear: 30, ultrasonic: 2.4, surround: 22, scan: 34 } as const;
 
-export type SceneId = 'overtake' | 'debris' | 'city';
+export type SceneId = 'overtake' | 'debris' | 'city' | 'trafficlight';
 
-export const SCENES: Record<SceneId, SceneFactory> = { overtake: overtakeScene, debris: debrisScene, city: cityScene };
+export const SCENES: Record<SceneId, SceneFactory> = { overtake: overtakeScene, debris: debrisScene, city: cityScene, trafficlight: trafficLightScene };
 
 export interface SensorsOptions {
   /** which scene to play (default: the overtake) */

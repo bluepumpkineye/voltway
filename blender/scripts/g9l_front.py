@@ -106,8 +106,7 @@ def _slit_outline():
 
 
 def _cut_fascia(ob):
-    cutters = [C.prism_x("_cut_band_" + ob.name, _band_outline(), S.HALF_L + 0.30, S.HALF_L - 0.55),
-               C.prism_x("_cut_slit_" + ob.name, _slit_outline(), S.HALF_L + 0.30, S.HALF_L - 0.55)]
+    cutters = [C.prism_x("_cut_band_" + ob.name, _band_outline(), S.HALF_L + 0.30, S.HALF_L - 0.55)]
     sheet = C.sheet_bvh(ob)
     C.difference(ob, cutters, "front_cuts_", reset_materials=True)
     C.prune_off_sheet(ob, sheet)
@@ -118,7 +117,7 @@ def build_fascia(collection, lib):
     made = []
     # the painted slab, lip to chin, with the black band and the corner slits cut out
     made.append(FA.cap_panel("G9L_Fascia", NOSE, collection, lib, NOSE.Z_LO + 0.001,
-                             NOSE.Z_HI - 0.001, 0.0, 1.0, 46, 52, mat="paint",
+                             NOSE.Z_HI - 0.001, 0.0, 1.0, 84, 96, mat="paint",
                              top_to_centre=True, cuts=(_cut_fascia,)))
     # the black band behind the cut: a recessed gloss apron from the smile edge to the chin line
     zs = [z for (_y, z) in _band_outline()]
@@ -129,13 +128,25 @@ def build_fascia(collection, lib):
     M.mirror_y(ap)
     M.finish(ap, thickness=0.0025, bevel=0.0)
     made.append(ap)
-    # the slit: a dark tunnel behind each corner opening, with a pale inner bar like the photo
-    ring = _slit_outline()
-    loop = [face(y, z)[0] for (y, z) in ring]
-    tun = _tunnel("G9L_Slit_Tunnel", loop, (1.0, 0.0, 0.0), 0.07, collection, lib["shadow"])
-    M.mirror_y(tun)
-    made.append(tun)
+    made.append(_slit_inlay(collection, lib))
     return made
+
+
+def _slit_inlay(collection, lib):
+    """The corner's black vertical slit (c1_0026: a tall pill 31 mm wide, z 0.435-0.79): a thin black strip standing 1.5 mm
+    proud of the fascia and following its corner. It used to be a hole through the fascia with a 7 cm tunnel behind it in the
+    +x direction, which at the corner (where the skin faces diagonally) stood out of the fender as a black fin."""
+    (y0, y1), (z0, z1) = SLIT_Y, SLIT_Z
+    n = 16
+    rows = []
+    for yy in (y0, 0.5 * (y0 + y1), y1):
+        rows.append([face(yy, z0 + (z1 - z0) * k / n, 0.0015)[0] for k in range(n + 1)])
+    ob = M.mesh_from_rows("G9L_Slit", rows, collection)
+    M.orient(ob.data, geom.axial(1.0))
+    ob.data.materials.append(lib["black_gloss"])
+    M.mirror_y(ob)
+    M.finish(ob, thickness=0.002, bevel=0.0)
+    return ob
 
 
 def _cap_rows(z_lo, z_hi, w_lo, w_hi, nz, nw, offset):
@@ -246,12 +257,8 @@ def build_headlamps(collection, lib):
                                    _place, lambda k: -0.0005, collection, lib["led_white"], out))
     c, n = face(0.751, 0.52, -0.005)
     made += lamps.projector("G9L_Headlamp_Proj", c, n, 0.030, collection, lib)
-    # the black bucket the lens sits in
-    ring = [(0.688, 0.468), (0.814, 0.462), (0.814, 0.703), (0.688, 0.622)]
-    loop = [face(y, z, 0.002)[0] for (y, z) in ring]
-    tun = _tunnel("G9L_Headlamp_Bucket", loop, (1.0, 0.0, 0.0), 0.06, collection, lib["shadow"], taper=0.95)
-    M.mirror_y(tun)
-    made.append(tun)
+    # (the black bucket the lens sat in was a 6 cm tunnel along +x: at the corner it stood out of the fender; the recessed
+    # black apron behind the lens is its bucket now)
     return made
 
 
@@ -259,9 +266,10 @@ def build_headlamps(collection, lib):
 def _bar_edges():
     top = _yz(CAM.BAR_TOP_PX)[::-1]                 # centre -> corner
     bot = _yz(CAM.BAR_BOT_PX)[::-1]
-    # round the corner: the bar curls up and on round the front fender
-    top += [(0.862, 1.068), (0.892, 1.074), (0.915, 1.076)]
-    bot += [(0.862, 1.018), (0.892, 1.024), (0.915, 1.024)]
+    # the photograph's bar ends at |y| 0.803-0.807, where the fender's top corner begins (the cap's seam is at y 0.80-0.81 there):
+    # it used to curl on to |y| 0.915 across the seam, a bracket standing off the fender; it now closes to a short rounded tip
+    top += [(0.815, 1.052)]
+    bot += [(0.815, 1.016)]
     return top, bot
 
 

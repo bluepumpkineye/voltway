@@ -53,7 +53,7 @@ const MESSAGES = [
 ];
 
 /** what a car does on its own: holds a speed, brakes to a stop at `xStop` (a line), waits until `tGo`, goes again (all magnitudes; `dir` gives the sign) */
-function stopAndGo(opts: { v0: number; xFrom: number; xStop: number; aDec: number; tGo: number; aAcc: number; vEnd: number; dir: 1 | -1 }) {
+export function stopAndGo(opts: { v0: number; xFrom: number; xStop: number; aDec: number; tGo: number; aAcc: number; vEnd: number; dir: 1 | -1 }) {
   const { v0, xFrom, xStop, aDec, tGo, aAcc, vEnd, dir } = opts;
   // it cruises until the braking distance is all that is left
   const brake = (v0 * v0) / (2 * aDec);
@@ -70,7 +70,7 @@ function stopAndGo(opts: { v0: number; xFrom: number; xStop: number; aDec: numbe
 }
 
 /** a person walking across the street: standing at `y0` until `from`, then at `pace` m/s to `y1`, where they stop */
-function walker(y0: number, y1: number, from: number, pace: number) {
+export function walker(y0: number, y1: number, from: number, pace: number) {
   const sign = Math.sign(y1 - y0);
   return (t: number) => y0 + sign * Math.min(Math.abs(y1 - y0), Math.max(0, t - from) * pace);
 }

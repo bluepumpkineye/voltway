@@ -52,30 +52,38 @@ export function ParkPage({ vehicle }: { vehicle: Vehicle }) {
   const canStart = techAvailable ? Boolean(runtime?.stage) && (live ? true : status !== 'none') : false;
   const go = () => startDemo(DEMO, 'dashboard');
 
-  const title = searching
+  const search = runtime?.stage?.search;
+  const isScanning = Boolean(search && phase === 'parking' && clock.t < search.found);
+  const isBayFound = Boolean(search && phase === 'parking' && clock.t >= search.found && clock.t < search.end);
+
+  const title = searching || isScanning
     ? 'Searching for a bay…'
-    : phase === 'ready'
-      ? 'Rear-in is ready'
-      : phase === 'parking'
-        ? `Parking in… ${pct}%`
-        : phase === 'leaving'
-          ? `Parking out… ${pct}%`
-          : paused
-            ? 'Paused'
-            : phase === 'parked'
-              ? 'Parked'
-              : 'Out of the bay';
-  const sub = searching
+    : isBayFound
+      ? 'Target slot identified'
+      : phase === 'ready'
+        ? 'Rear-in is ready'
+        : phase === 'parking'
+          ? `Parking in… ${pct}%`
+          : phase === 'leaving'
+            ? `Parking out… ${pct}%`
+            : paused
+              ? 'Paused'
+              : phase === 'parked'
+                ? 'Parked'
+                : 'Out of the bay';
+  const sub = searching || isScanning
     ? 'Bays beside the car are being measured.'
-    : phase === 'ready'
-      ? 'Tap Start parking in. Keep watching the car’s surroundings.'
-      : moving
-        ? 'The car is steering itself. Pause at any time.'
-        : paused
-          ? 'The car has stopped where it is.'
-          : phase === 'parked'
-            ? 'Tap Park out to drive out of the bay.'
-            : 'Back where it started.';
+    : isBayFound
+      ? 'Target bay locked with flashing P mark.'
+      : phase === 'ready'
+        ? 'Tap Start parking in. Keep watching the car’s surroundings.'
+        : moving
+          ? 'The car is steering itself. Pause at any time.'
+          : paused
+            ? 'The car has stopped where it is.'
+            : phase === 'parked'
+              ? 'Tap Park out to drive out of the bay.'
+              : 'Back where it started.';
 
   const panel = dark ? '#16181c' : '#f5f4f6';
   const btn = (primary: boolean, disabled = false): React.CSSProperties =>

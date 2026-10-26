@@ -22,7 +22,7 @@ What makes a G9L, from the photographs:
               v = 0 at the underbody centreline, 1 at the roof centreline, V_SHOULDER at
                   the crease
 """
-from carkit.geom import Curve, Joined
+from carkit.geom import Curve, Joined, smoothstep as _smooth
 from carkit.body import LoftBody
 from carkit.body.loft import Section
 
@@ -83,27 +83,39 @@ Z_HIP = Curve([
 # g9l_cam.BELT_PX: 1.196 at the cowl, 1.235 at the split, 1.293 at the rear door's edge, 1.353 at
 # the quarter glass's tip) less 40 mm for the crease under the step. Ahead of the cowl it is the
 # fender's top (the hood's side line: z 1.13 at x 1.5, 1.054 at 2.03, 1.03 at the lamp's end).
+#
+# Ahead of x 1.25 the "shoulder" is the FENDER'S TOP CORNER, where the hood's shut line runs. Its 3-D positions were read off the
+# purple car's left front three-quarter photograph (c1_0001, camera f34_purple in g9l_ref_match; each pixel of the thin dark line
+# meets the side photograph's hood-line height: g9l_panels.Z_HOODSIDE): (1.42, 0.965, 1.083) (1.556, 0.976, 1.075)
+# (1.769, 0.969, 1.063) (1.949, 0.928, 1.051) (2.081, 0.862, 1.044). It sits 8-9 cm lower than the old values and the hood
+# crowns down to it from the centreline (see HOOD_CROWN and SECTION_AT).
 Z_SHOULDER = Curve([
     (-HALF_L, 1.150), (-2.400, 1.225), (-2.040, 1.322), (-1.820, 1.313), (-1.570, 1.284),
     (-1.200, 1.250), (-0.810, 1.222), (-0.030, 1.195), (0.590, 1.171), (1.100, 1.156),
-    (1.400, 1.120), (1.750, 1.065), (2.050, 1.015), (2.300, 0.965), (2.500, 0.920), (HALF_L, 0.890),
+    (1.250, 1.122), (1.420, 1.082), (1.556, 1.074), (1.769, 1.062), (1.949, 1.050), (2.081, 1.042),
+    (2.200, 1.028), (2.300, 1.008), (2.400, 0.982), (2.500, 0.945), (HALF_L, 0.895),
 ])
 
 # Roof crest offset (rail height under the centreline):
+HOOD_ROLL = 0.120         # the hood's edge roll: a quarter ellipse, this wide (y), from the flat top down to the fender's top corner
+HOOD_CROWN = 0.134        # its rail point (60 degrees round the roll) sits this share of the roll's height below the centreline
 Z_CREST = Curve([
     (-HALF_L, -0.040), (-2.331, -0.050), (-2.040, -0.050), (-1.469, -0.045),
     (-0.515, -0.040), (0.439, -0.040), (0.863, -0.040), (COWL_X, -0.020),
-    (1.710, -0.015), (2.128, -0.010), (2.442, 0.0), (HALF_L, 0.0),
-])
+] + [(x, -HOOD_CROWN * (Z_ROOF(x) - Z_SHOULDER(x)))
+     for x in (1.450, 1.600, 1.800, 2.000, 2.200, 2.400, 2.500, HALF_L)])
 
 # Lateral widths (half). The photographs' outlines from front and rear: the widest section
 # (0.9995) runs from the rear wheel arch's front edge to the front arch; the nose face is 1.64
 # wide and the tailgate 1.55 wide at lamp height, so both ends turn in on big radii. The rear knots
 # (x < -2.0) are tuned so the tail cap leaves its join in the flank's own plan direction (2-3 degrees
 # instead of 14, the rear quarter's pleat); g9l_nose.JOIN_R and TAIL_WRAP go with them.
+# The tail TAPERS from behind the rear arch: the rear three-quarter photograph (c1_0005, camera r34_purple) puts the far tail corner 8-11 cm
+# inboard of the old model's (measured as the far silhouette's distance from the tail's centre, so it does not depend on the camera's
+# lateral error), and the rear photograph's gate corners stand at |y| 0.83. The old knots kept the full width to x -2.3 (a box).
 Y_HIP = Curve([
-    (-HALF_L, 0.620), (-2.500, 0.8125), (-2.400, 0.900), (-2.300, 0.925), (-2.100, 0.975),
-    (-1.900, 0.995), (-1.600, 0.9995), (-0.727, 0.9995), (0.015, 0.9995), (0.863, 0.9970),
+    (-HALF_L, 0.600), (-2.500, 0.765), (-2.400, 0.826), (-2.300, 0.862), (-2.100, 0.925),
+    (-1.900, 0.965), (-1.700, 0.990), (-1.500, 0.9995), (-0.727, 0.9995), (0.015, 0.9995), (0.863, 0.9970),
     (1.287, 0.9900), (1.647, 0.9800), (1.950, 0.9700), (2.100, 0.9550), (2.200, 0.9350),
     (2.300, 0.9100), (2.400, 0.8700), (2.500, 0.8000), (HALF_L, 0.620),
 ])
@@ -117,9 +129,9 @@ Y_HIP = Curve([
 Y_SHOULDER = Curve([
     (-HALF_L, 0.720), (-2.500, 0.735), (-2.400, 0.745), (-2.200, 0.750), (-2.000, 0.752),
     (-1.800, 0.765), (-1.500, 0.800), (-1.200, 0.822), (-0.800, 0.836), (-0.030, 0.852),
-    (0.500, 0.870), (0.863, 0.890), (1.287, 0.935), (1.647, 0.935), (1.950, 0.920),
-    (2.100, 0.905), (2.200, 0.885), (2.300, 0.860), (2.400, 0.820), (2.500, 0.750),
-    (HALF_L, 0.600),
+    (0.500, 0.870), (0.863, 0.890), (1.100, 0.915), (1.250, 0.945), (1.420, 0.965), (1.556, 0.974),
+    (1.769, 0.967), (1.949, 0.930), (2.081, 0.866), (2.200, 0.815), (2.300, 0.770), (2.400, 0.720),
+    (2.500, 0.660), (HALF_L, 0.580),
 ])
 
 # The roof rail's half-width. The rear photograph's silhouette gives 0.55 at the spoiler's tips (x -2.0, z 1.71), 0.58 at
@@ -128,8 +140,9 @@ Y_SHOULDER = Curve([
 Y_ROOF = Curve([
     (-HALF_L, 0.700), (-2.500, 0.690), (-2.330, 0.640), (-2.200, 0.600), (-2.040, 0.555), (-1.450, 0.600),
     (-1.000, 0.650), (-0.500, 0.705), (0.333, 0.770), (0.863, 0.790), (COWL_X, 0.850),
-    (1.605, 0.880), (2.128, 0.860), (2.442, 0.760), (HALF_L, 0.560),
-])
+    # ahead of the cowl it is the hood's rail point: 60 degrees round the quarter-ellipse roll that runs from the flat
+    # top (at the fender corner's y less HOOD_ROLL) down to the corner
+] + [(x, Y_SHOULDER(x) - 0.5 * HOOD_ROLL) for x in (1.450, 1.600, 1.800, 2.000, 2.200, 2.400, 2.500, HALF_L)])
 
 Y_ROCKER = Curve([
     (-HALF_L, 0.650), (-2.500, 0.790), (-2.331, 0.885), (-1.684, 0.950), (-0.727, 0.965),
@@ -143,6 +156,31 @@ UNDERCUT = Curve([
 ], mode="pchip")
 
 # ------------------------------------------------------------------ the loft
+def _hood_blend(x):
+    """0 over the greenhouse, 1 on the hood: how far the section recipe has changed to the crowned hood's."""
+    return _smooth((x - 1.15) / 0.35)
+
+
+def SECTION_AT(x):
+    """Section constants ahead of the cowl. The recipe's (a 3 cm step in above the crease, a tumble point
+    well inside both the crease and the rail) is the glass leaning in; on the fender it folded the section
+    back on itself, a groove under the hood's edge. The photographs (c1_0001's far silhouette and shut line,
+    back-projected through camera f34_purple) show the hood as a FLAT top that rolls over a small quarter
+    ellipse (about 12 cm wide, 12-16 cm high) into the fender's top corner, where the shut line runs on a
+    vertical wall: hood z 1.12 at |y| 0.7-0.8 near the nose, 1.20 at |y| 0.8 at x 1.9, against the corner at
+    z 1.04-1.08. With the roll's centre at (corner y - HOOD_ROLL, corner z) the recipe's points are the
+    ellipse at 0, 30 and 60 degrees and its end: tumble (0.732, 0.268, 0.5, 0), rail_in 0.931."""
+    t = _hood_blend(x)
+    if t <= 0.0:
+        return None
+    lerp = lambda a, b: a + (b - a) * t
+    k0 = (0.38, 0.58, 0.50, 0.38)
+    k1 = (0.732, 0.268, 0.5, 0.0)
+    return dict(step_in=lerp(0.032, 0.003), step_max=lerp(0.030, 0.012),
+                tumble=tuple(lerp(a, b) for a, b in zip(k0, k1)),
+                rail_in=lerp(0.52, 0.931), rail_crest=lerp(0.34, 0.45))
+
+
 BODY = LoftBody(
     name="XPeng G9L", length=LENGTH, width=WIDTH, height=HEIGHT,
     front_axle=FRONT_AXLE, rear_axle=REAR_AXLE, wheel_r=WHEEL_R, arch_r=ARCH_R,
@@ -153,6 +191,7 @@ BODY = LoftBody(
     sill_height=0.140, core_z=0.78, crease="soft",
     section=Section(step_in=0.032, step_max=0.030, tumble=(0.38, 0.58, 0.50, 0.38),
                     upper_door=(0.45, 0.008, 0.62)),
+    section_at=SECTION_AT,
 )
 
 z_rocker = BODY.z_rocker

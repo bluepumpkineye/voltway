@@ -40,9 +40,12 @@ NOSE_X_OF_Z = Curve(NOSE_PTS, mode="pchip")
 NOSE_Z_LO, NOSE_Z_HI = NOSE_PTS[0][0], NOSE_PTS[-1][0]
 
 # fit:tail  (z, x)
+# the side photographs' centreline silhouette (c1_0004, read through camera side_left): the lamp shelf and the bumper reach -2.55,
+# the tailgate between them tucks in to -2.46 at z 0.82 (the sign hangs there)
 TAIL_PTS = [
-    (0.296, -2.440), (0.380, -2.480), (0.500, -2.505), (0.600, -2.515), (0.750, -2.520),
-    (0.900, -2.522), (1.050, -2.520), (1.150, -2.515), (1.270, -2.505),
+    (0.296, -2.440), (0.380, -2.480), (0.500, -2.510), (0.600, -2.520), (0.700, -2.510),
+    (0.780, -2.485), (0.830, -2.470), (0.900, -2.480), (1.000, -2.500), (1.100, -2.512), (1.190, -2.515),
+    (1.270, -2.505),
 ]
 # /fit:tail
 TAIL_X_OF_Z = Curve(TAIL_PTS, mode="pchip")
@@ -65,10 +68,20 @@ TAIL_WRAP = Curve([
     (0.96, 0.470), (0.98, 0.640), (0.99, 0.770), (0.995, 0.880), (1.00, 1.000),
 ])
 
-NOSE = WrapCap(S.BODY, front=True, join=JOIN_F, x_of_z=NOSE_X_OF_Z,
-               z_lo=NOSE_Z_LO, z_hi=NOSE_Z_HI, wrap=WRAP)
-TAIL = WrapCap(S.BODY, front=False, join=JOIN_R, x_of_z=TAIL_X_OF_Z,
-               z_lo=TAIL_Z_LO, z_hi=TAIL_Z_HI, wrap=TAIL_WRAP)
+import os as _os
+if _os.environ.get("G9L_OLDCAPS"):
+    NOSE = WrapCap(S.BODY, front=True, join=JOIN_F, x_of_z=NOSE_X_OF_Z,
+                   z_lo=NOSE_Z_LO, z_hi=NOSE_Z_HI, wrap=WRAP)
+    TAIL = WrapCap(S.BODY, front=False, join=JOIN_R, x_of_z=TAIL_X_OF_Z,
+                   z_lo=TAIL_Z_LO, z_hi=TAIL_Z_HI, wrap=TAIL_WRAP)
+else:
+    from carkit.body import WrapCapG1
+    _K1 = float(_os.environ.get("G9L_K1", "0.78"))
+    _K2 = float(_os.environ.get("G9L_K2", "0.55"))
+    NOSE = WrapCapG1(S.BODY, front=True, join=JOIN_F, x_of_z=NOSE_X_OF_Z,
+                     z_lo=NOSE_Z_LO, z_hi=NOSE_Z_HI, k1=_K1, k2=_K2)
+    TAIL = WrapCapG1(S.BODY, front=False, join=JOIN_R, x_of_z=TAIL_X_OF_Z,
+                     z_lo=TAIL_Z_LO, z_hi=TAIL_Z_HI, k1=_K1, k2=_K2)
 BODY = CarBody(S.BODY, NOSE, TAIL, flank_x_range=(-2.40, 2.35))
 
 

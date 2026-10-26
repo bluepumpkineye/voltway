@@ -56,6 +56,23 @@ export interface CityRoad {
   lines: { y: number; dash: boolean; color: 'white' | 'yellow' }[];
   crossings: { x: number; length: number }[];
   stopLines: { x: number; y0: number; y1: number }[];
+  /** traffic signals (the Seal's traffic-light scene): a mast on the footway with an arm over the carriageway */
+  signals?: CitySignal[];
+}
+
+export type SignalState = 'green' | 'amber' | 'red';
+
+/** A signal: its mast, the heads that hang from the arm (facing the car as it comes), and which lamp is lit at time t. */
+export interface CitySignal {
+  /** along the street, m */
+  x: number;
+  /** the mast's place across the street, m left of the car's lane (on the footway) */
+  pole: number;
+  /** where the heads hang across the street, m: the car's lane, and the one beside it */
+  heads: number[];
+  /** how far off the car has the signal, from its nose to the mast, m (ours: the cameras read a head from much further) */
+  reach: number;
+  state: (t: number) => SignalState;
 }
 
 export interface CarpetRun {

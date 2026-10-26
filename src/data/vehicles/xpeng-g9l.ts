@@ -320,7 +320,8 @@ export const xpengG9l: Vehicle = {
       blurb:
         'The G9L takes a bay head first, which leaves the boot at the lane, and drives itself in and out. The button stands for the voice command that starts it from outside.',
       driver: 'park',
-      params: { noseIn: 1 },
+      devices: ['phone', 'dashboard'],
+      params: { noseIn: 1, search: 12 },
       claims: [
         {
           text: 'A new nose-in parking function makes the boot easier to reach, and voice commands from outside the car can direct parking manoeuvres.',
@@ -384,6 +385,7 @@ export const xpengG9l: Vehicle = {
       { at: [2.38, 0.4, 0.8], mirror: true },
       { at: [-2.46, 0.48, 0.72], mirror: true },
     ],
+    surround: true,
     notes: {
       vision: '11 exterior cameras, drawn as four views: forward, wide from the nose, backward, and to each side from the mirrors',
       ultrasonic: '12; the photographs show the pairs in the front and rear bumpers',

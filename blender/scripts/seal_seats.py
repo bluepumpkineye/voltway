@@ -1,10 +1,12 @@
 """BYD Seal seats, read from c0086 / c0095 / c0121 (the open door), d0126 (down the cabin), c0198 / c0199 (rear).
 
-Front: a sport bucket, a tall near-upright backrest that runs into its own headrest with a large oval window.
+Front: a bucket with a near-upright backrest to shoulder height and an ordinary headrest on two posts above it.
 ORANGE leather over the centre and the bolster crowns, BLACK leather on the sides, shells and the cushion's side
 faces. The centre is pressed into five pleats that fan out toward the seat's front and bottom (they converge
-up the backrest and fade out in the headrest), each seam stitched tone-on-tone; the pleat crowns carry a
+up the backrest and fade out at its top), each seam stitched tone-on-tone; the pleat crowns carry a
 field of fine perforations. The oval adjuster panel sits low on the outboard side of the cushion.
+(The first build ran the backrest into an integrated headrest with an oval window; the owner asked for a
+standard headrest instead, 2026-10-26.)
 
 Rear: a three-place bench, all orange, the outer places pleated and perforated like the fronts', a fold-down
 armrest panel in the middle, three separate headrests.
@@ -33,18 +35,15 @@ CUSHION = dict(
     bolster=Curve([(0.0, 0.35), (0.25, 0.85), (0.55, 1.0), (0.78, 0.55), (0.88, 0.0), (1.0, 0.0)], mode="pchip"),
     bolster_h=0.046, centre_half=Curve([(0.0, 0.150), (0.6, 0.140), (1.0, 0.125)], mode="pchip"),
     depth=0.125, ns=40)
-# the backrest, nearly upright (the photographs show it at 5 to 10 degrees): the headrest runs on from the
-# shoulders without a join
+# the backrest, nearly upright (the photographs show it at 5 to 10 degrees), ending at the shoulders: the
+# headrest is a separate pillow on two posts (build_front)
 BACKREST = dict(
-    spine=[(0.00, 0.00), (-0.020, 0.090), (-0.050, 0.265), (-0.076, 0.420), (-0.094, 0.545),
-           (-0.104, 0.625), (-0.110, 0.685), (-0.109, 0.715)],
-    half_w=Curve([(0.0, 0.226), (0.42, 0.236), (0.58, 0.226), (0.66, 0.170), (0.74, 0.152), (1.0, 0.145)],
-                 mode="pchip"),
-    bolster=Curve([(0.0, 0.55), (0.30, 1.0), (0.55, 0.75), (0.68, 0.20), (0.78, 0.40), (0.90, 0.25), (1.0, 0.0)],
-                  mode="pchip"),
-    bolster_h=0.090,
-    centre_half=Curve([(0.0, 0.150), (0.55, 0.142), (0.68, 0.100), (1.0, 0.090)], mode="pchip"),
-    depth=0.080, ns=46)
+    spine=[(0.00, 0.00), (-0.020, 0.090), (-0.050, 0.265), (-0.076, 0.420), (-0.0895, 0.520)],
+    half_w=Curve([(0.0, 0.226), (0.42, 0.236), (0.80, 0.226), (1.0, 0.212)], mode="pchip"),
+    bolster=Curve([(0.0, 0.55), (0.30, 1.0), (0.62, 0.72), (0.88, 0.30), (1.0, 0.12)], mode="pchip"),
+    bolster_h=0.075,
+    centre_half=Curve([(0.0, 0.150), (0.55, 0.145), (1.0, 0.130)], mode="pchip"),
+    depth=0.080, ns=40)
 # the rear bench's outer places: a deeper, more reclined back, a longer flatter cushion
 REAR_CUSHION = dict(
     spine=[(0.00, 0.00), (0.10, 0.020), (0.24, 0.036), (0.36, 0.044), (0.43, 0.036), (0.46, 0.000),
@@ -60,9 +59,6 @@ REAR_BACKREST = dict(
     bolster=Curve([(0.0, 0.4), (0.4, 0.8), (0.8, 0.5), (1.0, 0.1)], mode="pchip"),
     bolster_h=0.050, centre_half=Curve([(0.0, 0.175), (0.6, 0.165), (1.0, 0.150)], mode="pchip"),
     depth=0.085, ns=36)
-
-# the integrated headrest's oval window, in seat-local height (z above the bight) and half-sizes
-WINDOW_Z, WINDOW_AY, WINDOW_AZ = 0.560, 0.052, 0.085
 
 
 def counts(npl):
@@ -96,7 +92,7 @@ def _part(spec, lateral, name, collection, lib, xf, quality=1.0, sc=1.0, npl=N_P
     hw, bol, ch = spec["half_w"], spec["bolster"], spec["centre_half"]
 
     def section(i, s):
-        pa = 0.0085 * (1.0 - 0.85 * CP.smooth((s - 0.74) / 0.12)) if fade else 0.0085
+        pa = 0.0085 * (1.0 - 0.85 * CP.smooth((s - fade) / 0.10)) if fade else 0.0085
         return _section(hw(s) * sc, bol(s), spec["bolster_h"], ch(s) * sc, spec["depth"], pa, npl)
     cf, cb = counts(npl)
     ns = max(18, int(spec["ns"] * quality))
@@ -161,57 +157,6 @@ def _end_cap(collection, lib, sw, name, spine_end, spine_prev, mat):
     return top
 
 
-# ----------------------------------------------------- the headrest window
-def _interp_row(pts, y0, dy):
-    """The point on a row of section points (lateral y monotone along it) at lateral offset dy from y0."""
-    ys = [p.y - y0 for p in pts]
-    for k in range(len(pts) - 1):
-        a, b = ys[k], ys[k + 1]
-        if (a - dy) * (b - dy) <= 0.0 and a != b:
-            return pts[k].lerp(pts[k + 1], (dy - a) / (b - a))
-    return pts[0] if abs(ys[0] - dy) < abs(ys[-1] - dy) else pts[-1]
-
-
-def surface_oval(sw, y0, j0, j1, zc, ay, az, lift, m=16):
-    """An oval patch on the sweep's surface: rows of points between columns j0..j1, inside the ellipse of
-    half-width ay and half-height az about height zc. Returns (rows, boundary loop, normals of the rows)."""
-    rows, nrms = [], []
-    jm = (j0 + j1) // 2
-    for i in range(len(sw.pts)):
-        pts = [Vector(sw.pts[i][j]) for j in range(j0, j1 + 1)]
-        zi = sum(p.z for p in pts) / len(pts)
-        q = (zi - zc) / az
-        if abs(q) >= 0.985:
-            continue
-        a = ay * math.sqrt(1.0 - q * q)
-        n = sw.normal(i, jm)
-        row = []
-        for k in range(m + 1):
-            dy = -a + 2.0 * a * k / m
-            row.append(tuple(_interp_row(pts, y0, dy) + n * lift))
-        rows.append(row)
-        nrms.append(tuple(n))
-    loop = list(rows[0]) + [r[-1] for r in rows[1:]] + list(rows[-1])[::-1][1:] + [r[0] for r in rows[1:-1]][::-1]
-    return rows, loop, nrms
-
-
-def build_window(sw, y0, j0, j1, zc, name, collection, lib, patch_role, rim_role, flip=False):
-    """The oval window: a dark (or lined) patch, an upholstered rim round it, and a stitch line inside the rim."""
-    rows, loop, nrms = surface_oval(sw, y0, j0, j1, zc, WINDOW_AY, WINDOW_AZ, 0.0012)
-    made = []
-    patch = grid_mesh(name + "_Window", rows, collection, lib[patch_role])
-    _orient_to(patch, Vector(rows[len(rows) // 2][len(rows[0]) // 2]),
-               Vector(nrms[len(nrms) // 2]) * (-1.0 if flip else 1.0))
-    made.append(patch)
-    path = [Vector(p) for p in loop]
-    cen = sum(path, Vector()) / len(path)
-    path = [p + (Vector(nrms[len(nrms) // 2])) * 0.0035 for p in path]
-    path.append(path[0])
-    made.append(tube(name + "_WindowRim", [tuple(p) for p in path], ellipse(0.0070, 0.0058, 8), collection,
-                     lib[rim_role], lateral=(0.0, 0.0, 1.0), cap=False))
-    return made
-
-
 # -------------------------------------------------------- front-seat extras
 def _frame(n, a):
     z = Vector((0.0, 0.0, 1.0))
@@ -262,6 +207,28 @@ def build_buckle(col, lib, name, origin, side):
 
 # ---------------------------------------------------------- the seats
 FRONT_BACK_K = 1.0
+# the front headrest: a plain pillow on two posts, a hand's width above the shoulders (seat-local metres)
+HEAD_W, HEAD_H, HEAD_T, HEAD_R = 0.235, 0.170, 0.092, 0.038
+HEAD_GAP, HEAD_POST_Y = 0.032, 0.066
+
+
+def build_front_headrest(col, lib, name, top, lean):
+    """The headrest above the backrest's top point `top` (world), the backrest leaning by `lean` (negative: the top
+    is further back, -x): a pillow tilted a little forward of the back, two posts into guide sleeves on the dome."""
+    k = Vector((math.sin(lean), 0.0, math.cos(lean)))          # up the backrest
+    nrm = Vector((math.cos(lean), 0.0, -math.sin(lean)))       # out of its front face
+    centre = top + k * (0.0255 + HEAD_GAP + 0.5 * HEAD_H) - nrm * (0.5 * HEAD_T - 0.018)
+    made = [CP.pillow(col, name, tuple(centre), HEAD_W, HEAD_H, HEAD_T, HEAD_R, lib["leather_perf"], 0.7 * lean)]
+    p0 = top - k * 0.020 - nrm * (0.5 * HEAD_T - 0.018)         # post foot, inside the backrest
+    n_len = (centre - p0).length
+    mid = 0.5 * (centre + p0)
+    for i, sy in enumerate((-1.0, 1.0)):
+        made.append(F.box(col, "%s_Post%d" % (name, i), (mid.x, top.y + sy * HEAD_POST_Y, mid.z),
+                          (0.013, 0.013, n_len), lib["piano"], r=0.003, pitch=lean))
+        sl = top + k * 0.014 - nrm * (0.5 * HEAD_T - 0.018)
+        made.append(F.box(col, "%s_Sleeve%d" % (name, i), (sl.x, top.y + sy * HEAD_POST_Y, sl.z),
+                          (0.030, 0.030, 0.022), lib["leather_black"], r=0.006, pitch=lean))
+    return made
 
 
 def build_front(col, lib):
@@ -269,21 +236,15 @@ def build_front(col, lib):
     for tag, y in (("FL", ZI.DRIVER_Y), ("FR", ZI.PASS_Y)):
         side = 1.0 if y > 0 else -1.0
         org = (ZI.FRONT_BIGHT_X, y, ZI.FRONT_BIGHT_Z)
-        parts, cush, back, spec = seat(col, lib, org, "int_seat_" + tag, back_k=FRONT_BACK_K, fade=True)
+        parts, cush, back, spec = seat(col, lib, org, "int_seat_" + tag, back_k=FRONT_BACK_K, fade=0.86)
         made += parts
         sp = spec["spine"]
         made.append(_end_cap(col, lib, back, "int_seat_%s_Back" % tag,
                              (org[0] + sp[-1][0], y, org[2] + sp[-1][1]),
                              (org[0] + sp[-2][0], y, org[2] + sp[-2][1]), lib["leather_seat"]))
-        # the headrest's oval window: dark inside on the front, lined on the back
-        cj = back.col
-        j_c0, j_c1 = cj(5), cj(5 + 2 * N_PLEAT)
-        zc = org[2] + WINDOW_Z * FRONT_BACK_K
-        made += build_window(back, y, j_c0, j_c1, zc, "int_seat_%s_Back" % tag, col, lib, "soft",
-                             "leather_seat")
-        jb0, jb1 = cj(len(counts(N_PLEAT)[0]) + 1), cj(len(counts(N_PLEAT)[0]) + 5)
-        made += build_window(back, y, jb0, jb1, zc, "int_seat_%s_BackRear" % tag, col, lib, "leather_seat",
-                             "leather_black")
+        lean = math.atan2(sp[-1][0] - sp[-2][0], sp[-1][1] - sp[-2][1])
+        made += build_front_headrest(col, lib, "int_seat_%s_Head" % tag,
+                                     Vector((org[0] + sp[-1][0], y, org[2] + sp[-1][1])), lean)
         made.append(F.box(col, "int_seat_%s_base" % tag, (org[0] + 0.22, y, 0.5 * (ZI.FLOOR_Z + org[2] - 0.07)),
                           (0.50, 0.42, org[2] - 0.07 - ZI.FLOOR_Z), lib["leather_black"], r=0.04))
         made += build_adjuster(col, lib, "int_seat_%s_adj" % tag, org, side)

@@ -68,12 +68,20 @@ def _lerp(pts, y):
 # --------------------------------------------------------------- hardpoints
 Z_CAP_BOT = 1.147                      # the lamp cap's lower edge across the car
 Z_LAMP_RED = (1.226, 1.188)            # the two light strips
-CAP_END = 0.785                        # |y| where the lamp shelf and its lip end (see build_tail)
+CAP_END = 0.742                        # |y| where the lamp shelf and its lip end (see build_tail): inside the tail's half-width there (0.76 at z 1.2)
 GATE_LOW = sorted(_yz(CAM.GATE_LOW_PX))                       # tailgate's lower edge (y, z)
 BUMPER_TOP = sorted(_yz(CAM.REAR_BUMPER_TOP_PX))              # black bumper's top edge (y, z)
 REFLECTOR = _yz(CAM.REFLECTOR_PX)
 VENT = _yz(CAM.REAR_VENT_PX)
 GAP = 0.0042
+Y_POCKET = 0.795        # |y| of the corner pockets' outer wall: the black bumper ends here
+Y_SWEEP0 = 0.56         # the painted sweep under the pocket starts here, rising to the pocket's floor
+
+
+def sweep_top(y):
+    """z of the painted sweep's upper edge under a pocket: 0.285 (flush with the bottom) at y 0.56, 0.435 at the pocket's wall."""
+    t = max(0.0, min(1.0, (y - Y_SWEEP0) / (Y_POCKET - Y_SWEEP0)))
+    return 0.285 + 0.150 * t * t * (3.0 - 2.0 * t)
 
 
 def gate_low(y):
@@ -250,9 +258,16 @@ def build_tail(collection, lib):
     # the painted bumper strip under it
     made.append(band("G9L_Bumper_Upper", lambda y: bumper_top(y), lambda y: gate_low(y) - 0.5 * GAP,
                      56, 6, collection, lib["paint"], thickness=M.SKIN))
-    # the black lower bumper
-    made.append(band("G9L_Bumper_Black", lambda y: CAP_LOW, lambda y: bumper_top(y) + 0.001,
-                     56, 14, collection, lib["black_trim"], thickness=0.004))
+    # the black lower bumper, between the corner pockets. The photograph (c1_0030) shows the painted bumper wrapping each pocket as
+    # a "horn" (its outer wall and a sweep under it that runs in to the diffuser blade's end), where the old build ran the black to
+    # the corner: a black slab. y < Y_POCKET is black; outboard of it, and under the pocket, it is paint
+    made.append(band("G9L_Bumper_Black", lambda y: CAP_LOW if y < Y_SWEEP0 else sweep_top(y),
+                     lambda y: bumper_top(y) + 0.001, 56, 14, collection, lib["black_trim"], thickness=0.004,
+                     y_max=Y_POCKET))
+    made.append(band("G9L_Bumper_Horn", lambda y: CAP_LOW, lambda y: bumper_top(y) + 0.001, 16, 14, collection,
+                     lib["paint"], thickness=M.SKIN, ymin=Y_POCKET - 0.002))
+    made.append(band("G9L_Bumper_Sweep", lambda y: CAP_LOW, lambda y: sweep_top(y) + 0.001, 14, 4, collection,
+                     lib["paint"], thickness=M.SKIN, ymin=Y_SWEEP0, y_max=Y_POCKET))
     return made
 
 
@@ -283,8 +298,9 @@ def build_lamps(collection, lib):
                      collection, lib["lamp_clear"],
                      off_fn=lambda y, k: _shelf(y, Z_CAP_BOT + 0.010 + 0.110 * k) + 0.0012,
                      y_max=0.86, thickness=0.002, cut=True))
-    made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.005, Z_LAMP_RED[0] + 0.004, lib["led_red"], 0.0030))
-    made.append(strip("G9L_Tail_Strip_Low", Z_LAMP_RED[1] - 0.003, Z_LAMP_RED[1] + 0.003, lib["lamp_red_lens"],
+    # thin, precise light lines (c1_0030: a 3-4 mm red line near the top of the dark lens, a fainter one below it)
+    made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.0025, Z_LAMP_RED[0] + 0.0015, lib["led_red"], 0.0030))
+    made.append(strip("G9L_Tail_Strip_Low", Z_LAMP_RED[1] - 0.0015, Z_LAMP_RED[1] + 0.0015, lib["lamp_red_lens"],
                       0.0030))
     return made
 
@@ -345,8 +361,9 @@ def build_details(collection, lib):
     made.append(band("G9L_Louvre_Back", lambda y: 0.370, lambda y: 0.508, 40, 3, collection, lib["shadow"],
                      offset=-0.020, y_max=0.51, thickness=0.0015))
     # the satin blade along the bottom of the black bumper
-    made.append(band("G9L_Diffuser_Blade", lambda y: 0.300, lambda y: 0.366, 40, 3, collection,
-                     lib["trim_chrome"], offset=0.006, y_max=0.62, thickness=0.003, bevel=0.0008))
+    made.append(band("G9L_Diffuser_Blade", lambda y: 0.312 + 0.030 * max(0.0, (y - 0.40) / 0.12) ** 2,
+                     lambda y: 0.366 + 0.030 * max(0.0, (y - 0.40) / 0.12) ** 2, 40, 3, collection,
+                     lib["diffuser_satin"], offset=0.006, y_max=0.52, thickness=0.003, bevel=0.0008))
     return made
 
 

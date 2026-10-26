@@ -65,7 +65,7 @@ def _bar_film_png():
     x = np.linspace(0.0, 1.0, w)[None, :]
     y = np.linspace(0.0, 1.0, h)[:, None]
     rng = np.random.default_rng(9)
-    base = np.array([0.80, 0.82, 0.86])
+    base = np.array([0.60, 0.62, 0.66])
     img = np.ones((h, w, 3)) * base
     # wide hue bands drifting along the bar, stronger toward the ends
     for c, (cx, wd, col) in enumerate((
@@ -73,10 +73,10 @@ def _bar_film_png():
             (0.43, 0.05, (0.40, 0.66, 0.74)), (0.56, 0.06, (0.62, 0.40, 0.78)), (0.68, 0.05, (0.84, 0.72, 0.42)),
             (0.80, 0.06, (0.36, 0.56, 0.78)), (0.92, 0.05, (0.78, 0.44, 0.62)))):
         g = np.exp(-((x - cx) / wd) ** 2) * (0.35 + 0.65 * np.exp(-((y - 0.55) / 0.35) ** 2))
-        img = img * (1 - 0.75 * g[..., None]) + np.array(col) * 0.75 * g[..., None]
+        img = img * (1 - 0.50 * g[..., None]) + np.array(col) * 0.50 * g[..., None]
     # a dark lower third (the light guide's shadow side) and a pale highlight line near the top
     img *= (1.0 - 0.45 * np.clip((y - 0.55) / 0.45, 0, 1))[..., None]
-    img += 0.22 * np.exp(-((y - 0.16) / 0.05) ** 2)[..., None]
+    img += 0.14 * np.exp(-((y - 0.16) / 0.05) ** 2)[..., None]
     img += rng.normal(0, 0.01, img.shape)
     img = np.clip(img, 0, 1)
     im = bpy.data.images.new("g9l_bar_film", w, h, alpha=False)
@@ -150,14 +150,21 @@ def build_library():
 
     # Gloss black body trim (lower aero chin, rocker blades, rear diffuser)
     m, nt, b = _M.mat("M_Black_Gloss")
-    _M.set_inputs(b, base=(0.010, 0.010, 0.012), metallic=0.0, roughness=0.10,
-                  coat=1.0, coat_rough=0.03)
+    # (coat 1.0 / rough 0.10 mirrored the hall: the greenhouse underlay and the pillars showed white streaks like chrome)
+    _M.set_inputs(b, base=(0.006, 0.006, 0.008), metallic=0.0, roughness=0.16, specular=0.30,
+                  coat=0.45, coat_rough=0.06)
     lib["black_gloss"] = m
 
     # Wheel hub cap & XPeng logo
     m, nt, b = _M.mat("M_Cap_Black")
     _M.set_inputs(b, base=(0.012, 0.012, 0.014), metallic=0.0, roughness=0.32, specular=0.30)
     lib["cap_black"] = m
+
+    # Satin graphite aluminium (the rear diffuser's blade): chrome mirrors the white studio and read as a white slab; the photographs
+    # show a mid-grey satin blade (c1_0030)
+    m, nt, b = _M.mat("M_Diffuser_Satin")
+    _M.set_inputs(b, base=(0.060, 0.062, 0.068), metallic=0.85, roughness=0.42, coat=0.0)
+    lib["diffuser_satin"] = m
 
     m, nt, b = _M.mat("M_Logo_Chrome")
     _M.set_inputs(b, base=(0.88, 0.89, 0.92), metallic=1.0, roughness=0.10)
@@ -182,7 +189,9 @@ def build_library():
     # (coat 1) panel facing the camera mirrors the studio's white room and reads mid-grey in the showroom (95 sRGB
     # against 60 for this); real trim is not a mirror either (c1_0002/c1_0034: dark, with a soft sheen).
     m, nt, b = _M.mat("M_Black_Trim")
-    _M.set_inputs(b, base=(0.012, 0.012, 0.013), metallic=0.0, roughness=0.30, coat=0.0)
+    # the showroom's white hall lifted the satin (rough 0.30, specular 0.5) to sRGB 74-83 on the front apron; the photographs'
+    # black plastic reads about 25-30: less specular and a rougher lobe, a darker base
+    _M.set_inputs(b, base=(0.005, 0.005, 0.006), metallic=0.0, roughness=0.42, specular=0.14, coat=0.0)
     lib["black_trim"] = m
 
     return lib

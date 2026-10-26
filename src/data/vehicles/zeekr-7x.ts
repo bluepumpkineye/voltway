@@ -273,8 +273,45 @@ export const zeekr7x: Vehicle = {
   // The lamps (docs/lights.md). The front LED is the usual M_LED_White. The tail lamp is one red lens
   // bar with no LED material under it, so the lens is the lit part, and it is dark as built.
   lights: { rear: { material: 'M_Lamp_RedLens', off: 0 } },
+  sensors: {
+    lidar: [0.62, 0.0, 1.62],
+    cameras: [
+      { at: [2.40, 0.0, 0.88] },
+      { at: [0.62, 0.48, 1.60], mirror: true },
+      { at: [1.02, 0.95, 0.98], mirror: true },
+      { at: [-2.40, 0.0, 1.02] },
+    ],
+    ultrasonic: [
+      { at: [2.36, 0.40, 0.45], mirror: true },
+      { at: [-2.36, 0.42, 0.48], mirror: true },
+    ],
+    surround: true,
+  },
+
   // The Tech tab (docs/tech-showcase.md). Sources read 2026-10-12; the board is blender/reference/zeekr-7x/tech.
   tech: [
+    {
+      id: 'park',
+      title: 'Haohan Smart Driving · Remote Parking',
+      blurb:
+        'Roof-mounted LiDAR, HD surround cameras, and 12 ultrasonic radars scan the environment to spot tight parking spaces, project docking vectors, and reverse in autonomously via the Zeekr app.',
+      driver: 'park',
+      devices: ['phone', 'dashboard'],
+      params: { search: 12 },
+      claims: [
+        {
+          text: 'Zeekr Haohan Smart Driving 2.0 features full-scenario Remote Parking Assist (RPA) and Memory Parking, supporting over 150 parking scenario types.',
+          source: { label: 'Zeekr Official Website', url: 'https://www.zeekr.cn/' },
+        },
+        {
+          text: 'Using high-resolution roof LiDAR, millimeter-wave radar, and ultrasonic sensors, the vehicle maps bays and obstacles in real time with centimeter accuracy.',
+          source: { label: 'Xinhua News - Zeekr 7X Technology', url: 'https://www.news.cn/' },
+        },
+      ],
+      simulated:
+        'A simulation of autonomous reverse-in parking. The sensor suite sweeps the parking lane, identifies vacant slots, marks the target bay with flashing indicators, and guides the vehicle in safely while mirrored on the phone and center screen.',
+    },
+
     {
       id: 'magic-carpet',
       title: 'Magic Carpet',

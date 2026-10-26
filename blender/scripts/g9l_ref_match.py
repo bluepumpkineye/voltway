@@ -71,3 +71,16 @@ _R.register("front_white", "xpeng-g9l/exterior/c1_0026.jpg", SIZE,
 # camera stands 8.4 m behind the car's centre, 1.43 m high, 4.2 degrees nose-down, f 7920 px (rms 12 px).
 _R.register("rear_white", "xpeng-g9l/exterior/c1_0030.jpg", SIZE,
             (-8.402, 0.0, 1.428), (85.76, 0.0, 270.0), 7920.0)
+
+# c1_0001.jpg: the PURPLE car's left front three-quarter (2026-10-26, solved free by carkit.qa.refmatch.solve_camera,
+# rms 1.2 px, level NOT assumed: the turntable's camera is 1.29 m high here): the front-left wheel's rim lip (fit_rim, 131
+# points on the ellipse, 0.5 px), the rear-left rim's visible edge (10 points) and the 480 x 148 mm nose sign's four corners
+# (its centre solved: x 2.580, z 0.631). f 6692 px, the same as the white car's end views.
+_R.register("f34_purple", "xpeng-g9l/exterior/c1_0001.jpg", SIZE,
+            (7.589, 4.432, 1.294), (86.511, 0.967, 122.502), 6692.0)
+
+# c1_0005.jpg: the purple car's left REAR three-quarter. Solved free like the front one, from the rear-left rim lip (17 points
+# read on the ellipse), the far front-left rim lip (15 points) and the 480 x 148 mm sign's four corners (its centre solved: x -2.42,
+# z 0.87; its corners sit +-15 px off, the sign being tilted on the curved tailgate). rms 8.2 px, f 6676 (the front's 6692).
+_R.register("r34_purple", "xpeng-g9l/exterior/c1_0005.jpg", SIZE,
+            (-7.445, 4.731, 1.214), (87.418, -0.717, 235.838), 6675.6)

@@ -268,7 +268,39 @@ export const bydSeal: Vehicle = {
       simulated:
         'A simulation highlighting the sensor suite and multi-layer perception perception envelope around the vehicle.',
     },
+    {
+      id: 'park',
+      title: 'Remote parking assist',
+      blurb:
+        'Step out and let the car park itself via your smartphone: God’s Eye surround sensors scan the area, identify the vacant bay with a flashing P, and reverse in.',
+      driver: 'park',
+      devices: ['phone', 'dashboard'],
+      params: { search: 12 },
+      claims: [
+        {
+          text: 'BYD DiPilot 300 supports automated valet parking and remote control parking (RPA) through the smartphone application.',
+          source: { label: 'Autohome configuration table, BYD Seal', url: 'https://car.autohome.com.cn/config/spec/71666.html' },
+        },
+      ],
+      simulated:
+        'A simulation of DiPilot 300 remote parking: surround perception beams screen the lot, the target bay is locked with a glowing P, and the car reverses in smoothly.',
+    },
   ],
+  sensors: {
+    lidar: [0.261, 1.4, 0],
+    lidarFov: 120,
+    cameras: [
+      { at: [0.33, 1.335, 0.03], mirror: true },
+      { at: [2.414, 0.505, 0] },
+      { at: [0.7, 1.015, 0.965], mirror: true },
+      { at: [-2.404, 0.545, 0] },
+    ],
+    ultrasonic: [
+      { at: [2.391, 0.41, 0.335], mirror: true },
+      { at: [2.242, 0.56, 0.74], mirror: true },
+    ],
+    surround: true,
+  },
   chargePort: { mouth: [-1.58, 0.88, -0.85], axis: [-0.048, 0.4129, -0.9095], depth: 0.02 },
   charging: {
     window: { from: 10, to: 80, minutes: 25 },
