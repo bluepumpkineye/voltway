@@ -255,6 +255,20 @@ export const denzaZ9: Vehicle = {
   ],
   // The Tech tab (docs/tech-showcase.md, section 14). Every source below describes the Z9 GT, the shooting brake on the same
   // e³ platform: the showroom's Z9 is listed with the same two modes in its drive-mode list, but check that the sedan has them.
+  sensors: {
+    lidar: [0.65, 0.0, 1.45],
+    cameras: [
+      { at: [2.55, 0.0, 0.85] },
+      { at: [0.65, 0.48, 1.42], mirror: true },
+      { at: [1.05, 0.96, 0.96], mirror: true },
+      { at: [-2.55, 0.0, 0.98] },
+    ],
+    ultrasonic: [
+      { at: [2.50, 0.40, 0.42], mirror: true },
+      { at: [-2.48, 0.42, 0.46], mirror: true },
+    ],
+    surround: true,
+  },
   tech: [
     {
       id: 'crab',
@@ -262,7 +276,7 @@ export const denzaZ9: Vehicle = {
       blurb:
         'Beside an empty stretch of kerb, all four wheels turn the same way and the car slides to the stone along a diagonal, without turning its body.',
       driver: 'crab',
-      devices: ['dashboard'],
+      devices: ['phone', 'dashboard'],
       claims: [
         {
           text: 'Crab walk is one of the e³ platform’s five signature functions, with the compass turn, extreme steering, e³ parking and low-grip stabilisation; the platform pairs three motors driving independently with independent dual-motor rear-wheel steering.',
@@ -314,7 +328,7 @@ export const denzaZ9: Vehicle = {
       blurb:
         'Parallel parking into a gap hardly a metre longer than the car: the nose goes in, the car pivots about a front wheel, and the tail swings in behind it.',
       driver: 'e3park',
-      devices: ['dashboard'],
+      devices: ['phone', 'dashboard'],
       claims: [
         {
           text: 'e³ parking is one of the e³ platform’s five signature functions; it combines the compass turn with smart parking for tight kerbside spaces and dead ends, and on the Z9 GT it was to arrive later by over-the-air update.',

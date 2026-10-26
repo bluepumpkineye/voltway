@@ -379,23 +379,80 @@ function Remote({
   const isScanning = Boolean(search && phase === 'parking' && clock.t < search.found);
   const isBayFound = Boolean(search && phase === 'parking' && clock.t >= search.found && clock.t < search.end);
 
+  const isCrab = demo.driver === 'crab';
+  const isE3Park = demo.driver === 'e3park';
+
   const title =
-    isScanning ? 'Screening for bay…'
-    : isBayFound ? 'Target slot identified'
-    : phase === 'parking' ? `Parking in… ${pct}%`
-    : phase === 'leaving' ? `Parking out… ${pct}%`
-    : paused ? 'Paused'
-    : phase === 'parked' ? 'Parked in the bay'
-    : phase === 'done' ? 'Back where it started'
-    : 'Rear-in, bay on your right';
+    isCrab
+      ? moving
+        ? `Crab sliding to kerb… ${pct}%`
+        : paused
+          ? 'Crab walk paused'
+          : phase === 'parked' || phase === 'done'
+            ? 'Parked flush by the kerb'
+            : 'Intelligent Crab Walk'
+      : isE3Park
+        ? moving
+          ? clock.t >= (clock.stops[0] ?? Infinity)
+            ? `Pivoting tail in… ${pct}%`
+            : `Pulling into space… ${pct}%`
+          : paused
+            ? Math.abs(clock.t - (clock.stops[0] ?? 0)) < 0.2
+              ? 'Ready to Pivot'
+              : 'Paused'
+            : phase === 'parked' || phase === 'done'
+              ? 'Parked in parallel bay'
+              : 'e³ Parallel Smart Parking'
+        : isScanning
+          ? 'Screening for bay…'
+          : isBayFound
+            ? 'Target slot identified'
+            : phase === 'parking'
+              ? `Parking in… ${pct}%`
+              : phase === 'leaving'
+                ? `Parking out… ${pct}%`
+                : paused
+                  ? 'Paused'
+                  : phase === 'parked'
+                    ? 'Parked in the bay'
+                    : phase === 'done'
+                      ? 'Back where it started'
+                      : 'Rear-in, bay on your right';
+
   const sub =
-    phase === 'ready' ? 'Stand clear of the car and its path, and keep it in sight.'
-    : isScanning ? 'Sensors screening parking bays along the lane.'
-    : isBayFound ? 'Target bay locked. Stopping to reverse in.'
-    : moving ? 'The car is steering itself. Pause at any time.'
-    : paused ? 'The car has stopped where it is.'
-    : phase === 'parked' ? 'Ready to drive out again whenever you are.'
-    : 'Remote parking finished.';
+    isCrab
+      ? phase === 'ready'
+        ? 'All four wheels steer diagonally into kerbside bay.'
+        : moving
+          ? 'Four-wheel diagonal slide active. 15° crab angle.'
+          : paused
+            ? 'The car has stopped where it is.'
+            : 'Diagonal docking completed.'
+      : isE3Park
+        ? phase === 'ready'
+          ? 'Autonomous parallel parking into tight 1 m margin gap.'
+          : Math.abs(clock.t - (clock.stops[0] ?? 0)) < 0.2
+            ? 'Nose in bay. Tap Pivot to swing tail into the space.'
+            : moving
+              ? clock.t >= (clock.stops[0] ?? Infinity)
+                ? 'Front wheel locked. Counter-rotating rear wheels swing tail in.'
+                : 'Approaching target bay with nose-in angle.'
+              : paused
+                ? 'The car has stopped where it is.'
+                : 'e³ parallel docking completed.'
+        : phase === 'ready'
+          ? 'Stand clear of the car and its path, and keep it in sight.'
+          : isScanning
+            ? 'Sensors screening parking bays along the lane.'
+            : isBayFound
+              ? 'Target bay locked. Stopping to reverse in.'
+              : moving
+                ? 'The car is steering itself. Pause at any time.'
+                : paused
+                  ? 'The car has stopped where it is.'
+                  : phase === 'parked'
+                    ? 'Ready to drive out again whenever you are.'
+                    : 'Remote parking finished.';
 
   return (
     <div className="absolute inset-x-0 bottom-0 top-[34px] flex flex-col">
@@ -403,7 +460,7 @@ function Remote({
         <button type="button" onClick={back} aria-label="Back" className="grid h-9 w-9 place-items-center rounded-full outline-none">
           <Ic.Back size={22} />
         </button>
-        <h2 className="text-[17px] font-semibold">Remote parking</h2>
+        <h2 className="text-[17px] font-semibold">{demo.driver === 'crab' ? 'Crab walk' : demo.driver === 'e3park' ? 'e³ parking' : 'Remote parking'}</h2>
         <button type="button" onClick={notDemo} aria-label="About remote parking" className="grid h-9 w-9 place-items-center rounded-full outline-none">
           <Ic.Info size={20} />
         </button>
@@ -439,6 +496,18 @@ function Remote({
         <div className="relative">
           {runtime?.stage ? (
             <ParkTopView theme="light" className="block h-auto w-full" />
+          ) : runtime?.chassis?.stage ? (
+            <div className="flex h-[200px] flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#e7edf6] to-[#cfd9e8] p-4 text-center">
+              <span className="flex h-[36px] w-[36px] items-center justify-center rounded-[10px] text-[17px] font-bold text-white shadow-md" style={{ background: 'linear-gradient(145deg,#e0243c,#a30f2a)' }}>
+                e³
+              </span>
+              <div className="text-[15px] font-semibold text-[#34405a]">
+                {isCrab ? 'Intelligent Crab Walk' : isE3Park ? 'e³ Smart Parking' : 'Chassis Maneuver'}
+              </div>
+              <div className="text-[12px] text-[#52607c]">
+                {isCrab ? 'Diagonal kerb docking · 15° steer' : isE3Park ? 'Front pivot · Rear swing parallel' : 'e³ Platform Telemetry'}
+              </div>
+            </div>
           ) : (
             <div className="grid h-[200px] place-items-center text-[12px]" style={{ color: MUTED }}>{ready ? 'Loading the lot…' : 'Loading the car…'}</div>
           )}
@@ -456,7 +525,7 @@ function Remote({
 
       <div className="mt-auto flex shrink-0 gap-2.5 px-4 pb-5 pt-3">
         {phase === 'ready' && (
-          <Primary disabled={!rpa || !checked || !ready} onClick={go}>Start parking in</Primary>
+          <Primary disabled={!rpa || !checked || !ready} onClick={go}>{isCrab ? 'Start crab walk' : isE3Park ? 'Start pull in' : 'Start parking in'}</Primary>
         )}
         {moving && (
           <Primary outline onClick={pauseDemo}>
@@ -466,7 +535,7 @@ function Remote({
         {paused && (
           <>
             <button type="button" onClick={resetDemo} className="h-[48px] w-[110px] rounded-full bg-black/[0.06] text-[14px] outline-none">Start over</button>
-            <Primary onClick={go}><Ic.Play size={15} /> Resume</Primary>
+            <Primary onClick={go}>{isE3Park && Math.abs(clock.t - (clock.stops[0] ?? 0)) < 0.2 ? 'Pivot' : <><Ic.Play size={15} /> Resume</>}</Primary>
           </>
         )}
         {phase === 'parked' && (

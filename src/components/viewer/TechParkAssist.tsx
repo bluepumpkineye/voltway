@@ -5,32 +5,93 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { SensorSpec, Vehicle } from '@/data/vehicles/schema';
 import { techClock } from '@/lib/tech/clock';
-import type { ParkNeighbour, ParkStage, Rect } from '@/lib/tech/park';
+import type { ParkNeighbour, Rect } from '@/lib/tech/park';
 import { useRuntime, type Runtime } from '@/lib/tech/session';
 import { CarCoverage, cornerBrackets } from './TechSensors';
 
+export interface ActiveParkStage {
+  kind: 'perpendicular' | 'parallel';
+  mode: 'park' | 'crab' | 'e3park';
+  bays: { rect: Rect; target: boolean }[];
+  neighbours: { rect: Rect }[];
+  search?: { end: number; found: number } | null;
+}
+
 /**
- * The SU7's parking assist, drawn the way Xiaomi's own animation draws the function (xiaomiauto.com/global/pilot): the
- * car's surround beams and ripples go with it along the row of bays, the cars it passes are bracketed as it sees them,
- * and the empty bay is picked out with a blue P when it has been seen. It draws on top of the park demo's stage (TechStage:
- * the asphalt, the bays, the cars), only while a demo with a search (ParkOptions.search) is on. Mount once in the Canvas.
+ * Replicated smart parking assist features:
+ * - Active area screening (blue diagonal surround sweep beams & ultrasonic radar waves)
+ * - Flashing "P" target bay mark and illuminated floor tile
+ * - Neighbor car corner bracketing
+ *
+ * Supports both standard perpendicular parking assist and specialized maneuvers:
+ * - Denza Z9 Intelligent Crab Walk (diagonal slide into kerbside bay)
+ * - Denza Z9 e³ Parking (nose-in approach, pivot stop, and tail swing into parallel gap)
  */
 export function TechParkAssist({ vehicle }: { vehicle: Vehicle }) {
   const runtime = useRuntime();
-  const stage = runtime?.stage;
   const spec = vehicle.sensors;
-  if (!runtime || !stage?.bays?.some((b) => b.target) || !spec) return null;
-  return <Overlay vehicle={vehicle} spec={spec} stage={stage} runtime={runtime} />;
+  if (!runtime || !spec) return null;
+
+  let activeStage: ActiveParkStage | null = null;
+
+  if (runtime.stage?.bays?.some((b) => b.target)) {
+    activeStage = {
+      kind: 'perpendicular',
+      mode: 'park',
+      bays: runtime.stage.bays,
+      neighbours: runtime.stage.neighbours,
+      search: runtime.stage.search,
+    };
+  } else if (
+    runtime.chassis?.stage &&
+    (runtime.demoId === 'crab' || runtime.demoId === 'e3-parking')
+  ) {
+    const street = runtime.chassis.stage;
+    const mode = runtime.demoId === 'crab' ? 'crab' : 'e3park';
+    const targetBay = street.bays[0];
+    if (targetBay) {
+      // Adjacent parked cars on the same kerbside row
+      const neighbours = street.cars.filter(
+        (c) => Math.abs(c.rect.y - targetBay.y) < 1.6 && Math.abs(c.rect.x - targetBay.x) < 22,
+      );
+      activeStage = {
+        kind: 'parallel',
+        mode,
+        bays: [{ rect: targetBay, target: true }],
+        neighbours,
+        search: null,
+      };
+    }
+  }
+
+  if (!activeStage) return null;
+  return <Overlay vehicle={vehicle} spec={spec} stage={activeStage} runtime={runtime} />;
 }
 
 const BLUE = '#38a8ff';
 const PALE = '#9bd8ff';
 
-function Overlay({ vehicle, spec, stage, runtime }: { vehicle: Vehicle; spec: SensorSpec; stage: ParkStage; runtime: Runtime }) {
+function Overlay({
+  vehicle,
+  spec,
+  stage,
+  runtime,
+}: {
+  vehicle: Vehicle;
+  spec: SensorSpec;
+  stage: ActiveParkStage;
+  runtime: Runtime;
+}) {
   return (
     <group>
-      {/* the beams, the ripples and the camera dots go with the car */}
-      <CarCoverage vehicle={vehicle} spec={spec} runtime={runtime} parts={['surround', 'ultrasonic', 'cameras']} surroundReach={8} />
+      {/* The blue beams, ripples and camera dots move with the car */}
+      <CarCoverage
+        vehicle={vehicle}
+        spec={spec}
+        runtime={runtime}
+        parts={['surround', 'ultrasonic', 'cameras']}
+        surroundReach={stage.kind === 'parallel' ? 8.5 : 8}
+      />
       <BayMark stage={stage} runtime={runtime} />
       {stage.neighbours.map((n, i) => (
         <Bracketed key={i} n={n} stage={stage} runtime={runtime} />
@@ -81,39 +142,69 @@ const smooth = (a: number, b: number, x: number) => {
 };
 
 /**
- * The empty bay, once it has been seen: a pale blue tile with the P on it. It stays until the car is on its way in, and
- * does not come back for the way out.
+ * The empty bay, once it has been seen: a pale blue tile with the P on it.
+ * Adapts to both perpendicular lots and parallel street spaces.
  */
-function BayMark({ stage, runtime }: { stage: ParkStage; runtime: Runtime }) {
+function BayMark({ stage, runtime }: { stage: ActiveParkStage; runtime: Runtime }) {
   const bay = stage.bays.find((b) => b.target)!.rect;
+  const isParallel = stage.kind === 'parallel';
   const fill = React.useRef<THREE.MeshBasicMaterial>(null);
   const glyph = React.useRef<THREE.MeshBasicMaterial>(null);
   const root = React.useRef<THREE.Group>(null);
   const map = React.useMemo(() => pTexture(), []);
   React.useEffect(() => () => map.dispose(), [map]);
   const found = stage.search?.found ?? 0;
+
   useFrame(() => {
     const t = techClock.t;
-    const stop = techClock.snapshot().stops[0] ?? Infinity;
-    const car = runtime.sample(t);
-    // in: when the bay has been seen; out: as the car backs toward it, and for good once it has parked
-    const d = Math.hypot(car.x - bay.x, car.y - bay.y);
-    const a = (stage.search ? smooth(found, found + 0.5, t) : 1) * smooth(2.6, 4.4, d) * (t < stop - 1e-3 ? 1 : 0);
+    const dur = techClock.duration;
+    let a = 0;
+
+    if (stage.mode === 'crab') {
+      // Crab walk: bay target is locked right at start; pulses actively as car slides diagonally,
+      // and smoothly settles as car reaches curb
+      const inFactor = smooth(0, 0.4, t);
+      const outFactor = smooth(dur, Math.max(0, dur - 0.7), t);
+      a = inFactor * outFactor;
+    } else if (stage.mode === 'e3park') {
+      // e3 parking: visible during approach and nose-in stop, pulses through pivot, settles at finish
+      const inFactor = smooth(0, 0.5, t);
+      const outFactor = smooth(dur, Math.max(0, dur - 0.7), t);
+      a = inFactor * outFactor;
+    } else {
+      // Standard perpendicular parking
+      const stop = techClock.snapshot().stops[0] ?? Infinity;
+      const car = runtime.sample(t);
+      const d = Math.hypot(car.x - bay.x, car.y - bay.y);
+      a = (stage.search ? smooth(found, found + 0.5, t) : 1) * smooth(2.6, 4.4, d) * (t < stop - 1e-3 ? 1 : 0);
+    }
+
     if (root.current) root.current.visible = a > 0.01;
     const pulse = 0.85 + 0.15 * Math.sin(t * 5);
     if (fill.current) fill.current.opacity = 0.28 * a * pulse;
     if (glyph.current) glyph.current.opacity = a * pulse;
   });
-  const w = bay.width - 0.16;
-  const l = bay.length - 0.16;
+
+  // Parallel bays are oriented along the curb (length along X, width along Y)
+  // Perpendicular bays are oriented across the driving lane (width along X, length along Y)
+  const geomArgs: [number, number] = isParallel
+    ? [Math.max(1, bay.length - 0.2), Math.max(1, bay.width - 0.2)]
+    : [Math.max(1, bay.width - 0.16), Math.max(1, bay.length - 0.16)];
+
+  // For parallel bays, place the flashing "P" right at the centre of the bay;
+  // for perpendicular bays, near the mouth facing the lane
+  const glyphPos: [number, number, number] = isParallel
+    ? [0, 0.004, 0]
+    : [0, 0.004, -(bay.length / 2 - 1.7)];
+
   return (
     <group ref={root} position={[bay.x, 0.03, -bay.y]} visible={false}>
       <mesh rotation-x={-Math.PI / 2} renderOrder={4}>
-        <planeGeometry args={[w, l]} />
+        <planeGeometry args={geomArgs} />
         <meshBasicMaterial ref={fill} color={BLUE} transparent opacity={0} depthWrite={false} toneMapped={false} />
       </mesh>
-      {/* the glyph, near the bay's mouth where it is read from the lane */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.004, -(l / 2 - 1.7)]} renderOrder={5}>
+      {/* the glyph */}
+      <mesh rotation-x={-Math.PI / 2} position={glyphPos} renderOrder={5}>
         <planeGeometry args={[1.9, 1.9]} />
         <meshBasicMaterial ref={glyph} map={map} transparent opacity={0} depthWrite={false} toneMapped={false} />
       </mesh>
@@ -121,8 +212,16 @@ function BayMark({ stage, runtime }: { stage: ParkStage; runtime: Runtime }) {
   );
 }
 
-/** A parked car the car has passed: white corner marks on the floor round it. */
-function Bracketed({ n, stage, runtime }: { n: Pick<ParkNeighbour, 'rect'>; stage: ParkStage; runtime: Runtime }) {
+/** A parked car: white corner marks on the floor round it when detected. */
+function Bracketed({
+  n,
+  stage,
+  runtime,
+}: {
+  n: Pick<ParkNeighbour, 'rect'>;
+  stage: ActiveParkStage;
+  runtime: Runtime;
+}) {
   const rect: Rect = n.rect;
   const root = React.useRef<THREE.LineSegments>(null);
   const geo = React.useMemo(() => {
@@ -131,15 +230,22 @@ function Bracketed({ n, stage, runtime }: { n: Pick<ParkNeighbour, 'rect'>; stag
     return g;
   }, [rect.length, rect.width]);
   React.useEffect(() => () => geo.dispose(), [geo]);
+
   useFrame(() => {
     const m = root.current;
     if (!m) return;
-    // seen once the nose is within reach of it (the side sensors are in the front half of the car)
     const car = runtime.sample(techClock.t);
-    const seen = stage.search ? car.x + runtime.body.front + 1.5 >= rect.x - 0.5 : true;
+    let seen = true;
+    if (stage.search) {
+      seen = car.x + runtime.body.front + 1.5 >= rect.x - 0.5;
+    } else if (stage.kind === 'parallel') {
+      const d = Math.hypot(car.x - rect.x, car.y - rect.y);
+      seen = d <= 9.0;
+    }
     m.visible = seen;
     if (seen) (m.material as THREE.LineBasicMaterial).opacity = 0.55 + 0.1 * Math.sin(techClock.t * 3 + rect.x);
   });
+
   return (
     <lineSegments ref={root} geometry={geo} position={[rect.x, 0.04, -rect.y]} rotation-y={rect.yaw} renderOrder={7} visible={false}>
       <lineBasicMaterial color="#ffffff" transparent opacity={0.55} depthWrite={false} toneMapped={false} />
