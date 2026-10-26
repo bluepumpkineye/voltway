@@ -130,8 +130,8 @@ export const xpengG9l: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/xpeng-g9l-shadow.webp',
-      size: [8.146, 5.195],
-      centre: [0.011, 0.0],
+      size: [8.139, 5.195],
+      centre: [0.009, 0.0],
     },
     // the cabin (blender/scripts/g9l_interior*.py, the Bordeaux Red interior) with its Cycles light baked in:
     // export_g9l.web_cabin()
@@ -156,10 +156,22 @@ export const xpengG9l: Vehicle = {
     driverEye: [0.18, 0.40, 1.28],
     proxyUrl: '/models/xpeng-g9l-proxy.glb',
   },
+  // The maker's photographs (Autohome 8659) show dark, smoky glass all round, windscreen included: the X-ray's pale
+  // ghost (the default for a front pane seen from outside) read as an open greenhouse, and made the body look taller
+  glass: { color: '#1C2229', opacity: 0.66 },
   configurator: {
     paintMaterial: 'M_Paint_G9L_Purple',
     paints: [
-      { id: 'provence-purple', name: 'Provence Purple', nameZh: '普罗旺斯紫', swatch: '#3B2D66' },
+      // Provence Purple as the studio photographs show it: the door's mid-tone reads 78,71,113 sRGB in c1_0004; the baked
+      // base colour (#271E45) came out 53,43,87 in the viewer, a heavier, bluer indigo than the car's dusty violet, so the
+      // finish lifts it to 75,65,110 (door) and 76,68,107 (sill) with a sharper coat
+      {
+        id: 'provence-purple',
+        name: 'Provence Purple',
+        nameZh: '普罗旺斯紫',
+        swatch: '#3B2D66',
+        finish: { color: '#3A3158', roughness: 0.34, metalness: 0.2, clearcoat: 0.7, clearcoatRoughness: 0.04 },
+      },
       {
         id: 'everest-white',
         name: 'Everest White',
@@ -244,6 +256,15 @@ export const xpengG9l: Vehicle = {
         tyres: '265/40 R22',
         node: 'XpengG9L_Wheels',
       },
+      // The second wheel on the showroom cars (Autohome c1_0033-59, the green, white, purple and grey cars: the sidewalls read
+      // 265/45 R21): a black gloss five-arm turbine with machined chamfers, traced from c1_0053. Left and right are mirror images.
+      {
+        id: 'turbine-21',
+        name: '21-inch Turbine five-arm',
+        size: '21 in',
+        tyres: '265/45 R21',
+        node: 'XpengG9L_Turbine_Wheels',
+      },
     ],
     sources: [
       { label: 'Autohome - XPeng G9L Configuration & Specs (Series 8659)', url: 'https://www.autohome.com.cn/8659/' },
@@ -280,10 +301,11 @@ export const xpengG9l: Vehicle = {
       axis: 'z',
       deg: -82,
       hidesOutside: ['int_cpillar', 'int_cpillar_flange'],
-      // the mounts sit inside the C-pillar's sail (its walls are at y 0.64-0.72 there), so a shut car shows no strut
+      // the mounts sit inside the C-pillar's sail (the tail's skin is at |y| 0.59 at the upper mount, 0.63 at the lower
+      // one since the tail was tapered in), and a shut car shows no strut at all (Openings.tsx useStruts)
       struts: [
-        { body: [-2.06, 1.52, -0.665], moving: [-2.27, 1.36, -0.665] },
-        { body: [-2.06, 1.52, 0.665], moving: [-2.27, 1.36, 0.665] },
+        { body: [-2.06, 1.52, -0.55], moving: [-2.27, 1.36, -0.55] },
+        { body: [-2.06, 1.52, 0.55], moving: [-2.27, 1.36, 0.55] },
       ],
     },
   ],

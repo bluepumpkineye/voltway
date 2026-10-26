@@ -77,10 +77,18 @@ def _lerp(pts, y):
 
 
 # -------------------------------------------------------------- hardpoints (y >= 0, z)
-FASCIA_LOW = [(0.0, 0.536)] + _yz(CAM.FASCIA_LOW_PX)[::-1]       # centre -> outer corner
-FASCIA_LOW = sorted(FASCIA_LOW)
-BAND_LOW = sorted([(0.0, 0.358)] + _yz([(1300, 2198), (1100, 2185), (1000, 2160),
-                                        (900, 2110), (830, 2085)]))
+def _smooth(pts, n=56):
+    """A pchip curve through traced points [(|y|, z)] resampled at n points: the cutter's outline is as smooth as the paint's edge
+    (the hand-read polyline it replaced showed a kink at each of its nine points in the clearcoat's reflection)."""
+    pts = sorted(pts)
+    cv = geom.Curve(pts, mode="pchip")
+    y0, y1 = pts[0][0], pts[-1][0]
+    ys = [y0 + (y1 - y0) * i / (n - 1.0) for i in range(n)]
+    return [(y, cv(y)) for y in ys]
+
+
+FASCIA_LOW = sorted([(0.0, 0.5385)] + _smooth(_yz(CAM.SMILE_PX)))                  # centre -> outer corner
+BAND_LOW = sorted([(0.0, 0.3635)] + _smooth(_yz(CAM.BAND_BOT_PX)))
 # the headlamp lens: bottom edge, top edge (slanting up toward the corner), y from the car's
 # centre outward
 LENS_BOT = [(0.700, 0.475), (0.802, 0.471)]
@@ -171,36 +179,52 @@ def _tunnel(name, loop, d, depth, collection, mat, taper=0.9):
 
 
 # ------------------------------------------------------------ central intake
+# c1_0026 (1.0x crop, 2026-10-26): under the plate a black field holds two wide grille panels of three rows each (rows at v 1964-2036,
+# 2045-2115 and 2124-2172, 6-9 px of groove between them), either side of a central module (u 1820-2033) with the camera in its
+# top. The panels sit recessed in the apron; their rows and the module are what gives the black field its geometry.
+INTAKE_ROWS = [(1964, 2036), (2045, 2115), (2124, 2172)]
+MODULE_U = (1820, 2033)
+
+
+def _zv(v):
+    return CAM.front_yz(1920, v)[1]
+
+
+def _patch(name, za, zb, y0, y1, off, mat, collection, nz=4, nw=18, thickness=0.0025):
+    """A strip of the nose cap between z za..zb and |y| y0..y1, `off` metres from its surface (negative = recessed)."""
+    zm = 0.5 * (za + zb)
+    rows, _ = _cap_rows(za, zb, _w_of(y0, zm), _w_of(y1, zm), nz, nw, off)
+    ob = M.mesh_from_rows(name, rows, collection)
+    M.orient(ob.data, geom.axial(1.0))
+    ob.data.materials.append(mat)
+    M.mirror_y(ob)
+    M.finish(ob, thickness=thickness, bevel=0.0)
+    return ob
+
+
 def build_intake(collection, lib):
-    """The three-part black panel under the plate: two recessed halves with a groove between
-    their upper and lower bands, and the camera bar in the middle."""
+    """The grille: three rows of recessed panels each side of a central module with the camera, framed by glossy bezel bars."""
     made = []
-    (u0, u1), (v0, v1) = CAM.INTAKE_PX["u"], CAM.INTAKE_PX["v"]
-    y_in = 0.034                           # the camera bar's half-width
+    u0 = CAM.INTAKE_PX["u"][0]
     y_out = abs(CAM.front_yz(u0, 2000)[0])
-    z_top = CAM.front_yz(1920, v0)[1]
-    z_bot = CAM.front_yz(1920, v1)[1]
-    z_mid = 0.5 * (z_top + z_bot) + 0.012
-    for tag, za, zb in (("Up", z_mid + 0.004, z_top - 0.006), ("Lo", z_bot + 0.008, z_mid - 0.004)):
-        w0 = _w_of(y_in, 0.5 * (za + zb))
-        w1 = _w_of(y_out, 0.5 * (za + zb))
-        rows, _ = _cap_rows(za, zb, w0, w1, 6, 22, -0.016)
-        ob = M.mesh_from_rows("G9L_Intake_" + tag, rows, collection)
-        M.orient(ob.data, geom.axial(1.0))
-        ob.data.materials.append(lib["black_trim"])
-        M.mirror_y(ob)
-        M.finish(ob, thickness=0.0025, bevel=0.0)
-        made.append(ob)
-    # the camera bar between the halves: a dark satin block with a lens
-    rows, _ = _cap_rows(z_bot + 0.004, z_top - 0.002, 0.0, _w_of(y_in - 0.004, 0.5 * (z_top + z_bot)),
-                        6, 4, -0.010)
-    bar = M.mesh_from_rows("G9L_Intake_Bar", rows, collection)
-    M.orient(bar.data, geom.axial(1.0))
-    bar.data.materials.append(lib["cap_black"])
-    M.mirror_y(bar)
-    M.finish(bar, thickness=0.0025, bevel=0.0)
-    made.append(bar)
-    p, n = face(0.0, 0.5 * (z_top + z_bot) + 0.04, -0.008)
+    y_mod = abs(CAM.front_yz(MODULE_U[0], 2000)[0])              # the module's half-width
+    z_top, z_bot = _zv(INTAKE_ROWS[0][0]), _zv(INTAKE_ROWS[-1][1])
+    for k, (va, vb) in enumerate(INTAKE_ROWS):
+        made.append(_patch("G9L_Intake_%d" % k, _zv(vb), _zv(va), y_mod + 0.007, y_out, -0.0035, lib["black_panel"],
+                           collection))
+    # the central module: a smooth dark block, a little prouder than the panels, with the camera in its top
+    made.append(_patch("G9L_Intake_Bar", z_bot, z_top, 0.0, y_mod - 0.001, -0.0025, lib["cap_black"], collection,
+                       nz=6, nw=6))
+    # bezel bars: down both sides of the module and along the panels' outer ends, a thin glossy line standing 7 mm off the apron
+    # (the apron is a whole sheet 8 mm under the paint: anything built behind it, as the old recessed panels were, is hidden)
+    for tag, y0, y1 in (("In", y_mod - 0.001, y_mod + 0.007), ("Out", y_out - 0.008, y_out)):
+        made.append(_patch("G9L_Intake_Bezel_" + tag, z_bot - 0.004, z_top + 0.004, y0, y1, -0.0012, lib["black_gloss"],
+                           collection, nz=6, nw=2, thickness=0.002))
+    # and across the top and bottom of the field
+    for tag, za, zb in (("Top", z_top, z_top + 0.007), ("Bot", z_bot - 0.007, z_bot)):
+        made.append(_patch("G9L_Intake_Bezel_" + tag, za, zb, y_mod - 0.001, y_out, -0.0012, lib["black_gloss"],
+                           collection, nz=2, nw=22, thickness=0.002))
+    p, n = face(0.0, _zv(1990), -0.0025)
     made += _disc("G9L_Front_Camera", p, n, 0.0095, collection, lib["lamp_smoked"], 0.0015, mirror=False)
     return made
 

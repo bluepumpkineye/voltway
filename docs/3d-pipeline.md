@@ -1353,6 +1353,48 @@ lines), `c1_0511` / `c1_0515` (blue front / rear). The gallery pages are `car.au
   outside=False)` (2.5 min); `seal_cabin.leakqa()` (13 min, background Blender; the log appears only at the end);
   `seal_cabin.hmi_art()` for the dashboard's car pictures.
 
+### The XPeng G9L, second pass (2026-10-26): the viewer against the photograph, camera for camera
+
+The first rework (hood, tail, nose caps: `WrapCapG1`) put the silhouette within a few pixels of the photographs, and the owner still read
+a "tall, boxy MPV". Rendering the VIEWER through each photograph's solved camera and laying the two side by side showed why: the geometry
+was close, the look was not. The recipe (a page helper in the Browser pane, `window.__viewer`; a camera of our own at the solved pose and
+the photo's field of view, `gl.setSize(W, H, false)`, `gl.render(scene, cam)` and `toDataURL()` in the same task, posted to a node receiver):
+`f34_purple` / `r34_purple` / `side_left` / `front` / `rear` / `front_white` / `rear_white` (g9l_ref_match), 1920 px for the sheet, 3840 for crops.
+Side-by-side crops of the photograph and the model at the same pixels found, in this order:
+
+- **The glass.** A car with no X-ray spec of its own, and every car outside the X-ray tab, shows its windscreen and front windows as the
+  X-ray's pale ghost (`#98a4b3`, 0.34, `useGlass`): the G9L's greenhouse read as an open box with the seats in view. `Vehicle.glass`
+  (`{color, opacity}`, schema.ts) overrides it per car; the G9L ships `#1C2229` at 0.66, the smoky panes of the photographs.
+- **The paint.** The baked Provence Purple read 53,43,87 on the door in the viewer against the photograph's 78,71,113 (c1_0004): a heavy, blue
+  indigo. A `finish` on the first colourway (`#3A3158`, rough 0.34, metal 0.2, coat 0.7) reads 75,65,110 there. Measure with a sampled box on both
+  pictures, not by eye.
+- **A black field has no structure unless it is built in FRONT of its sheet.** The front's three-row grille panels, the rear's panel, louvres
+  and vents had been built 8-16 mm behind the apron / black bumper sheets: never seen, the nose and tail read as black slabs. They stand 3-5 mm
+  proud now (`M_Black_Panel`: a hair lighter and rougher than the trim; glossy bezel bars; a satin blade with two dishes), traced from
+  shadow-lifted crops (`gamma 0.38` on a raw buffer) of c1_0026 and c1_0030.
+- **Trace an edge, do not read it.** The fascia's smile edge and the black band's lower edge are the first run of dark pixels down each column
+  of the white car's photograph (`g9l_cam.SMILE_PX`, `BAND_BOT_PX`; pchip, 56 points): the hand-read polyline was 2-3 cm high between the plate and
+  the corner and showed a kink at every point in a clearcoat.
+- **Draco's normals are 10 bits by default.** Enough for a flat shader; on a clearcoat the reflection of a softbox steps along the surface.
+  `carkit.export.export(..., draco_normal_bits=14)`; the G9L ships 14 (the file grew ~0.2 MB).
+- **Normals welded across a seam must be of the same material.** `weld_normals(..., only_materials=("M_Paint",))`: the lamp shelf and lens, in the
+  same merged object as the paint beside them, were averaged with it where they tapered flush, and shaded in a comb. The nose is welded now
+  too (fascia, fender and bonnet round the lamp bar's ends).
+- **A panel's thickness leaks into its normals.** A Solidify rim shares vertices with the outer face, and with no sharp edges to respect the
+  WeightedNormal pass tilted the outer surface's normals at every cut edge by ~7 degrees: stair steps along the smile edge in the clearcoat's
+  reflections (the same mesh matte had none). `export_g9l.fix_rim_normals` marks edges over 60 degrees sharp and makes the normals again.
+- **Hinge struts are hidden while the part is shut** (`useStruts`): the tail was tapered in 8 cm and the tailgate's struts stood outside it as two
+  black posts at the shoulders; their mounts are moved inboard as well.
+- **Second wheel: the 21 in turbine** (265/45 R21, the showroom cars of c1_0033-59), traced from the purple car's right front wheel (c1_0053,
+  `g9l_wheels.WINDOW21` / `CHAMFER21` / `LINE21`, face to 0.985 of the lip with the bright arcs as inlays). **Left and right are mirror images**
+  (c1_0043: the pads in the same places, the swirl the other way), so `DESIGNS["turbine"]` has a third entry, the left spec with every angle
+  negated (`_mirror`), and `build_design` builds the left corners from it. The export builds it beside the default (`export_g9l.WHEEL_GROUPS`,
+  `build_wheel_options`) and the viewer shows one at a time (`configurator.wheels`, id `turbine-21`). Gloss black arms in a white studio
+  reflect the floor and one read as chrome: `M_Wheel_Black` (rough 0.30, coat 0.25), barrel satin.
+- **Not fixed:** the backlight's lower corner, where the glass edge, the sail and the lamp shelf's end meet at an acute angle on a loft whose
+  sections turn down steeply (a pinched sail ridge, a wrinkled glass tip; `_zfoot` chamfers the foot 10 cm but the loft is the limit), and
+  the flank's long reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`).
+
 ### Judging the web result against the photo
 
 ```python

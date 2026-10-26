@@ -68,12 +68,13 @@ def _lerp(pts, y):
 # --------------------------------------------------------------- hardpoints
 Z_CAP_BOT = 1.147                      # the lamp cap's lower edge across the car
 Z_LAMP_RED = (1.226, 1.188)            # the two light strips
-CAP_END = 0.742                        # |y| where the lamp shelf and its lip end (see build_tail): inside the tail's half-width there (0.76 at z 1.2)
+CAP_END = 0.735                        # |y| where the lamp shelf and its lip end (see build_tail): inside the tail's half-width there (0.76 at z 1.2)
 GATE_LOW = sorted(_yz(CAM.GATE_LOW_PX))                       # tailgate's lower edge (y, z)
 BUMPER_TOP = sorted(_yz(CAM.REAR_BUMPER_TOP_PX))              # black bumper's top edge (y, z)
 REFLECTOR = _yz(CAM.REFLECTOR_PX)
 VENT = _yz(CAM.REAR_VENT_PX)
 GAP = 0.0042
+SHELF_NEED = 0.060       # a cut band ends where the cap's top edge stands this far over its lower limit: at 3.5 cm the lamp shelf ended as a pointed wedge
 Y_POCKET = 0.795        # |y| of the corner pockets' outer wall: the black bumper ends here
 Y_SWEEP0 = 0.56         # the painted sweep under the pocket starts here, rising to the pocket's floor
 
@@ -96,6 +97,24 @@ def bumper_top(y):
     if y <= BUMPER_TOP[-1][0]:
         return _lerp(BUMPER_TOP, y)
     return BUMPER_TOP[-1][1] - (y - BUMPER_TOP[-1][0]) * 0.9
+
+
+BLADE_TOP = 0.455                       # the satin blade's top edge (c1_0030: v 2159), its bottom 0.377 at the centre (v 2256)
+_PANEL_TOP = geom.Curve([(0.0, 0.564), (0.196, 0.563), (0.333, 0.559), (0.44, 0.547), (0.509, 0.52), (0.558, 0.475),
+                         (0.585, 0.458)], mode="pchip")
+
+
+def _panel_top(y):
+    """z of the recessed panel's arched top edge at |y|."""
+    return _PANEL_TOP(min(y, 0.585))
+
+
+def _blade_bot(y):
+    return 0.377 + 0.030 * geom.smoothstep((y - 0.52) / 0.10)
+
+
+def _blade_top(y):
+    return BLADE_TOP - 0.020 * geom.smoothstep((y - 0.58) / 0.045)
 
 
 # ----------------------------------------------------------- band construction
@@ -203,7 +222,7 @@ def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, 
         # edge falls below its lower limit (round the corner, with the join ring), instead of sliding
         # down the corner as a sliver
         y_cut = ymax
-        while y_cut > ymin + 0.02 and z_reach(y_cut) - 0.002 < zlo(y_cut) + 0.035:
+        while y_cut > ymin + 0.02 and z_reach(y_cut) - 0.002 < zlo(y_cut) + SHELF_NEED:
             y_cut -= 0.005
         ymax = min(ymax, y_cut)
 
@@ -275,7 +294,7 @@ def build_tail(collection, lib):
 def _taper(y):
     """1 across the tail, 0 at the corner: the shelf is proud along the cap's normal, which turns sideways
     round the corner, so an untapered shelf ends as a shard standing out past the body's side."""
-    return 1.0 - geom.smoothstep((y - 0.60) / 0.20)
+    return 1.0 - geom.smoothstep((y - 0.56) / (CAP_END - 0.56))
 
 
 def _shelf(y, z):
@@ -288,7 +307,7 @@ def _shelf(y, z):
 def build_lamps(collection, lib):
     made = []
 
-    def strip(name, z0, z1, mat, lift, ny=60, y_end=0.80, thickness=0.0020):
+    def strip(name, z0, z1, mat, lift, ny=60, y_end=CAP_END - 0.024, thickness=0.0020):
         zm = 0.5 * (z0 + z1)
         return band(name, lambda y: z0, lambda y: z1, ny, 2, collection, mat,
                     off_fn=lambda y, k: _shelf(y, zm) + lift, y_max=y_end, thickness=thickness, cut=True)
@@ -297,7 +316,7 @@ def build_lamps(collection, lib):
     made.append(band("G9L_Tail_Lens", lambda y: Z_CAP_BOT + 0.010, lambda y: CAP_HIGH - 0.012, 56, 4,
                      collection, lib["lamp_clear"],
                      off_fn=lambda y, k: _shelf(y, Z_CAP_BOT + 0.010 + 0.110 * k) + 0.0012,
-                     y_max=0.86, thickness=0.002, cut=True))
+                     y_max=CAP_END - 0.020, thickness=0.002, cut=True))      # a lens band running to the shelf's very end ended as a dark wedge
     # thin, precise light lines (c1_0030: a 3-4 mm red line near the top of the dark lens, a fainter one below it)
     made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.0025, Z_LAMP_RED[0] + 0.0015, lib["led_red"], 0.0030))
     made.append(strip("G9L_Tail_Strip_Low", Z_LAMP_RED[1] - 0.0015, Z_LAMP_RED[1] + 0.0015, lib["lamp_red_lens"],
@@ -340,30 +359,31 @@ def build_details(collection, lib):
     ob = _flat("G9L_Reflector_R", _loop3(REFLECTOR, 0.0035), collection, lib["lamp_red_lens"], 0.002)
     M.mirror_y(ob)
     made.append(ob)
-    # corner vents: a dark pocket with slats
-    tun = _tunnel("G9L_Rear_Vent", _loop3(VENT, 0.002), (-1.0, 0.0, 0.0), 0.06, collection, lib["shadow"],
-                  taper=0.9)
-    M.mirror_y(tun)
-    made.append(tun)
-    for k in range(6):
-        z = 0.505 + 0.012 * k
-        p0, _n = face(0.725, z, -0.012)
-        p1, _n = face(0.775, z, -0.012)
-        slat = _flat("G9L_Vent_Slat_%d" % k, [p0, p1, (p1[0], p1[1], p1[2] + 0.004), (p0[0], p0[1], p0[2] + 0.004)],
-                     collection, lib["black_gloss"], 0.0015)
-        M.mirror_y(slat)
-        made.append(slat)
-    # the louvred central panel: recessed black with fine horizontal louvres
+    # corner vents (c1_0030: a slotted oval at each end of the black bumper, |y| 0.73-0.79, z 0.49-0.58): a grey slotted patch standing 3 mm
+    # off the black sheet with dark vertical slats (the pocket and slats the old build tunnelled behind the sheet were never seen)
+    made.append(band("G9L_Rear_Vent", lambda y: 0.490, lambda y: 0.579, 6, 4, collection, lib["black_panel"], offset=0.003,
+                     ymin=0.729, y_max=0.789, thickness=0.0015))
+    for k in range(7):
+        y0 = 0.7325 + 0.0085 * k
+        made.append(band("G9L_Vent_Slat_%d" % k, lambda y: 0.495, lambda y: 0.574, 1, 3, collection, lib["cap_black"],
+                         offset=0.0045, ymin=y0, y_max=y0 + 0.0035, thickness=0.0012))
+    # the recessed panel under the reflectors, the louvre block in its middle and the satin blade under it, all traced on the
+    # shadow-lifted crop of c1_0030 (2026-10-26; the old build had them 7-9 cm too low and the panel twice too tall): the panel is a
+    # shallow D 0.109 m tall at the centre between the blade's top edge (z 0.455) and an arched top edge, ending at |y| 0.585. The black
+    # bumper is one sheet at offset 0: they stand proud of it (what is built behind it is hidden, as the old louvres were)
+    made.append(band("G9L_Rear_Panel", lambda y: BLADE_TOP, lambda y: max(BLADE_TOP + 0.004, _panel_top(y)), 48, 8,
+                     collection, lib["black_panel"], offset=0.003, y_max=0.585, thickness=0.0015))
+    # fine vertical slats in the middle of it (|y| < 0.065, z 0.46-0.55): dark lines on the panel
     for k in range(9):
-        z0 = 0.375 + 0.0145 * k
-        made.append(band("G9L_Louvre_%d" % k, lambda y, z0=z0: z0, lambda y, z0=z0: z0 + 0.0085, 40, 1,
-                         collection, lib["cap_black"], offset=-0.012, y_max=0.50, thickness=0.0015))
-    made.append(band("G9L_Louvre_Back", lambda y: 0.370, lambda y: 0.508, 40, 3, collection, lib["shadow"],
-                     offset=-0.020, y_max=0.51, thickness=0.0015))
-    # the satin blade along the bottom of the black bumper
-    made.append(band("G9L_Diffuser_Blade", lambda y: 0.312 + 0.030 * max(0.0, (y - 0.40) / 0.12) ** 2,
-                     lambda y: 0.366 + 0.030 * max(0.0, (y - 0.40) / 0.12) ** 2, 40, 3, collection,
-                     lib["diffuser_satin"], offset=0.006, y_max=0.52, thickness=0.003, bevel=0.0008))
+        y0 = 0.0035 + 0.0072 * k
+        made.append(band("G9L_Louvre_%d" % k, lambda y: 0.462, lambda y: 0.550, 1, 3, collection, lib["cap_black"],
+                         offset=0.0045, ymin=y0, y_max=y0 + 0.0036, thickness=0.0012))
+    # the blade: satin graphite, 0.078 m tall at the centre, its ends angled in (|y| 0.62), two shallow dishes in its face
+    made.append(band("G9L_Diffuser_Blade", _blade_bot, _blade_top, 56, 4, collection, lib["diffuser_satin"], offset=0.010,
+                     y_max=0.622, thickness=0.003, bevel=0.0008))
+    for tag, y0, y1 in (("In", 0.115, 0.430),):
+        made.append(band("G9L_Diffuser_Dish_" + tag, lambda y: 0.402, lambda y: 0.420, 24, 2, collection, lib["cap_black"],
+                         offset=0.0108, ymin=y0, y_max=y1, thickness=0.0012))
     return made
 
 
@@ -431,7 +451,7 @@ def build_spoiler(collection, lib):
     |y| 0.55, on the roof's rail line). It follows the roof's crown: every section stands on the loft's surface at
     the knee, so the ends sit on the rail and do not hang in the air."""
     made = []
-    ns = 36
+    ns = 44
     k = S.KNEE_X
     y_end = S.Y_ROOF(k) - 0.006
     cols = []
@@ -441,8 +461,12 @@ def build_spoiler(collection, lib):
         zr = S.section_v(k, S.v_at_y_upper(k, y))[1]           # the roof's height at the knee, at this y
         x_te = k - 0.070 + 0.055 * t ** 2.2                    # trailing edge sweeps forward at the ends
         z_te = zr - 0.042 - 0.004 * t ** 2
-        cols.append([(k + 0.030, y, zr - 0.012), (x_te, y, z_te), (x_te + 0.012, y, z_te - 0.020),
-                     (k + 0.030, y, zr - 0.040)])
+        p0 = (k + 0.030, y, zr - 0.012)
+        prof = [p0, (x_te, y, z_te), (x_te + 0.012, y, z_te - 0.020), (k + 0.030, y, zr - 0.040)]
+        # the last 14 % shrinks the section to a tenth of its size (not to nothing: coincident points make invalid faces): the blade ends in a tip, not a twisted shard
+        # (the roof's crown rolls off steeply there and the open end of a ribbon followed it)
+        s_ = geom.smoothstep((t - 0.86) / 0.14)
+        cols.append([tuple(p0[j] + (q[j] - p0[j]) * (1.0 - 0.92 * s_) for j in range(3)) for q in prof])
     ob = M.mesh_from_rows("G9L_Spoiler", cols, collection)
     M.orient(ob.data, geom.away_from((k + 0.03, 0.0, S.Z_ROOF(k) - 0.06)))
     ob.data.materials.append(lib["black_gloss"])

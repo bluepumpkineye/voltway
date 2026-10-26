@@ -122,7 +122,7 @@ def merge_for_export(groups, protected=()):
 SHIPPED_ATTRIBUTES = ("_BAKEDLIGHT", "_BAKEDLIGHT_OPEN", "_BAKEDAO")
 
 
-def weld_normals(objects, box, tol=0.008, min_dot=0.35):
+def weld_normals(objects, box, tol=0.008, min_dot=0.35, only_materials=None):
     """Give the surfaces that meet along a seam between two objects one shared normal there.
 
     Panels built apart (the G9L's tail cap and its quarter panel) shade each side of their join with their own normals, so
@@ -130,6 +130,8 @@ def weld_normals(objects, box, tol=0.008, min_dot=0.35):
     inside `box` ((x0, x1), (y0, y1), (z0, z1) in the world frame; the y range is tested on |y|) that has a corner of
     ANOTHER object within `tol` metres, facing about the same way (dot > min_dot: the far side of a thin shell, and its
     rim, do not), takes the average of them. Corner normals are replaced as custom normals; nothing moves.
+    only_materials: material-name prefixes; only corners of faces that take one of them are welded (the G9L's lamp shelf and lens, in the
+    same merged object as its paint, have shapes of their own: welded to the paint beside them their normals came out in a comb).
     Returns the number of corners changed."""
     import numpy as np
     from mathutils import kdtree
@@ -158,6 +160,16 @@ def weld_normals(objects, box, tol=0.008, min_dot=0.35):
         pos = world[vi]
         inside = ((pos[:, 0] >= x0) & (pos[:, 0] <= x1) & (np.abs(pos[:, 1]) >= y0) & (np.abs(pos[:, 1]) <= y1)
                   & (pos[:, 2] >= z0) & (pos[:, 2] <= z1))
+        if only_materials:
+            npoly = len(me.polygons)
+            lt = np.empty(npoly, dtype=np.int32)
+            me.polygons.foreach_get("loop_total", lt)
+            mi = np.empty(npoly, dtype=np.int32)
+            me.polygons.foreach_get("material_index", mi)
+            names = [m.name if m else "" for m in me.materials]
+            ok = np.array([any(n.startswith(pre) for pre in only_materials) for n in names] + [False])
+            mi = np.clip(mi, 0, len(names))
+            inside &= np.repeat(ok[mi], lt)
         infos.append((nr, mw, nw))
         for li in np.nonzero(inside)[0]:
             rows.append((oi, int(li), pos[li], nw[li]))
@@ -204,13 +216,14 @@ def strip_attributes(objects, keep=SHIPPED_ATTRIBUTES):
 
 
 def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=None,
-           attributes=False, image_format='AUTO'):
+           attributes=False, image_format='AUTO', draco_normal_bits=None):
     """Export the groups' meshes as GLB. draco=None: only if over 20 MB.
     vertex_color: a colour attribute to ship as COLOR_0 (first primitive only
     in Blender 5.2 - see carkit.bake.EXPORT_ATTR); attributes: ship custom
     "_NAME" attributes (SHIPPED_ATTRIBUTES: the baked light and occlusion);
     image_format: 'AUTO' keeps each texture's own format, 'WEBP' re-encodes them all (the cabin's
-    occlusion atlas is a 2048 x 2048 picture)."""
+    occlusion atlas is a 2048 x 2048 picture); draco_normal_bits: Draco's normal quantization (Blender's default is 10: on a clearcoated
+    panel the reflection of a studio softbox then steps along the surface in the viewer; the G9L ships 14)."""
     bpy.ops.object.select_all(action='DESELECT')
     n = 0
     for _, cname in groups:
@@ -277,6 +290,8 @@ def export(path, groups, active_name, draco=None, draco_level=6, vertex_color=No
         # footwell values (~0.004 stored) band visibly
         kwargs["export_draco_color_quantization"] = 14
         kwargs["export_draco_generic_quantization"] = 14
+        if draco_normal_bits:
+            kwargs["export_draco_normal_quantization"] = int(draco_normal_bits)
         _run(**kwargs)
         size = os.path.getsize(path)
     print("exported: %s  %.2f MB  draco=%s" % (path, size / 1048576.0, draco))

@@ -225,9 +225,14 @@ const carpet: Driver = {
  * nose comes up, the wheels spin a little ahead of the road. Our shape throughout (launch.ts says which parts).
  */
 const launch: Driver = {
-  build: ({ vehicle, layout, body, start }) => {
+  build: ({ vehicle, layout, body, start, params }) => {
     const perf = vehicle.variants[0]?.performance;
-    const run = planLaunch(layout, body, start, { zeroTo100: perf?.zeroTo100S ?? 3, zeroTo200: perf?.zeroTo200S });
+    const targetSpeed = params.targetSpeed;
+    const run = planLaunch(layout, body, start, {
+      zeroTo100: perf?.zeroTo100S ?? 3,
+      zeroTo200: perf?.zeroTo200S,
+      targetSpeed: typeof targetSpeed === 'number' ? targetSpeed : undefined,
+    });
     return {
       track: run.track,
       stops: [],

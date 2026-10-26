@@ -96,6 +96,15 @@ def front_yz(u, v, x=2.50):
 # the painted fascia's lower edge (a shallow smile) from the outer slit to the plate
 FASCIA_LOW_PX = [(832, 1730), (900, 1745), (1000, 1800), (1100, 1850), (1200, 1910), (1300, 1950),
                  (1400, 1960), (1500, 1962), (1603, 1963)]
+# The same two edges traced from the photograph's pixels instead of read by eye (2026-10-26): the white fascia's lower edge is the
+# first run of dark pixels (luminance < 75) down each column, the black band's lower edge the last dark pixel above the white chin
+# lip. The hand-read polyline sat 2-3 cm high between the plate and the corner and had a kink at every point; the trace is one smooth
+# curve (centre -> corner, every 20-100 px).
+SMILE_PX = [(840, 1725), (860, 1743), (880, 1758), (900, 1771), (940, 1794), (980, 1817), (1020, 1839), (1060, 1860),
+            (1100, 1880), (1140, 1899), (1180, 1916), (1220, 1932), (1260, 1943), (1300, 1949), (1400, 1954),
+            (1500, 1957), (1600, 1959)]
+BAND_BOT_PX = [(840, 2136), (900, 2149), (960, 2158), (1020, 2166), (1100, 2175), (1200, 2183), (1300, 2187),
+               (1400, 2190), (1500, 2191), (1600, 2192), (1700, 2193), (1920, 2192)]
 # the lamp bar's top (the black bezel) and bottom edges from the outer end to the centre
 BAR_TOP_PX = [(845, 1265), (900, 1290), (1000, 1305), (1100, 1315), (1250, 1328), (1500, 1335),
               (1920, 1340)]

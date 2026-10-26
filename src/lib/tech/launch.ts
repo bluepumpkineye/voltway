@@ -22,7 +22,7 @@ const BUILD = 0.15;
 /** off the power at the end: the pull eases away over this, s */
 const EASE = 0.5;
 /** and the car holds what it has for this long, so the body is seen to settle, s */
-const COAST = 0.9;
+const COAST = 5.9;
 export const V100 = 100 / 3.6;
 export const V200 = 200 / 3.6;
 
@@ -65,7 +65,7 @@ export interface LaunchRun {
   scroll: (t: number) => number;
   chassis: (t: number) => Chassis;
   /** what the readout shows at time t, and the published times it is checked against */
-  launch: { readout: (t: number) => LaunchReadout; marks: LaunchMark[] };
+  launch: { readout: (t: number) => LaunchReadout; marks: LaunchMark[]; target?: number };
   frame: { cx: number; cz: number; radius: number; camera: { az: number; el: number } };
 }
 
@@ -107,16 +107,19 @@ export function planLaunch(
   layout: Layout,
   body: { rear: number; front: number; halfWidth: number },
   start: { x: number; y: number; yaw: number },
-  opts: { zeroTo100: number; zeroTo200?: number },
+  opts: { zeroTo100: number; zeroTo200?: number; targetSpeed?: number },
 ): LaunchRun {
   const t100 = opts.zeroTo100;
   const t200 = opts.zeroTo200 && opts.zeroTo200 > t100 + 0.5 ? opts.zeroTo200 : null;
   // the pull's strength up to 100: a plateau, with the build-up at the start, that reaches 100 km/h exactly at t100
   const a0 = V100 / (t100 - BUILD / 2);
   const p = t200 ? falloff(a0, t200 - t100) : 0;
-  // the pull goes on to 200 km/h when the car has a published time for it, else it eases off at 100
-  const tPull = t200 ?? t100;
-  const tEnd = HOLD + tPull + EASE + COAST;
+  // the pull goes on to 200 km/h when the car has a published time for it and not capped to 100, else it eases off at 100
+  const target = opts.targetSpeed === 100 ? 100 : (t200 ? 200 : 100);
+  const tPull = target === 100 ? t100 : (t200 ?? t100);
+  // for 200 km/h: passes 200 at t200 (6.09s), shifts 4th->5th at 204 km/h, climbs to ~212 km/h
+  const tPeak = target === 200 ? tPull + 1.2 : tPull;
+  const tEnd = HOLD + tPeak + EASE + COAST;
 
   let aEase = a0;
   // the longitudinal acceleration (m/s^2) at a time and speed
@@ -128,7 +131,10 @@ export function planLaunch(
       aEase = a0 * Math.pow(V100 / Math.max(v, V100), p);
       return aEase;
     }
-    return aEase * (1 - smooth((tau - tPull) / EASE));
+    if (tau < tPeak) {
+      return aEase * 0.85 * (1 - 0.5 * smooth((tau - tPull) / (tPeak - tPull)));
+    }
+    return aEase * 0.42 * (1 - smooth((tau - tPeak) / EASE));
   };
 
   // integrate speed, distance, the wheels' angle, and the body's pitch on its springs; keep every 1/60 s
@@ -210,6 +216,7 @@ export function planLaunch(
     launch: {
       readout: (t) => ({ speed: at(V, t) * 3.6, g: at(A, t) / G, elapsed: Math.max(0, t - HOLD), slip: at(Q, t) }),
       marks,
+      target,
     },
     frame: {
       cx: start.x + (body.front - body.rear) / 2,

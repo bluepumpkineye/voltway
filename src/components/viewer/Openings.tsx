@@ -137,6 +137,9 @@ export function useStruts(root: THREE.Object3D, vehicle: Vehicle) {
             barrel.position.copy(b).addScaledVector(dir, BARREL / 2);
             rod.quaternion.copy(barrel.quaternion);
             rod.position.copy(h).addScaledVector(dir, -ROD / 2);
+            // a shut part has nothing to show: the mounts are meant to sit inside the body, and a strut that stands a
+            // centimetre outside a reshaped skin read as a black post at the car's shoulder (the G9L's tail)
+            barrel.visible = rod.visible = p > 0.004;
           }),
         );
       }
@@ -294,7 +297,7 @@ export function useGlass(
       // privacy glass (the rear windows, the backlight, a glass roof) is tinted: the same dark pane an open door shows. The
       // frit, the black ceramic band round the backlight, stays black.
       const seeThrough = lv.clearOutside && !lv.inside && !lv.xray && !pane.frit;
-      const g = vehicle.xray ?? GHOST_GLASS;
+      const g = vehicle.glass ?? vehicle.xray ?? GHOST_GLASS;
       pane.m.color.set(ghost ? ghost.color : seeThrough && !pane.privacy ? g.color : pane.color);
       const swing01 = Math.min(1, p * 1.6);
       const shut = pane.privacy ? kind.open : g.opacity;
@@ -337,7 +340,7 @@ export function useGlass(
       }
       lv.repaint = () => {};
     };
-  }, [root, hinges, enabled, invalidate, vehicle.xray]);
+  }, [root, hinges, enabled, invalidate, vehicle.xray, vehicle.glass]);
 
   React.useEffect(() => {
     live.current.inside = inside;

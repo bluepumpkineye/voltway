@@ -197,6 +197,8 @@ export interface VehicleUiState {
   techDemoId: string;
   /** playback speed of the demo's clock */
   techSpeed: number;
+  /** launch demo target threshold in km/h (100 or 200) */
+  launchTarget: number;
   /**
    * the floor the running demo uses (viewer axes, m): the camera keeps it in view; `camera` is the
    * demo's preferred look (azimuth and elevation, degrees)
@@ -301,6 +303,7 @@ export interface VehicleUiState {
   setCompareVariantId: (id: string | null) => void;
   setTechDemo: (id: string) => void;
   setTechSpeed: (speed: number) => void;
+  setLaunchTarget: (speed: number) => void;
   setTechStage: (stage: VehicleUiState['techStage']) => void;
   setTechScene: (scene: ParkStage | null) => void;
   setTechStreet: (street: StreetStage | null) => void;
@@ -422,6 +425,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   compareVariantId: null,
   techDemoId: '',
   techSpeed: 1,
+  launchTarget: 100,
   techStage: null,
   deviceInset: { right: 0, bottom: 0 },
   uiTop: 0,
@@ -536,6 +540,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setCompareVariantId: (compareVariantId) => set({ compareVariantId }),
   setTechDemo: (techDemoId) => set({ techDemoId }),
   setTechSpeed: (techSpeed) => set({ techSpeed }),
+  setLaunchTarget: (launchTarget) => set({ launchTarget }),
   setTechStage: (techStage) => set({ techStage }),
   setTechScene: (techScene) => set({ techScene }),
   setTechStreet: (techStreet) => set({ techStreet }),
@@ -625,6 +630,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       compareVariantId: null,
       techDemoId: '',
       techSpeed: 1,
+      launchTarget: 100,
       techStage: null,
       techScene: null,
       techStreet: null,

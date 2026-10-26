@@ -90,10 +90,78 @@ SPEC_AERO["spokes"] = dict(
     windows=[WINDOW],
     inlay=dict(mat="machined", polys=[SPOKE_U], lift=0.0005),
 )
+
+# ------------------------------------------------------------------------------------------ the 21 in turbine
+# The showroom cars' second wheel (c1_0033-59: the green, white, purple and grey cars on 265/45 R21): a black gloss five-arm turbine
+# with a machined flange and a machined chamfer on each window's rim side. Traced from the PURPLE car's right front wheel
+# (c1_0053.jpg, ellipse ratio 0.949 at (3082, 1906) px) the way the aero was: unwarped, centre-corrected (-10, +15 px), lifted, read in
+# polar coordinates (angle deg CCW from 3 o'clock seen from outside the RIGHT wheel, radius / the lip's). The left wheels are the right's
+# MIRROR IMAGE (c1_0043, the white car's left front: the same pads, the swirl the other way), so they are built from the polygons with
+# the angle negated (_mirror) and no roll.
+LIP21 = 0.2858                  # the 21 in rim's lip radius (m): the bead seat 266.7 mm + the 19.1 mm flange
+OUT21 = 1.02                    # the inlay's outer arc overruns the face's edge (coincident boundaries empty the boolean)
+TAB21 = 0.985                   # the face runs to the lip; the machined flange ring is only 1.5 % wide here (the lip is black
+                                # between the windows' chamfers: the bright arcs are inlays)
+
+# the open window between two arms: its rim side is the chamfer band's inner edge (the machined swoosh from the arm's foot to the
+# flange), its far side the next arm's flank, its inner end the hub web (r 0.38-0.42)
+WINDOW21 = [
+    (27.2, 0.672), (31.0, 0.700), (36.0, 0.725), (40.0, 0.752), (43.0, 0.786), (45.0, 0.815), (47.5, 0.846), (49.0, 0.878),
+    (51.0, 0.907), (53.0, 0.922),
+    (60.0, 0.922), (70.0, 0.922), (80.0, 0.922), (84.5, 0.922),
+    (85.0, 0.900), (85.5, 0.800), (85.5, 0.730), (85.0, 0.690),
+    # down the lower chamfer line's upper edge (the arm's leading edge) to the hub web
+    (84.5, 0.678), (80.0, 0.653), (75.0, 0.621), (70.0, 0.578), (65.0, 0.526), (60.0, 0.481), (55.0, 0.451), (50.0, 0.419),
+    (46.0, 0.403), (42.0, 0.408), (37.0, 0.435), (33.0, 0.492), (30.0, 0.566), (28.0, 0.630),
+]
+# the machined inlay of one repeat, ONE outline (the shapes must not touch): the chamfer band from the arm's foot (26.7 deg, 0.68) up
+# to the flange, the flange's bright arc along the window's rim side, and the NEXT arm's pad (21.3-33 deg + 72, r 0.75-0.985) it runs into
+CHAMFER21 = [
+    (26.7, 0.682), (31.0, 0.700), (36.0, 0.725), (40.0, 0.752), (43.0, 0.786), (45.0, 0.815), (47.5, 0.846), (49.0, 0.878),
+    (51.0, 0.907), (53.0, 0.935), (55.5, 0.935), (70.0, 0.935), (85.0, 0.935), (94.15, 0.935),
+    (97.3, 0.750), (105.0, 0.800), (100.3, OUT21),
+    (85.0, OUT21), (70.0, OUT21), (55.0, OUT21),
+    (54.0, OUT21), (52.0, 0.950), (50.0, 0.922), (48.0, 0.893), (46.0, 0.862), (43.0, 0.830), (40.0, 0.797), (36.0, 0.768),
+    (31.0, 0.742), (26.4, 0.712),
+]
+# the arm's leading-edge line, a 0.04-wide machined strip along the window's far-lower side (centre line (50, 0.393) to (84, 0.650))
+_LINE_C = [(49.5, 0.393), (55.0, 0.425), (60.0, 0.455), (65.0, 0.500), (70.0, 0.552), (75.0, 0.595), (80.0, 0.627), (84.5, 0.652)]
+LINE21 = ([(a, r + 0.021) for (a, r) in _LINE_C] + [(85.3, 0.640)] + [(a, r - 0.021) for (a, r) in reversed(_LINE_C)])
+
+
+def _mirror(polys):
+    """The left wheel's polygons: the same outlines with the angle negated (and the winding kept)."""
+    return [[(-a, r) for (a, r) in reversed(p)] for p in polys]
+
+
+CALIPER21 = dict(span_deg=40.0, span_rear=36.0, r_inner=0.150, d_out=0.034, steps=16)
+SPEC_TURBINE = W.preset(
+    "blade_5", rim_d=2.0 * LIP21, dish=DISH, pinstripe=False,
+    flange_face=(1.0 - TAB21) * LIP21, roll_left=0.0,
+    tyre=dict(bulge=1.045, shoulder=0.016),
+    hub=dict(depth=0.0620, setback=0.008, cap_rise=0.0055, cap_r=0.040),
+    lugs=dict(count=5, pcd_r=0.0600, r=0.0120, deg=18.0, rise=0.004, hidden=True),
+    disc=dict(style="plain", inner_r=0.125, thickness=0.034),
+    caliper=CALIPER21,
+    # the barrel seen through the windows is satin: glossy black mirrored the white studio and the five openings read as chrome
+    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="cap_black",
+              disc="iron", barrel="black_trim", accent="black_gloss"),
+)
+SPEC_TURBINE["spokes"] = dict(
+    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0028, mat="wheel_black",
+    r_in=0.040, r_out=TAB21 * LIP21, nr=16, seg=60, step_deg=2.0, step_r=0.025,
+    windows=[WINDOW21],
+    inlay=dict(mat="machined", polys=[CHAMFER21, LINE21], lift=0.0005),
+)
+SPEC_TURBINE_L = dict(SPEC_TURBINE)
+SPEC_TURBINE_L["spokes"] = dict(SPEC_TURBINE["spokes"], windows=_mirror([WINDOW21]),
+                                inlay=dict(mat="machined", polys=_mirror([CHAMFER21, LINE21]), lift=0.0005))
+
 SPEC = SPEC_AERO
 
 DESIGNS = {
     "aero": ("G9L_", SPEC_AERO),
+    "turbine": ("G9L_Turbine_", SPEC_TURBINE, SPEC_TURBINE_L),
 }
 DEFAULT = "aero"
 
@@ -110,8 +178,14 @@ def corners(surface):
 
 
 def build_design(collection, surface, lib, name):
-    prefix, spec = DESIGNS[name]
-    return W.build_set(collection, prefix, lib, spec, corners(surface))
+    """One design on the four corners. A design with a third entry has left-hand wheels of its own (the turbine's swirl is
+    mirrored from side to side): the left corners are built from it, the right from the second."""
+    prefix, spec, *left = DESIGNS[name]
+    cs = corners(surface)
+    if not left:
+        return W.build_set(collection, prefix, lib, spec, cs)
+    made = W.build_set(collection, prefix, lib, spec, [c for c in cs if c[2] < 0])
+    return made + W.build_set(collection, prefix, lib, left[0], [c for c in cs if c[2] > 0])
 
 
 def build_all(collection, surface, lib):

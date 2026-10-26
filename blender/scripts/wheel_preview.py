@@ -70,6 +70,18 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
+    if design == "g9l_turbine":
+        # the XPeng G9L's 21 in turbine (traced from c1_0053's right front wheel); the left wheels are the mirror image
+        import g9l_materials as MT
+        import g9l_wheels as ZW
+        prefix, right, left = ZW.DESIGNS["turbine"]
+        spec = right if sign < 0 else left
+        lib = MT.build_library()
+        col = B.fresh_collection("Wheels_g9l_turbine")
+        spec.pop("_faces", None)
+        empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, 0.265, 0.377, 0.185, 180.0)
+        empty.matrix_world = Matrix.Identity(4)
+        return spec, col, empty, parts, lib
     if design in ("z9", "g9l"):
         # the Denza Z9's 21 in multi-spoke and the XPeng G9L's 22 in five-spoke (traced from c1_0036 / c1_0028)
         if design == "z9":

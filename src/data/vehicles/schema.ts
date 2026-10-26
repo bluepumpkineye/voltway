@@ -558,6 +558,12 @@ export interface Vehicle {
   openings?: OpeningSpec[];
   /** What the X-ray tab does to this car's model, see XraySpec. */
   xray?: XraySpec;
+  /**
+   * The tint of the windscreen and the front windows seen from outside with the cabin behind them, when the maker's
+   * photographs show darker glass than the X-ray's pale ghost (the default, `xray` or GHOST_GLASS in Openings.tsx).
+   * Colour is sRGB hex, opacity 0-1 (the higher, the less of the cabin shows through).
+   */
+  glass?: { color: string; opacity: number };
   /** The Tech tab's demonstrations, see TechDemoSpec. */
   tech?: TechDemoSpec[];
   /**

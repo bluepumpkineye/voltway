@@ -39,6 +39,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const beltOn = useVehicleStore((s) => s.beltOn);
   const compassPivot = useVehicleStore((s) => s.compassPivot);
   const compassAngle = useVehicleStore((s) => s.compassAngle);
+  const launchTarget = useVehicleStore((s) => s.launchTarget);
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
   const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
@@ -58,13 +59,13 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       start: { x: rig.rac.x, y: rig.rac.y, yaw: 0 },
       speed: parkSpeed,
       ride: { carpet: carpetOn, modeId },
-      params: spec.params ?? {},
+      params: { ...(spec.params ?? {}), targetSpeed: launchTarget },
       chassis: { pivot: compassPivot, angleDeg: compassAngle },
       scenario: spec.scenario,
     });
     return { spec, body, ...b, trailLine: b.trail ? trailOf(b.track) : null };
     // the rig is the same object for the car's life; `rigged` says when its wheels arrive
-  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle]);
+  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle, launchTarget]);
 
   // a demo starts from the top (or waits for a device to start it), and the camera takes in its floor
   React.useEffect(() => {

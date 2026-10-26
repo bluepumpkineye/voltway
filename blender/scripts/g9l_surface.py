@@ -99,9 +99,12 @@ Z_SHOULDER = Curve([
 # Roof crest offset (rail height under the centreline):
 HOOD_ROLL = 0.120         # the hood's edge roll: a quarter ellipse, this wide (y), from the flat top down to the fender's top corner
 HOOD_CROWN = 0.134        # its rail point (60 degrees round the roll) sits this share of the roll's height below the centreline
+# 2026-10-26: the roof is CROWNED: the front and rear photographs' silhouettes (c1_0002/0006 through their solved cameras) drop 2 cm at
+# 0.46 m, 6 cm at 0.64 m and 13 cm at 0.68 m from the centreline, the model's drooped 2 cm at 0.72 (a flat lid 10 cm too wide per side:
+# the greenhouse read as a box). The rail now sits 6.5 cm under the centreline over the cabin (it was 4) and 0.675-0.725 out (it was 0.71-0.79).
 Z_CREST = Curve([
-    (-HALF_L, -0.040), (-2.331, -0.050), (-2.040, -0.050), (-1.469, -0.045),
-    (-0.515, -0.040), (0.439, -0.040), (0.863, -0.040), (COWL_X, -0.020),
+    (-HALF_L, -0.040), (-2.331, -0.050), (-2.040, -0.050), (-1.469, -0.060),
+    (-0.515, -0.065), (0.439, -0.065), (0.863, -0.060), (COWL_X, -0.020),
 ] + [(x, -HOOD_CROWN * (Z_ROOF(x) - Z_SHOULDER(x)))
      for x in (1.450, 1.600, 1.800, 2.000, 2.200, 2.400, 2.500, HALF_L)])
 
@@ -138,8 +141,8 @@ Y_SHOULDER = Curve([
 # z 1.64, 0.62 at z 1.55 and 0.70 at z 1.35; the front photograph's windscreen header corner is 0.68 (rail 0.77). A teardrop
 # greenhouse: widest at the header, tapering in plan towards the tail over leaning glass.
 Y_ROOF = Curve([
-    (-HALF_L, 0.700), (-2.500, 0.690), (-2.330, 0.640), (-2.200, 0.600), (-2.040, 0.555), (-1.450, 0.600),
-    (-1.000, 0.650), (-0.500, 0.705), (0.333, 0.770), (0.863, 0.790), (COWL_X, 0.850),
+    (-HALF_L, 0.700), (-2.500, 0.690), (-2.330, 0.640), (-2.200, 0.600), (-2.040, 0.555), (-1.450, 0.590),
+    (-1.000, 0.600), (-0.500, 0.620), (0.333, 0.645), (0.863, 0.700), (COWL_X, 0.850),
     # ahead of the cowl it is the hood's rail point: 60 degrees round the quarter-ellipse roll that runs from the flat
     # top (at the fender corner's y less HOOD_ROLL) down to the corner
 ] + [(x, Y_SHOULDER(x) - 0.5 * HOOD_ROLL) for x in (1.450, 1.600, 1.800, 2.000, 2.200, 2.400, 2.500, HALF_L)])
@@ -161,6 +164,10 @@ def _hood_blend(x):
     return _smooth((x - 1.15) / 0.35)
 
 
+TUMBLE_TAIL = (0.38, 0.58, 0.50, 0.38)     # the recipe's own: the glass behind the knee leans as the rear photograph's silhouette says
+TUMBLE_CABIN = (0.58, 0.42, 0.50, 0.38)    # over the cabin: the tumble point stays at ~0.77 half-width at mid height while the rail is 8-10 cm narrower: ~25 degrees of lean
+
+
 def SECTION_AT(x):
     """Section constants ahead of the cowl. The recipe's (a 3 cm step in above the crease, a tumble point
     well inside both the crease and the rail) is the glass leaning in; on the fender it folded the section
@@ -171,14 +178,17 @@ def SECTION_AT(x):
     z 1.04-1.08. With the roll's centre at (corner y - HOOD_ROLL, corner z) the recipe's points are the
     ellipse at 0, 30 and 60 degrees and its end: tumble (0.732, 0.268, 0.5, 0), rail_in 0.931."""
     t = _hood_blend(x)
+    g = _smooth((x + 1.9) / 0.8)                    # 0 behind x -1.9, 1 ahead of -1.1: the cabin's lean fades in over the C-pillar
+    cabin = tuple(a + (b - a) * g for a, b in zip(TUMBLE_TAIL, TUMBLE_CABIN))
+    rc = 0.34 + (0.15 - 0.34) * g                   # the roof's inboard point: 0.15 of the rail's drop over the cabin (a flatter crown), 0.34 behind
     if t <= 0.0:
-        return None
+        return dict(tumble=cabin, rail_crest=rc) if g > 0.0 else None
     lerp = lambda a, b: a + (b - a) * t
-    k0 = (0.38, 0.58, 0.50, 0.38)
+    k0 = cabin
     k1 = (0.732, 0.268, 0.5, 0.0)
     return dict(step_in=lerp(0.032, 0.003), step_max=lerp(0.030, 0.012),
                 tumble=tuple(lerp(a, b) for a, b in zip(k0, k1)),
-                rail_in=lerp(0.52, 0.931), rail_crest=lerp(0.34, 0.45))
+                rail_in=lerp(0.52, 0.931), rail_crest=lerp(rc, 0.45))
 
 
 BODY = LoftBody(

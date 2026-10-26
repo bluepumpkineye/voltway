@@ -178,14 +178,23 @@ def V_REARGLASS(x):
 Z_FOOT = 1.245
 
 
+def _zfoot(y):
+    """The foot's height at |y|: Z_FOOT across the middle, rising 10 cm toward the rail, so the glass's lower corner is a chamfer that
+    ends above the lamp shelf's end instead of a pointed tab running down the corner (the close-up of the tail's upper corner:
+    the viewer's reflections crumpled in it)."""
+    return Z_FOOT + 0.100 * _smooth((abs(y) - 0.50) / 0.15)
+
+
 def X_REARGLASS_FOOT(v):
-    """x of the backlight's lower edge at v: where the body reaches Z_FOOT, no further back than -2.52."""
-    lo, hi = -2.52, -2.30
-    if S.section_v(lo, v)[1] >= Z_FOOT:
+    """x of the backlight's lower edge at v: where the body reaches the foot, no further back than -2.52."""
+    lo, hi = -2.52, -2.10                   # (the chamfer moves the foot at the rail forward of x -2.30: the old limit clamped it into a zigzag)
+    y, z = S.section_v(lo, v)
+    if z >= _zfoot(y):
         return lo
     for _ in range(28):
         mid = 0.5 * (lo + hi)
-        if S.section_v(mid, v)[1] < Z_FOOT:
+        y, z = S.section_v(mid, v)
+        if z < _zfoot(y):
             lo = mid
         else:
             hi = mid
@@ -195,12 +204,14 @@ def X_REARGLASS_FOOT(v):
 def V_SAIL_TOP(x):
     """The sail's upper edge: the backlight's side edge, or - behind the point where that edge falls below the foot - the foot line."""
     v0 = V_REARGLASS(x)
-    if x > -2.30 or S.section_v(x, v0)[1] >= Z_FOOT:
+    y, z = S.section_v(x, v0)
+    if x > -2.10 or z >= _zfoot(y):
         return v0
     lo, hi = v0, 1.0
     for _ in range(28):
         mid = 0.5 * (lo + hi)
-        if S.section_v(x, mid)[1] < Z_FOOT:
+        y, z = S.section_v(x, mid)
+        if z < _zfoot(y):
             lo = mid
         else:
             hi = mid
@@ -285,16 +296,18 @@ PANELS = [
     dict(name="G9L_Sail", x=(-2.52, X_TIP), v=(V_SAIL_LOW, V_SAIL_TOP),
          nx=48, nv=28, gap=dict(v0=False, x0=False, x1=False), mat="paint"),
 
-    # ---- the dark region under the side glass (the black frames show where glass stops)
+    # ---- the dark region under the side glass (the black frames show where glass stops). Satin, not gloss: the viewer's clear glass takes
+    # most of this sheet out and the slivers it leaves between the panes (the pillars, the belt) mirrored the white studio as thin chrome
+    # lines across the greenhouse
     dict(name="G9L_Greenhouse_Black", x=(X_TIP, X_COWL), v=(V_BELT, V_DLO),
-         nx=120, nv=28, gap=dict(v1=False, x0=False, v0=False), mat="black_gloss",
+         nx=120, nv=28, gap=dict(v1=False, x0=False, v0=False), mat="black_trim",
          offset=-0.008, thickness=0.0),
     dict(name="G9L_Cowl_Black", x=(X_COWL - 0.035, X_COWL + 0.025),
-         v=(V_HOOD, 1.0), nx=24, nv=28, gap=dict(v1=False), mat="black_gloss",
+         v=(V_HOOD, 1.0), nx=24, nv=28, gap=dict(v1=False), mat="black_trim",
          offset=-0.004, thickness=0.0),
     dict(name="G9L_Roof_Rear_Black", x=(-2.52, X_KNEE - 0.010),
          v=(V_REARGLASS, 1.0), nx=40, nv=24,
-         gap=dict(v1=False, x0=False), mat="black_gloss", offset=-0.018, thickness=0.0),
+         gap=dict(v1=False, x0=False), mat="black_trim", offset=-0.018, thickness=0.0),
 
     # ---- glazing
     dict(name="G9L_Glass_Windshield", x=(X_ROOF_F - 0.012, X_COWL - 0.010),
