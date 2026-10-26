@@ -306,7 +306,7 @@ export function Showroom({
       else setDeviceInset({ right: 0, bottom: 0 });
     } else if (tab === 'charging') {
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
-      else setDeviceInset({ right: 0, bottom: 0.42 });
+      else setDeviceInset({ right: 0, bottom: 0.48 });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
   }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
@@ -336,7 +336,12 @@ export function Showroom({
     (tab === 'colour' || tab === 'interior') && vehicle.openings?.length
       ? 'Tap a door, the bonnet or the tailgate to open it.'
       : undefined;
-  const playing = tab === 'tech' ? demo : tab === 'charging' ? (charging ?? undefined) : undefined;
+  const playing =
+    tab === 'tech'
+      ? demo
+      : tab === 'charging' && dash.wide
+        ? (charging ?? undefined)
+        : undefined;
 
   if (ready && isComparing && compareVehicle && compareVariant) {
     return (
