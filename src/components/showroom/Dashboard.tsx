@@ -7,7 +7,7 @@ import { Fit } from '@/components/tech/Fit';
 import { useWide } from '@/components/tech/TechDevices';
 import { isLowBeam, LIGHT_MODES, type LightMode } from '@/lib/lights';
 import { useVehicleStore } from '@/store/vehicle-store';
-import { BELOW_TOP, GLASS } from './Chrome';
+import { GLASS } from './Chrome';
 
 /**
  * The Dashboard tab: the car's own screen, live, beside the car. Its headlamp controls switch the lamps,
@@ -60,8 +60,9 @@ function coachText(vehicle: Vehicle, mode: LightMode, high: boolean, braking: bo
 // ------------------------------------------------------------------------------------ the screen
 
 /**
- * The car's screen and a line of guidance. On a wide window it is a column at the right, the camera framing
- * the car clear of it; on a narrower one it is a sheet over the car, opened from the dock.
+ * The car's screen and a line of guidance.
+ * Displays the car's interactive HMI central display in a floating, moveable tablet enclosure.
+ * Users can grab the top bezel / grip bar (with hand cursor) and drag the tablet freely across the screen.
  */
 export function DashboardScreen({
   vehicle,
@@ -81,6 +82,22 @@ export function DashboardScreen({
   const high = useVehicleStore((s) => s.highBeam);
   const braking = useVehicleStore((s) => s.braking);
 
+  // Moveable / Floating Drag State
+  const [offset, setOffset] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const dragStart = React.useRef<{
+    startX: number;
+    startY: number;
+    initOffsetX: number;
+    initOffsetY: number;
+  } | null>(null);
+  const tabletRef = React.useRef<HTMLDivElement>(null);
+
+  // Reset offset if vehicle or breakpoint changes
+  React.useEffect(() => {
+    setOffset({ x: 0, y: 0 });
+  }, [vehicle.slug, wide]);
+
   // the camera frames the car clear of the screen
   React.useEffect(() => {
     if (wide) setInset({ right: Math.min(0.6, (colW + 28) / vw), bottom: 0 });
@@ -96,51 +113,167 @@ export function DashboardScreen({
   if (!screenFits) return null;
   if (!wide && !open) return null;
 
-  const screen = (
-    <div className="w-full shrink-0" style={{ aspectRatio: `${CAR_SCREEN_W} / ${CAR_SCREEN_H}`, maxHeight: '100%' }}>
-      <Fit w={CAR_SCREEN_W} h={CAR_SCREEN_H} className="h-full w-full">
-        <CarScreen vehicle={vehicle} variant={variant} />
-      </Fit>
-    </div>
-  );
+  // Drag Event Handlers with Viewport Bounding
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    // Don't drag if clicking buttons, links, inputs, selects, textareas or any role="button" inside HMI
+    if (target.closest('button, a, input, select, textarea, [role="button"], [role="switch"], [role="tab"], [role="slider"]')) return;
 
-  if (wide) {
-    return (
-      <aside
-        className={`pointer-events-none absolute bottom-3 right-4 z-10 ${BELOW_TOP}`}
-        style={{ width: colW }}
-        aria-label="The car’s screen"
-      >
-        <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 pb-6">
-          {screen}
-          <p
-            className={`pointer-events-auto flex min-h-[34px] max-w-full items-center gap-2 rounded-full px-4 py-1.5 text-[12px] text-neutral-700 ${GLASS}`}
-            role="status"
-            aria-live="polite"
-          >
-            <span className="h-[7px] w-[7px] shrink-0 animate-pulse rounded-full bg-[#2f6bff]" aria-hidden />
-            <span>{coachText(vehicle, mode, high, braking)}</span>
-          </p>
-        </div>
-      </aside>
-    );
-  }
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+
+    dragStart.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initOffsetX: offset.x,
+      initOffsetY: offset.y,
+    };
+    setIsDragging(true);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!dragStart.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const dx = e.clientX - dragStart.current.startX;
+    const dy = e.clientY - dragStart.current.startY;
+    let nextX = dragStart.current.initOffsetX + dx;
+    let nextY = dragStart.current.initOffsetY + dy;
+
+    if (tabletRef.current) {
+      const rect = tabletRef.current.getBoundingClientRect();
+      const minX = -rect.left + offset.x + 8;
+      const maxX = window.innerWidth - (rect.left - offset.x) - rect.width - 8;
+      const minY = -rect.top + offset.y + 48;
+      const maxY = window.innerHeight - (rect.top - offset.y) - rect.height - 8;
+
+      nextX = Math.max(minX, Math.min(maxX, nextX));
+      nextY = Math.max(minY, Math.min(maxY, nextY));
+    }
+
+    setOffset({ x: nextX, y: nextY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!dragStart.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    dragStart.current = null;
+    setIsDragging(false);
+  };
+
+  const resetPosition = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setOffset({ x: 0, y: 0 });
+  };
+
+  const hasMoved = offset.x !== 0 || offset.y !== 0;
+
   return (
-    <aside className={`pointer-events-none absolute inset-x-2 bottom-[84px] z-10 ${BELOW_TOP}`} aria-label="The car’s screen">
-      <div className="flex h-full min-h-0 flex-col items-center gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className={`pointer-events-auto shrink-0 rounded-full px-4 py-2 text-[12px] font-medium text-neutral-700 ${GLASS} ${FOCUS}`}
+    <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-label="The car’s screen">
+      <div
+        ref={tabletRef}
+        role="region"
+        aria-label="Interactive Car Central Display Tablet"
+        style={{
+          width: wide ? colW : undefined,
+          transform: `translate3d(${offset.x}px, ${offset.y}px, 0)`,
+          transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+        className={`pointer-events-auto absolute ${
+          wide
+            ? 'top-[calc(var(--top-ui,56px)+16px)] right-6 max-w-[calc(100vw-32px)]'
+            : 'bottom-20 inset-x-2 mx-auto w-[calc(100vw-16px)] max-w-[560px]'
+        } select-none`}
+      >
+        {/* Outer Floating Tablet Enclosure */}
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onDoubleClick={resetPosition}
+          className={`group relative overflow-hidden rounded-[22px] bg-gradient-to-b from-[#242b38] via-[#161c26] to-[#0d121a] p-1.5 sm:p-2 transition-shadow duration-300 ${
+            isDragging
+              ? 'cursor-grabbing shadow-[0_40px_100px_-20px_rgba(0,0,0,0.95),0_0_0_1.5px_rgba(6,182,212,0.5)_inset] scale-[1.006]'
+              : 'cursor-grab shadow-[0_24px_60px_-16px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.12)_inset,0_2px_4px_rgba(255,255,255,0.2)_inset]'
+          }`}
         >
-          Show the car
-        </button>
-        {screen}
-        <p className={`pointer-events-auto max-w-full rounded-2xl px-4 py-1.5 text-center text-[12px] text-neutral-700 ${GLASS}`} role="status" aria-live="polite">
-          {coachText(vehicle, mode, high, braking)}
-        </p>
+          {/* Top Tablet Hardware Bezel: Sensor Dot, Brand/Model Title, Grip Pill, and Reset */}
+          <div className="relative mb-1 flex items-center justify-between px-2 pt-0.5">
+            {/* Left: Sensor dots & Model label */}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-1 opacity-60 shrink-0">
+                <div className="h-1 w-1 rounded-full bg-[#070b12] border border-white/20" />
+                <div className="h-1.5 w-1.5 rounded-full bg-[#03060a] border border-cyan-500/40" />
+              </div>
+              <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-[0.14em] text-neutral-300 truncate">
+                {vehicle.brand} {vehicle.model} · Central Display
+              </span>
+            </div>
+
+            {/* Center: Minimal Physical Grip Pill (Hand Cursor Area) */}
+            <div
+              className="flex items-center justify-center py-0.5 px-3 rounded-full hover:bg-white/[0.08] transition-colors shrink-0"
+              title="Drag to reposition display · Double-click to reset"
+            >
+              <div className="h-1 w-10 rounded-full bg-white/25 group-hover:bg-cyan-400/70 transition-colors" />
+            </div>
+
+            {/* Right: Reset and Close buttons */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {hasMoved && (
+                <button
+                  type="button"
+                  onClick={resetPosition}
+                  className="inline-flex items-center gap-1 rounded-full bg-white/[0.08] hover:bg-white/15 px-2 py-0.5 text-[8.5px] font-medium tracking-wider text-neutral-300 hover:text-white transition-colors"
+                  title="Reset to default position"
+                >
+                  <span>↺</span>
+                  <span>Reset</span>
+                </button>
+              )}
+              {!wide && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full bg-white/[0.08] hover:bg-white/15 px-2 py-0.5 text-[8.5px] font-medium tracking-wider text-neutral-300 hover:text-white transition-colors"
+                  title="Close screen"
+                >
+                  ✕ Close
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Screen Display Surface */}
+          <div className="relative overflow-hidden rounded-[16px] border border-white/[0.08] bg-[#060a12] shadow-[inset_0_0_30px_rgba(0,8,16,0.95)]">
+            <div className="w-full shrink-0" style={{ aspectRatio: `${CAR_SCREEN_W} / ${CAR_SCREEN_H}`, maxHeight: '100%' }}>
+              <Fit w={CAR_SCREEN_W} h={CAR_SCREEN_H} className="h-full w-full">
+                <CarScreen vehicle={vehicle} variant={variant} />
+              </Fit>
+            </div>
+          </div>
+
+          {/* Coach Guidance Status Bar (Docked at Bottom of Tablet) */}
+          <div className="mt-1.5 flex items-center justify-between rounded-lg bg-[#080d15]/90 px-2.5 py-1 border border-white/[0.06] text-[10.5px] text-neutral-300 backdrop-blur-md">
+            <div className="flex items-center gap-2 truncate">
+              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-cyan-400" aria-hidden />
+              <span className="truncate">{coachText(vehicle, mode, high, braking)}</span>
+            </div>
+            <span className="shrink-0 font-mono text-[8.5px] text-neutral-500 uppercase tracking-wider ml-2">
+              HMI Live
+            </span>
+          </div>
+        </div>
       </div>
-    </aside>
+    </div>
   );
 }
 
