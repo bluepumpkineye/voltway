@@ -184,6 +184,8 @@ interface Pane {
   door?: OpeningId;
   /** the pane's own colour, which the X-ray tab swaps for the ghost's */
   color: THREE.Color;
+  /** the pane's own specular intensity (a physical material's), which `Vehicle.glass.reflect` scales */
+  spec?: number;
 }
 
 /**
@@ -273,6 +275,8 @@ export function useGlass(
         // and an effect that runs again must not mistake the ghost for the glass
         const own = m as THREE.MeshStandardMaterial;
         own.userData.paneHex ??= '#' + own.color.getHexString();
+        const specular = (own as THREE.MeshPhysicalMaterial).specularIntensity;
+        if (specular !== undefined) own.userData.paneSpec ??= specular;
         const c = door ? (own.clone() as THREE.MeshStandardMaterial) : own;
         if (door) changed = true;
         panes.push({
@@ -281,6 +285,7 @@ export function useGlass(
           frit,
           door,
           color: coolGlass(own.userData.paneHex as string),
+          spec: own.userData.paneSpec as number | undefined,
         });
         return c;
       });
@@ -300,7 +305,7 @@ export function useGlass(
       const g = vehicle.glass ?? vehicle.xray ?? GHOST_GLASS;
       pane.m.color.set(ghost ? ghost.color : seeThrough && !pane.privacy ? g.color : pane.color);
       const swing01 = Math.min(1, p * 1.6);
-      const shut = pane.privacy ? kind.open : g.opacity;
+      const shut = pane.privacy ? (vehicle.glass?.privacy ?? kind.open) : g.opacity;
       const op = ghost
         ? ghost.opacity
         : pane.frit
@@ -318,6 +323,11 @@ export function useGlass(
       pane.m.opacity = op;
       pane.m.depthWrite = !transparent;
       pane.m.envMapIntensity = lv.inside && !pane.frit ? 0 : 1;
+      // scene.environment lights the glass, and three ignores a material's envMapIntensity then: the mirrored studio is
+      // scaled through the pane's specular intensity instead (F0 and F90 both follow it)
+      const phys = pane.m as THREE.MeshPhysicalMaterial;
+      const reflect = pane.privacy ? (vehicle.glass?.privacyReflect ?? vehicle.glass?.reflect ?? 1) : (vehicle.glass?.reflect ?? 1);
+      if (pane.spec !== undefined) phys.specularIntensity = pane.spec * (pane.frit || lv.inside ? 1 : reflect);
     };
     lv.repaint = () => panes.forEach(paint);
     const undo: (() => void)[] = [];

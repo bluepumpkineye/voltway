@@ -17,7 +17,7 @@ export const xpengP7Plus: Vehicle = {
       name: '602 Long Range',
       drive: 'RWD',
       battery: { capacityKwh: 60.7, chemistry: 'LFP', cRate: 3 },
-      performance: { powerKw: 180, torqueNm: 450, motorCount: 1 },
+      performance: { powerKw: 180, torqueNm: 450, motorCount: 1, zeroTo100S: 6.8, topSpeedKmh: 200 },
       range: [{ cycle: 'CLTC', km: 615 }],
     },
     {
@@ -25,7 +25,7 @@ export const xpengP7Plus: Vehicle = {
       name: '725 Ultra Long Range',
       drive: 'RWD',
       battery: { capacityKwh: 76.3, chemistry: 'LFP', cRate: 5 },
-      performance: { powerKw: 230, torqueNm: 450, motorCount: 1 },
+      performance: { powerKw: 230, torqueNm: 450, motorCount: 1, zeroTo100S: 5.9, topSpeedKmh: 200 },
       range: [{ cycle: 'CLTC', km: 725 }],
     },
   ],

@@ -561,9 +561,12 @@ export interface Vehicle {
   /**
    * The tint of the windscreen and the front windows seen from outside with the cabin behind them, when the maker's
    * photographs show darker glass than the X-ray's pale ghost (the default, `xray` or GHOST_GLASS in Openings.tsx).
-   * Colour is sRGB hex, opacity 0-1 (the higher, the less of the cabin shows through).
+   * Colour is sRGB hex, opacity 0-1 (the higher, the less of the cabin shows through). `privacy` is the same for the dark
+   * panes (rear windows, backlight, glass roof; the viewer's default is 0.55) when the photographs show them near black.
+   * `reflect` scales how much of the studio every pane mirrors from outside (default 1): a white studio laid over the glass is
+   * brighter than a photographed car's, whose panes mirror a dark ceiling. `privacyReflect` is `reflect` for the dark panes.
    */
-  glass?: { color: string; opacity: number };
+  glass?: { color: string; opacity: number; privacy?: number; reflect?: number; privacyReflect?: number };
   /** The Tech tab's demonstrations, see TechDemoSpec. */
   tech?: TechDemoSpec[];
   /**

@@ -37,10 +37,17 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
   const needleRpm = React.useRef<SVGGElement>(null);
   const needlePower = React.useRef<SVGGElement>(null);
 
-  // Torque distribution & G-meter refs
-  const torqueRatioText = React.useRef<SVGTextElement>(null);
-  const torqueActiveArc = React.useRef<SVGPathElement>(null);
+  // Acceleration Timer & G-meter refs
+  const timerSeconds = React.useRef<SVGTextElement>(null);
+  const timerTargetLabel = React.useRef<SVGTextElement>(null);
+  const timerProgressArc = React.useRef<SVGPathElement>(null);
+  const timerBadge = React.useRef<SVGTextElement>(null);
+  const timerBadgeBg = React.useRef<SVGRectElement>(null);
   const gBarFill = React.useRef<SVGRectElement>(null);
+
+  // Smooth RPM needle damping (eliminates flashing on gear upshifts)
+  const smoothRpmRef = React.useRef(0);
+  const lastPaintTimeRef = React.useRef(0);
 
   // Arched Rev Bars (52 lines across top)
   const revLedsRef = React.useRef<(SVGLineElement | null)[]>([]);
@@ -78,7 +85,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
 
   // Handle play / pause / finish transitions
   React.useEffect(() => {
-    if (!vehicle || vehicle.slug !== 'xiaomi-su7-ultra') return;
+    if (!vehicle) return;
     if (playing) {
       player.play(techClock.t, techSpeed);
     } else {
@@ -197,8 +204,22 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
       if (gearDigit.current) gearDigit.current.textContent = String(gear);
       if (gearBadge.current) gearBadge.current.textContent = String(nextGear);
 
-      // 6. Right Tachometer needle (0 to 8 x1000 RPM) with top-speed oscillation
-      const rpmVal = rpmFraction * 8;
+      // 6. Right Tachometer needle with smooth mechanical damping
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const dt = lastPaintTimeRef.current ? Math.min(0.08, (now - lastPaintTimeRef.current) / 1000) : 0.016;
+      lastPaintTimeRef.current = now;
+
+      if (!playing || techClock.t < 0.05) {
+        smoothRpmRef.current = rpmFraction;
+      } else {
+        // When gearing up: damp needle smoothly (rate 8.5) so it glides down realistically without flashing
+        // When pulling/accelerating: follow promptly (rate 22)
+        const lambda = rpmFraction < smoothRpmRef.current ? 8.5 : 22;
+        smoothRpmRef.current += (rpmFraction - smoothRpmRef.current) * (1 - Math.exp(-lambda * dt));
+      }
+      const displayedRpmFraction = smoothRpmRef.current;
+
+      const rpmVal = displayedRpmFraction * 8;
       const baseAngleRpm = -135 + (rpmVal / 8) * 270;
       const angleRpm = baseAngleRpm + needleFlutterRpm;
       if (needleRpm.current) {
@@ -207,7 +228,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
 
       // 7. Arched Rev Lights Bar (52 vertical bars filling left to right in solid red)
       const totalBars = 52;
-      const activeBars = Math.min(totalBars, Math.round(rpmFraction * totalBars));
+      const activeBars = Math.min(totalBars, Math.round(displayedRpmFraction * totalBars));
       for (let i = 0; i < totalBars; i++) {
         const el = revLedsRef.current[i];
         if (el) {
@@ -228,25 +249,50 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
         needlePower.current.setAttribute('transform', `translate(700, 170) rotate(${anglePow.toFixed(1)})`);
       }
 
-      // 7. Torque Distribution (Tri-motor: Front 288 kW, Rear 850 kW; Dynamic load transfer)
-      const squatTransfer = Math.min(12, Math.max(0, r.g * 8));
-      const rearRatio = Math.round(65 + squatTransfer);
-      const frontRatio = 100 - rearRatio;
-      if (torqueRatioText.current) torqueRatioText.current.textContent = `${frontRatio}:${rearRatio}`;
+      // 7. Acceleration Timer & Milestone Gauge (GT7 Cockpit Typography)
+      const targetTime = launch.marks.find((m) => m.speed === activeTarget)?.time ?? (activeTarget === 200 ? 6.09 : 1.98);
+      const isReached = r.elapsed >= targetTime - 0.02;
 
-      // Update active highlight segment along torque arc
-      if (torqueActiveArc.current) {
-        // Bias angle from front (180 deg) to rear (0 deg)
-        const rearFraction = rearRatio / 100;
-        const startDeg = 180 - rearFraction * 180 - 15;
-        const endDeg = 180 - rearFraction * 180 + 15;
-        const sRad = (startDeg * Math.PI) / 180;
-        const eRad = (endDeg * Math.PI) / 180;
-        const x1 = (420 - 56 * Math.cos(sRad)).toFixed(1);
-        const y1 = (185 - 56 * Math.sin(sRad)).toFixed(1);
-        const x2 = (420 - 56 * Math.cos(eRad)).toFixed(1);
-        const y2 = (185 - 56 * Math.sin(eRad)).toFixed(1);
-        torqueActiveArc.current.setAttribute('d', `M ${x1} ${y1} A 56 56 0 0 1 ${x2} ${y2}`);
+      // Stopwatch digital time readout in GT7 HUD typography
+      if (timerSeconds.current) {
+        timerSeconds.current.textContent = `${r.elapsed < 10 ? '0' : ''}${r.elapsed.toFixed(2)}`;
+      }
+
+      // Left Target Label (0-100 or ✓ 100)
+      if (timerTargetLabel.current) {
+        timerTargetLabel.current.textContent = isReached ? `✓ ${activeTarget}` : `0–{activeTarget}`;
+        timerTargetLabel.current.setAttribute('fill', isReached ? '#6ee7b7' : '#94a3b8');
+      }
+
+      // Progress fraction along semicircular arc (sweeps smoothly 0 to 180 deg)
+      const timerProgress = Math.min(1, Math.max(0, r.elapsed / targetTime));
+      if (timerProgressArc.current) {
+        if (timerProgress <= 0.005) {
+          timerProgressArc.current.setAttribute('d', 'M 364 185 A 56 56 0 0 1 364 185');
+          timerProgressArc.current.setAttribute('stroke', '#ffffff');
+        } else {
+          const currDeg = 180 - timerProgress * 180;
+          const currRad = (currDeg * Math.PI) / 180;
+          const currX = (420 - 56 * Math.cos(currRad)).toFixed(1);
+          const currY = (185 - 56 * Math.sin(currRad)).toFixed(1);
+          timerProgressArc.current.setAttribute('d', `M 364 185 A 56 56 0 0 1 ${currX} ${currY}`);
+          timerProgressArc.current.setAttribute('stroke', isReached ? '#10b981' : '#ffffff');
+        }
+      }
+
+      // Milestone status badge
+      if (timerBadge.current && timerBadgeBg.current) {
+        if (isReached) {
+          timerBadge.current.textContent = `✓ ${activeTarget} KM/H IN ${targetTime.toFixed(2)}s`;
+          timerBadge.current.setAttribute('fill', '#6ee7b7');
+          timerBadgeBg.current.setAttribute('fill', 'rgba(6, 78, 59, 0.8)');
+          timerBadgeBg.current.setAttribute('stroke', '#10b981');
+        } else {
+          timerBadge.current.textContent = `TARGET 0–{activeTarget} KM/H`;
+          timerBadge.current.setAttribute('fill', '#94a3b8');
+          timerBadgeBg.current.setAttribute('fill', '#131924');
+          timerBadgeBg.current.setAttribute('stroke', 'rgba(255, 255, 255, 0.2)');
+        }
       }
 
       // 8. Vertical G-Force Level Bar
@@ -263,7 +309,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
       });
 
       // 10. Audio drift correction
-      if (playing && vehicle?.slug === 'xiaomi-su7-ultra') {
+      if (playing) {
         const audioTime = player.currentTime;
         if (Math.abs(audioTime - techClock.t) > 0.35) {
           player.seek(techClock.t);
@@ -278,7 +324,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
       raf = requestAnimationFrame(loop);
     });
     return () => cancelAnimationFrame(raf);
-  }, [launch, playing, still, vehicle?.slug, player]);
+  }, [launch, playing, still, vehicle?.slug, player, activeTarget]);
 
   const handleSelectTarget = (targetSpeed: number) => {
     if (activeTarget === targetSpeed) return;
@@ -1059,25 +1105,39 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
             </text>
           </g>
 
-          {/* Torque Distribution Section */}
+          {/* Acceleration Timer Section */}
           <g transform="translate(420, 116)" textAnchor="middle">
-            {/* Left Chevron Button */}
-            <circle cx="-76" cy="-3" r="6" fill="#1e2430" stroke="rgba(255, 255, 255, 0.3)" strokeWidth="0.8" />
-            <path d="M -75 -6 L -78 -3 L -75 0" stroke="#ffffff" strokeWidth="1.2" fill="none" />
+            {/* Left Chevron Button (Target 100 km/h) - Spaced generously from title */}
+            <g
+              className="cursor-pointer transition-opacity hover:opacity-100"
+              onClick={() => handleSelectTarget(100)}
+              opacity={activeTarget === 100 ? 0.35 : 0.9}
+            >
+              <circle cx="-96" cy="-3" r="16" fill="transparent" />
+              <circle cx="-96" cy="-3" r="6.5" fill="#1b212c" stroke="rgba(255, 255, 255, 0.45)" strokeWidth="0.8" />
+              <polygon points="-98,-3 -94,-6 -94,0" fill="#ffffff" />
+            </g>
 
-            {/* Title Text */}
-            <text fontSize="13" fontWeight="600" fill="#e2e8f0" letterSpacing="0.4" fontFamily="'Chakra Petch', sans-serif">
-              Torque Distribution
+            {/* Title Text (GT7 Typography: Title Case, Chakra Petch font, 30px clear margin to arrows) */}
+            <text x="0" y="0" textAnchor="middle" fontSize="12" fontWeight="600" fill="#e2e8f0" letterSpacing="0.4" fontFamily="'Chakra Petch', sans-serif">
+              Acceleration Timer
             </text>
 
-            {/* Right Chevron Button */}
-            <circle cx="76" cy="-3" r="6" fill="#1e2430" stroke="rgba(255, 255, 255, 0.3)" strokeWidth="0.8" />
-            <path d="M 75 -6 L 78 -3 L 75 0" stroke="#ffffff" strokeWidth="1.2" fill="none" />
+            {/* Right Chevron Button (Target 200 km/h) - Spaced generously from title */}
+            <g
+              className="cursor-pointer transition-opacity hover:opacity-100"
+              onClick={() => hasMultipleMarks && handleSelectTarget(200)}
+              opacity={activeTarget === 200 || !hasMultipleMarks ? 0.35 : 0.9}
+            >
+              <circle cx="96" cy="-3" r="16" fill="transparent" />
+              <circle cx="96" cy="-3" r="6.5" fill="#1b212c" stroke="rgba(255, 255, 255, 0.45)" strokeWidth="0.8" />
+              <polygon points="98,-3 94,-6 94,0" fill="#ffffff" />
+            </g>
           </g>
 
-          {/* Torque Distribution Semicircular Arc */}
-          <g id="torqueArcSection">
-            {/* Background Base Arc (Thick Vibrant Yellow) */}
+          {/* Acceleration Timer Semicircular Gauge (GT7 Cockpit Topography) */}
+          <g id="timerGaugeSection">
+            {/* Background Base Track Arc (GT7 Thick Vibrant Yellow) */}
             <path
               d="M 364 185 A 56 56 0 0 1 476 185"
               fill="none"
@@ -1086,32 +1146,87 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
               strokeLinecap="round"
             />
 
-            {/* Dynamic Active Bias Segment (Bright White Highlight) */}
+            {/* Dynamic Active Progress Highlight Arc */}
             <path
-              ref={torqueActiveArc}
-              d="M 400 129 A 56 56 0 0 1 440 133"
+              ref={timerProgressArc}
+              d="M 364 185 A 56 56 0 0 1 364 185"
               fill="none"
               stroke="#ffffff"
               strokeWidth="6"
               strokeLinecap="round"
             />
 
-            {/* Top Indicator Triangle ▲ */}
+            {/* Top Indicator Triangle ▲ (GT7 Signature Framing) */}
             <polygon points="417,144 423,144 420,139" fill="#ffffff" />
 
-            {/* Bottom Indicator Triangle ▼ */}
+            {/* Bottom Indicator Triangle ▼ (GT7 Signature Framing) */}
             <polygon points="417,196 423,196 420,201" fill="#ffffff" />
 
-            {/* Centered Ratio Text: FRONT 35:65 REAR */}
-            <g transform="translate(420, 182)" textAnchor="middle">
-              <text x="-38" y="-1" textAnchor="end" fontSize="11" fontWeight="700" fill="#94a3b8" fontFamily="'Chakra Petch', sans-serif">
-                FRONT
+            {/* Centered Cockpit HUD Typography: [0-100]  00.00  [SEC] matching FRONT 35:65 REAR */}
+            <g transform="translate(420, 180)" textAnchor="middle">
+              <text
+                ref={timerTargetLabel}
+                x="-44"
+                y="-1"
+                textAnchor="end"
+                fontSize="11"
+                fontWeight="700"
+                fill="#94a3b8"
+                fontFamily="'Chakra Petch', sans-serif"
+              >
+                0–{activeTarget}
               </text>
-              <text ref={torqueRatioText} x="0" y="2" textAnchor="middle" fontSize="28" fontWeight="700" fill="#ffffff" fontFamily="'Chakra Petch', monospace" letterSpacing="0.5">
-                35:65
+              <text
+                ref={timerSeconds}
+                x="0"
+                y="2"
+                textAnchor="middle"
+                fontSize="28"
+                fontWeight="700"
+                fill="#ffffff"
+                fontFamily="'Chakra Petch', sans-serif"
+                letterSpacing="0.8"
+              >
+                00.00
               </text>
-              <text x="38" y="-1" textAnchor="start" fontSize="11" fontWeight="700" fill="#94a3b8" fontFamily="'Chakra Petch', sans-serif">
-                REAR
+              <text
+                x="44"
+                y="-1"
+                textAnchor="start"
+                fontSize="11"
+                fontWeight="700"
+                fill="#94a3b8"
+                fontFamily="'Chakra Petch', sans-serif"
+              >
+                SEC
+              </text>
+            </g>
+
+            {/* Milestone Status Pill Badge */}
+            <g transform="translate(420, 216)" textAnchor="middle">
+              <rect
+                ref={timerBadgeBg}
+                x="-64"
+                y="-9"
+                width="128"
+                height="18"
+                rx="4"
+                fill="#131924"
+                stroke="rgba(255, 255, 255, 0.2)"
+                strokeWidth="0.8"
+              />
+              <text
+                ref={timerBadge}
+                x="0"
+                y="3.5"
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight="700"
+                fill="#94a3b8"
+                fontFamily="'Chakra Petch', sans-serif"
+                letterSpacing="0.4"
+              >
+                TARGET 0–{activeTarget} KM/H
               </text>
             </g>
           </g>
@@ -1151,12 +1266,12 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
             strokeLinecap="round"
           />
 
-          {/* Redline Arc (From ~5.5 to 8, approx angle +30 deg to +135 deg) */}
+          {/* Redline Arc (From 6.0 to 8.0 RPM on outer rim radius 95) */}
           <path
-            d="M 747.5 87.0 A 95 95 0 0 1 767.2 207.2"
+            d="M 787.8 103.6 A 95 95 0 0 1 767.2 207.2"
             fill="none"
             stroke="#ff1a2a"
-            strokeWidth="5"
+            strokeWidth="4"
             strokeLinecap="round"
             filter="url(#gt7GlowRed)"
           />
@@ -1190,8 +1305,8 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
             <line x1="743.3" y1="75.1" x2="750.6" y2="64.3" stroke="#ffffff" strokeWidth="2.2" opacity="1" />
             <line x1="755.2" y1="75.4" x2="759.1" y2="70.8" stroke="#ffffff" strokeWidth="1" opacity="0.65" />
             <line x1="762.4" y1="82.3" x2="766.8" y2="78.2" stroke="#ffffff" strokeWidth="1" opacity="0.65" />
-            <line x1="768.8" y1="90" x2="773.6" y2="86.5" stroke="#ff1a2a" strokeWidth="1" opacity="0.65" />
-            <line x1="774.2" y1="98.5" x2="779.4" y2="95.5" stroke="#ff1a2a" strokeWidth="1" opacity="0.65" />
+            <line x1="768.8" y1="90" x2="773.6" y2="86.5" stroke="#ffffff" strokeWidth="1" opacity="0.65" />
+            <line x1="774.2" y1="98.5" x2="779.4" y2="95.5" stroke="#ffffff" strokeWidth="1" opacity="0.65" />
             <line x1="772.1" y1="110.2" x2="784.1" y2="105.2" stroke="#ff1a2a" strokeWidth="2.2" opacity="1" />
             <line x1="781.8" y1="116.9" x2="787.6" y2="115.3" stroke="#ff1a2a" strokeWidth="1" opacity="0.65" />
             <line x1="784" y1="126.7" x2="789.9" y2="125.8" stroke="#ff1a2a" strokeWidth="1" opacity="0.65" />

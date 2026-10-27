@@ -60,7 +60,7 @@ const Comparison3DShowroom = dynamic(
   },
 );
 
-const TABS: ShowroomTab[] = ['colour', 'interior', 'dashboard', 'wheels', 'dimensions', 'xray', 'charging', 'tech'];
+const TABS: ShowroomTab[] = ['colour', 'interior', 'dashboard', 'wheels', 'dimensions', 'xray', 'charging', 'drive', 'tech'];
 const DIMS: DimensionFocus[] = ['length', 'width', 'height'];
 /** the menu's height with its one row of tabs, px: the poses are composed for it */
 const ONE_ROW = 56;
@@ -73,6 +73,7 @@ const TITLES: Record<ShowroomTab, string> = {
   dimensions: 'Specifications',
   xray: 'X-ray',
   charging: 'Charging',
+  drive: 'Drive',
   tech: 'Tech',
 };
 
@@ -90,6 +91,8 @@ const NOTES: Record<ShowroomTab, string> = {
   xray: "The upper body is shown as a see-through shell, with the doors removed, so the cabin reads through it. A modelled view, not the maker's.",
   charging:
     "The charging window and its minutes are the maker's where it publishes them. The curve between, a peak it does not publish, the charger and the gun are ours; the minutes play in fourteen seconds.",
+  drive:
+    "Standing start acceleration simulation built from the manufacturer's published performance figures. Cockpit HUD displays real-time telemetry, gear shifts, and acceleration stopwatch.",
   tech: "What the car's technology does. Each demonstration is a simulation built from the maker's published figures, not its footage.",
 };
 
@@ -564,6 +567,7 @@ export function Showroom({
         {tab === 'dashboard' && (
           <DashboardControls screenFits={dash.screenFits} wide={dash.wide} screenOpen={screenOpen} onScreen={setScreenOpen} />
         )}
+        {tab === 'drive' && <LaunchTools vehicle={vehicle} />}
         {tab === 'tech' && demo && (
           <>
             {demo.driver === 'carpet' && <RideTools vehicle={vehicle} showHeights={!col.active} />}

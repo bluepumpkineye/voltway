@@ -27,6 +27,7 @@ const TABS: { id: ShowroomTab; label: string }[] = [
   { id: 'dimensions', label: 'Specifications' },
   { id: 'xray', label: 'X-ray' },
   { id: 'charging', label: 'Charging' },
+  { id: 'drive', label: 'Drive' },
   { id: 'tech', label: 'Tech' },
 ];
 

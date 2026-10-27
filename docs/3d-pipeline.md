@@ -1391,9 +1391,36 @@ Side-by-side crops of the photograph and the model at the same pixels found, in 
   negated (`_mirror`), and `build_design` builds the left corners from it. The export builds it beside the default (`export_g9l.WHEEL_GROUPS`,
   `build_wheel_options`) and the viewer shows one at a time (`configurator.wheels`, id `turbine-21`). Gloss black arms in a white studio
   reflect the floor and one read as chrome: `M_Wheel_Black` (rough 0.30, coat 0.25), barrel satin.
-- **Not fixed:** the backlight's lower corner, where the glass edge, the sail and the lamp shelf's end meet at an acute angle on a loft whose
-  sections turn down steeply (a pinched sail ridge, a wrinkled glass tip; `_zfoot` chamfers the foot 10 cm but the loft is the limit), and
-  the flank's long reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`).
+- **The roof is crowned, and the greenhouse is a teardrop (2026-10-27).** A flat lid 10 cm too wide per side was the main reason the greenhouse
+  read as a box. Measure it as a SWEEP, not by eye: the front and rear photographs' silhouettes (c1_0002 / c1_0006) through their solved
+  cameras, against the model's own sections at the same drops from the apex (508 px/m at the roof's depth): the photographs drop 2 cm at 0.46 m
+  from the centreline, 6 cm at 0.64, 13 cm at 0.68, 21 cm at 0.73. `g9l_surface`: `Z_CREST` -0.065 over the cabin, `Y_ROOF` 0.60-0.65 (was
+  0.65-0.79), `TUMBLE_CABIN` and the flatter `rail_crest` fade in from x -1.9. The windscreen's pillar is NOT the roof's line: the front
+  photograph's black frit band, row by row (the first run of dark pixels from outside, a 30-line node script), through the front camera and the side photograph's
+  pillar height (the ray meets the pillar's z(x)): |y| 0.73 at x 0.45, 0.78 at 0.7, 0.82 at 1.0, so `Y_ROOF` opens from 0.655 at x 0.3 to 0.72
+  at 0.45 over the header.
+- **Never look a window line up by HEIGHT on a flat-topped section.** `_flank_pts` finds a pixel's plane by iterating y on the section at the
+  pixel's own height; on the crowned roof (flat near the rail) 2 cm of z moved that point 20 cm across the roof, and the A-pillar's line wandered
+  over the windscreen as an S (a windscreen 14 cm too narrow in the front view). `g9l_panels._rail_pts` puts the pixel in the rail's own plane
+  (`S.Y_ROOF`) and `V_DLO` holds its height 6 mm under the rail point, so the lookup stays on the steep outboard side. Print the line's
+  (x, y, z) against the photograph's before trusting a lookup: sample `V_DLO` / `V_RAIL` along x, project the points through the front camera
+  and read them against the band's pixel columns.
+- **The backlight's lower corner.** The glass edge ran 4-7 cm down the near-vertical wall under the rail (z 1.21 at the tail end against the
+  rail's 1.28), a pointed tab; a foot line cut it off on a second grid across the sail's paint and the corner crumpled in every clearcoat.
+  `V_REARGLASS` is held to the loft's rail point (`S.v_rail`), the glass ends square on the tail cap (no foot, no chamfer), and the sail is two
+  panels with continuous lower edges (`G9L_Sail` behind the quarter's join with the cap, `G9L_Sail_Front` above the quarter's top edge ahead of
+  it): one panel whose lower edge jumped at the join was folded like paper there. The tail lamp's lens stands 3.5 mm over the shelf (it was
+  1.2): the "teeth" along the lamp's top were the shelf poking through the lens, a sawtooth of two near-coplanar glossy surfaces; render a
+  25 cm close-up with one object hidden at a time to find the one that draws them. `g9l_rear.wv_near` continues each row's (w, v) from the
+  neighbouring column instead of a fresh grid search per vertex (the lens's top row had bent back on itself before).
+- **Glass in the viewer is judged on a sampled box too.** The windscreen of c1_0002 reads 48,58,72 and the backlight of c1_0006 28,34,38; the
+  viewer's read 125,120,122 and 119,117,118, nearly all of it the white studio mirrored in the panes (more opacity alone made them brighter).
+  three 0.185 ignores `material.envMapIntensity` when the environment is `scene.environment` (the old `inside ? 0 : 1` line in `useGlass` was a
+  no-op), so the mirrored studio is scaled through the pane's `specularIntensity`: `Vehicle.glass` takes `opacity`, `privacy` (the dark panes'
+  opacity), `reflect` and `privacyReflect` per car. The G9L ships 0.85 / 0.92 / 0.28 / 0.16 and reads 59,56,59 and 34,33,35.
+- **Not fixed:** a tiny kink where the sail's wedge ends over the lamp shelf (visible only in a 25 cm close-up), and the flank's long
+  reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`). The tail's shoulders, mirrors
+  included, still stand ~4 cm wider per side than the rear photograph's at z 1.25 (c1_0006 through its camera).
 
 ### Judging the web result against the photo
 

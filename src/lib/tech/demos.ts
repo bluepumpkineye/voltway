@@ -31,6 +31,8 @@ export interface DemoContext {
   ride: { carpet: boolean; modeId: string | null };
   /** the numbers the demo's spec gives its driver (`TechDemoSpec.params`) */
   params: Record<string, number>;
+  /** the active variant for variant-specific demos (e.g. Drive launch) */
+  variantId?: string;
   /** the compass turn's choices: which front wheel it turns about, and how far (degrees) */
   chassis: { pivot: Pivot; angleDeg: number };
   /** which of the driver's scenes the demo plays (`TechDemoSpec.scenario`) */
@@ -225,12 +227,17 @@ const carpet: Driver = {
  * nose comes up, the wheels spin a little ahead of the road. Our shape throughout (launch.ts says which parts).
  */
 const launch: Driver = {
-  build: ({ vehicle, layout, body, start, params }) => {
-    const perf = vehicle.variants[0]?.performance;
+  build: ({ vehicle, layout, body, start, params, variantId }) => {
+    const variant = vehicle.variants.find((v) => v.id === variantId) ?? vehicle.variants[0];
+    const perf = variant?.performance;
     const targetSpeed = params.targetSpeed;
+    const zeroTo100 = perf?.zeroTo100S ?? 3.5;
+    const zeroTo200 =
+      perf?.zeroTo200S ??
+      (perf?.topSpeedKmh && perf.topSpeedKmh >= 200 ? Math.round(zeroTo100 * 3.15 * 10) / 10 : undefined);
     const run = planLaunch(layout, body, start, {
-      zeroTo100: perf?.zeroTo100S ?? 3,
-      zeroTo200: perf?.zeroTo200S,
+      zeroTo100,
+      zeroTo200,
       targetSpeed: typeof targetSpeed === 'number' ? targetSpeed : undefined,
     });
     return {

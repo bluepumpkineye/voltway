@@ -2,12 +2,27 @@
 
 import { soundOn, subscribeSound } from './engine';
 
+const DEFAULT_SOUNDS: Record<number, string> = {
+  100: '/sounds/xiaomi-su7-launch-100.mp3',
+  200: '/sounds/xiaomi-su7-launch-200.mp3',
+};
+
 /** Sound files for launch demos by vehicle slug and target threshold (km/h) */
 const LAUNCH_SOUNDS: Record<string, Record<number, string>> = {
   'xiaomi-su7-ultra': {
     100: '/sounds/xiaomi-su7-launch-100.mp3',
     200: '/sounds/xiaomi-su7-launch-200.mp3',
   },
+};
+
+/**
+ * Loop section boundaries for high-speed cruising.
+ * Avoids looping back to 0 s (standing start), which sounds like a broken record.
+ * Loops seamlessly across the steady-state top-speed motor whine.
+ */
+const LOOP_SECTIONS: Record<number, { loopStart: number; loopEnd: number }> = {
+  100: { loopStart: 5.5, loopEnd: 9.0 },
+  200: { loopStart: 10.2, loopEnd: 13.8 },
 };
 
 export class LaunchAudioController {
@@ -33,11 +48,28 @@ export class LaunchAudioController {
     this.stop();
     this.slug = slug;
     this.target = target;
-    const url = LAUNCH_SOUNDS[slug]?.[target];
+    const url = LAUNCH_SOUNDS[slug]?.[target] ?? DEFAULT_SOUNDS[target] ?? DEFAULT_SOUNDS[100];
     if (url && typeof window !== 'undefined') {
       const el = new Audio(url);
       el.preload = 'auto';
       el.muted = !soundOn();
+
+      // Clean continuous loop at cruising tone
+      el.addEventListener('timeupdate', () => {
+        const loop = LOOP_SECTIONS[this.target ?? 100];
+        if (loop && el.currentTime >= loop.loopEnd) {
+          el.currentTime = loop.loopStart;
+        }
+      });
+
+      el.addEventListener('ended', () => {
+        const loop = LOOP_SECTIONS[this.target ?? 100];
+        if (loop) {
+          el.currentTime = loop.loopStart;
+          el.play().catch(() => {});
+        }
+      });
+
       this.audio = el;
     }
   }

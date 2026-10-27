@@ -56,6 +56,21 @@ def _by_x(px, y0=0.93):
     return sorted(_flank_pts(px, y0))
 
 
+def _rail_pts(px):
+    """Photo pixels of a line along the greenhouse's top corner (the roof rail, the A-pillar) -> [(x, z)]. The pixel's plane is the loft's
+    rail y at that x, NOT the surface found from the pixel's own height as _flank_pts does: the crowned roof is flat enough that a 2 cm
+    change of z moved that surface point 20 cm across the roof, and the A-pillar's line wandered over the windscreen as an S."""
+    out = []
+    for (u, v) in px:
+        y = 0.75
+        for _ in range(6):
+            x, z = CAM.side_xz(u, v, y)
+            x = max(-S.HALF_L + 0.05, min(S.HALF_L - 0.05, x))
+            y = S.Y_ROOF(x)
+        out.append((x, z))
+    return sorted(out)
+
+
 # ----------------------------------------------------------------- stations
 X_COWL = S.COWL_X            # 1.200: windscreen base
 X_ROOF_F = 0.440             # windscreen header (the glass meets the roof)
@@ -115,14 +130,16 @@ def V_BELT(x):
 
 
 # the greenhouse's dark region: its upper boundary along the A-pillar's inner edge and the roof
-DLO_Z = Curve(_by_x(CAM.DLO_TOP_PX, 0.86))
+DLO_Z = Curve(_rail_pts(CAM.DLO_TOP_PX))
 
 
 def V_DLO(x):
-    """Upper edge of the side glass: the A-pillar's edge, the roof rail, the quarter glass's arch."""
+    """Upper edge of the side glass: the A-pillar's edge, the roof rail, the quarter glass's arch. The height is looked up on the section
+    from its OUTBOARD side: never above 6 mm under the rail point, so the line cannot jump inboard onto the crowned roof's flat top."""
     if x > X_COWL:
         return V_BELT(x)
-    return v_up(x, max(BELT_Z(max(-1.95, x)) + 0.004, DLO_Z(max(X_TIP, x))))
+    z = max(BELT_Z(max(-1.95, x)) + 0.004, DLO_Z(max(X_TIP, x)))
+    return v_up(x, min(z, S.Z_ROOF(x) + S.Z_CREST(x) - 0.006))
 
 
 def _rail_w(x):
@@ -167,55 +184,17 @@ Y_REARGLASS = Curve([
 
 
 def V_REARGLASS(x):
+    """The backlight's side edge: the photograph's plan-view line, but never below the loft's rail point. Behind x -2.26 the section
+    drops in a near-vertical wall under the rail, and a glass edge 4-7 cm down that wall (z 1.21 at the tail end against the rail's 1.28)
+    was a pointed tab: it needed a foot line to cut it off, the cut ran on a second grid across the sail's paint, and the tail's upper
+    corner crumpled in every clearcoat (2026-10-27). Held to the rail point the glass ends square on the tail cap and the sail's paint
+    below it thins to a point at the corner."""
     if x >= X_KNEE:
         return V_RAIL(x)
-    return S.v_at_y_upper(x, Y_REARGLASS(x))
+    return max(S.v_at_y_upper(x, Y_REARGLASS(x)), S.v_rail(x) + 0.004)
 
 
-# The backlight's foot. Its lower edge was the body's rear end (x -2.52), but the loft turns down there at the tail corners,
-# so the glass ended in a pointed tab 14 cm below the foot line (z 1.185 at |y| 0.64 against 1.33 on the centreline), hanging
-# over the lamp shelf as a black shard. The foot is the line z = Z_FOOT instead, and the sail's paint takes the corner below it.
-Z_FOOT = 1.245
-
-
-def _zfoot(y):
-    """The foot's height at |y|: Z_FOOT across the middle, rising 10 cm toward the rail, so the glass's lower corner is a chamfer that
-    ends above the lamp shelf's end instead of a pointed tab running down the corner (the close-up of the tail's upper corner:
-    the viewer's reflections crumpled in it)."""
-    return Z_FOOT + 0.100 * _smooth((abs(y) - 0.50) / 0.15)
-
-
-def X_REARGLASS_FOOT(v):
-    """x of the backlight's lower edge at v: where the body reaches the foot, no further back than -2.52."""
-    lo, hi = -2.52, -2.10                   # (the chamfer moves the foot at the rail forward of x -2.30: the old limit clamped it into a zigzag)
-    y, z = S.section_v(lo, v)
-    if z >= _zfoot(y):
-        return lo
-    for _ in range(28):
-        mid = 0.5 * (lo + hi)
-        y, z = S.section_v(mid, v)
-        if z < _zfoot(y):
-            lo = mid
-        else:
-            hi = mid
-    return hi
-
-
-def V_SAIL_TOP(x):
-    """The sail's upper edge: the backlight's side edge, or - behind the point where that edge falls below the foot - the foot line."""
-    v0 = V_REARGLASS(x)
-    y, z = S.section_v(x, v0)
-    if x > -2.10 or z >= _zfoot(y):
-        return v0
-    lo, hi = v0, 1.0
-    for _ in range(28):
-        mid = 0.5 * (lo + hi)
-        y, z = S.section_v(x, mid)
-        if z < _zfoot(y):
-            lo = mid
-        else:
-            hi = mid
-    return hi
+V_SAIL_TOP = V_REARGLASS        # the sail's upper edge is the glass's side edge: one line, one set of samples
 
 
 def V_QTOP(x):
@@ -227,13 +206,17 @@ def V_QTOP(x):
     return V_BELT(x) + (V_REARGLASS(x) - V_BELT(x)) * t
 
 
-def V_SAIL_LOW(x):
-    """The sail's lower edge: the quarter panel's top (it butts, no shut line, so the sail is not drawn twice over the quarter),
-    or - behind the quarter panel's end - the belt."""
-    if x >= N.JOIN_R(0.8):
-        return V_QTOP(x)
-    # behind the quarter panel the sail's foot is the tail cap's top edge (z 1.268; 13 mm under it): the paint that fills the
-    # wedge between the cap, the lamp shelf's end and the backlight's edge, running to a point at the corner
+# The quarter panel ends on the join with the tail cap, a near-vertical line (x -2.355 at v 0.5 to -2.349 at 0.65). Behind it the sail's
+# paint fills the wedge between the cap's top edge (z 1.268; the sail stands on z 1.255, 13 mm under it), the lamp shelf's end and the
+# backlight's edge; ahead of it the quarter's own top edge IS the glass edge up to x -2.20 and a strip of sail opens above it from there.
+# One panel carried both, its lower edge jumping from the glass edge to the cap's top at the join: a skewed column of cells there, folded
+# like paper in every clearcoat (2026-10-27). Two panels, each with a lower edge that is continuous.
+X_SAIL_J = N.JOIN_R(0.6)
+X_SAIL_OPEN = -2.20
+
+
+def V_SAIL_FOOT(x):
+    """The sail's lower edge behind the join: where the section stands at the cap's top edge."""
     return S.v_at_z(x, 1.255, S.V_SHOULDER, 1.0)
 
 
@@ -292,9 +275,12 @@ PANELS = [
     # painted roof between the rails: from the header back over the front seats
     dict(name="G9L_Roof_Paint", x=(X_ROOF_GLASS_R, X_ROOF_F), v=(V_RAIL, 1.0),
          nx=44, nv=22, gap=dict(v1=False, x0=False, x1=False, v0=False), mat="paint"),
-    # painted sail behind the glass tip, round the C-pillar to the backlight's edge
-    dict(name="G9L_Sail", x=(-2.52, X_TIP), v=(V_SAIL_LOW, V_SAIL_TOP),
-         nx=48, nv=28, gap=dict(v0=False, x0=False, x1=False), mat="paint"),
+    # painted sail behind the glass tip, round the C-pillar to the backlight's edge: behind the quarter's join with the tail cap ...
+    dict(name="G9L_Sail", x=(-2.52, X_SAIL_J), v=(V_SAIL_FOOT, V_SAIL_TOP),
+         nx=16, nv=28, gap=dict(v0=False, x0=False, x1=False), mat="paint"),
+    # ... and the strip that opens above the quarter's top edge ahead of it, to the quarter glass's tip
+    dict(name="G9L_Sail_Front", x=(X_SAIL_OPEN, X_TIP), v=(V_QTOP, V_SAIL_TOP),
+         nx=28, nv=14, gap=dict(v0=False, x0=False, x1=False), mat="paint"),
 
     # ---- the dark region under the side glass (the black frames show where glass stops). Satin, not gloss: the viewer's clear glass takes
     # most of this sheet out and the slivers it leaves between the panes (the pillars, the belt) mirrored the white studio as thin chrome
@@ -339,7 +325,7 @@ PANELS = [
          v=(lambda x: V_BELT(x) + 0.004, lambda x: V_DLO(x) - 0.004),
          nx=40, nv=24, glass="glass_dark"),
     # the wide backlight under the spoiler
-    dict(name="G9L_Glass_Rear", x=(X_REARGLASS_FOOT, X_KNEE - 0.006),
+    dict(name="G9L_Glass_Rear", x=(-2.52, X_KNEE - 0.006),
          v=(V_REARGLASS, 0.9995), nx=44, nv=40, glass="glass_dark",
          gap=dict(v1=False, x0=False), offset=0.001),
 ]

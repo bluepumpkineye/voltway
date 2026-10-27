@@ -7,6 +7,7 @@ import type { Vehicle } from '@/data/vehicles/schema';
 import { isStageTab, useVehicleStore } from '@/store/vehicle-store';
 import { techClock } from '@/lib/tech/clock';
 import { chargeDemo } from '@/lib/tech/charging';
+import { driveDemo } from '@/lib/tech/drive-demo';
 import { DRIVERS, visibleDemos } from '@/lib/tech/demos';
 import type { PlannedRun } from '@/lib/tech/kinematics';
 import { rideLevelsOf, RIDE_SPAN_MM } from '@/lib/tech/ride';
@@ -40,11 +41,20 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const compassPivot = useVehicleStore((s) => s.compassPivot);
   const compassAngle = useVehicleStore((s) => s.compassAngle);
   const launchTarget = useVehicleStore((s) => s.launchTarget);
+  const variantId = useVehicleStore((s) => s.variantId);
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
   const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
-  // the Tech tab plays the demo the visitor picked; the Charging tab plays the car's own charge
-  const spec = tab === 'tech' ? (demos.find((d) => d.id === demoId) ?? demos[0]) : tab === 'charging' ? (charging ?? undefined) : undefined;
+  const drive = React.useMemo(() => driveDemo(vehicle, variantId), [vehicle, variantId]);
+  // the Tech tab plays the demo the visitor picked; Charging plays charge; Drive plays acceleration
+  const spec =
+    tab === 'tech'
+      ? (demos.find((d) => d.id === demoId) ?? demos[0])
+      : tab === 'charging'
+        ? (charging ?? undefined)
+        : tab === 'drive'
+          ? (drive ?? undefined)
+          : undefined;
 
   const built = React.useMemo(() => {
     const driver = spec ? DRIVERS[spec.driver] : undefined;
@@ -60,12 +70,13 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       speed: parkSpeed,
       ride: { carpet: carpetOn, modeId },
       params: { ...(spec.params ?? {}), targetSpeed: launchTarget },
+      variantId: variantId || vehicle.variants[0]?.id,
       chassis: { pivot: compassPivot, angleDeg: compassAngle },
       scenario: spec.scenario,
     });
     return { spec, body, ...b, trailLine: b.trail ? trailOf(b.track) : null };
     // the rig is the same object for the car's life; `rigged` says when its wheels arrive
-  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle, launchTarget]);
+  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle, launchTarget, variantId]);
 
   // a demo starts from the top (or waits for a device to start it), and the camera takes in its floor
   React.useEffect(() => {

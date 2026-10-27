@@ -17,7 +17,7 @@ export const zeekr7x: Vehicle = {
       name: 'Standard Range RWD',
       drive: 'RWD',
       battery: { capacityKwh: 75, chemistry: 'LFP', architectureV: 800, cRate: 5.5, chargeMinutes10to80: 10.5 },
-      performance: { powerKw: 370, zeroTo100S: 5.4, motorCount: 1 },
+      performance: { powerKw: 370, zeroTo100S: 5.4, motorCount: 1, topSpeedKmh: 210 },
       range: [{ cycle: 'CLTC', km: 620 }],
     },
     {
@@ -25,7 +25,7 @@ export const zeekr7x: Vehicle = {
       name: 'Long Range RWD',
       drive: 'RWD',
       battery: { capacityKwh: 103, chemistry: 'NMC', architectureV: 900, cRate: 6, chargeMinutes10to80: 10 },
-      performance: { powerKw: 370, zeroTo100S: 5.1, motorCount: 1 },
+      performance: { powerKw: 370, zeroTo100S: 5.1, motorCount: 1, topSpeedKmh: 210 },
       range: [{ cycle: 'CLTC', km: 802 }],
     },
     {
@@ -33,7 +33,7 @@ export const zeekr7x: Vehicle = {
       name: 'Performance AWD',
       drive: 'AWD',
       battery: { capacityKwh: 103, chemistry: 'NMC', architectureV: 900, cRate: 6, chargeMinutes10to80: 10 },
-      performance: { powerKw: 585, zeroTo100S: 2.98, motorCount: 2 },
+      performance: { powerKw: 585, zeroTo100S: 2.98, motorCount: 2, topSpeedKmh: 210 },
       range: [{ cycle: 'CLTC', km: 715 }],
     },
   ],

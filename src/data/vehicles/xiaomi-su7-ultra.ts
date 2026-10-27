@@ -228,29 +228,6 @@ export const xiaomiSu7Ultra: Vehicle = {
   // of it deployed exists, and the owner (2026-10-13) said to leave it out for now.
   tech: [
     {
-      id: 'launch',
-      title: 'Launch',
-      blurb: 'A standing start to 100 km/h in 1.98 s and on to 200 km/h in 6.09 s. Watch the tail squat and the tyres bite.',
-      driver: 'launch',
-      devices: [],
-      claims: [
-        {
-          text: 'Xiaomi words it “2 seconds to 100”. Its footnote says the 0 to 100 km/h figure excludes rollout and needs Pirelli P Zero Trofeo RS semi-slick tyres.',
-          source: { label: 'Xiaomi, SU7 Ultra page', url: 'https://www.xiaomiev.com/ultra' },
-        },
-        {
-          text: 'The launch report gives 1.98 s from 0 to 100 km/h and 6.09 s from 0 to 200 km/h, from three electric motors with 1,138 kW (1,548 PS) combined.',
-          source: { label: 'CnEVPost, 27 February 2025', url: 'https://cnevpost.com/2025/02/27/xiaomi-launches-su7-ultra/' },
-        },
-        {
-          text: 'The car rides on a closed twin-chamber air suspension.',
-          source: { label: 'Xiaomi, SU7 Ultra page', url: 'https://www.xiaomiev.com/ultra' },
-        },
-      ],
-      simulated:
-        'A simulation. Only the two times are published: the pull’s shape between them, the tail’s squat and the tyres’ slip are ours. The 100 km/h time excludes rollout and needs Trofeo RS tyres. The wheels are drawn at three turns a second at most, so their spokes stay readable.',
-    },
-    {
       id: 'sensors',
       title: 'Autonomous Drive',
       blurb:

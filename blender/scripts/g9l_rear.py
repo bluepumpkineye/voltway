@@ -68,14 +68,14 @@ def _lerp(pts, y):
 # --------------------------------------------------------------- hardpoints
 Z_CAP_BOT = 1.147                      # the lamp cap's lower edge across the car
 Z_LAMP_RED = (1.226, 1.188)            # the two light strips
-CAP_END = 0.735                        # |y| where the lamp shelf and its lip end (see build_tail): inside the tail's half-width there (0.76 at z 1.2)
+CAP_END = 0.775                        # |y| where the lamp shelf and its lip end (see build_tail): inside the tail's half-width there (0.80 at z 1.2); the photograph's lamp bar ends at 0.78
 GATE_LOW = sorted(_yz(CAM.GATE_LOW_PX))                       # tailgate's lower edge (y, z)
 BUMPER_TOP = sorted(_yz(CAM.REAR_BUMPER_TOP_PX))              # black bumper's top edge (y, z)
 REFLECTOR = _yz(CAM.REFLECTOR_PX)
 VENT = _yz(CAM.REAR_VENT_PX)
 GAP = 0.0042
 SHELF_NEED = 0.060       # a cut band ends where the cap's top edge stands this far over its lower limit: at 3.5 cm the lamp shelf ended as a pointed wedge
-Y_POCKET = 0.795        # |y| of the corner pockets' outer wall: the black bumper ends here
+Y_POCKET = 0.835        # |y| of the corner pockets' outer wall: the black bumper ends here (c1_0030: 0.83)
 Y_SWEEP0 = 0.56         # the painted sweep under the pocket starts here, rising to the pocket's floor
 
 
@@ -141,7 +141,11 @@ def wv_of(y, z):
     import numpy as np
     G = _grid()
     k = int(np.argmin((G["Y"] - y) ** 2 + (G["Z"] - z) ** 2))
-    w, v = float(G["W"][k]), float(G["V"][k])
+    return _newton(y, z, float(G["W"][k]), float(G["V"][k]))
+
+
+def _newton(y, z, w, v):
+    """(w, v, miss): the 2-D Newton polish of a first guess (w, v) for the cap point at the elevation position (y, z)."""
     for _ in range(8):
         p = TAIL.point(w, v)
         fy, fz = p[1] - y, p[2] - z
@@ -161,6 +165,17 @@ def wv_of(y, z):
         v = min(1.0, max(0.0, v - dv))
     p = TAIL.point(w, v)
     return w, v, math.hypot(p[1] - y, p[2] - z)
+
+
+def wv_near(y, z, guess):
+    """(w, v) of the cap point at (y, z), continued from the neighbouring column's answer `guess`. Each vertex's own grid search
+    snapped to a different branch of the cap round the corner under the backlight (a 14 mm jump in y between neighbours, a bent top
+    row, a z bump): a lens whose normals zigzag shows black teeth in every clearcoat reflection. Newton from the neighbour's (w, v)
+    stays on the same sheet; if it loses the surface the robust search takes over."""
+    w, v, miss = _newton(y, z, guess[0], guess[1])
+    if miss > 0.004:
+        return wv(y, z)
+    return w, v
 
 
 def wv(y, z):
@@ -231,6 +246,7 @@ def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, 
         z0 = min(zlo(y), z1 - 0.004)
         return max(CAP_LOW, min(CAP_HIGH, z0 + (z1 - z0) * fr))
 
+    prev = [None] * (nz + 1)                        # each row's (w, v) at the previous column: the continuation's first guess
     for i in range(ny + 1):
         s = i / float(ny)
         s = 1.0 - (1.0 - s) ** 1.30               # columns packed toward the corner
@@ -243,7 +259,11 @@ def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, 
                 for _ in range(3):                  # the column's y depends on the height it lands at
                     y = ymin + (edge_y(z) - ymin) * s
                     z = row_z(y, fr)
-            w, v = wv(y, z) if cut else TAIL.wv_at(y, z)
+            if cut:
+                w, v = wv_near(y, z, prev[k]) if prev[k] is not None else wv(y, z)
+                prev[k] = (w, v)
+            else:
+                w, v = TAIL.wv_at(y, z)
             d = off_fn(y, fr) if off_fn else offset
             col.append(TAIL.offset(w, v, d) if d else TAIL.point(w, v))
         cols.append(col)
@@ -315,12 +335,12 @@ def build_lamps(collection, lib):
     # a dark smoked lens over the cap's face: the housing of the light
     made.append(band("G9L_Tail_Lens", lambda y: Z_CAP_BOT + 0.010, lambda y: CAP_HIGH - 0.012, 56, 4,
                      collection, lib["lamp_clear"],
-                     off_fn=lambda y, k: _shelf(y, Z_CAP_BOT + 0.010 + 0.110 * k) + 0.0012,
+                     off_fn=lambda y, k: _shelf(y, Z_CAP_BOT + 0.010 + 0.110 * k) + 0.0035,
                      y_max=CAP_END - 0.020, thickness=0.002, cut=True))      # a lens band running to the shelf's very end ended as a dark wedge
     # thin, precise light lines (c1_0030: a 3-4 mm red line near the top of the dark lens, a fainter one below it)
-    made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.0025, Z_LAMP_RED[0] + 0.0015, lib["led_red"], 0.0030))
+    made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.0025, Z_LAMP_RED[0] + 0.0015, lib["led_red"], 0.0052))
     made.append(strip("G9L_Tail_Strip_Low", Z_LAMP_RED[1] - 0.0015, Z_LAMP_RED[1] + 0.0015, lib["lamp_red_lens"],
-                      0.0030))
+                      0.0052))
     return made
 
 

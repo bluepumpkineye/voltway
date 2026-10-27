@@ -58,10 +58,10 @@ export type Gear = 'P' | 'D';
 export type Opening = 'doorFL' | 'doorFR' | 'doorRL' | 'doorRR' | 'frunk' | 'boot' | 'charge';
 
 /** The showroom's tabs (the menu at the top of /showroom/[slug]). */
-export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dimensions' | 'xray' | 'charging' | 'tech';
+export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dimensions' | 'xray' | 'charging' | 'drive' | 'tech';
 
 /** The tabs that stage the car on a floor of its own and play a demonstration on it (src/lib/tech). */
-export const isStageTab = (tab: ShowroomTab) => tab === 'tech' || tab === 'charging';
+export const isStageTab = (tab: ShowroomTab) => tab === 'tech' || tab === 'charging' || tab === 'drive';
 
 /** Which end of the car the Dashboard tab looks at: the lamps are at both. */
 export type LightsView = 'front' | 'rear';
@@ -81,6 +81,7 @@ const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   dimensions: 'side',
   xray: 'xray',
   charging: 'techWide',
+  drive: 'techWide',
   tech: 'techWide',
 };
 /** Where the camera goes to see a part open: the side its hinge is on. */

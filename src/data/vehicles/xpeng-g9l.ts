@@ -130,8 +130,8 @@ export const xpengG9l: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/xpeng-g9l-shadow.webp',
-      size: [8.139, 5.195],
-      centre: [0.009, 0.0],
+      size: [8.14, 5.195],
+      centre: [0.008, 0.0],
     },
     // the cabin (blender/scripts/g9l_interior*.py, the Bordeaux Red interior) with its Cycles light baked in:
     // export_g9l.web_cabin()
@@ -157,8 +157,10 @@ export const xpengG9l: Vehicle = {
     proxyUrl: '/models/xpeng-g9l-proxy.glb',
   },
   // The maker's photographs (Autohome 8659) show dark, smoky glass all round, windscreen included: the X-ray's pale
-  // ghost (the default for a front pane seen from outside) read as an open greenhouse, and made the body look taller
-  glass: { color: '#1C2229', opacity: 0.66 },
+  // ghost (the default for a front pane seen from outside) read as an open greenhouse, and made the body look taller. The
+  // windscreen of c1_0002 reads 48,58,72 on a sampled box and the backlight of c1_0006 28,34,38; the viewer's read 125,120,122
+  // and 119,117,118, mostly the white studio mirrored in the panes (more opacity alone made it brighter), so they mirror less
+  glass: { color: '#0C1116', opacity: 0.85, privacy: 0.92, reflect: 0.28, privacyReflect: 0.16 },
   configurator: {
     paintMaterial: 'M_Paint_G9L_Purple',
     paints: [
