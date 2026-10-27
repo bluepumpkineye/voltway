@@ -43,3 +43,26 @@ export function CarRoot({ vehicle, children }: { vehicle: Vehicle; children: Rea
   }, [vehicle]);
   return <group ref={ref}>{children}</group>;
 }
+
+/**
+ * For whatever shares the car's place and rides on its springs: the cabin (which stands outside the exterior's group), the
+ * Drive tab's schematic motors and battery. The outer group takes the car's place on the floor (heading and sideways travel),
+ * the inner one the body's pitch, roll and heave about its pivot, so that nothing the visitor can see through the glass is
+ * left where the car started.
+ */
+export function CarFollower({ vehicle, children }: { vehicle: Vehicle; children: React.ReactNode }) {
+  const place = React.useRef<THREE.Group>(null);
+  const body = React.useRef<THREE.Group>(null);
+  React.useEffect(() => {
+    const rig = rigOf(vehicle);
+    const a = place.current;
+    const b = body.current;
+    const offs = [a ? rig.attachRoot(a) : undefined, b ? rig.attachFollower(b) : undefined];
+    return () => offs.forEach((off) => off?.());
+  }, [vehicle]);
+  return (
+    <group ref={place}>
+      <group ref={body}>{children}</group>
+    </group>
+  );
+}

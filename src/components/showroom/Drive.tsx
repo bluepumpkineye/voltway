@@ -2,13 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import type { DriveCamera, DriveOverlay, Vehicle } from '@/data/vehicles/schema';
-import { flagshipVariant } from '@/data/vehicles/schema';
+import type { DriveOverlay, Vehicle } from '@/data/vehicles/schema';
 import { vehicles } from '@/data/vehicles';
 import { techClock, useTechClock } from '@/lib/tech/clock';
+import { soundOn, subscribeSound } from '@/lib/sound/engine';
 import { useRuntime } from '@/lib/tech/session';
-import { DRIVE_CAMERAS, driveSetup, timesOf, type DriveSetup } from '@/lib/tech/drive-setup';
+import { DRIVE_CAMERAS, camerasOf, driveSetup, type DriveSetup } from '@/lib/tech/drive-setup';
 import { HOLD, pullCurve, type DriveFacts, type DriveTelemetry } from '@/lib/tech/drive-run';
+import { rivalEnv, rivalOf, rivalTrack } from '@/lib/tech/drive-rival';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { BELOW_TOP, FOCUS, GLASS, PANEL } from './Chrome';
 
@@ -19,8 +20,6 @@ const f0 = (x: number) => Math.round(x).toString();
 const f1 = (x: number) => x.toFixed(1);
 const f2 = (x: number) => x.toFixed(2);
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
-
-const CAMERAS: DriveCamera[] = ['hero', 'chase', 'side', 'top'];
 
 // ------------------------------------------------------------------------------------------- small parts
 
@@ -366,7 +365,9 @@ function SteeringCard({ c, lead }: { c: Ctx; lead: boolean }) {
         </div>
       </div>
       <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        {hasRear
+        {tel.steerScale > 1
+          ? `The wheels turn this little in a gentle curve at speed; the car draws them ${tel.steerScale} times wider so that it shows.`
+          : hasRear
           ? active
             ? crab
               ? 'All four wheels turn the same way: the car slides sideways without turning.'
@@ -391,6 +392,20 @@ const CARDS: Record<DriveOverlay, (p: { c: Ctx; lead: boolean }) => React.JSX.El
 
 // ------------------------------------------------------------------------------------------- the chart
 
+/** How far ahead or behind the rival is at the clock's time, in metres, while its stand-in is drawn beside the car. */
+function RivalGap({ setup, facts, rival }: { setup: DriveSetup; facts: DriveFacts; rival: ReturnType<typeof rivalOf> }) {
+  const clock = useTechClock();
+  const track = React.useMemo(() => (rival ? rivalTrack(rival, setup.run.from, setup.run.to, setup.input.env) : null), [rival, setup.run.from, setup.run.to, setup.input.env]);
+  if (!rival || !track) return null;
+  const gap = track(clock.t) - facts.telemetry(clock.t).distance;
+  const ahead = gap > 0.05;
+  return (
+    <p className="tnum mt-1 text-[11px] text-neutral-700" aria-live="off">
+      {rival.car.brand} {rival.car.model}: {Math.abs(gap) < 0.05 ? 'level' : `${f1(Math.abs(gap))} m ${ahead ? 'ahead' : 'behind'}`}
+    </p>
+  );
+}
+
 /** Speed against time: the car's own run and, behind it, a rival's published pull on the same stopwatch. */
 function SpeedChart({
   vehicle,
@@ -398,12 +413,15 @@ function SpeedChart({
   facts,
   ghostSlug,
   onGhost,
+  beside,
 }: {
   vehicle: Vehicle;
   setup: DriveSetup;
   facts: DriveFacts;
   ghostSlug: string;
   onGhost: (slug: string) => void;
+  /** the rival's stand-in is drawn beside the car */
+  beside: boolean;
 }) {
   const clock = useTechClock();
   const W = 300;
@@ -411,24 +429,20 @@ function SpeedChart({
   const pad = { l: 24, r: 6, t: 6, b: 14 };
   const T = Math.max(clock.duration, 1);
   const own = facts.curve;
-  const ghostCar = ghostSlug ? vehicles.find((v) => v.slug === ghostSlug) : undefined;
+  const rival = React.useMemo(() => rivalOf(vehicles, vehicle, setup.spec, ghostSlug), [vehicle, setup.spec, ghostSlug]);
   const { from, to } = setup.run;
-  const ghostWants = setup.spec.ghost;
-  const ghost = React.useMemo(() => {
-    if (!ghostCar) return null;
-    // the trim the scenario names; the car's own base trim when the rival is the car itself; else the rival's flagship
-    const timed = ghostCar.variants.filter((v) => v.performance.zeroTo100S !== undefined);
-    const variant =
-      timed.find((v) => ghostWants?.slug === ghostCar.slug && v.id === ghostWants.variantId) ??
-      (ghostCar.slug === vehicle.slug ? timed.reduce((a, v) => (v.performance.powerKw < a.performance.powerKw ? v : a), timed[0]) : flagshipVariant(ghostCar));
-    const { t100, t200, published200 } = timesOf(variant);
-    return {
-      car: ghostCar,
-      variant,
-      curve: pullCurve(t100, t200, from, to),
-      published: from === 0 && (to === 100 || (to === 200 && published200)),
-    };
-  }, [ghostCar, ghostWants, vehicle.slug, from, to]);
+  const road = setup.input.env;
+  const ghost = React.useMemo(
+    () =>
+      rival
+        ? {
+            curve: pullCurve(rival.t100, rival.t200, from, to, 0.1, rivalEnv(rival, road)),
+            // the maker's figure is dry and level
+            published: from === 0 && !road?.wet && !road?.gradePct && (to === 100 || (to === 200 && rival.published200)),
+          }
+        : null,
+    [rival, from, to, road],
+  );
 
   const vMax = Math.max(50, Math.ceil(Math.max(...own.v, ...(ghost?.curve.v ?? [0])) / 50) * 50);
   const x = (t: number) => pad.l + (t / T) * (W - pad.l - pad.r);
@@ -501,6 +515,7 @@ function SpeedChart({
         </label>
       </div>
       {ghost && !ghost.published && <p className="mt-0.5 text-[10px] text-neutral-400">* modelled from the rival’s own 0–100 time (and our estimate of its 0–200), not a published figure.</p>}
+      {beside && <RivalGap setup={setup} facts={facts} rival={rival} />}
     </div>
   );
 }
@@ -508,14 +523,72 @@ function SpeedChart({
 // ------------------------------------------------------------------------------------------- the panel
 
 /** What the run is saying now: the callout pinned to the latest moment passed. */
-function calloutAt(setup: DriveSetup, facts: DriveFacts, t: number): string {
+function calloutNow(setup: DriveSetup, facts: DriveFacts, t: number): { index: number; text: string } | null {
   const at = (cue: string) => facts.events.find((e) => e.cue === cue)?.t;
-  let best: { t: number; text: string } | null = null;
-  for (const c of setup.spec.callouts) {
+  let best: { t: number; index: number; text: string } | null = null;
+  setup.spec.callouts.forEach((c, index) => {
     const when = at(c.cue);
-    if (when !== undefined && when <= t + 1e-3 && (!best || when >= best.t)) best = { t: when, text: c.text };
-  }
-  return best?.text ?? 'Ready. Choose a drive mode, then press Launch; the playback bar steps through the run.';
+    if (when !== undefined && when <= t + 1e-3 && (!best || when >= best.t)) best = { t: when, index, text: c.text };
+  });
+  return best;
+}
+
+function calloutAt(setup: DriveSetup, facts: DriveFacts, t: number): string {
+  return calloutNow(setup, facts, t)?.text ?? 'Ready. Choose a drive mode, then press Launch; the playback bar steps through the run.';
+}
+
+/** What the voice says of a callout: its first full sentence (the label before it, "Launch.", is left out), so that it is done before the next. */
+export function spokenForm(text: string): string {
+  const parts = text.split(/(?<=[.:;])\s+/);
+  const full = parts.find((p) => p.trim().split(/\s+/).length >= 4) ?? text;
+  return full.replace(/[.:;]$/, '').replace(/°/g, ' degrees').replace(/\bkm\/h\b/g, 'kilometres per hour');
+}
+
+/**
+ * The callouts spoken as the run reaches them, when the visitor asks and the site's sound is on (the browser's own speech
+ * synthesis: nothing is sent anywhere). A pause, a scrub or a new run stops what is being said.
+ */
+function useVoice(setup: DriveSetup, facts: DriveFacts | null, on: boolean) {
+  const clock = useTechClock();
+  const speed = useVehicleStore((s) => s.techSpeed);
+  const spoken = React.useRef(-1);
+  const lastT = React.useRef(0);
+  const synth = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
+  const [sound, setSound] = React.useState(true);
+  React.useEffect(() => {
+    setSound(soundOn());
+    return subscribeSound(() => setSound(soundOn()));
+  }, []);
+
+  React.useEffect(() => {
+    if (!synth) return;
+    const live = on && sound && facts !== null;
+    if (!live || !clock.playing) {
+      synth.cancel();
+      // a pause keeps its place; a scrub back or a replay starts the callouts again
+      if (clock.t < lastT.current - 0.3 || clock.t < 0.2) spoken.current = -1;
+      lastT.current = clock.t;
+      return;
+    }
+    if (clock.t < lastT.current - 0.3) spoken.current = -1;
+    lastT.current = clock.t;
+    const now = calloutNow(setup, facts, clock.t);
+    if (!now || now.index === spoken.current) return;
+    spoken.current = now.index;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(spokenForm(now.text));
+    u.lang = 'en-GB';
+    u.rate = clamp(1 + (speed - 1) * 0.4, 0.8, 1.4);
+    synth.speak(u);
+  }, [synth, on, sound, facts, setup, clock.t, clock.playing, speed]);
+
+  // a new run, a new car or leaving the tab: nothing is left talking
+  React.useEffect(() => {
+    spoken.current = -1;
+    return () => synth?.cancel();
+  }, [synth, setup.run.id, setup.mode.id, setup.load.id, setup.variant.id]);
+
+  return Boolean(synth);
 }
 
 function PostRun({ vehicle, setup, facts, ghostSlug, onClose }: { vehicle: Vehicle; setup: DriveSetup; facts: DriveFacts; ghostSlug: string; onClose: () => void }) {
@@ -581,6 +654,9 @@ function PanelBody({ vehicle }: { vehicle: Vehicle }) {
   const { spec } = setup;
   const ghostSlug = choice.ghost ?? spec.ghost?.slug ?? '';
   const tel = facts ? facts.telemetry(clock.t) : null;
+  const canSpeak = useVoice(setup, facts, Boolean(choice.voice));
+  const rivalCar = React.useMemo(() => rivalOf(vehicles, vehicle, spec, ghostSlug), [vehicle, spec, ghostSlug]);
+  const canBeside = Boolean(rivalCar?.car.assets.proxyUrl);
   const done = clock.duration > 0 && clock.t >= clock.duration - 0.05 && !clock.playing;
   // a new run shows its summary again
   React.useEffect(() => setHidden(false), [setup.run.id, setup.mode.id, setup.load.id, variantId, setup.brake]);
@@ -627,11 +703,54 @@ function PanelBody({ vehicle }: { vehicle: Vehicle }) {
             ]}
           />
         )}
+        <div className="grid grid-cols-[auto_1fr] gap-x-4">
+          <Seg
+            label="Road"
+            value={choice.surface ?? 'dry'}
+            onChange={(id) => setDrive({ surface: id })}
+            options={[
+              { id: 'dry', label: 'Dry', hint: 'The maker’s own run is dry and level' },
+              { id: 'wet', label: 'Wet', hint: 'The tyres hold about 0.7 g; ours' },
+            ]}
+          />
+          <Seg
+            label="Hill"
+            value={String(choice.grade ?? 0)}
+            onChange={(id) => setDrive({ grade: Number(id) })}
+            options={[
+              { id: '-6', label: '−6 %', hint: 'Downhill' },
+              { id: '0', label: 'Level' },
+              { id: '6', label: '+6 %', hint: 'Uphill' },
+            ]}
+          />
+        </div>
+        {canBeside && (
+          <Seg
+            label="Rival car"
+            value={choice.rival ? 'beside' : 'none'}
+            onChange={(id) => setDrive({ rival: id === 'beside' })}
+            options={[
+              { id: 'none', label: 'Off' },
+              { id: 'beside', label: `Beside: ${rivalCar?.car.brand} ${rivalCar?.car.model}`, hint: 'Its stand-in drives beside you on its own published pull' },
+            ]}
+          />
+        )}
+        {canSpeak && (
+          <Seg
+            label="Voice"
+            value={choice.voice ? 'on' : 'off'}
+            onChange={(id) => setDrive({ voice: id === 'on' })}
+            options={[
+              { id: 'off', label: 'Off' },
+              { id: 'on', label: 'Read the callouts', hint: 'The browser’s own speech; follows the site’s sound switch' },
+            ]}
+          />
+        )}
         <Seg
           label="Camera"
           value={choice.cam ?? setup.camera}
           onChange={(id) => setDrive({ cam: id })}
-          options={CAMERAS.map((id) => ({ id, label: DRIVE_CAMERAS[id].label }))}
+          options={camerasOf(vehicle).map((id) => ({ id, label: DRIVE_CAMERAS[id].label }))}
         />
       </div>
 
@@ -653,7 +772,7 @@ function PanelBody({ vehicle }: { vehicle: Vehicle }) {
       {facts && (
         <section className="rounded-xl bg-black/[0.04] px-3 py-2.5">
           <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Speed against time</h3>
-          <SpeedChart vehicle={vehicle} setup={setup} facts={facts} ghostSlug={ghostSlug} onGhost={(slug) => setDrive({ ghost: slug })} />
+          <SpeedChart vehicle={vehicle} setup={setup} facts={facts} ghostSlug={ghostSlug} onGhost={(slug) => setDrive({ ghost: slug })} beside={Boolean(choice.rival)} />
         </section>
       )}
     </div>

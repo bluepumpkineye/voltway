@@ -302,7 +302,9 @@ export type AnchorId =
   // the Dashboard tab: the car's screen beside the car, looking at one end of it
   | 'dashFront'
   | 'dashRear'
-  | 'driver';
+  | 'driver'
+  // the Drive tab's seat: the driver's eye looking down the road, not at the dash
+  | 'driveSeat';
 
 /**
  * What a car offers the showroom. Colour values are matched by eye to the
@@ -431,7 +433,8 @@ export type DriveCue = 'launch' | 'pull' | 'target' | 'cruise' | 'brake' | 'stop
 /** What a car does after the pull, in its scenario: manoeuvres follow one another, a stop is the visitor's choice. */
 export type DriveManoeuvre = 'sweep' | 'slalom' | 'crab';
 
-export type DriveCamera = 'hero' | 'chase' | 'side' | 'top';
+/** The Drive tab's cameras: four outside, one in the driver's seat (the cabin rides with the car), one with the body see-through and the motors and battery drawn. */
+export type DriveCamera = 'hero' | 'chase' | 'side' | 'top' | 'cabin' | 'xray';
 
 /**
  * One car's Drive scenario (docs/tech-showcase.md section 19): what the run is, which of the car's own modes and loads

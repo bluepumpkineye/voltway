@@ -40,6 +40,22 @@ const smooth = (x: number) => {
   return t * t * (3 - 2 * t);
 };
 
+/** what a wet road holds: the friction coefficient of wet asphalt, ours (dry is what the maker's own run was made on) */
+const WET_MU = 0.72;
+
+/**
+ * What the road does to the pull and the stop: a wet road caps the acceleration at what the tyres hold (all four wheels on an
+ * all-wheel-drive car, about three fifths of the weight on a rear-driven one), and a hill takes g times its slope off the pull
+ * (and adds it to the stop uphill). Ours: the maker's run is dry and level.
+ */
+export function roadEnv(wet: boolean, awd: boolean, gradePct: number) {
+  return {
+    cap: wet ? WET_MU * G * (awd ? 1 : 0.62) : Infinity,
+    gradeA: G * Math.sin(Math.atan(gradePct / 100)),
+    wet,
+  };
+}
+
 /** Tyre slip by speed: a launch holds the tyres a little past their grip, and the slip fades as the car gets going. */
 const slipAt = (v: number) => 0.16 * Math.exp(-v / 15);
 
@@ -129,6 +145,8 @@ export interface DriveInput {
   manoeuvres?: ('sweep' | 'slalom' | 'crab')[];
   /** the extra runs the chips offer, with the time the maker publishes for 0-100 and 0-200 marked */
   runs?: { from: number; to: number }[];
+  /** the road: wet or dry, and the hill in per cent (negative: downhill) */
+  env?: { wet: boolean; gradePct: number };
 }
 
 /** What the run reads at one moment (the panel's instruments, the HUD's stopwatch). */
@@ -171,6 +189,8 @@ export interface DriveTelemetry {
   vectoring: number;
   /** the crab angle, degrees */
   crabDeg: number;
+  /** how many times wider than the readout the car's wheels are drawn turned (the S-curve's, so that they can be seen) */
+  steerScale: number;
   /** the road the car has covered, m */
   distance: number;
 }
@@ -200,6 +220,8 @@ export interface DriveSummary {
 
 export interface DriveFacts {
   motors: DriveMotor[];
+  /** the most the mode lets the battery give, kW (the scale of the power the instruments draw) */
+  modePeakKw: number;
   events: DriveEvent[];
   runs: DriveRunInfo[];
   /** the active run's id */
@@ -210,6 +232,8 @@ export interface DriveFacts {
   summary: DriveSummary;
   /** the run is the maker's own figure (full power, driver alone) */
   nominal: boolean;
+  /** the road the run is on */
+  env: { wet: boolean; gradePct: number };
   lateral: boolean;
   rearSteerMaxDeg: number;
 }
@@ -279,7 +303,14 @@ export function pullModel(t100: number, t200: number | undefined) {
 }
 
 /** The time a pull takes between two speeds, km/h, and the speed against time from the start of it, for a chart or a chip. */
-export function pullCurve(t100: number, t200: number | undefined, from: number, to: number, dt = 0.1) {
+export function pullCurve(
+  t100: number,
+  t200: number | undefined,
+  from: number,
+  to: number,
+  dt = 0.1,
+  env: { cap: number; gradeA: number } = { cap: Infinity, gradeA: 0 },
+) {
   const m = pullModel(t100, t200);
   const vTo = to / 3.6;
   let v = from / 3.6;
@@ -288,7 +319,7 @@ export function pullCurve(t100: number, t200: number | undefined, from: number, 
   let next = dt;
   while (v < vTo && t < 60) {
     const build = from === 0 ? smooth(t / BUILD) : smooth(t / 0.25);
-    v += m.at(v) * build * (1 / 960);
+    v += Math.max((Math.min(m.at(v), env.cap) - env.gradeA) * build, 0.05) * (1 / 960);
     t += 1 / 960;
     if (t >= next) {
       out.push(Math.min(v, vTo) * 3.6);
@@ -296,6 +327,34 @@ export function pullCurve(t100: number, t200: number | undefined, from: number, 
     }
   }
   return { time: t, v: out, dt };
+}
+
+/**
+ * How far along the road a car has got at time t when it holds its start speed for the stand on the line, pulls through its own
+ * curve (the same one the chart draws) and holds the speed it reached: the Drive tab's rival, drawn beside the car.
+ */
+export function pullTrack(
+  t100: number,
+  t200: number | undefined,
+  from: number,
+  to: number,
+  env?: { cap: number; gradeA: number },
+): (t: number) => number {
+  const c = pullCurve(t100, t200, from, to, 0.1, env);
+  const n = c.v.length;
+  const s: number[] = [0];
+  for (let i = 0; i + 1 < n; i++) s.push(s[i] + (((c.v[i] + c.v[i + 1]) / 2) / 3.6) * c.dt);
+  const v0 = from / 3.6;
+  return (t) => {
+    if (t <= HOLD) return v0 * Math.max(t, 0);
+    const base = v0 * HOLD;
+    const tau = t - HOLD;
+    const i = Math.min(Math.floor(tau / c.dt), n - 1);
+    const d = tau - i * c.dt;
+    if (i >= n - 1) return base + s[n - 1] + (c.v[n - 1] / 3.6) * d;
+    const a = (c.v[i + 1] - c.v[i]) / 3.6 / c.dt;
+    return base + s[i] + (c.v[i] / 3.6) * d + 0.5 * a * d * d;
+  };
 }
 
 // ------------------------------------------------------------------------------------------- the stop
@@ -349,6 +408,12 @@ type Seg =
   | { kind: 'crab'; v: number };
 
 const SWEEP = { amp: 1.0, lambda: 130, periods: 2, push: 0.26 };
+/**
+ * At 100 km/h the road wheels of a sedan turn about half a degree in a gentle S-curve, too little to see: they are drawn this many
+ * times wider in the sweep (the readout gives the real angle and says so), within a few degrees.
+ */
+export const SWEEP_STEER_DRAWN = 8;
+const SWEEP_STEER_MAX = 6 * DEG;
 const SLALOM = { amp: 1.4, lambda: 24, periods: 2 };
 const CRAB = { shift: 1.8 };
 
@@ -381,7 +446,7 @@ export function planDrive(
   body: { rear: number; front: number; halfWidth: number },
   start: { x: number; y: number; yaw: number },
   inp: DriveInput,
-  opts: { brake?: boolean } = {},
+  opts: { brake?: boolean; rival?: boolean } = {},
 ): DriveRun {
   const brakeNow = inp.finish === 'brake' || opts.brake === true;
   const segs = segmentsOf(inp, brakeNow && !(inp.manoeuvres?.length && inp.to <= 150));
@@ -422,6 +487,11 @@ export function planDrive(
   const rearMax = inp.chassis.rearSteerMaxDeg * DEG;
   const motors = inp.motors;
   const frontSum0 = motors.filter((m) => m.axle === 'front').reduce((s, m) => s + m.share, 0);
+  const road = roadEnv(Boolean(inp.env?.wet), frontSum0 > 0 && frontSum0 < 1, inp.env?.gradePct ?? 0);
+  const gradeA = road.gradeA;
+  // a wet road: the tyres slip more, and the stop is what they hold
+  const slipGain = road.wet ? 1.8 : 1;
+  const aBrakeNow = road.wet ? Math.min(aBrake, WET_MU * G * 0.97) : aBrake;
 
   // state
   let seg = 0;
@@ -537,7 +607,7 @@ export function planDrive(
           note('launch', rolling ? `${inp.from} km/h` : 'Launch');
         }
         const build = rolling ? smooth(segT / 0.25) : smooth(segT / BUILD);
-        a = model.at(v) * build;
+        a = (Math.min(model.at(v), road.cap) - gradeA) * build;
         aEnd = a;
         advance = v >= vTo;
         break;
@@ -596,12 +666,12 @@ export function planDrive(
             note('brake', 'Brake');
             braking = true;
           }
-          aCmd = -aBrake * clamp(v / 1.2, 0.3, 1);
+          aCmd = -aBrakeNow * clamp(v / 1.2, 0.3, 1) - gradeA;
           down = 60;
           up = 60;
         } else {
           phase = 'decel';
-          aCmd = -3 * clamp(v / 1.0, 0.25, 1);
+          aCmd = -3 * clamp(v / 1.0, 0.25, 1) - gradeA;
           down = 6;
           up = 6;
         }
@@ -621,7 +691,7 @@ export function planDrive(
         break;
       case 'decel':
         phase = 'decel';
-        aCmd = -Math.min(0.5 * G, 1.2 * Math.max(v - sg.vTo, 0));
+        aCmd = -Math.min(0.5 * G, 1.2 * Math.max(v - sg.vTo, 0)) - gradeA;
         down = 6;
         up = 6;
         advance = v <= sg.vTo + 0.1;
@@ -678,6 +748,7 @@ export function planDrive(
       }
       xc = tr / Math.abs(kappa);
       steer = corners.map((c) => Math.atan((kappa * (c.x - xc)) / (1 - kappa * c.y))) as typeof steer;
+      if (sg.kind === 'sweep') steer = steer.map((a) => clamp(a * SWEEP_STEER_DRAWN, -SWEEP_STEER_MAX, SWEEP_STEER_MAX)) as typeof steer;
       steerF = Math.atan(Math.sign(kappa) * tf);
       steerR = -Math.atan(Math.sign(kappa) * tr);
       yaw += Math.atan(kappa * xc);
@@ -702,7 +773,7 @@ export function planDrive(
     // the force at the road, the battery's power, and where the brakes' energy goes
     const drag = dragAt(v);
     const rolling_ = v > 0.1 ? rollF(inp.massKg) : 0;
-    const force = inp.massKg * a + drag + rolling_;
+    const force = inp.massKg * (a + gradeA) + drag + rolling_;
     let powerW = 0;
     let torque = 0;
     let regenFrac = 0;
@@ -750,7 +821,7 @@ export function planDrive(
       rec('A', a);
       rec('P', pitch);
       rec('R', roll);
-      rec('Q', a > 0.2 ? slipAt(v) * clamp(a / model.a0, 0, 1) : 0);
+      rec('Q', a > 0.2 ? slipAt(v) * slipGain * clamp(a / model.a0, 0, 1) : 0);
       rec('E', e);
       rec('YAW', yaw);
       rec('KAP', kappa);
@@ -786,7 +857,7 @@ export function planDrive(
 
     // wheels: they spin a touch ahead of the road, and at the very start spin up before the car has moved
     const lead = !rolling && t >= HOLD ? 1.2 * Math.exp(-(t - HOLD) / 0.18) : 0;
-    const slip = a > 0.2 ? slipAt(v) * clamp(a / model.a0, 0, 1) : 0;
+    const slip = a > 0.2 ? slipAt(v) * slipGain * clamp(a / model.a0, 0, 1) : 0;
     for (let j = 0; j < 4; j++) {
       const scrub = sg.kind === 'crab' ? Math.cos(crabAng - steer[j]) : 1;
       const w = ((v * (1 + slip) + lead) * scrub) / radius[j];
@@ -873,6 +944,7 @@ export function planDrive(
       radius: Math.abs(kap) > 1e-4 ? 1 / Math.abs(kap) : null,
       vectoring: at(C.VEC, time),
       crabDeg: at(C.CRAB, time) / DEG,
+      steerScale: PHASES[phaseIdx[k]] === 'sweep' ? SWEEP_STEER_DRAWN : 1,
       distance: at(C.S, time),
     };
   };
@@ -948,6 +1020,7 @@ export function planDrive(
 
   const facts: DriveFacts = {
     motors,
+    modePeakKw: inp.peakKw * inp.powerFrac,
     events: events.sort((x, y) => x.t - y.t),
     runs,
     run: runId,
@@ -955,6 +1028,7 @@ export function planDrive(
     curve: { dt: curveStep, v: curveV },
     summary,
     nominal: inp.nominal,
+    env: { wet: road.wet, gradePct: inp.env?.gradePct ?? 0 },
     lateral,
     rearSteerMaxDeg: inp.chassis.rearSteerMaxDeg,
   };
@@ -962,7 +1036,7 @@ export function planDrive(
   return {
     track,
     // the strip is a long one, with broad dashes: what streams past is the speed; a manoeuvre needs room to move sideways
-    road: { humps: [], from: -10, to: length + 30, width: lateral ? 7.6 : 5.2, markings: { period: 9, length: 3.2, joint: 12.5 } },
+    road: { humps: [], from: -10, to: length + 30, width: opts.rival ? 9.6 : lateral ? 7.6 : 5.2, markings: { period: 9, length: 3.2, joint: 12.5 } },
     scroll: (time) => at(C.S, time),
     chassis: (time) => ({ heave: 0, pitch: at(C.P, time), roll: at(C.R, time), lift: [0, 0, 0, 0] }),
     launch: {
@@ -980,7 +1054,7 @@ export function planDrive(
     frame: {
       cx: start.x + (body.front - body.rear) / 2,
       cz: -start.y,
-      radius: (body.rear + body.front) * (lateral ? 0.72 : 0.62),
+      radius: (body.rear + body.front) * (lateral ? 0.72 : 0.62) * (opts.rival ? 1.45 : 1),
       camera: { az: 72, el: 8 },
     },
     lateral,
@@ -988,7 +1062,8 @@ export function planDrive(
 }
 
 /** The chips of the run: 0-100, 0-200 where the variant has a time for it, and the scenario's own (a rolling pull). */
-export function runList(inp: Pick<DriveInput, 'zeroTo100' | 'zeroTo200' | 'nominal' | 'runs' | 'zeroTo200Published'>, t100: number, t200: number | undefined): DriveRunInfo[] {
+export function runList(inp: Pick<DriveInput, 'zeroTo100' | 'zeroTo200' | 'nominal' | 'runs' | 'zeroTo200Published' | 'motors' | 'env'>, t100: number, t200: number | undefined): DriveRunInfo[] {
+  const env = roadEnv(Boolean(inp.env?.wet), inp.motors.some((m) => m.axle === 'front') && inp.motors.some((m) => m.axle === 'rear'), inp.env?.gradePct ?? 0);
   const all: { from: number; to: number }[] = [{ from: 0, to: 100 }];
   if (t200 !== undefined) all.push({ from: 0, to: 200 });
   for (const r of inp.runs ?? []) if (!all.some((x) => x.from === r.from && x.to === r.to)) all.push(r);
@@ -997,7 +1072,7 @@ export function runList(inp: Pick<DriveInput, 'zeroTo100' | 'zeroTo200' | 'nomin
     label: r.from === 0 ? `0–${r.to}` : `${r.from}–${r.to}`,
     from: r.from,
     to: r.to,
-    time: Math.round(pullCurve(t100, t200, r.from, r.to).time * 100) / 100,
+    time: Math.round(pullCurve(t100, t200, r.from, r.to, 0.1, env).time * 100) / 100,
     published: inp.nominal && r.from === 0 && (r.to === 100 || (r.to === 200 && inp.zeroTo200Published === true)),
   }));
 }

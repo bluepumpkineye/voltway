@@ -63,6 +63,8 @@ export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dime
 /** The tabs that stage the car on a floor of its own and play a demonstration on it (src/lib/tech). */
 export const isStageTab = (tab: ShowroomTab) => tab === 'tech' || tab === 'charging' || tab === 'drive';
 
+export type DriveSurface = 'dry' | 'wet';
+
 /** What the visitor has chosen on the Drive tab (src/lib/tech/drive-setup.ts); null leaves the choice to the car's scenario. */
 export interface DriveChoice {
   /** the run, "0-100" */
@@ -77,9 +79,20 @@ export interface DriveChoice {
   brake: boolean | null;
   /** the rival the chart draws behind the car (a slug), or '' for none */
   ghost: string | null;
+  /** the rival's stand-in car drawn beside the car, on the road, moving by its own pull */
+  rival: boolean | null;
+  /** the callouts spoken as the run reaches them */
+  voice: boolean | null;
+  /** the road: dry (the maker's own run) or wet */
+  surface: DriveSurface | null;
+  /** the hill, per cent: negative downhill; null is level */
+  grade: number | null;
 }
 
-export const DRIVE_CHOICE_NONE: DriveChoice = { run: null, mode: null, load: null, cam: null, brake: null, ghost: null };
+export const DRIVE_CHOICE_NONE: DriveChoice = { run: null, mode: null, load: null, cam: null, brake: null, ghost: null, rival: null, voice: null, surface: null, grade: null };
+
+/** The X-ray view: the X-ray tab, or the Drive tab's X-ray camera (the body see-through, the motors and the battery drawn). */
+export const isXrayView = (s: { tab: ShowroomTab; drive: DriveChoice }) => s.tab === 'xray' || (s.tab === 'drive' && s.drive.cam === 'xray');
 
 /** Which end of the car the Dashboard tab looks at: the lamps are at both. */
 export type LightsView = 'front' | 'rear';
@@ -358,7 +371,7 @@ export interface VehicleUiState {
 
 const anchorState = (anchorId: AnchorId) => ({
   anchorId,
-  cameraMode: anchorId === 'driver' ? ('interior' as const) : ('exterior' as const),
+  cameraMode: anchorId === 'driver' || anchorId === 'driveSeat' ? ('interior' as const) : ('exterior' as const),
 });
 
 const initialClimate: ClimateState = {

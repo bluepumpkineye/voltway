@@ -7,6 +7,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import type { Vehicle } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { resolveAnchor, type CarFrame, type V3 } from '@/lib/showroom/anchors';
+import { rigOf } from '@/lib/tech/rig';
 import { DRACO_PATH } from './CarModel';
 import { motionOk } from './configurator';
 
@@ -81,6 +82,17 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   );
 
   // the pose and the window as they are now, for the frame loop and the landing
+  // a pose is given for the car at the origin: inside, on the Drive tab, put it where the car is now
+  const inCar = React.useCallback(
+    (p: V3, mode: string): V3 => {
+      if (mode !== 'interior' || useVehicleStore.getState().tab !== 'drive') return p;
+      const { x, z, yaw } = rigOf(vehicle).state;
+      const cs = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      return [x + p[0] * cs + p[2] * sn, p[1], z - p[0] * sn + p[2] * cs];
+    },
+    [vehicle],
+  );
   const poseRef = React.useRef(pose);
   poseRef.current = pose;
   const viewport = React.useRef(size);
@@ -160,13 +172,16 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       c.maxPolarAngle = pose.maxPolar;
     };
 
+    // the Drive tab's seat: the pose is the car's own, and the car may be away from where it started
+    const pos = inCar(pose.pos, pose.mode);
+    const target = inCar(pose.target, pose.mode);
     if (first.current) {
       first.current = false;
       const cam = camera as THREE.PerspectiveCamera;
       cam.fov = pose.fov;
       lift.current = liftOf(pose, viewport.current.height);
       shift.current = shiftOf(pose, viewport.current.width);
-      void c.setLookAt(...pose.pos, ...pose.target, false);
+      void c.setLookAt(...pos, ...target, false);
       lock();
       invalidate();
       return;
@@ -179,13 +194,40 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     c.maxPolarAngle = Math.PI;
     c.smoothTime = motionOk() ? 0.55 : 0.01;
     const id = ++flight.current;
-    void c.setLookAt(...pose.pos, ...pose.target, true).then(() => {
+    void c.setLookAt(...pos, ...target, true).then(() => {
       if (id !== flight.current) return;
       c.smoothTime = 0.22;
       lock();
     });
     invalidate();
-  }, [pose, tick, stage, camera, invalidate]);
+  }, [pose, tick, stage, camera, invalidate, inCar]);
+
+  // The Drive tab's seat rides with the car: what it does sideways and in heading, the camera does with it (a drag still looks about)
+  const carAt = React.useRef<{ x: number; z: number; yaw: number } | null>(null);
+  useFrame(() => {
+    const c = controls.current;
+    const st = useVehicleStore.getState();
+    if (!c || st.tab !== 'drive' || st.cameraMode !== 'interior') {
+      carAt.current = null;
+      return;
+    }
+    const now = rigOf(vehicle).state;
+    const was = carAt.current;
+    carAt.current = { x: now.x, z: now.z, yaw: now.yaw };
+    if (!was || (was.x === now.x && was.z === now.z && was.yaw === now.yaw)) return;
+    const turn = now.yaw - was.yaw;
+    const cs = Math.cos(turn);
+    const sn = Math.sin(turn);
+    const move = (v: THREE.Vector3) => {
+      const rx = v.x - was.x;
+      const rz = v.z - was.z;
+      return new THREE.Vector3(now.x + rx * cs + rz * sn, v.y, now.z - rx * sn + rz * cs);
+    };
+    const p = move(c.getPosition(new THREE.Vector3()));
+    const t = move(c.getTarget(new THREE.Vector3()));
+    void c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, false);
+    c.update(0);
+  });
 
   // The field of view, the lift and the slide ease toward the pose's own (64 and
   // none in the cabin; 20-30, a lift, and a slide clear of a device outside). The
@@ -218,7 +260,9 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     // their underlays, and a 24-bit depth buffer cannot tell them apart from 25 m with a near plane that close
     // (the Tech tab's wide shots stand that far back). One sixtieth of the distance, between 2 and 50 cm.
     const dist = controls.current?.distance ?? 10;
-    const near = Math.min(0.5, Math.max(0.02, Math.round(dist / 0.6) / 100));
+    // the Drive tab's seat looks 100 m down a road that lies 4 mm over the floor: a near plane of 10 cm keeps the two apart
+    // (the cabin's nearest surface, the A-pillar, is 35 cm away)
+    const near = poseRef.current.id === 'driveSeat' ? 0.1 : Math.min(0.5, Math.max(0.02, Math.round(dist / 0.6) / 100));
 
     const s = shown.current;
     if (

@@ -1,4 +1,6 @@
 import type { CarDriveMode, DriveCamera, DriveSpec, Variant, Vehicle } from '../../data/vehicles/schema';
+
+export type DriveSurface = 'dry' | 'wet';
 import { DRIVE_MODES, effectivePowerKw, efficiencyKwhPer100km, type DriveMode } from '../performance';
 import { driveTimes, runList, type DriveInput, type DriveMotor, type DriveRunInfo } from './drive-run';
 
@@ -20,7 +22,17 @@ export const DRIVE_CAMERAS: Record<DriveCamera, { az: number; el: number; label:
   chase: { az: 158, el: 11, label: 'Chase' },
   side: { az: 90, el: 3, label: 'Side' },
   top: { az: 90, el: 80, label: 'Top' },
+  // the cabin's camera is the driver's seat (the store's 'driver' anchor), its az and el are not used
+  cabin: { az: 0, el: 0, label: 'Cabin' },
+  xray: { az: 52, el: 24, label: 'X-ray' },
 };
+
+/** The cameras a car offers: all the outside ones, the seat where it has a cabin, the X-ray where it has a cabin to see through. */
+export function camerasOf(vehicle: Vehicle): DriveCamera[] {
+  const cams: DriveCamera[] = ['hero', 'chase', 'side', 'top'];
+  if (vehicle.assets.interiorModelUrl) cams.push('cabin', 'xray');
+  return cams;
+}
 
 export interface DriveSelection {
   variantId?: string | null;
@@ -29,6 +41,11 @@ export interface DriveSelection {
   runId?: string | null;
   /** a stop after the run: null leaves it to the scenario */
   brake?: boolean | null;
+  /** the road: dry (the maker's own run) or wet, and the hill in per cent (negative: downhill) */
+  surface?: DriveSurface | null;
+  grade?: number | null;
+  /** the slug of the rival drawn beside the car, when there is one (src/lib/tech/drive-rival.ts) */
+  rival?: string | null;
 }
 
 export interface DriveLoad {
@@ -142,7 +159,9 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
   const kerbKg = vehicle.dimensions.kerbWeightKg ?? KERB_FALLBACK;
   const refMassKg = kerbKg + DRIVER_KG;
   const massKg = kerbKg + load.payloadKg;
-  const nominal = powerFrac >= 0.999 && Math.abs(massKg - refMassKg) < 1;
+  const env = { wet: sel.surface === 'wet', gradePct: sel.grade ?? 0 };
+  // the maker's run is full power, the driver alone, dry and level
+  const nominal = powerFrac >= 0.999 && Math.abs(massKg - refMassKg) < 1 && !env.wet && env.gradePct === 0;
 
   const c = spec.chassis ?? {};
   const suv = vehicle.bodyStyle === 'SUV' || vehicle.bodyStyle === 'Coupe SUV';
@@ -178,6 +197,7 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
     brake100M: spec.brake100M,
     manoeuvres,
     runs: spec.runs,
+    env,
   };
 
   const shown = driveTimes(t100, t200, powerFrac, massKg / refMassKg);

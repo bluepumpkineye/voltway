@@ -7,6 +7,7 @@ import { chargeFacts, portOf } from './charging';
 import { planLaunch, type LaunchRun } from './launch';
 import { planDrive } from './drive-run';
 import { DRIVE_CAMERAS, driveSetup, type DriveSelection } from './drive-setup';
+import { rivalOf, rivalTrack } from './drive-rival';
 import { ASSIST_MOTION, planPark, PARK_MOTION, type BodyBox, type ParkSpeed, type ParkStage, type Pose } from './park';
 import type { Chassis, RideMode } from './ride';
 import { planBoost, type BoostRun } from './boost';
@@ -66,6 +67,8 @@ export interface BuiltDemo {
   sensors?: SensorsRun;
   /** the swivel screen's demo: the pose the car's screen is asked for at each time (the director writes it to the store) */
   swivel?: SwivelRun;
+  /** the Drive tab's rival: who it is, how far along the road it has got at time t, and the lane it keeps (m to the right of the car's) */
+  rival?: { slug: string; distance: (t: number) => number; lane: number };
   /**
    * A demo that keeps the car on the spot and rolls a road under it (the Magic Carpet's run, the launch): the road,
    * how far it has rolled at time t, the body's motion on its springs and the wheels' travel, and the look the
@@ -255,6 +258,9 @@ const launch: Driver = {
   },
 };
 
+/** the rival's lane: one lane (m) to the right of the car's, the passenger's side, so the car stands between it and the hero camera */
+const RIVAL_LANE = 3.4;
+
 /**
  * The Drive tab's run: the car's own scenario (`Vehicle.drive`) on its variant's published figures, in the mode and with the
  * load the visitor chose. The road rolls under the car like the launch's; a manoeuvre moves the car sideways on it.
@@ -262,7 +268,10 @@ const launch: Driver = {
 const drive: Driver = {
   build: ({ vehicle, layout, body, start, variantId, drive: choice }) => {
     const setup = driveSetup(vehicle, { ...choice, variantId });
-    const run = planDrive(layout, body, start, setup.input, { brake: setup.brake });
+    // the rival beside the car (its own stand-in, on its own published pull), when one is asked for and it has a model
+    const rival = choice?.rival ? rivalOf(vehicles, vehicle, vehicle.drive, choice.rival) : null;
+    const beside = rival && rival.car.assets.proxyUrl ? rival : null;
+    const run = planDrive(layout, body, start, setup.input, { brake: setup.brake, rival: Boolean(beside) });
     return {
       track: run.track,
       stops: [],
@@ -277,6 +286,7 @@ const drive: Driver = {
         launch: run.launch,
         lateral: run.lateral,
       },
+      rival: beside ? { slug: beside.car.slug, distance: rivalTrack(beside, setup.run.from, setup.run.to, setup.input.env), lane: RIVAL_LANE } : undefined,
     };
   },
 };

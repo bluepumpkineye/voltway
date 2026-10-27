@@ -6,17 +6,17 @@ import { useGLTF, Html } from '@react-three/drei';
 import { addAfterEffect, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { OpeningId, Vehicle, Variant } from '@/data/vehicles/schema';
-import { useVehicleStore } from '@/store/vehicle-store';
+import { isXrayView, useVehicleStore } from '@/store/vehicle-store';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
 import { cullBehindClearGlass, useCabinStencil, useGlassStencil } from './clearGlass';
-import { useXray, useXrayCabin } from './Xray';
+import { useBodyGhost, useXray, useXrayCabin } from './Xray';
 import { hingesOf } from '@/lib/openings';
 import { prepareRig } from '@/lib/tech/rig';
 import { CarLights } from './Lights';
-import { useRigBinding } from './techRig';
+import { CarFollower, useRigBinding } from './techRig';
 import { rigSwivel } from './ScreenSwivel';
 import { smoothBakedLight } from './bakeSmooth';
 
@@ -176,7 +176,10 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   // the doors swing on their hinge nodes (vehicle.openings) and open on a tap
   useHingedNodes(model, vehicle, 'node');
   useHingedNodes(model, vehicle, 'frameNode');
-  const xray = useVehicleStore((s) => s.tab === 'xray') && Boolean(vehicle.xray) && hasCabin;
+  // the X-ray tab (the greenhouse and the doors go; needs the car's X-ray spec) and the Drive tab's X-ray camera (the whole body goes)
+  const xrayTab = useVehicleStore((s) => s.tab === 'xray') && Boolean(vehicle.xray) && hasCabin;
+  const driveXray = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray') && hasCabin;
+  const xray = xrayTab || driveXray;
   // the cabin is mounted behind the exterior (ShowroomViewer): the windscreen and the front windows are clear glass once it is
   const cabinReady = useVehicleStore((s) => s.cabinReady);
   const isCabinReady = forceClearGlass !== undefined ? forceClearGlass : cabinReady;
@@ -186,6 +189,7 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   useGlass(model, vehicle, inside, hasCabin, xray, isCabinReady && clearTab);
   useGlassStencil(model, hasCabin && isCabinReady && clearTab && !inside && !xray && shut);
   useXray(model, vehicle, xray);
+  useBodyGhost(model, driveXray);
   useStruts(model, vehicle);
   const picks = useOpeningPicks(model, vehicle, 'node');
 
@@ -345,13 +349,13 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
 
   // From outside, with every part shut, the cabin is drawn only where clear glass is in front of it: nothing of it can show
   // through the bodywork, and the windscreen and front windows are windows (clearGlass.ts)
-  const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && s.tab !== 'xray' && s.tab !== 'tech' && s.shut);
+  const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && !isXrayView(s) && s.tab !== 'tech' && s.shut);
   useCabinStencil(model, masked);
 
   // The boot's carpet, trim and plate (INT_Boot_*) are the open hatch's to show. Shut, nothing of them is seen through the
   // glass; but with a door open the cabin is no longer stencilled to the glass, and the shut line beside the hatch showed
   // them as a black blade down each tail corner.
-  const bootShown = useVehicleStore((s) => s.openings.boot || s.tab === 'xray');
+  const bootShown = useVehicleStore((s) => s.openings.boot || isXrayView(s));
   React.useEffect(() => {
     model.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -363,7 +367,7 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
   // the door cards turn about the same hinges as the exterior doors
   useHingedNodes(model, vehicle, 'cardNode');
   useHiddenWhileOpen(model, vehicle, useVehicleStore((s) => s.cameraMode !== 'exterior'));
-  useXrayCabin(model, vehicle, useVehicleStore((s) => s.tab === 'xray'));
+  useXrayCabin(model, vehicle, useVehicleStore(isXrayView));
   const picks = useOpeningPicks(model, vehicle, 'cardNode');
 
   const refs = React.useMemo(() => {
@@ -431,11 +435,14 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
     invalidate();
   }, [refs.screens, invalidate]);
 
+  // the cabin rides with the car: its place on the floor and the body's pitch and roll (a demo that moves the car moves it too)
   return (
-    <group>
-      <primitive object={model} {...picks} />
-      <LiveScreen model={model} vehicle={vehicle} variant={variant} />
-    </group>
+    <CarFollower vehicle={vehicle}>
+      <group>
+        <primitive object={model} {...picks} />
+        <LiveScreen model={model} vehicle={vehicle} variant={variant} />
+      </group>
+    </CarFollower>
   );
 }
 

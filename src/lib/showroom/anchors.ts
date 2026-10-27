@@ -187,6 +187,26 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPo
   };
 }
 
+/** The Drive tab's seat: the same eye, looking along the road with the dash low in the picture, a wider lens. */
+function driveSeatPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPose {
+  const base = driverPose(vehicle, frame, aspect);
+  // the camera-matched eye is low against the dash (the wheel is at its height): a taller seat lifts the eye 10 cm, so that the road
+  // shows between the horizon and the dash instead of being hidden behind it
+  const x = base.pos[0];
+  const y = base.pos[1] + 0.1;
+  const z = base.pos[2];
+  return {
+    ...base,
+    id: 'driveSeat',
+    pos: [x, y, z],
+    target: [x + 0.15, y - 0.02, z],
+    // the cluster and the playback bar are drawn over the foot of the picture: nothing lifts it clear of them
+    liftPx: 0,
+    liftFrac: 0,
+    fov: aspect < 0.9 ? Math.min(88, 60 * (1 + (0.9 - aspect))) : 60,
+  };
+}
+
 export function resolveAnchor(
   id: AnchorId,
   vehicle: Vehicle,
@@ -194,6 +214,7 @@ export function resolveAnchor(
   aspect: number,
 ): AnchorPose {
   if (id === 'driver') return driverPose(vehicle, frame, aspect);
+  if (id === 'driveSeat') return driveSeatPose(vehicle, frame, aspect);
 
   const H = vehicle.dimensions.heightMm / 1000;
   const W = vehicle.dimensions.widthMm / 1000;

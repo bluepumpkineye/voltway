@@ -5,7 +5,7 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url)).split(String.fromCharCode(92)).join('/').replace(/[/]$/, '');
-const { planDrive, driveTimes, pullCurve, V100 } = await import(pathToFileURL(`${root}/src/lib/tech/drive-run.ts`).href);
+const { planDrive, driveTimes, pullCurve, pullTrack, roadEnv, V100 } = await import(pathToFileURL(`${root}/src/lib/tech/drive-run.ts`).href);
 const { planLaunch } = await import(pathToFileURL(`${root}/src/lib/tech/launch.ts`).href);
 
 const wheelbase = 3.0;
@@ -223,6 +223,50 @@ if (which === 'run') {
   const end = r.launch.readout(r.track.duration).speed;
   ok('the 7X-style run ends cruising at 120 km/h', near(end, 120, 1.5), `${end.toFixed(1)} km/h`);
   ok('it passed 150 km/h on the way', r.launch.drive.summary.topKmh > 149);
+}
+
+
+// 10. a wet road and a hill
+{
+  const t100 = (over) => planDrive(layout, body, start, base(over)).launch.marks.find((x) => x.speed === 100).time;
+  const flat = t100({});
+  const wet = t100({ env: { wet: true, gradePct: 0 } });
+  const up = t100({ env: { wet: false, gradePct: 6 } });
+  const down = t100({ env: { wet: false, gradePct: -6 } });
+  ok('a wet road slows an all-wheel-drive car that was grip-limited', wet > flat + 1, `${flat} -> ${wet} s`);
+  ok('wet 0-100 is about what 0.72 g gives (3.9 to 4.4 s)', wet > 3.9 && wet < 4.6, `${wet} s`);
+  ok('uphill is slower than level and downhill is quicker', up > flat && down < flat, `${down} < ${flat} < ${up}`);
+  ok('a 6 % hill costs a 1.98 s car less than 0.2 s', up - flat < 0.2, `${(up - flat).toFixed(2)} s`);
+  const stop = (over) => planDrive(layout, body, start, base({ finish: 'brake', brake100M: 34, ...over })).launch.drive.summary;
+  const dry = stop({});
+  const wetStop = stop({ env: { wet: true, gradePct: 0 } });
+  const upStop = stop({ env: { wet: false, gradePct: 6 } });
+  const downStop = stop({ env: { wet: false, gradePct: -6 } });
+  ok('the dry stop is the published 34 m', near(dry.brakeM, 34, 1), `${dry.brakeM?.toFixed(1)} m`);
+  ok('the wet stop is much longer (50 to 62 m)', wetStop.brakeM > 50 && wetStop.brakeM < 62, `${wetStop.brakeM?.toFixed(1)} m`);
+  ok('uphill the stop is shorter, downhill longer', upStop.brakeM < dry.brakeM && downStop.brakeM > dry.brakeM, `${upStop.brakeM?.toFixed(1)} < ${dry.brakeM?.toFixed(1)} < ${downStop.brakeM?.toFixed(1)}`);
+  ok('a 6 % climb draws more energy than the level', planDrive(layout, body, start, base({ env: { wet: false, gradePct: 6 } })).launch.drive.summary.energyWh > planDrive(layout, body, start, base({})).launch.drive.summary.energyWh);
+  const e = roadEnv(true, false, 0);
+  ok('a rear-driven car holds less on a wet road', e.cap < roadEnv(true, true, 0).cap, `${e.cap.toFixed(2)} vs ${roadEnv(true, true, 0).cap.toFixed(2)} m/s2`);
+}
+
+// 11. the rival's track
+{
+  const track = pullTrack(3.8, 12, 0, 100);
+  ok('the rival has not moved before the line', track(0.3) === 0);
+  let worst = 0;
+  const c = pullCurve(3.8, 12, 0, 100);
+  for (let t = 0.7; t < 4; t += 0.1) {
+    const dt = 0.01;
+    const v = ((track(t + dt) - track(t - dt)) / (2 * dt)) * 3.6;
+    // its speed is the curve's
+    const k = Math.min(c.v.length - 1, Math.round((t - 0.6) / c.dt));
+    worst = Math.max(worst, Math.abs(v - c.v[k]));
+  }
+  ok('its speed follows the pull curve', worst < 3, `worst ${worst.toFixed(2)} km/h`);
+  ok('it holds the speed it reached', near((track(12) - track(11)) * 3.6, 100, 1.5), `${((track(12) - track(11)) * 3.6).toFixed(1)} km/h`);
+  const own = planDrive(layout, body, start, base({ zeroTo100: 1.98, zeroTo200: 6.09 })).scroll;
+  ok('the quicker car is ahead of it at 5 s', own(5) > track(5), `${own(5).toFixed(1)} m against ${track(5).toFixed(1)} m`);
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');

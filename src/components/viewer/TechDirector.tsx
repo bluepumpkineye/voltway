@@ -46,10 +46,12 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const driveChoice = useVehicleStore((s) => s.drive);
 
   // the camera and the ghost are not part of the motion: changing them must not rebuild the run
-  const { run: driveRun, mode: driveMode, load: driveLoad, brake: driveBrake, cam: driveCam } = driveChoice;
+  const { run: driveRun, mode: driveMode, load: driveLoad, brake: driveBrake, cam: driveCam, ghost: driveGhost, rival: driveRival, surface: driveSurface, grade: driveGrade } = driveChoice;
+  // the rival beside the car is the one the chart sets against it: the visitor's pick, else the scenario's
+  const rivalSlug = driveRival ? (driveGhost ?? vehicle.drive?.ghost?.slug ?? '') : '';
   const driveSelection = React.useMemo(
-    () => ({ runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake }),
-    [driveRun, driveMode, driveLoad, driveBrake],
+    () => ({ runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake, surface: driveSurface, grade: driveGrade, rival: rivalSlug || null }),
+    [driveRun, driveMode, driveLoad, driveBrake, driveSurface, driveGrade, rivalSlug],
   );
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
@@ -110,7 +112,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       camera: stage?.camera,
     };
     // the Drive tab's camera: the visitor's pick, else the scenario's own
-    const pick = st.tab === 'drive' && st.drive.cam ? DRIVE_CAMERAS[st.drive.cam] : null;
+    const pick = st.tab === 'drive' && st.drive.cam && st.drive.cam !== 'cabin' ? DRIVE_CAMERAS[st.drive.cam] : null;
     st.setTechStage(pick ? { ...framing, camera: { az: pick.az, el: pick.el } } : framing);
     st.setTechScene(stage);
     st.setTechStreet(built.street?.stage ?? null);
@@ -131,6 +133,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       st.setHmiScreen('charge');
     }
     poseAt.current = NaN;
+    // the Drive tab's hill: the whole stage (road, car, cabin, rival) is tilted nose-up by it
+    rig.state.slope = Math.atan((built.treadmill?.launch?.drive?.env.gradePct ?? 0) / 100);
+    rig.apply();
     techSession.set({
       demoId: built.spec.id,
       stage,
@@ -141,6 +146,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       launch: built.treadmill?.launch ?? null,
       charge: built.charge ?? null,
       sensors: built.sensors ? built.sensors.scenario : null,
+      rival: built.rival ? { slug: built.rival.slug } : null,
       chassis: built.street ? { readout: built.street.readout, facts: built.street.facts, stage: built.street.stage } : null,
     });
     if (process.env.NODE_ENV !== 'production') {
@@ -183,12 +189,28 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     };
   }, [built, rig, vehicle.dimensions.lengthMm, invalidate]);
 
-  // a new camera on the Drive tab moves the view without rebuilding the run
+  const gearSet = React.useRef(false);
+  // a new camera on the Drive tab moves the view without rebuilding the run; the cabin's is the driver's seat (the cabin rides with the car)
   React.useEffect(() => {
     const st = useVehicleStore.getState();
-    if (!built || st.tab !== 'drive' || !st.techStage) return;
+    if (!built || st.tab !== 'drive') return;
+    if (driveCam === 'cabin') {
+      if (st.anchorId !== 'driveSeat') st.setAnchor('driveSeat');
+      // the car's own screen shows the driving desktop while it drives
+      if (st.gear !== 'D') {
+        st.setGear('D');
+        gearSet.current = true;
+      }
+      return;
+    }
+    if (gearSet.current) {
+      st.setGear('P');
+      gearSet.current = false;
+    }
+    if (st.anchorId === 'driveSeat') st.setAnchor('techWide');
+    const stage = useVehicleStore.getState().techStage;
     const cam = driveCam ? DRIVE_CAMERAS[driveCam] : built.treadmill?.frame.camera;
-    if (cam) st.setTechStage({ ...st.techStage, camera: { az: cam.az, el: cam.el } });
+    if (stage && cam) st.setTechStage({ ...stage, camera: { az: cam.az, el: cam.el } });
   }, [built, driveCam]);
 
   // a seek or a press of play asks for the next frame
@@ -228,6 +250,15 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     const step = Math.min(Math.abs(dRide), Math.max(0.004, Math.abs(dRide) * 0.12 + 0.008) * Math.min(dt, 0.1) * 6);
     ride.current += Math.sign(dRide) * step;
     rig.state.ride = ride.current;
+    // the Drive tab's rival: where it has got to against the car, in its own lane
+    const rv = built.rival;
+    if (rv && tm) {
+      const body = rig.body;
+      const rs = rig.state.rival;
+      rs.x = rig.rac.x + (body.front - body.rear) / 2 + rv.distance(techClock.t) - tm.scroll(techClock.t);
+      rs.z = -rig.rac.y + rv.lane;
+      rs.yaw = 0;
+    }
     rig.apply();
     const bo = built.boost;
     if (bo) {

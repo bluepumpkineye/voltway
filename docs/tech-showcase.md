@@ -860,12 +860,59 @@ data or that this repo has no trim for; the repo's figures stay, and the scenari
 - ES8: the brief says 34.9 m for 100-0; NIO's page (cited in the 'primeride-launch' demo) says 34.3 m, which is used. That demo's text
   also says 480 kW and 850 N·m against this file's 520 kW and 700 N·m: left alone, not asked.
 - Seal: Cd 0.219 is CarNewsChina's database figure (the maker's page was not read), cited as such.
-- Not built: an interior camera, an underbody or X-ray camera, a ghost car drawn beside the car (the chart has the rival's curve),
-  wet or inclined roads, voice narration, a booking button, motor rpm (only the RX's 21,000 is published here and the gearing is not).
+- Not built: a booking button, motor rpm (only the RX's 21,000 is published here and the gearing is not), a camera under the floor
+  (the camera cannot go below it: the X-ray sees through the body instead), a rival that squats and turns its wheels (its stand-in is
+  a marker of where the other car is).
+
+### Follow-up the same day: the S-curve bug, more cameras, a rival car, wet roads and hills, voice
+
+**The S-curve bug (owner's screenshot of the Z9).** The cabin is a second model that stands outside the exterior's `CarRoot`, so it
+stayed where the car started while the body moved sideways and turned: the seats showed through the windscreen out of place. The
+Tech tab hid the glass tint for that reason (`clearTab` in `CarModel`); the Drive tab, added later, did not. The cabin now rides with
+the car: `CarFollower` (`viewer/techRig.tsx`) takes the car's place on the floor (`CarRig.attachRoot`) and the body's pitch, roll and
+heave (`CarRig.attachFollower`, written in `apply` beside the Sprung group); the cabin is wrapped in it. The S-curve's wheels are
+drawn `SWEEP_STEER_DRAWN` (8) times wider than they turn, within 6 degrees, because the real angle at 100 km/h is about half a degree
+and cannot be seen; the readout gives the real angle and the panel says so (`DriveTelemetry.steerScale`).
+
+**Cameras.** Cabin: the driver's seat (`driveSeat` anchor: the camera-matched eye lifted 10 cm so that the road shows between the
+horizon and the dash, a 60 degree lens, a near plane of 10 cm so that the road 4 mm over the floor resolves 100 m away), the road rolling past the
+windscreen, the cabin and the road moving with the car (the camera follows the car's sideways travel and heading as deltas, so a drag
+still looks about), the HyperOS screen reading the run's speed (`useDriveSpeed`), the gear set to D while it is on. X-ray: the whole
+exterior goes to the pale ghost (`useBodyGhost`; the greenhouse's, the doors' and the glass' own X-ray as on the X-ray tab), wheels
+solid, and a schematic of what drives the car rides with the body (`viewer/TechPowertrain.tsx`): a flat battery between the axles
+and a motor at each place the variant has one, lit by the run's readout (the battery by the power, each motor by its share), with
+dots running from the battery to the motors under power and back under the brakes. **A schematic, said so:** the sizes and places
+come from the wheelbase and the track measured off the model; the maker publishes no layout of packs and motors that this follows.
+
+**Rival car.** The panel's "Rival car" switch draws the chart's rival beside the car (`viewer/TechRival.tsx`: its proxy model in neutral
+paint, as the Tech tab's parked cars, in the lane to the passenger's side, 3.4 m over; the road widens to 9.6 m). It stands abreast
+at the start and moves by its own published pull (`pullTrack`: the start speed held for the stand on the line, its pull curve, then
+the speed it reached), so the quicker car draws ahead; the panel reads the gap in metres. Its wheels do not turn and its body does not
+squat. Same wet and same hill as the car's, with its own grip (all-wheel-drive or not).
+
+**Wet road and hill** (`roadEnv`, drive-run.ts; all ours: the maker's run is dry and level). Wet: the acceleration is capped at the
+tyres' 0.72 g (all four wheels on an all-wheel-drive car, three fifths of that on a rear-driven one), the slip is 1.8 times, the stop is
+what they hold (0.7 g). Hill (down 6, level, up 6 per cent): g times the slope comes off the pull and goes on to the stop uphill, and into the
+force the battery feels, so a climb costs energy and a descent gives some back. A run on either is no longer the maker's figure (a
+star on the chip). Pictures: the wet road gets a dark gloss that mirrors the studio (`WetSheen`); a hill tilts the whole stage, road
+and car and cabin and rival, about a point on the floor 7 m behind the car for a climb and ahead of it for a descent
+(`CarRig.place`, `RigState.slope`), so that the road meets the studio's floor away from the car; the floor's mirror is off while it
+tilts, since the car would hang in its reflection. The 0-100 on a wet SU7 Ultra is 4.0 s (the 0.72 g plateau), 0.08 s slower
+uphill, and the 100-0 of a car calibrated to 34 m is 58 m wet.
+
+**Voice.** "Read the callouts" speaks each callout as the run reaches it, through the browser's own speech synthesis (nothing is sent
+anywhere), when the site's sound switch is on; what is said is the callout's first full sentence without its label (`spokenForm`),
+so that it is done before the next. A pause, a scrub or a new run stops it.
+
+The panel keeps all of this in the URL (`?tab=drive&run=&mode=&load=&road=wet&hill=6`). Tests: `drive-test.mjs check` now also covers
+the wet road, the hill, the stop on both and the rival's track.
 
 **Checked 2026-10-27:** tsc and eslint clean; `scripts/tech-tools/drive-test.mjs check` (the 0-100 and 0-200 reach the published times, the
 new planner agrees with `planLaunch` within 0.3 km/h through a pull to 200, a mode and a load slow the car in the right order, the stop
 is the published distance, the manoeuvres stay on the road and within the rear wheels' limits); `scripts/tech-tools/drive-cars.mjs`
 plays every car's scenario headlessly; the SU7, Z9, G9L, ES8 and RX played through in the browser pane (desktop and a 390 px window),
-mode, load, run and stop changed with the URL following. Not done: a production build in a copy, the owner's look.
+mode, load, run and stop changed with the URL following. The follow-up (2026-10-27, later): the Z9's and the 06T's S-curve with the cabin in
+place, the Cabin and X-ray cameras on the SU7 and the Z9 (a car with no X-ray spec), the rival beside the SU7, a wet and a +6 % 7X, a phone-sized
+window; tsc, eslint, `drive-test.mjs check` and a production build clean. Not done: the owner's look; voice was not heard (the pane has no speech
+engine), only its text checked.
 

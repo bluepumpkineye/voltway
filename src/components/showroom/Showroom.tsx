@@ -236,7 +236,17 @@ export function Showroom({
     const wantRun = q.get('run');
     const wantMode = q.get('mode');
     const wantLoad = q.get('load');
-    if (wantRun || wantMode || wantLoad) setDrive({ run: wantRun, mode: wantMode, load: wantLoad });
+    const wantSurface = q.get('road');
+    const wantGrade = q.get('hill');
+    if (wantRun || wantMode || wantLoad || wantSurface || wantGrade) {
+      setDrive({
+        run: wantRun,
+        mode: wantMode,
+        load: wantLoad,
+        surface: wantSurface === 'wet' ? 'wet' : null,
+        grade: wantGrade && [-6, 6].includes(Number(wantGrade)) ? Number(wantGrade) : null,
+      });
+    }
     const wantPaint = q.get('paint');
     if (wantPaint && spec.paints.some((p) => p.id === wantPaint)) setPaint(wantPaint);
     const wantTrim = q.get('trim');
@@ -272,6 +282,8 @@ export function Showroom({
       if (driveChoice.run) q.set('run', driveChoice.run);
       if (driveChoice.mode) q.set('mode', driveChoice.mode);
       if (driveChoice.load) q.set('load', driveChoice.load);
+      if (driveChoice.surface === 'wet') q.set('road', 'wet');
+      if (driveChoice.grade) q.set('hill', String(driveChoice.grade));
     }
     if (compareSlug) {
       q.set('compare', compareSlug);
@@ -290,7 +302,7 @@ export function Showroom({
     }
     const s = q.toString();
     window.history.replaceState(null, '', s ? `?${s}` : window.location.pathname);
-  }, [ready, tab, dimension, variant.id, vehicle, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView, compareSlug, compareVariantId, driveChoice.run, driveChoice.mode, driveChoice.load]);
+  }, [ready, tab, dimension, variant.id, vehicle, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView, compareSlug, compareVariantId, driveChoice.run, driveChoice.mode, driveChoice.load, driveChoice.surface, driveChoice.grade]);
 
   // A design comes with the caliper colour it is photographed in - unless the caliper
   // was chosen on purpose, i.e. is not the colour the design it replaces came with.
