@@ -8,6 +8,7 @@ import { isStageTab, useVehicleStore } from '@/store/vehicle-store';
 import { techClock } from '@/lib/tech/clock';
 import { chargeDemo } from '@/lib/tech/charging';
 import { driveDemo } from '@/lib/tech/drive-demo';
+import { DRIVE_CAMERAS } from '@/lib/tech/drive-setup';
 import { DRIVERS, visibleDemos } from '@/lib/tech/demos';
 import type { PlannedRun } from '@/lib/tech/kinematics';
 import { rideLevelsOf, RIDE_SPAN_MM } from '@/lib/tech/ride';
@@ -42,6 +43,14 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const compassAngle = useVehicleStore((s) => s.compassAngle);
   const launchTarget = useVehicleStore((s) => s.launchTarget);
   const variantId = useVehicleStore((s) => s.variantId);
+  const driveChoice = useVehicleStore((s) => s.drive);
+
+  // the camera and the ghost are not part of the motion: changing them must not rebuild the run
+  const { run: driveRun, mode: driveMode, load: driveLoad, brake: driveBrake, cam: driveCam } = driveChoice;
+  const driveSelection = React.useMemo(
+    () => ({ runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake }),
+    [driveRun, driveMode, driveLoad, driveBrake],
+  );
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
   const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
@@ -73,10 +82,11 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       variantId: variantId || vehicle.variants[0]?.id,
       chassis: { pivot: compassPivot, angleDeg: compassAngle },
       scenario: spec.scenario,
+      drive: spec.driver === 'drive' ? driveSelection : undefined,
     });
     return { spec, body, ...b, trailLine: b.trail ? trailOf(b.track) : null };
     // the rig is the same object for the car's life; `rigged` says when its wheels arrive
-  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle, launchTarget, variantId]);
+  }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle, launchTarget, variantId, driveSelection]);
 
   // a demo starts from the top (or waits for a device to start it), and the camera takes in its floor
   React.useEffect(() => {
@@ -99,7 +109,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       radius: Math.hypot(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y) / 2 + reach,
       camera: stage?.camera,
     };
-    st.setTechStage(framing);
+    // the Drive tab's camera: the visitor's pick, else the scenario's own
+    const pick = st.tab === 'drive' && st.drive.cam ? DRIVE_CAMERAS[st.drive.cam] : null;
+    st.setTechStage(pick ? { ...framing, camera: { az: pick.az, el: pick.el } } : framing);
     st.setTechScene(stage);
     st.setTechStreet(built.street?.stage ?? null);
     // a demo whose subject is in the cabin sits the camera in the driver's seat; the swivel screen's opens its
@@ -170,6 +182,14 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       invalidate();
     };
   }, [built, rig, vehicle.dimensions.lengthMm, invalidate]);
+
+  // a new camera on the Drive tab moves the view without rebuilding the run
+  React.useEffect(() => {
+    const st = useVehicleStore.getState();
+    if (!built || st.tab !== 'drive' || !st.techStage) return;
+    const cam = driveCam ? DRIVE_CAMERAS[driveCam] : built.treadmill?.frame.camera;
+    if (cam) st.setTechStage({ ...st.techStage, camera: { az: cam.az, el: cam.el } });
+  }, [built, driveCam]);
 
   // a seek or a press of play asks for the next frame
   React.useEffect(() => techClock.subscribe(() => invalidate()), [invalidate]);

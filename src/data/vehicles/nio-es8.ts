@@ -431,6 +431,48 @@ export const nioEs8: Vehicle = {
       simulated: 'Cockpit view highlighting the NOMI Mate AI companion on the dashboard center.',
     },
   ],
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). The 100-0 distance is the 34.3 m of the 'primeride-launch' demo
+  // above (NIO's page); the 480 kW and 850 N·m in that demo's text disagree with this file's 520 kW and 700 N·m and are left alone.
+  drive: {
+    id: 'reserve-power',
+    title: 'Refined Reserve Power',
+    blurb:
+      'A strong, quiet pull and a surge from 80 to 140 km/h in a 5.3 m SUV, then a hard stop: little pitch, a great deal in reserve. Load it with a family and luggage and see what changes.',
+    runs: [{ from: 80, to: 140 }],
+    modes: ['eco', 'comfort', 'sport'],
+    defaultMode: 'sport',
+    loads: [
+      { id: 'driver', label: 'Driver', payloadKg: 75 },
+      { id: 'family', label: 'Five + luggage', payloadKg: 475 },
+    ],
+    overlays: ['suspension', 'brake', 'weight', 'energy'],
+    finish: 'brake',
+    brake100M: 34.3,
+    chassis: { airSuspension: true, squatDegPerG: 0.7 },
+    ghost: { slug: 'denza-z9', variantId: '630-max-awd' },
+    camera: 'hero',
+    callouts: [
+      { cue: 'launch', text: 'Launch. The damping stiffens against squat: the tail drops less than the pull alone would make it.' },
+      { cue: 'target', text: 'Off the power, then the brakes.' },
+      { cue: 'brake', text: 'Hard stop from the run’s speed. The motors recover some of the energy; the friction brakes do the rest.' },
+    ],
+    claims: [
+      {
+        text: '100–0 km/h braking in 34.3 m, with 6-piston Brembo front calipers.',
+        source: { label: 'NIO Official Website, All-New ES8', url: 'https://www.nio.com/es8' },
+      },
+      {
+        text: 'CDC® active damping works in synergy with torque vectoring to suppress longitudinal pitch and squat under maximum acceleration.',
+        source: { label: 'NIO Official Website, All-New ES8', url: 'https://www.nio.com/es8' },
+      },
+      {
+        text: 'Intelligent dual-chamber air suspension with Continuous Damping Control (CDC®) and a 100 mm height range across 5 levels.',
+        source: { label: 'NIO Official Website, All-New ES8', url: 'https://www.nio.com/es8' },
+      },
+    ],
+    simulated:
+      'The 80–140 run, how much pitch the damping removes (0.7° per g, against 1.1° for a generic SUV), the load (five and luggage, 475 kg), the brake blend and the energy are ours.',
+  },
   sources: [
     { label: 'NIO Official - All-New ES8', url: 'https://www.nio.cn/es8' },
     { label: 'Autohome - NIO ES8 Specs', url: 'https://www.autohome.com.cn/' },

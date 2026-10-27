@@ -71,6 +71,14 @@ a demonstration's facts behind the "Simulation" button on its playback bar.
   10 minutes for the 7X, 11 for the SU7 Ultra, 12 for the G9L, 19 for the Z9, 30 to
   80 % in 15 for the RX) in fourteen seconds. The panel gives the maker's figures,
   each tagged published or derived, the charging curve and the run's own numbers.
+- **Drive:** each car has a scenario of its own on its published figures, not one
+  sequence for all: the SU7 Ultra's launch through its drive modes, the RX's sprint
+  and 100-0 stop, the Seal's mid-range pull against its own drag, the 7X with a family
+  on board, the G9L's slalom on rear-wheel steering, the Z9's S-curve under power
+  and crab walk, the 06T's S-curve, the ES8's reserve power and stop. A panel gives
+  the car's own modes and loads, live instruments (torque flow to each wheel, weight
+  transfer, suspension, brake blend, energy, drag, steering) and a speed chart with
+  a rival's pull behind it ([`docs/tech-showcase.md`](docs/tech-showcase.md), section 19).
 - **Tech:** what the car's technology does, as simulations built from the
   makers' published figures: the Luxeed RX parks itself from a phone app or its
   own screen, shows what its lidars see, presses BOOST and swivels its screen; the

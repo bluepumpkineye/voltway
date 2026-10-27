@@ -381,6 +381,46 @@ export const zeekr7x: Vehicle = {
     simulated:
       'A simulation. Only the 620 kW peak and the ten minutes are published, and the ten minutes are the best case. The curve between them, the pedestal and the gun (styled on a generic charging connector, not a Zeekr or any maker’s) are ours, and ten minutes play in fourteen seconds.',
   },
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). The figures are this file's (the refreshed 7X: 795 PS and
+  // 2.98 s, Paul Tan); other sources quote the earlier 7X Performance at 475 kW and 3.8 s, which is not this trim.
+  drive: {
+    id: 'suv-launch',
+    title: 'SUV Supercar Launch',
+    blurb:
+      'Full power from a standstill to 100 and 150 km/h, then an easing into a 120 km/h cruise. Add a family and luggage and watch the pull, the squat and the ride height change.',
+    runs: [{ from: 0, to: 150 }],
+    defaultRun: '0-150',
+    modes: ['economy', 'comfort', 'sport'],
+    defaultMode: 'sport',
+    loads: [
+      { id: 'driver', label: 'Driver', payloadKg: 75 },
+      { id: 'family', label: 'Family + luggage', payloadKg: 455 },
+    ],
+    overlays: ['weight', 'suspension', 'motors', 'power'],
+    finish: 'cruise',
+    cruiseKmh: 120,
+    chassis: { airSuspension: true, squatDegPerG: 1.0 },
+    ghost: { slug: 'xpeng-g9l', variantId: '755-ultra-awd' },
+    camera: 'hero',
+    callouts: [
+      { cue: 'launch', text: 'Launch. Two motors, full power: the tail squats and the air suspension holds the body level.' },
+      { cue: 'pull', text: '100 km/h in under three seconds with the driver alone.' },
+      { cue: 'target', text: '150 km/h. Off the power.' },
+      { cue: 'cruise', text: 'Cruising at 120 km/h: the body is level, the motors are idling along.' },
+    ],
+    claims: [
+      {
+        text: 'The refreshed 7X reaches 100 km/h in 2.98 s.',
+        source: { label: 'Paul Tan, 7X facelift, 22 October 2025', url: 'https://paultan.org/2025/10/22/zeekr-7x-facelift-revealed-900v-architecture-6c-dc-charging-802-km-cltc-795-ps-0-100-km-h-2-98-secs/' },
+      },
+      {
+        text: 'The Magic Carpet air suspension package is air suspension, CCD electromagnetic dampers and a smart Magic Carpet: the 4WD 7X carries it.',
+        source: { label: 'Autohome launch article, 23 September 2024', url: 'https://chejiahao.autohome.com.cn/info/17026490' },
+      },
+    ],
+    simulated:
+      'The 0–150 time, the load (a family of five and luggage, 455 kg), the squat, the split between the two motors and the energy are ours; the 7X’s kerb weight is not in our data, so the load is a ratio of an assumed 2.3 t.',
+  },
   sources: [
     { label: 'Paul Tan - 7X facelift, 900 V, 802 km', url: 'https://paultan.org/2025/10/22/zeekr-7x-facelift-revealed-900v-architecture-6c-dc-charging-802-km-cltc-795-ps-0-100-km-h-2-98-secs/' },
     { label: 'Wikipedia - Zeekr 7X', url: 'https://en.wikipedia.org/wiki/Zeekr_7X' },

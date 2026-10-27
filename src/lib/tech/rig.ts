@@ -258,6 +258,7 @@ export class CarRig {
     const st = this.state;
     st.heave = c?.heave ?? 0;
     st.pitch = c?.pitch ?? 0;
+    st.roll = c?.roll ?? 0;
     for (let i = 0; i < 4; i++) st.lift[i] = c?.lift[i] ?? 0;
   }
 

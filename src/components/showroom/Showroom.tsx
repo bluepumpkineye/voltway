@@ -12,6 +12,8 @@ import {
 } from '@/store/vehicle-store';
 import { LIGHT_MODES, type LightMode } from '@/lib/lights';
 import { visibleDemos } from '@/lib/tech/demos';
+import { driveDemo } from '@/lib/tech/drive-demo';
+import { useRuntime } from '@/lib/tech/session';
 import { chargeDemo } from '@/lib/tech/charging';
 import { BELOW_TOP, CarMenu, FOCUS, GLASS, InfoButton, SceneToggle, SoundToggle, TabBar } from './Chrome';
 import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
@@ -21,6 +23,7 @@ import { COMPARE_COLUMN_W, SPECS_COLUMN_W, SpecsPanel } from './Specs';
 import { showroomCars } from '@/lib/showroom/cars';
 import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
 import { ChassisTools, NoseInTools } from './Chassis';
+import { DRIVE_COLUMN_W, DrivePanel } from './Drive';
 import { LaunchTools } from './Launch';
 import { ParkAssistTools } from './ParkAssist';
 import { SensorsTools } from './Sensors';
@@ -92,7 +95,7 @@ const NOTES: Record<ShowroomTab, string> = {
   charging:
     "The charging window and its minutes are the maker's where it publishes them. The curve between, a peak it does not publish, the charger and the gun are ours; the minutes play in fourteen seconds.",
   drive:
-    "Standing start acceleration simulation built from the manufacturer's published performance figures. Cockpit HUD displays real-time telemetry, gear shifts, and acceleration stopwatch.",
+    "A simulation built from the manufacturer's published performance figures: each car has its own scenario. The pull, the body's motion, how the motors share the drive, the braking blend and the energy are ours; the 0-100 and 0-200 times are the maker's where it publishes them, and a mode or a load changes them, marked with a star.",
   tech: "What the car's technology does. Each demonstration is a simulation built from the maker's published figures, not its footage.",
 };
 
@@ -113,6 +116,7 @@ export function Showroom({
   const hasTech = demos.length > 0;
   const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
   const hasCharging = charging !== null;
+  const driveFacts = useRuntime()?.launch?.drive;
 
   const tab = useVehicleStore((s) => s.tab);
   const techDemoId = useVehicleStore((s) => s.techDemoId);
@@ -125,12 +129,13 @@ export function Showroom({
   const sceneKind = useVehicleStore((s) => s.sceneKind);
   const dimension = useVehicleStore((s) => s.dimension);
   const variantId = useVehicleStore((s) => s.variantId);
+  const driveChoice = useVehicleStore((s) => s.drive);
   const compareSlug = useVehicleStore((s) => s.compareSlug);
   const compareVariantId = useVehicleStore((s) => s.compareVariantId);
   const {
     reset, setTab, setPaint, setTrim, setCaliper, setWheel, setSceneKind, setDimension, setTechDemo, setTechSpeed,
     setTechAvailable, setTechDevice, setLightMode, setHighBeam, setLightsView, setVariant, setDeviceInset, setUiTop,
-    setCompareSlug, setCompareVariantId,
+    setCompareSlug, setCompareVariantId, setDrive,
   } = useVehicleStore.getState();
   const techDevice = useVehicleStore((s) => s.techDevice);
   const demo = demos.find((d) => d.id === techDemoId) ?? demos[0];
@@ -148,6 +153,8 @@ export function Showroom({
   const webgl = useWebGl();
 
   const variant = vehicle.variants.find((v) => v.id === variantId) ?? flagshipVariant(vehicle);
+  // the Drive tab's scenario, for the playback bar's facts and the moments it marks
+  const driveSpec = React.useMemo(() => driveDemo(vehicle, variantId), [vehicle, variantId]);
 
   const allShowroomCars = React.useMemo(() => showroomCars(), []);
   const otherCars = React.useMemo(() => allShowroomCars.filter((c) => c.slug !== vehicle.slug), [allShowroomCars, vehicle.slug]);
@@ -225,6 +232,11 @@ export function Showroom({
     if (wantDim && DIMS.includes(wantDim)) setDimension(wantDim);
     const wantVariant = q.get('variant');
     if (wantVariant && vehicle.variants.some((v) => v.id === wantVariant)) setVariant(wantVariant);
+    // the Drive tab's run, mode and load (the setup ignores one the trim does not have)
+    const wantRun = q.get('run');
+    const wantMode = q.get('mode');
+    const wantLoad = q.get('load');
+    if (wantRun || wantMode || wantLoad) setDrive({ run: wantRun, mode: wantMode, load: wantLoad });
     const wantPaint = q.get('paint');
     if (wantPaint && spec.paints.some((p) => p.id === wantPaint)) setPaint(wantPaint);
     const wantTrim = q.get('trim');
@@ -255,7 +267,12 @@ export function Showroom({
     if (highBeam) q.set('high', '1');
     if (tab === 'dashboard' && lightsView === 'rear') q.set('view', 'rear');
     if (tab === 'dimensions' && dimension !== 'length') q.set('dim', dimension);
-    if (tab === 'dimensions' && variant.id !== flagshipVariant(vehicle).id) q.set('variant', variant.id);
+    if ((tab === 'dimensions' || tab === 'drive') && variant.id !== flagshipVariant(vehicle).id) q.set('variant', variant.id);
+    if (tab === 'drive') {
+      if (driveChoice.run) q.set('run', driveChoice.run);
+      if (driveChoice.mode) q.set('mode', driveChoice.mode);
+      if (driveChoice.load) q.set('load', driveChoice.load);
+    }
     if (compareSlug) {
       q.set('compare', compareSlug);
       if (compareVariantId) q.set('cvariant', compareVariantId);
@@ -273,7 +290,7 @@ export function Showroom({
     }
     const s = q.toString();
     window.history.replaceState(null, '', s ? `?${s}` : window.location.pathname);
-  }, [ready, tab, dimension, variant.id, vehicle, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView, compareSlug, compareVariantId]);
+  }, [ready, tab, dimension, variant.id, vehicle, paintId, trimId, caliperId, wheelId, sceneKind, spec, demo, demos, techDevice, lightMode, highBeam, lightsView, compareSlug, compareVariantId, driveChoice.run, driveChoice.mode, driveChoice.load]);
 
   // A design comes with the caliper colour it is photographed in - unless the caliper
   // was chosen on purpose, i.e. is not the colour the design it replaces came with.
@@ -310,6 +327,9 @@ export function Showroom({
     } else if (tab === 'charging') {
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
       else setDeviceInset({ right: 0, bottom: 0.48 });
+    } else if (tab === 'drive') {
+      // the panel at the right of a wide window, the instruments and the playback bar under the car
+      setDeviceInset({ right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : 0, bottom: 0.4 });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
   }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
@@ -320,7 +340,9 @@ export function Showroom({
 
   // what the dock and the demonstrations' menu leave clear at the right
   const rightPad =
-    tab === 'tech' && col.active && col.wide
+    tab === 'drive' && dash.wide
+      ? DRIVE_COLUMN_W + 40
+      : tab === 'tech' && col.active && col.wide
       ? col.colW + 40
       : boostUp && dash.wide
         ? boostColumnWidth(dash.vw) + 40
@@ -344,7 +366,9 @@ export function Showroom({
       ? demo
       : tab === 'charging' && dash.wide
         ? (charging ?? undefined)
-        : undefined;
+        : tab === 'drive'
+          ? driveSpec
+          : undefined;
 
   if (ready && isComparing && compareVehicle && compareVariant) {
     return (
@@ -480,6 +504,8 @@ export function Showroom({
         </div>
       )}
 
+      {ready && tab === 'drive' && <DrivePanel vehicle={vehicle} column={dash.wide} />}
+
       <div
         className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 pb-3 sm:pb-5 ${ready ? '' : 'invisible'}`}
         // on a wide window the devices stand in a column at the right: the dock centres in what is left
@@ -567,7 +593,7 @@ export function Showroom({
         {tab === 'dashboard' && (
           <DashboardControls screenFits={dash.screenFits} wide={dash.wide} screenOpen={screenOpen} onScreen={setScreenOpen} />
         )}
-        {tab === 'drive' && <LaunchTools vehicle={vehicle} />}
+        {tab === 'drive' && <LaunchTools vehicle={vehicle} inset={false} />}
         {tab === 'tech' && demo && (
           <>
             {demo.driver === 'carpet' && <RideTools vehicle={vehicle} showHeights={!col.active} />}
@@ -585,6 +611,7 @@ export function Showroom({
             speed={techSpeed}
             onSpeed={setTechSpeed}
             spec={playing}
+            markers={tab === 'drive' ? driveFacts?.events.map((e) => ({ t: e.t, label: e.label })) : undefined}
             disabled={
               techStatus === 'none'
                 ? "This model's wheels are not rigged for demonstrations yet"

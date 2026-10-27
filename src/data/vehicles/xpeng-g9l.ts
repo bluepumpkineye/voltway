@@ -440,6 +440,43 @@ export const xpengG9l: Vehicle = {
     simulated:
       'A simulation. The 5C and the twelve minutes are XPeng’s for its 5C cars; the G9L’s own peak is not published, so it is drawn as 5C times the 110 kWh pack, and the curve between is ours. The model has no charge flap, so the socket is drawn at a place on the right rear quarter that we chose, and the pedestal and the gun (styled on a generic charging connector, not XPeng’s or any maker’s) are ours. Twelve minutes play in fourteen seconds.',
   },
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). Rear steering: up to 15 degrees either way, turning radius 5.4 m
+  // (the sources of the 'rear-steer' demo above).
+  drive: {
+    id: 'authority-agility',
+    title: 'Effortless Authority + Maneuverability',
+    blurb:
+      'A strong, progressive 0–100 in a big SUV, then a slow slalom in which the rear wheels steer against the front: watch the angles, and how little the front wheels need to turn.',
+    modes: ['eco', 'standard', 'sport'],
+    defaultMode: 'sport',
+    loads: [
+      { id: 'driver', label: 'Driver', payloadKg: 75 },
+      { id: 'family', label: 'Five + luggage', payloadKg: 455 },
+    ],
+    overlays: ['steering', 'weight', 'motors', 'power'],
+    finish: 'coast',
+    manoeuvres: ['slalom'],
+    chassis: { airSuspension: true, rearSteerMaxDeg: 15 },
+    ghost: { slug: 'zeekr-7x', variantId: 'awd' },
+    camera: 'hero',
+    callouts: [
+      { cue: 'launch', text: 'Launch. A big car, a smooth pull: the pull builds progressively and the body stays composed.' },
+      { cue: 'target', text: '100 km/h. Now down to slalom pace.' },
+      { cue: 'slalom', text: 'Rear-wheel steering. The rear wheels turn against the front ones, so the front wheels need far less angle for the same curve.' },
+    ],
+    claims: [
+      {
+        text: 'The G9L has a steer-by-wire rear axle that turns up to 15° in either direction.',
+        source: { label: 'Gasgoo, G9L goes on sale', url: 'https://autonews.gasgoo.com/articles/ev/xpeng-g9l-goes-on-sale-with-bev-reev-powertrains-2100932123174563841' },
+      },
+      {
+        text: 'Rear-wheel steering is standard across the range, and the minimum turning radius is 5.4 m.',
+        source: { label: 'Xchuxing, G9L', url: 'https://www.xchuxing.com/article/174677' },
+      },
+    ],
+    simulated:
+      'The slalom (cones 12 m apart, 16 km/h), the rear wheels’ share of the steering (0.6 of the front, within their 15°), the load and the split between the two motors are ours.',
+  },
   sources: [
     { label: 'Autohome - XPeng G9L Specifications (Series 8659)', url: 'https://www.autohome.com.cn/8659/' },
     { label: 'XPeng Official - G9L Flagship Intelligent Luxury SUV', url: 'https://www.xpeng.com/' },

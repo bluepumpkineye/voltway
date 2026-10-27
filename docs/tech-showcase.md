@@ -245,6 +245,7 @@ positions, 0 and 32 degrees (maker's page); the 7X has five named heights over a
 | Welcome sequence of the 7X | NOT built: no published sequence found (section 13) |
 | Street environment (`street.ts`, `viewer/TechStreet.tsx`), the lot's dressing (`dressLot`), proxies for the Z9 and the G9L | built; see section 14 |
 | Z9: crab walk, compass turn, e³ parking; G9L: rear-wheel-steering U-turn, nose-in parking (`chassis.ts`, `hmi/chassis.tsx`, `showroom/Chassis.tsx`) | built, played through, idle frames 0, wheelhouse probe clean; not yet seen by the owner (section 14) |
+| Drive tab: one scenario per car (`Vehicle.drive`, `drive-setup.ts`, `drive-run.ts`, `showroom/Drive.tsx`, `scripts/tech-tools/drive-test.mjs`) | built 2026-10-27, played through in the browser pane, tsc and eslint clean; not yet seen by the owner (section 19) |
 
 ## 9. Magic Carpet (Zeekr 7X), Phase 3a
 
@@ -786,3 +787,85 @@ line (waiting from 12.3 s), people cross while it is red, and it moves off 1.2 s
 lane while the car has it). `stopAndGo` and `walker` are now exported from `scenes/city.ts`. Checked: `scene-test.mjs trafficlight` (nearest car 1.4 m,
 lead 3.75 m, people 3.2 m, accel -2.6 to 1.7 m/s^2), played in the Browser pane through amber, red, waiting, green and moving off; tsc and eslint clean.
 Not done: a production build in a copy, the owner's look at the lidar and the scene, the 510's demo without a lidar (it shows the pod).
+
+## 19. The Drive tab: one scenario per car (2026-10-27)
+
+**Owner request:** the Drive tab played the same standing start for every car. Each car now has a scenario of its own, built from
+what is particular to it (its motors, its chassis, its mode list), with the pull, the stop, the S-curve and the crab walk
+simulated on the variant's published figures.
+
+**The pieces.** `Vehicle.drive` (`DriveSpec`, schema.ts) is the car's scenario: its title and blurb, which of its own modes
+(`cockpit.driveModes`) and loads it offers, which instrument cards explain it (`overlays`, the first leading), what follows the pull
+(`finish`: coast, cruise or a stop; `manoeuvres`: sweep, slalom, crab), the 100-0 distance it is calibrated to, a chassis block
+(squat and roll per g, centre of gravity, rear-wheel limit, crab angle, air suspension), the drag coefficient when one is
+published, the rival the chart draws behind it, the camera it opens on, narrative callouts pinned to moments of the run, cited
+claims and a note on what is simulated. A car without one gets the generic scenario (the Xpeng P7+ today).
+`src/lib/tech/drive-setup.ts` turns a car, its trim and the visitor's choices into `DriveInput`; `src/lib/tech/drive-run.ts`
+(`planDrive`, no value imports: run it under Node) is the planner; `drive` in `demos.ts` hands it to the director;
+`showroom/Drive.tsx` is the panel; the GT7 cockpit HUD (`showroom/Launch.tsx`) is unchanged apart from reading the run's phase.
+Store: `drive` (`DriveChoice`: run, mode, load, camera, stop, rival). URL: `?tab=drive&variant=&run=&mode=&load=`.
+
+**The run** (all of it ours except the figures said below). The pull is the launch's (section 10: a plateau that builds in
+0.15 s and reaches 100 km/h at the maker's time, then falls as a power-limited car's, a = a0 (V100 / v)^p with p solved so that 200 km/h
+comes at its 0-200; where the maker has none, 3.15 times the 0-100 for a car that reaches 200 km/h, said on screen). New:
+- **Mode and load.** A mode's time is the 0-100 scaled by the cube root of the share of the peak it lets through (the car's own published
+  figure where it has one: the SU7 Ultra's Endurance, Qualifying and Drag race, else `lib/performance.ts`' factors) and a load's by
+  the mass ratio to the 0.4; the 0-200 keeps the shape. The panel says "modelled" (a star on the chip) once either differs from the
+  maker's own run (full power, driver alone: 75 kg is ours).
+- **Rolling pulls** (80-160 on the Seal, 80-140 on the ES8, 100-200 on the SU7, 0-150 on the 7X) come from the same curve.
+- **A stop**: calibrated so that 100-0 takes the published distance (RX 32.4 m, ES8 34.3 m; else 36 m, ours); the car lifts to the run's
+  speed first so the stop starts from it. The brake blend (regeneration limited to 30 % of the peak power and 0.3 g, fading below 8 km/h)
+  and the energy recovered are ours.
+- **S-curve under power** (Z9, 06T): a sine path of 1.0 m over 130 m wavelength, two periods, while the car pushes on at 0.26 g to
+  130 km/h (0.4 g lateral at most). The rear motors share the drive between the wheels by the lateral acceleration (outside wheel
+  favoured, up to 70/30); the body rolls on its spring (1.3 to 1.7 degrees per g, ours) and the rig's `roll` is now written by the
+  director (`Chassis.roll`).
+- **Slalom** (G9L): two periods of 1.4 m over 24 m at 16 km/h. The wheels' angles come from one rule, a rotation about a point on
+  the car's axis (`steerFor`: every wheel points along its own velocity), with the rear wheels turning against the front by 0.6 of
+  its angle, within their 15 degrees; the fronts then need less angle than they would alone, which the card reads out.
+- **Crab walk** (Z9): 1.8 m sideways at 7 km/h, the fronts at 15 degrees and the rears at their 10, as the Tech tab's crab walk.
+- **Telemetry** per instant (`DriveTelemetry`): power and torque (scaled so that the maker's own run draws the variant's peak), the
+  motors' shares and power, the rear axle's share of the weight (the transfer is a g times the centre of gravity's height over the
+  wheelbase), pitch, roll, each corner's spring travel, energy used and recovered, the range that energy would have driven (at the
+  car's ordinary consumption), drag, the wheels' angles. The split of the drive between the motors (a quarter to the front on three
+  motors, 40 to 60 on two) is ours, as is every damping figure.
+
+**The panel.** A column at the right of a wide window (a bar under the menu that opens over the car on a narrower one): the trim
+(from the car's variants that have a time), the car's modes, the load (where the scenario has one), what follows the run, four
+cameras (hero, chase, side, top: the stage's look, not rebuilding the run), the callout of the moment, the instrument cards, a speed
+chart with a rival's published pull behind it, and, at the end of a run, a summary with a link to the rival's Drive tab. The playback
+bar now stands on this tab as well (play, replay, scrub, speed) with the run's moments marked on it (launch, 100 km/h, peak, brake, stop,
+S-curve, slalom, crab walk); a click on a mark goes there. The HUD's motor sound fades while the car brakes or crawls (`setGain`).
+
+| Car | Scenario | After the pull | Leading instruments | Rival on the chart |
+|---|---|---|---|---|
+| SU7 Ultra | Precision Launch & Sustained Power | coast; 100-200 run; Eco to Drag race | power & torque, weight transfer, motors, energy | Seal AWD |
+| Luxeed RX | Track-Bred Sprint + Stop | 100-0 in 32.4 m | braking, suspension, motors, weight | 7X AWD |
+| BYD Seal | Balanced Performance Run | coast; 80-160 run | aero drag (Cd 0.219), power, energy | its own single-motor trim |
+| Zeekr 7X | SUV Supercar Launch | 0-150, then a 120 km/h cruise; load toggle | weight, suspension, motors, power | G9L |
+| Xpeng G9L | Effortless Authority + Maneuverability | slalom on the rear-wheel steering; load toggle | steering, weight, motors, power | 7X |
+| Denza Z9 | Hyper-GT Launch + Vectoring Mastery | S-curve under power, then a crab walk | motors (torque vectoring), steering, power, weight | 06T |
+| Avatr 06T | Shooting Brake Assault | S-curve under power | weight, suspension, motors, power | Z9 |
+| Nio ES8 | Refined Reserve Power | 100-0 in 34.3 m; 80-140 run; load toggle | suspension, braking, weight, energy | Z9 |
+
+**Figures from the brief that are not used, and why.** The scenario brief quoted figures that disagree with this repo's sourced
+data or that this repo has no trim for; the repo's figures stay, and the scenarios pick up a new trim by themselves:
+- SU7: the brief's Max AWD (3.08 s) is not in the data; the car here is the Ultra (1.98 s).
+- 7X: the brief says 500 kW, 790 Nm and 3.7 s; this file has the refreshed 7X at 585 kW and 2.98 s (Paul Tan, 2025-10-22), and press
+  quotes 475 kW and 3.8 s for the earlier Performance AWD.
+- 06T: the tri-motor trim (712 kW, 2.78 s, one front and two rear motors; CarNewsChina, 2026-04-23, as the search summary read it)
+  is not a variant here (pack and range reports disagree), so the motors drawn are a front and a rear one. Add it as a variant
+  with a `motorCount` of 3 and the rear pair draws as two motors, and the S-curve shows the vectoring.
+- RX: CnEVPost also says "as little as 3.6 s" for 0-100; this file has 3.9 s for the dual-motor car. Not changed.
+- ES8: the brief says 34.9 m for 100-0; NIO's page (cited in the 'primeride-launch' demo) says 34.3 m, which is used. That demo's text
+  also says 480 kW and 850 N·m against this file's 520 kW and 700 N·m: left alone, not asked.
+- Seal: Cd 0.219 is CarNewsChina's database figure (the maker's page was not read), cited as such.
+- Not built: an interior camera, an underbody or X-ray camera, a ghost car drawn beside the car (the chart has the rival's curve),
+  wet or inclined roads, voice narration, a booking button, motor rpm (only the RX's 21,000 is published here and the gearing is not).
+
+**Checked 2026-10-27:** tsc and eslint clean; `scripts/tech-tools/drive-test.mjs check` (the 0-100 and 0-200 reach the published times, the
+new planner agrees with `planLaunch` within 0.3 km/h through a pull to 200, a mode and a load slow the car in the right order, the stop
+is the published distance, the manoeuvres stay on the road and within the rear wheels' limits); `scripts/tech-tools/drive-cars.mjs`
+plays every car's scenario headlessly; the SU7, Z9, G9L, ES8 and RX played through in the browser pane (desktop and a 390 px window),
+mode, load, run and stop changed with the URL following. Not done: a production build in a copy, the owner's look.
+

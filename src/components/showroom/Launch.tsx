@@ -19,7 +19,7 @@ const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 foc
  * - Right: Tachometer cluster (0-8 x1000 RPM, crimson redline arc, turbo/power subdial, headlight icon)
  * - Completely transparent background, floating directly over the 3D road
  */
-export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
+export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inset?: boolean } = {}) {
   const launch = useRuntime()?.launch;
   const clock = useTechClock();
   const run = runPhase(clock);
@@ -59,6 +59,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   const launchTarget = useVehicleStore((s) => s.launchTarget);
   const setLaunchTarget = useVehicleStore((s) => s.setLaunchTarget);
+  const setDrive = useVehicleStore((s) => s.setDrive);
   const techSpeed = useVehicleStore((s) => s.techSpeed);
 
   const activeTarget = launch?.target ?? launchTarget;
@@ -70,11 +71,12 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
   }
   const player = playerRef.current;
 
-  // Set camera inset so 3D car remains comfortably framed above the cockpit HUD
+  // Set camera inset so 3D car remains comfortably framed above the cockpit HUD (the Drive tab sets its own, with its panel)
   React.useEffect(() => {
+    if (!inset) return;
     setInset({ right: 0, bottom: 0.28 });
     return () => setInset({ right: 0, bottom: 0 });
-  }, [setInset]);
+  }, [setInset, inset]);
 
   // Set vehicle and active threshold target sound
   React.useEffect(() => {
@@ -129,9 +131,11 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
       const roundedSpeed = Math.round(r.speed);
       const tSec = techClock.t;
 
-      // 1. Mechanical needle flutter / oscillation at top speed
-      const isPeakCruising = (activeTarget === 100 && r.elapsed >= 2.05) || (activeTarget === 200 && r.elapsed >= 7.0);
-      const flutterFactor = isPeakCruising ? Math.min(1, (r.elapsed - (activeTarget === 100 ? 2.05 : 7.0)) * 3.5) : 0;
+      // 1. Mechanical needle flutter / oscillation at top speed: once the pull is over and the car holds its speed (a run
+      // with phases says so itself; the Tech tab's launch is timed for the SU7's 1.98 s and 6.09 s)
+      const holding = r.phase === 'ease' || r.phase === 'coast' || r.phase === 'cruise';
+      const isPeakCruising = r.phase !== undefined ? holding && r.speed > 90 : (activeTarget === 100 && r.elapsed >= 2.05) || (activeTarget === 200 && r.elapsed >= 7.0);
+      const flutterFactor = isPeakCruising ? (r.phase !== undefined ? Math.min(1, (r.speed - 90) / 10) : Math.min(1, (r.elapsed - (activeTarget === 100 ? 2.05 : 7.0)) * 3.5)) : 0;
       const needleFlutterSpeed = flutterFactor * (Math.sin(tSec * 35.2) * 0.85 + Math.sin(tSec * 53.7) * 0.5);
       const needleFlutterRpm = flutterFactor * (Math.sin(tSec * 43.1) * 1.4 + Math.sin(tSec * 68.4) * 0.7);
 
@@ -250,6 +254,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
       }
 
       // 7. Acceleration Timer & Milestone Gauge (GT7 Cockpit Typography)
+      const runLabel = launch.drive?.runs.find((x) => x.id === launch.drive?.run)?.label ?? `0–${activeTarget}`;
       const targetTime = launch.marks.find((m) => m.speed === activeTarget)?.time ?? (activeTarget === 200 ? 6.09 : 1.98);
       const isReached = r.elapsed >= targetTime - 0.02;
 
@@ -260,7 +265,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
 
       // Left Target Label (0-100 or ✓ 100)
       if (timerTargetLabel.current) {
-        timerTargetLabel.current.textContent = isReached ? `✓ ${activeTarget}` : `0–{activeTarget}`;
+        timerTargetLabel.current.textContent = isReached ? `✓ ${activeTarget}` : runLabel;
         timerTargetLabel.current.setAttribute('fill', isReached ? '#6ee7b7' : '#94a3b8');
       }
 
@@ -288,7 +293,7 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
           timerBadgeBg.current.setAttribute('fill', 'rgba(6, 78, 59, 0.8)');
           timerBadgeBg.current.setAttribute('stroke', '#10b981');
         } else {
-          timerBadge.current.textContent = `TARGET 0–{activeTarget} KM/H`;
+          timerBadge.current.textContent = `TARGET ${runLabel} KM/H`;
           timerBadge.current.setAttribute('fill', '#94a3b8');
           timerBadgeBg.current.setAttribute('fill', '#131924');
           timerBadgeBg.current.setAttribute('stroke', 'rgba(255, 255, 255, 0.2)');
@@ -303,12 +308,23 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
         gBarFill.current.setAttribute('height', String(barHeight));
       }
 
-      // 9. Threshold marks reached status
-      launch.marks.forEach((m, i) => {
-        marks.current[i]?.setAttribute('data-reached', r.elapsed >= m.time - 1e-3 ? 'true' : 'false');
-      });
+      // 9. Threshold marks reached status: the chips are the scenario's runs, or the speeds of a plain launch
+      if (launch.drive) {
+        launch.drive.runs.forEach((run, i) => {
+          const hit = run.id === launch.drive?.run && r.elapsed >= run.time - 1e-3;
+          marks.current[i]?.setAttribute('data-reached', hit ? 'true' : 'false');
+        });
+      } else {
+        launch.marks.forEach((m, i) => {
+          marks.current[i]?.setAttribute('data-reached', r.elapsed >= m.time - 1e-3 ? 'true' : 'false');
+        });
+      }
 
-      // 10. Audio drift correction
+      // 10. The motor's sound follows the car: it fades once the car is braking or crawling through a manoeuvre
+      const quiet = r.phase === 'brake' || r.phase === 'decel' || r.phase === 'stop' || r.phase === 'slalom' || r.phase === 'crab';
+      player.setGain(quiet ? Math.min(1, r.speed / 120) ** 2 : 1);
+
+      // 11. Audio drift correction
       if (playing) {
         const audioTime = player.currentTime;
         if (Math.abs(audioTime - techClock.t) > 0.35) {
@@ -334,6 +350,13 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
     setLaunchTarget(targetSpeed);
   };
 
+  // the Drive tab's runs are chosen by id (a rolling pull has no 0 to start from)
+  const handleSelectRun = (id: string) => {
+    if (launch?.drive?.run === id) return;
+    if (techClock.playing) techClock.pause();
+    setDrive({ run: id });
+  };
+
   const action =
     run === 'driving'
       ? { label: 'Pause', run: pauseDemo }
@@ -343,14 +366,33 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
           ? { label: 'Launch again', run: () => techClock.play() }
           : { label: 'Launch', run: () => techClock.play() };
 
-  const hasMultipleMarks = (launch?.marks?.length ?? 0) > 1;
+  // the chips: a scenario's runs (0–100, 0–200, 80–160 ...), or the speeds a plain launch passes; a time with a star is ours
+  const chips: { key: string; label: string; time: number; published: boolean; selected: boolean; title: string; select: () => void }[] = launch?.drive
+    ? launch.drive.runs.map((r) => ({
+        key: r.id,
+        label: r.label,
+        time: r.time,
+        published: r.published,
+        selected: r.id === launch.drive?.run,
+        title: `Run ${r.label} km/h: ${r.time.toFixed(2)} s ${r.published ? 'published' : 'modelled'}`,
+        select: () => handleSelectRun(r.id),
+      }))
+    : (launch?.marks ?? []).map((m) => ({
+        key: String(m.speed),
+        label: `0–${m.speed}`,
+        time: m.time,
+        published: m.published !== false,
+        selected: activeTarget === m.speed,
+        title: `Target: 0–${m.speed} km/h (${m.time.toFixed(2)} s ${m.published !== false ? 'published' : 'modelled'})`,
+        select: () => handleSelectTarget(m.speed),
+      }));
+  const hasMultipleMarks = chips.length > 1;
 
   return (
     <div className="pointer-events-auto flex w-full max-w-[840px] flex-col items-center select-none bg-transparent">
       {/* Gran Turismo 7 Exact Racing Cockpit Instrument Cluster */}
       <svg
         width="100%"
-        height="auto"
         viewBox="0 0 840 236"
         className="w-full max-w-[840px] overflow-visible drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
         aria-label="Gran Turismo 7 Racing Cockpit"
@@ -1413,19 +1455,18 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
         </button>
 
         <div className="flex flex-wrap items-center justify-end gap-1.5">
-          {(launch?.marks ?? []).map((m, i) => {
-            const isSelected = activeTarget === m.speed;
-            return hasMultipleMarks ? (
+          {chips.map((chip, i) =>
+            hasMultipleMarks ? (
               <button
-                key={m.speed}
+                key={chip.key}
                 type="button"
-                onClick={() => handleSelectTarget(m.speed)}
+                onClick={chip.select}
                 className={`group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] backdrop-blur-md transition-all cursor-pointer font-['Chakra_Petch',sans-serif] ${FOCUS} ${
-                  isSelected
+                  chip.selected
                     ? 'bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400 font-bold shadow-[0_0_14px_rgba(0,229,255,0.3)]'
                     : 'bg-neutral-900/60 text-neutral-300 ring-1 ring-white/10 hover:bg-neutral-800/80 hover:text-white'
                 }`}
-                title={`Target: 0–${m.speed} km/h (${m.time.toFixed(2)} s published)`}
+                title={chip.title}
               >
                 <span
                   ref={(el) => {
@@ -1434,15 +1475,16 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
                   data-reached="false"
                   className="transition-colors data-[reached=true]:text-emerald-400 data-[reached=true]:font-bold"
                 >
-                  0–{m.speed}
+                  {chip.label}
                 </span>
-                <span className={isSelected ? 'text-white' : 'text-neutral-400 font-normal'}>
-                  {m.time.toFixed(2)}s
+                <span className={chip.selected ? 'text-white' : 'text-neutral-400 font-normal'}>
+                  {chip.time.toFixed(2)}s{chip.published ? '' : '*'}
                 </span>
               </button>
             ) : (
               <div
-                key={m.speed}
+                key={chip.key}
+                title={chip.title}
                 className="flex items-center gap-1.5 rounded-full bg-neutral-900/60 px-3 py-1.5 text-[11px] text-neutral-300 ring-1 ring-white/10 backdrop-blur-md font-['Chakra_Petch',sans-serif]"
               >
                 <span
@@ -1452,12 +1494,14 @@ export function LaunchTools({ vehicle }: { vehicle?: Vehicle } = {}) {
                   data-reached="false"
                   className="data-[reached=true]:text-emerald-400 data-[reached=true]:font-semibold"
                 >
-                  0–{m.speed} km/h
+                  {chip.label} km/h
                 </span>
-                <span className="text-white font-medium">{m.time.toFixed(2)}s</span>
+                <span className="text-white font-medium">
+                  {chip.time.toFixed(2)}s{chip.published ? '' : '*'}
+                </span>
               </div>
-            );
-          })}
+            ),
+          )}
         </div>
       </div>
     </div>

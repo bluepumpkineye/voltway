@@ -5,6 +5,8 @@ import { planCarpet, stiffnessOf, type CarpetRun, type RoadStage } from './carpe
 import { planCharge, type ChargeRun } from './charge';
 import { chargeFacts, portOf } from './charging';
 import { planLaunch, type LaunchRun } from './launch';
+import { planDrive } from './drive-run';
+import { DRIVE_CAMERAS, driveSetup, type DriveSelection } from './drive-setup';
 import { ASSIST_MOTION, planPark, PARK_MOTION, type BodyBox, type ParkSpeed, type ParkStage, type Pose } from './park';
 import type { Chassis, RideMode } from './ride';
 import { planBoost, type BoostRun } from './boost';
@@ -37,6 +39,8 @@ export interface DemoContext {
   chassis: { pivot: Pivot; angleDeg: number };
   /** which of the driver's scenes the demo plays (`TechDemoSpec.scenario`) */
   scenario?: string;
+  /** the Drive tab's choices: the run, the car's mode, the load, a stop (src/lib/tech/drive-setup.ts) */
+  drive?: DriveSelection;
 }
 
 /** A demo's motion, built for one car. */
@@ -252,6 +256,32 @@ const launch: Driver = {
 };
 
 /**
+ * The Drive tab's run: the car's own scenario (`Vehicle.drive`) on its variant's published figures, in the mode and with the
+ * load the visitor chose. The road rolls under the car like the launch's; a manoeuvre moves the car sideways on it.
+ */
+const drive: Driver = {
+  build: ({ vehicle, layout, body, start, variantId, drive: choice }) => {
+    const setup = driveSetup(vehicle, { ...choice, variantId });
+    const run = planDrive(layout, body, start, setup.input, { brake: setup.brake });
+    return {
+      track: run.track,
+      stops: [],
+      autoplay: false,
+      trail: false,
+      stage: null,
+      treadmill: {
+        road: run.road,
+        scroll: run.scroll,
+        chassis: run.chassis,
+        frame: { ...run.frame, camera: DRIVE_CAMERAS[setup.camera] },
+        launch: run.launch,
+        lateral: run.lateral,
+      },
+    };
+  },
+};
+
+/**
  * Fast charge (the Charging tab): the flap opens, a gun comes off its pedestal and goes into the DC socket, the car
  * charges through the window its maker quotes (played in fourteen seconds), the gun goes home and the flap shuts.
  */
@@ -303,4 +333,4 @@ const swivel: Driver = {
   },
 };
 
-export const DRIVERS: Record<string, Driver> = { 'rig-test': rigTest, park, carpet, launch, charge, swivel, sensors, boost, crab, compass, e3park, uturn };
+export const DRIVERS: Record<string, Driver> = { 'rig-test': rigTest, park, carpet, launch, drive, charge, swivel, sensors, boost, crab, compass, e3park, uturn };
