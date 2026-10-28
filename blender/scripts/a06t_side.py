@@ -180,11 +180,13 @@ def build_roof_rails(collection, lib):
         bar, base, inset = [], [], []
         for i in range(n + 1):
             x = x_a + (x_b - x_a) * i / float(n)
-            y_want = S.Y_ROOF(x) - 0.030
+            # the rails draw in toward the rear (c1_0006: their ends stand ~2.5 cm closer than the old line) and
+            # stand 3 cm, not 4.7 cm, over the roof's edge (c1_0004: the rail's top is 1.508, the roof edge ~1.48)
+            y_want = S.Y_ROOF(x) - 0.030 - 0.022 * geom.smoothstep((-0.90 - x) / 0.70)
             v = S.v_at_y_upper(x, y_want)
             p, nr = S.surface(x, v), S.surface_normal(x, v)
             foot = min(1.0, 8.0 * (i / float(n)), 8.0 * (1.0 - i / float(n)))
-            lift = 0.010 + 0.024 * foot * foot * (3.0 - 2.0 * foot)
+            lift = 0.010 + 0.008 * foot * foot * (3.0 - 2.0 * foot)
             bar.append((p[0] + nr[0] * lift, side * abs(p[1] + nr[1] * lift), p[2] + nr[2] * lift))
             base.append((p[0] + nr[0] * 0.003, side * abs(p[1] + nr[1] * 0.003), p[2] + nr[2] * 0.003))
             inset.append((p[0] + nr[0] * (lift - 0.002), side * (abs(p[1]) - 0.0085), p[2] + nr[2] * (lift - 0.002)))

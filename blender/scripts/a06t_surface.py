@@ -50,17 +50,28 @@ BACKLIGHT_X = KNEE_X
 Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve([
     # the glass's surface: a long shallow rake (~30 degrees) from the tailgate's top edge at x -2.33,
     # z 1.093 up under the roof's rear end (the spoiler overhangs it); c1_0004's black wedge edge
-    (-HALF_L, 0.995), (-2.42, 1.003), (-2.39, 1.025), (-2.36, 1.060), (-2.33, 1.093),
-    (-2.28, 1.123), (-2.21, 1.165), (-2.14, 1.207), (-2.07, 1.248), (-2.00, 1.292),
-    (KNEE_X, 1.331),
+    # (2026-10-28: the side photo's glass edge stands 5-6 cm ahead of the old one at mid-height and the
+    # spoiler tip within 2 cm, so the foot moves forward 5 cm and the rake steepens to ~36 degrees)
+    # (2026-10-28, second pass: the backlight's centre profile was checked again against the side photo's own top edge,
+    # per column, drawn over a 2x crop: a straight 30 degree rake, (-2.214, 1.122) (-2.102, 1.189) (-1.98, 1.26); the
+    # blade's tip stands 0.1 m behind the glass's top, with the background showing in the gap. This line already had
+    # it. A "straight 47 degree" refit made from a hand reading of the crop put the glass 2.5-9 cm too high: not used)
+    (-HALF_L, 0.995), (-2.42, 1.003), (-2.36, 1.025), (-2.318, 1.060), (-2.282, 1.093),
+    (-2.222, 1.123), (-2.150, 1.165), (-2.083, 1.207), (-2.030, 1.250), (-1.985, 1.292),
+    (KNEE_X, 1.344),
 ]), Curve([
-    # roof: peaks at 1.503 over the front seats (rail tops 1.516-1.527 in the photo), falls
-    # to the spoiler; windscreen on the silhouette (x 0.42..1.12, rake 26 degrees)
-    (KNEE_X, 1.331), (-1.92, 1.337), (-1.85, 1.349), (-1.77, 1.360), (-1.70, 1.369),
-    (-1.62, 1.378), (-1.55, 1.392), (-1.47, 1.414), (-1.33, 1.442), (-1.18, 1.462),
-    (-1.03, 1.478), (-0.88, 1.490), (-0.73, 1.496), (-0.58, 1.500), (-0.43, 1.503),
-    (-0.28, 1.500), (-0.13, 1.494), (0.00, 1.482), (0.15, 1.452), (0.30, 1.412),
-    (0.42, 1.368), (0.49, 1.331), (0.57, 1.298), (0.65, 1.263), (0.72, 1.222),
+    # roof: peaks at 1.494 over the front seats (the rails stand 3 cm over its edge: their tops read 1.508 on the
+    # side photo, c1_0004, top edge per column at the rail's own plane y 0.55), falls to the spoiler; windscreen on
+    # the silhouette (x 0.42..1.12, rake 26 degrees).
+    # 2026-10-28 (second pass): the first rebuild read the rails' tops in the centre plane and put the roof 1-1.5 cm and
+    # the rails 3.5 cm too high over the middle, and 0.7-2 cm too low behind x -1.6, where the silhouette is the roof
+    # itself: a hump the owner saw as bumps and hollows over the rear seats
+    # (the knee at 1.344 with a 0.17 slope behind it: the spoiler blade carries that slope back to its tip)
+    (KNEE_X, 1.344), (-1.92, 1.349), (-1.85, 1.358), (-1.77, 1.368), (-1.70, 1.378),
+    (-1.62, 1.389), (-1.55, 1.399), (-1.47, 1.415), (-1.33, 1.436), (-1.18, 1.451),
+    (-1.03, 1.465), (-0.88, 1.474), (-0.73, 1.481), (-0.58, 1.485), (-0.43, 1.486),
+    (-0.28, 1.483), (-0.13, 1.476), (0.00, 1.467), (0.15, 1.445), (0.30, 1.408),
+    (0.42, 1.366), (0.49, 1.331), (0.57, 1.298), (0.65, 1.263), (0.72, 1.222),
     (0.80, 1.184), (0.88, 1.145), (0.96, 1.102), (1.03, 1.058), (COWL_X, 1.015),
 ])), Curve([
     # hood centreline: the fender crowns stand 2 cm over it (Z_CREST), so this is the photo's
@@ -93,14 +104,14 @@ Z_SHOULDER = Curve([
 ])
 
 # Crown of the roof / backlight and front fender tops relative to Z_ROOF
-Z_CREST = Joined(COWL_X, Joined(-1.75, Curve([
+Z_CREST = Joined(COWL_X, Curve([
+    # one curve behind the cowl: it was two (the tail's, spliced to the roof's at x -1.75), which left a
+    # 3.5 mm step and a slope break across the C-pillar, the chevron streaks on the quarter in a zebra render
     (-HALF_L, -0.052), (-2.35, -0.062), (-2.20, -0.066), (-2.05, -0.058),
-    (-1.95, -0.042), (-1.85, -0.026), (-1.75, -0.018),
+    (-1.95, -0.042), (-1.85, -0.026), (-1.75, -0.018), (-1.60, -0.016),
+    (-1.10, -0.016), (-0.50, -0.015), (0.00, -0.015), (0.42, -0.024),
+    (0.80, -0.018), (COWL_X, 0.000),
 ], mode="pchip"), Curve([
-    (-HALF_L, 0.000), (-1.96, -0.012), (-1.60, -0.016), (-1.10, -0.016),
-    (-0.50, -0.015), (0.00, -0.015), (0.42, -0.024), (0.80, -0.018),
-    (COWL_X, 0.000),
-])), Curve([
     # front fender crowns above the hood's centre
     (COWL_X, 0.000), (1.30, 0.016), (1.50, 0.022), (1.70, 0.024),
     (1.95, 0.020), (2.20, 0.010), (2.35, 0.003), (HALF_L, 0.000),

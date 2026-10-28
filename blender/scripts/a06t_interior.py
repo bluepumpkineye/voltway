@@ -72,7 +72,10 @@ CLUSTER_C = (0.6085, DRIVER_Y, 1.059)      # 8.88 in, in the band behind the whe
 PASSENGER_C = (0.6085, -0.460, 1.059)      # 8.88 in, in the band ahead of the passenger
 SMALL_W, SMALL_H = 0.205, 0.078
 
-FRONT_BIGHT_X, FRONT_BIGHT_Z = -0.260, 0.585
+# 2026-10-28: the front seats moved 85 mm forward (-0.260 -> -0.175). c1_0004 shows the front headrests through the rear door's
+# glass at x -0.50..-0.52 (centre of the dark blob at u 2190-2330, y 0.41 plane); the old seat's headrest centre stood ~8 cm
+# further back, so the footwell read as a big empty floor and the seat as pushed back against the B-pillar.
+FRONT_BIGHT_X, FRONT_BIGHT_Z = -0.175, 0.585
 REAR_BIGHT_X, REAR_BIGHT_Z, REAR_Y = -1.200, 0.610, 0.370
 
 MIRROR_C = (0.250, 0.000, 1.350)           # frameless, 225 mm (cabin_front: u 663-930)
@@ -1024,7 +1027,9 @@ def build_shell(col, lib):
     # C-pillar: the broad sail behind the quarter light, as an offset trim,
     # from under the belt up under the headliner, and behind the knee up to
     # the backlight's side edge
-    xs = [PN.X_DLO_TIP + 0.030 - (PN.X_DLO_TIP + 0.030 + 2.44) * k / 24.0 for k in range(25)]
+    # (ends at x -2.24: the loft runs on to -2.47 but the body behind the cap's join is the tail cap, 4-6 cm shorter since
+    # 2026-10-28; the trim used to run to -2.44 and stood out of the paint as a grey plate with any door open: porting/poke_probe_a06t.py)
+    xs = [PN.X_DLO_TIP + 0.030 - (PN.X_DLO_TIP + 0.030 + 2.24) * k / 24.0 for k in range(25)]
 
     def c_lo(x):
         # down over the quarter trim's top (1.205); in the luggage area down
@@ -1134,7 +1139,8 @@ def build_closures(col, lib):
                    mode="pchip")
     pts = []
     for k in range(17):
-        x = -1.56 - (2.46 - 1.56) * k / 16.0
+        # ends at x -2.235, a few cm inside the glass's foot (x -2.283 at z 1.093); it ran to -2.46, up to 16 cm behind the tail
+        x = -1.56 - (2.235 - 1.56) * k / 16.0
         z = 1.050 + 0.105 * (k / 16.0) ** 1.8 + 0.035 * _smooth((x + 2.30) / -0.14)
         pts.append((x, min(z, pane_z(x) - 0.014) if x < -2.10 else z))
     made.append(CB.bulkhead(col, lib["headliner"], pts,
@@ -1148,7 +1154,9 @@ def build_closures(col, lib):
         x_of, z_a = pane.column(y)
         zb = pane.z_bot(y) + 0.004
         xb = pane.corner(x_of(zb), y, zb, z_a) + 0.014
-        xa, za = -2.200, 1.100
+        # its start 6 cm ahead of its end at every y (a fixed -2.200 stood up to 5 cm behind the glass at the pane's sides,
+        # where the glass curves forward to x -2.15)
+        xa, za = xb + 0.060, 1.100
         rows.append([(xa + (xb - xa) * t, y, za + (zb - za) * (t ** 0.6)) for t in
                      [k / 6.0 for k in range(7)]])
     sl = grid_mesh("int_rear_sill", rows, col, lib["headliner"])

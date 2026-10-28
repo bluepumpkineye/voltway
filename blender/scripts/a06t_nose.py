@@ -22,9 +22,9 @@ JOIN_F = Curve([
 # Rear: behind the rear wheel opening (REAR_AXLE - ARCH_R = -1.785), rising behind the lamp
 # bar's wrap onto the quarter to the tailgate's top corner.
 JOIN_R = Curve([
-    (0.00, -2.290), (0.10, -2.250), (0.22, -2.170), (0.34, -2.130),
-    (0.46, -2.120), (0.56, -2.140), (0.66, -2.190), (0.76, -2.245),
-    (0.86, -2.290), (0.94, -2.318), (1.00, -2.330),
+    (0.00, -2.262), (0.10, -2.226), (0.22, -2.158), (0.34, -2.120),
+    (0.46, -2.108), (0.56, -2.122), (0.66, -2.160), (0.76, -2.205),
+    (0.86, -2.246), (0.94, -2.272), (1.00, -2.284),
 ])
 
 # ------------------------------------------- centreline profiles, x given z
@@ -42,11 +42,21 @@ NOSE_Z_LO, NOSE_Z_HI = 0.195, 0.759
 
 # Tail from the silhouette: a bumper bulge to x -2.47 at z 0.52, the tailgate's face at -2.405
 # above the lamp bar, folding forward over the tailgate's top edge into the glass.
+#
+# 2026-10-28 rear refit: the side photograph's tail edge through the solved camera (rows every 20 mm,
+# `tail_prof`) put the old profile 4-6 cm too far back at every height (bumper bulge +4.5 cm, gate face
+# +6, lamp ledge +3, glass foot +5; the spoiler tip was right within 2). The real tail is an S: a bumper
+# bulge at z 0.52, a gate face that tucks 8 cm in over z 0.65-0.80, a small ledge at the lamp, then the
+# turn into the glass. Knots are the photo's edge, not the old curve plus an offset. (+22 mm on the face and
+# bumper after the corner roll changed, fading to nothing at the glass foot: the roll's silhouette is
+# what the side photo sees, and the wider roll stands further back at the same centre depth. +14 mm more
+# when the per-height corner exponent replaced the single one.)
 TAIL_X_OF_Z = Curve([
-    (0.255, -2.405), (0.320, -2.435), (0.400, -2.455), (0.470, -2.466),
-    (0.520, -2.470), (0.560, -2.466), (0.600, -2.440), (0.640, -2.414),
-    (0.690, -2.404), (0.760, -2.405), (0.850, -2.414), (0.920, -2.412),
-    (0.970, -2.408), (1.000, -2.402), (1.025, -2.390), (1.060, -2.360), (1.093, -2.330),
+    (0.255, -2.286), (0.320, -2.312), (0.400, -2.332), (0.470, -2.364),
+    (0.520, -2.388), (0.560, -2.382), (0.600, -2.364), (0.640, -2.336),
+    (0.690, -2.314), (0.760, -2.310), (0.850, -2.330), (0.920, -2.338),
+    (0.970, -2.339), (1.000, -2.332), (1.025, -2.324), (1.060, -2.303),
+    (1.093, -2.282),
 ], mode="pchip")
 TAIL_Z_LO, TAIL_Z_HI = 0.255, 1.093
 
@@ -60,16 +70,59 @@ WRAP = Curve([
     (0.995, 0.9300), (1.00, 1.0000),
 ])
 
-TAIL_WRAP = Curve([
-    (0.00, 0.000), (0.20, 0.004), (0.40, 0.016), (0.55, 0.034),
-    (0.68, 0.062), (0.78, 0.105), (0.86, 0.170), (0.92, 0.270),
-    (0.96, 0.420), (0.985, 0.640), (0.996, 0.840), (1.00, 1.000),
-])
+# The tail's corner roll. g = s^P(v) with s = (w - W0)/(1 - W0): flat across the face to W0 (the gate's shut
+# line, y 0.59, is 0.67 of the join's half-width), then rolling into the flank. The END SLOPE is the point: the
+# cap must leave the join at the flank's own plan taper, dy/dx = m(v), and it does so at dy/dx = yj / (g'(1) * depth)
+# with g'(1) = P / (1 - W0), so P(v) = yj (1 - W0) / (m depth). One P for every height (4.0) left a 6-9 degree
+# crease down the corner at the bumper and door-top heights, where the flank tapers at only 0.16-0.20 against
+# the cap's 0.31-0.38 (ray probe across the seam, 2026-10-28); the old table had g'(1) ~ 40 and a 9-14 degree one.
+TAIL_W0 = 0.67
+TAIL_P_RANGE = (3.2, 7.5)
+
+
+class TaperedWrapCap(WrapCap):
+    """A WrapCap whose corner roll leaves the join along the flank's plan taper at every height."""
+
+    def __init__(self, *a, w0=TAIL_W0, p_range=TAIL_P_RANGE, **kw):
+        super().__init__(*a, **kw)
+        self.w0, self.p_range, self._p = w0, p_range, {}
+
+    def exponent(self, v):
+        key = round(v, 4)
+        p = self._p.get(key)
+        if p is None:
+            lo, hi = self.p_range
+            xj = self.JOIN(v)
+            yj = self.loft.section_v(xj, v)[0]
+            h = 0.010
+            m = (self.loft.section_v(xj + h, v)[0] - self.loft.section_v(xj - h, v)[0]) / (2.0 * h)
+            depth = abs(xj - self.tip_at(v)[0])
+            p = hi if (m <= 1e-3 or depth < 1e-3) else yj * (1.0 - self.w0) / (m * depth)
+            p = min(hi, max(lo, p))
+            self._p[key] = p
+        return p
+
+    def point(self, w, v):
+        xj = self.JOIN(v)
+        yj, zj = self.loft.section_v(xj, v)
+        xt, zt = self.tip_at(v)
+        s = min(1.0, max(0.0, (w - self.w0) / (1.0 - self.w0)))
+        g = s ** self.exponent(v) if s > 0.0 else 0.0
+        u = 1.0 - g
+        sl = self.flank_slope(v)
+        dx = xt - xj
+        z = zj + sl * dx * u + (zt - zj - sl * dx) * u * u
+        return (xt + (xj - xt) * g, yj * w, z)
+
+    def wrap(self, w):
+        s = min(1.0, max(0.0, (w - self.w0) / (1.0 - self.w0)))
+        return s ** 4.0 if s > 0.0 else 0.0
+
 
 NOSE = WrapCap(S.BODY, front=True, join=JOIN_F, x_of_z=NOSE_X_OF_Z,
                z_lo=NOSE_Z_LO, z_hi=NOSE_Z_HI, wrap=WRAP)
-TAIL = WrapCap(S.BODY, front=False, join=JOIN_R, x_of_z=TAIL_X_OF_Z,
-               z_lo=TAIL_Z_LO, z_hi=TAIL_Z_HI, wrap=TAIL_WRAP)
+TAIL = TaperedWrapCap(S.BODY, front=False, join=JOIN_R, x_of_z=TAIL_X_OF_Z,
+                      z_lo=TAIL_Z_LO, z_hi=TAIL_Z_HI, wrap=None)
 BODY = CarBody(S.BODY, NOSE, TAIL, flank_x_range=(-2.35, 2.30))
 
 

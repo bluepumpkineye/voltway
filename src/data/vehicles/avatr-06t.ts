@@ -121,7 +121,8 @@ export const avatr06t: Vehicle = {
       sun: { direction: [0.65, 0.45, 0.61], color: '#fff5e6', intensity: 2.8 },
       ground: { height: -0.369, radius: 24.0 },
     },
-    driverEye: [-0.36, 0.41, 1.15],
+    // 85 mm forward with the front seats (a06t_interior.FRONT_BIGHT_X): at the old x the eye stood inside the headrest
+    driverEye: [-0.275, 0.41, 1.15],
     proxyUrl: '/models/avatr-06t-proxy.glb',
     heroColor: '#524660',
   },
@@ -249,6 +250,11 @@ export const avatr06t: Vehicle = {
     },
   ],
   xray: { node: 'Avatr06T_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
+  // The clear panes keep the X-ray's ghost (the front glass of c1_0001..c1_0003 shows the cabin plainly). The privacy glass
+  // (rear windows, backlight, glass roof) was drawn 55 % opaque: the cargo trim, the shelf and the headliner's lamps showed
+  // through the backlight and the roof as grey shapes the owner read as bumps and body mixed into the glass (2026-10-28). The
+  // photographed pane is dark with only the headrests' silhouettes in it (c1_0005, c1_0007), and it mirrors a dark ceiling.
+  glass: { color: '#98a4b3', opacity: 0.34, privacy: 0.84, privacyReflect: 0.55 },
   lights: { projector: {} },
   sensors: {
     lidar: [0.18, 1.45, 0],

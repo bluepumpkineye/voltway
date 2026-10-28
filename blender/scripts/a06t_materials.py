@@ -65,6 +65,11 @@ def build_library():
                   coat=0.5, coat_rough=0.08)
     lib["pod"] = m
 
+    # the rear bumper's retro-reflectors read as dull brownish red strips in the photographs (c1_0007), not
+    # the library's saturated red
+    _M.set_inputs(next(n for n in lib["reflector"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED'),
+                  base=(0.135, 0.016, 0.014), metallic=0.0, roughness=0.26, coat=0.6, coat_rough=0.08)
+
     # Ceramic frit band around rear glass
     m, nt, b = _M.mat("M_Frit_Black")
     _M.set_inputs(b, base=(0.003, 0.003, 0.004), metallic=0.0, roughness=0.07,
