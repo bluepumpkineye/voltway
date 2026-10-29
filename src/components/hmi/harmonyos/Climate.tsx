@@ -17,7 +17,7 @@ export function ClimatePage() {
   const t = useHa();
   const dark = t.tone === 'dark';
   const { climate, patchClimate } = useVehicleStore();
-  const { on, toggle, val, setVal } = useHaLocal();
+  const { on, toggle, val, setVal, slug } = useHaLocal();
   const [tab, setTab] = React.useState<'front' | 'rear'>('front');
   const [more, setMore] = React.useState(false);
   const rear = tab === 'rear';
@@ -87,7 +87,7 @@ export function ClimatePage() {
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: t.bg, color: t.text }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/hmi/luxeed-rx/cabin-climate-${t.tone}.webp`} alt="" draggable={false} className="absolute max-w-none" style={{ left: -40, top: -78, width: 1360 }} />
+      <img src={`/hmi/${slug}/cabin-climate-${t.tone}.webp`} alt="" draggable={false} className="absolute max-w-none" style={{ left: -40, top: -78, width: 1360 }} />
 
       {/* PM2.5 and recirculation */}
       <button type="button" onClick={() => toggle('recirc')} className="absolute flex h-[52px] items-center gap-3 rounded-full px-5 text-left text-[15px] leading-tight outline-none" style={{ left: 34, top: 36, ...pill }}>

@@ -12,6 +12,7 @@ import { useRuntime } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
 import * as Ic from './icons';
 import { useHa } from './theme';
+import { useHaLocal } from './shared';
 
 /**
  * The car's parking page: the 360 view's top picture on the left, the rear camera on the right, and one
@@ -97,7 +98,14 @@ export function ParkPage({ vehicle }: { vehicle: Vehicle }) {
       <div className="absolute overflow-hidden rounded-[30px]" style={{ left: 22, top: 24, width: 548, height: 690, background: panel }}>
         <div className="absolute inset-x-0 top-[96px] bottom-[18px]">
           {runtime?.stage ? (
-            <ParkTopView theme={dark ? 'dark' : 'light'} className="h-full w-full" preview={preview} selected={!searching} margin={0.5} />
+            <ParkTopView
+              theme={dark ? 'dark' : 'light'}
+              className="h-full w-full"
+              preview={preview}
+              selected={!searching}
+              margin={0.5}
+              sprite={{ src: `/hmi/${vehicle.slug}/car-top.webp`, aspect: 420 / 969 }}
+            />
           ) : (
             <div className="grid h-full place-items-center px-10 text-center text-[20px] leading-snug" style={{ color: t.text2 }}>
               {techAvailable ? 'Loading the car…' : 'The car parks itself in the showroom.'}
@@ -274,11 +282,12 @@ export function ParkAssistDialog({ onClose }: { onClose: () => void }) {
 /** The dialog's little picture: the car, the path it takes and, for remote parking, the phone that sends it. */
 function Illustration({ speed = false }: { speed?: boolean }) {
   const t = useHa();
+  const { slug } = useHaLocal();
   return (
     <svg width="300" height="130" viewBox="0 0 300 130" aria-hidden>
       <path d="M40 98 C110 98 150 96 196 60" fill="none" stroke={t.blue} strokeWidth="5" strokeLinecap="round" strokeDasharray="3 11" opacity="0.9" />
       <path d="M150 112 L206 112 L230 92 L172 92 Z" fill="none" stroke={t.blue} strokeWidth="3" opacity="0.7" />
-      <image href="/hmi/luxeed-rx/car34.webp" x="0" y="34" width="150" height="73" />
+      <image href={`/hmi/${slug}/car34.webp`} x="0" y="34" width="150" height="73" />
       {!speed && (
         <g transform="translate(236 30)">
           <circle cx="0" cy="0" r="30" fill="none" stroke={t.blue} strokeWidth="3" opacity="0.7" />

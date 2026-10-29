@@ -201,10 +201,11 @@ function Hero({ children, h = 300 }: { children?: React.ReactNode; h?: number })
 }
 
 function CarImage({ w = 520, left = 250, top = 8, ghost = false }: { w?: number; left?: number; top?: number; ghost?: boolean }) {
+  const { slug } = useHaLocal();
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/hmi/luxeed-rx/car34.webp"
+      src={`/hmi/${slug}/car34.webp`}
       alt=""
       draggable={false}
       className="absolute max-w-none"
@@ -261,7 +262,7 @@ function LightsPage() {
   const t = useHa();
   const [tab, setTab] = React.useState<'inside' | 'outside'>('outside');
   const { ambientOn, ambientHue, ambientBrightness, setAmbient } = useVehicleStore();
-  const { val, setVal, on, set } = useHaLocal();
+  const { val, setVal, on, set, slug } = useHaLocal();
   const [zone, setZone] = React.useState(0);
   const sq = React.useRef<HTMLDivElement>(null);
   const pick = (e: React.PointerEvent) => {
@@ -310,7 +311,7 @@ function LightsPage() {
       {tabs}
       <Hero h={250}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/hmi/luxeed-rx/cabin-seats-${t.tone}.webp`} alt="" draggable={false} className="absolute max-w-none" style={{ left: 120, top: -10, width: 560, opacity: 0.9 }} />
+        <img src={`/hmi/${slug}/cabin-seats-${t.tone}.webp`} alt="" draggable={false} className="absolute max-w-none" style={{ left: 120, top: -10, width: 560, opacity: 0.9 }} />
         <div className="absolute inset-x-[100px] bottom-0 h-[10px] rounded-full opacity-90" style={{ background: ambientOn ? `hsl(${ambientHue} 95% 55%)` : 'transparent', filter: 'blur(6px)' }} />
       </Hero>
       <div className="mb-[18px] flex items-center justify-between gap-3">
@@ -610,13 +611,13 @@ function ConnectionPage() {
 
 function SoundPage() {
   const t = useHa();
-  const { val, setVal, on, set, notify } = useHaLocal();
+  const { val, setVal, on, set, notify, slug } = useHaLocal();
   const fx = val.soundFx;
   return (
     <div>
       <Hero h={300}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/hmi/luxeed-rx/cabin-seats-${t.tone}.webp`} alt="" draggable={false} className="absolute max-w-none" style={{ left: 140, top: -20, width: 560 }} />
+        <img src={`/hmi/${slug}/cabin-seats-${t.tone}.webp`} alt="" draggable={false} className="absolute max-w-none" style={{ left: 140, top: -20, width: 560 }} />
         <div className="absolute left-1/2 top-[8px] -translate-x-1/2 text-[13px] font-semibold tracking-[0.2em]" style={{ color: t.text3 }}>SOUND SYSTEM</div>
         <button type="button" onClick={() => notify('Preview plays a sample (showroom demo)')} className="absolute left-[330px] top-[238px] flex h-[40px] items-center gap-2 rounded-full px-5 text-[16px] outline-none" style={{ background: t.seg }}>Preview <Ic.Play size={14} /></button>
         <span className="absolute left-[310px] top-[262px] rounded-full px-8 py-2 text-[17px]" style={{ background: t.seg }}>Smart sound field</span>

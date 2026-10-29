@@ -31,7 +31,7 @@ import { SettingsApp } from './Settings';
  */
 export function HarmonyOsSurface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
   return (
-    <HaProvider>
+    <HaProvider slug={vehicle.slug}>
       <Surface vehicle={vehicle} variant={variant} />
     </HaProvider>
   );

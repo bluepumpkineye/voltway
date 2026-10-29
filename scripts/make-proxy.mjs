@@ -31,6 +31,7 @@ const CARS = {
   'xpeng-g9l': { skip: /Turbine_Wheels|Caliper|DoorFrame/ },
   'avatr-06t': { skip: /Star_Wheels|Caliper|DoorFrame/ },
   'nio-es8': { skip: /Lanyue_Wheels|Caliper|DoorFrame/ },
+  'voyah-passion-s': { skip: /Starlight_Wheels|Caliper|DoorFrame/ },
 };
 
 /** Triangles after simplification. */

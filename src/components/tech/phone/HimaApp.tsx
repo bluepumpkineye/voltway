@@ -96,6 +96,7 @@ export function HimaApp({
         />
       ) : (
         <Remote
+          vehicle={vehicle}
           demo={demo}
           phase={phase}
           progress={parkProgress(clock)}
@@ -332,6 +333,7 @@ function Home({
 /* ------------------------------------------------------------------- remote */
 
 function Remote({
+  vehicle,
   demo,
   phase,
   progress,
@@ -342,6 +344,7 @@ function Remote({
   notDemo,
   done,
 }: {
+  vehicle: Vehicle;
   demo: TechDemoSpec;
   phase: ReturnType<typeof parkPhase>;
   progress: number;
@@ -495,7 +498,7 @@ function Remote({
       <div className="mx-4 mt-3 overflow-hidden rounded-[18px] bg-white">
         <div className="relative">
           {runtime?.stage ? (
-            <ParkTopView theme="light" className="block h-auto w-full" />
+            <ParkTopView theme="light" className="block h-auto w-full" sprite={{ src: `/hmi/${vehicle.slug}/car-top.webp`, aspect: 420 / 969 }} />
           ) : runtime?.chassis?.stage ? (
             <div className="flex h-[200px] flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#e7edf6] to-[#cfd9e8] p-4 text-center">
               <span className="flex h-[36px] w-[36px] items-center justify-center rounded-[10px] text-[17px] font-bold text-white shadow-md" style={{ background: 'linear-gradient(145deg,#e0243c,#a30f2a)' }}>
