@@ -25,12 +25,12 @@ const CARS = {
   'luxeed-rx': { skip: /Yufeng|Sport|Caliper|DoorFrame/ },
   'su7-ultra': { skip: /DoorFrame|TrunkArms/ },
   'zeekr-7x': { skip: /Fork_Wheels|Multi_Wheels|DoorFrame/ },
-  // one wheel design each, already cut into corners
-  'denza-z9': { skip: /Caliper|DoorFrame/ },
-  'byd-seal': { skip: /Caliper|DoorFrame/ },
+  // the default wheel design of each, already cut into corners
+  'denza-z9': { skip: /Pro_Wheels|Caliper|DoorFrame/ },
+  'byd-seal': { skip: /Perf_Wheels|Caliper|DoorFrame/ },
   'xpeng-g9l': { skip: /Turbine_Wheels|Caliper|DoorFrame/ },
-  'avatr-06t': { skip: /Aero|Cyclone|Multi|Caliper|DoorFrame/ },
-  'nio-es8': { skip: /Sail_Wheels|Glow_Wheels|Carbon_Wheels|Shine_Wheels|Caliper|DoorFrame/ },
+  'avatr-06t': { skip: /Star_Wheels|Caliper|DoorFrame/ },
+  'nio-es8': { skip: /Lanyue_Wheels|Caliper|DoorFrame/ },
 };
 
 /** Triangles after simplification. */

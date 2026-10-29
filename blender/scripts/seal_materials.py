@@ -29,12 +29,13 @@ PAINT_METALLIC = 0.16            # strictly under the export gate's 0.20 ceiling
 PAINT_COAT = 0.55
 SHEEN = dict(weight=0.05, tint=(0.62, 0.76, 0.92), roughness=0.30)
 
+# painted, not bare metal: the showroom recolours this one material (grey, amber), and a metal would stay metal
 _M.CALIPERS.setdefault("seal_silver", dict(
-    base=(0.48, 0.50, 0.54),
-    metallic=0.80,
-    roughness=0.26,
-    coat=0.8,
-    coat_rough=0.08,
+    base=(0.30, 0.31, 0.34),
+    metallic=0.15,
+    roughness=0.28,
+    coat=1.0,
+    coat_rough=0.06,
 ))
 _M.RIMS.setdefault("seal_aero_alloy", dict(
     base=(0.80, 0.81, 0.84),
@@ -104,7 +105,7 @@ def build_library():
 
     # Machined alloy face (18-inch 5-petal aero wheel bright face)
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.84, 0.85, 0.87), metallic=1.0, roughness=0.16)
+    _M.set_inputs(b, base=(0.64, 0.65, 0.67), metallic=1.0, roughness=0.30)
     lib["machined"] = m
 
     # Satin silver wheel blade finish & center cap
@@ -138,7 +139,7 @@ def build_library():
 
     # Brake discs
     m, nt, b = _M.mat("M_Disc_Iron")
-    _M.set_inputs(b, base=(0.140, 0.120, 0.105), metallic=0.1, roughness=0.52)
+    _M.set_inputs(b, base=(0.052, 0.045, 0.040), metallic=0.12, roughness=0.55)
     lib["iron"] = m
 
     # Wheel arch cladding & underbody liner

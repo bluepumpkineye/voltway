@@ -21,9 +21,10 @@ ES8_STARLIGHT_GREY = dict(
 )
 SHEEN = dict(weight=0.20, tint=(0.78, 0.82, 0.90), roughness=0.28)
 
-# Air Glow Orange (气辉橙) Brembo 6-piston caliper finish
-_M.CALIPERS.setdefault("nio_orange", dict(
-    base=(0.82, 0.16, 0.03), metallic=0.35, roughness=0.22, coat=1.0, coat_rough=0.04))
+# Brembo 6-piston calipers, painted red as on the Signature and Luxury cars in the Autohome photographs; the showroom recolours
+# this one material (the Lanyue pack's Dawn Gold). Painted, so dielectric: a recoloured metal would stay a metal.
+_M.CALIPERS.setdefault("nio_red", dict(
+    base=(0.46, 0.018, 0.016), metallic=0.0, roughness=0.26, coat=1.0, coat_rough=0.05))
 _M.RIMS.setdefault("dark_grey", dict(
     base=(0.032, 0.034, 0.038), metallic=0.0, roughness=0.26, coat=1.0, coat_rough=0.05))
 
@@ -39,7 +40,7 @@ def _sheen(m):
 
 
 def build_library():
-    lib = _M.build_library(paint=ES8_STARLIGHT_GREY, rim="dark_grey", caliper="nio_orange",
+    lib = _M.build_library(paint=ES8_STARLIGHT_GREY, rim="dark_grey", caliper="nio_red",
                            lights_on=LIGHTS_ON, tail_lights=TAIL_LIGHTS)
     _sheen(lib["paint"])
 
@@ -80,8 +81,16 @@ def build_library():
 
     # Bright diamond-cut machined aluminium wheel face
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.82, 0.83, 0.85), metallic=1.0, roughness=0.17)
+    _M.set_inputs(b, base=(0.64, 0.65, 0.67), metallic=1.0, roughness=0.30)
     lib["machined"] = m
+
+    # the Lanyue's mirror-polished forged face, and the black roundel of its cap
+    m, nt, b = _M.mat("M_Alu_Polished")
+    _M.set_inputs(b, base=(0.90, 0.90, 0.92), metallic=1.0, roughness=0.09)
+    lib["polished"] = m
+    m, nt, b = _M.mat("M_Wheel_Cap")
+    _M.set_inputs(b, base=(0.012, 0.012, 0.014), metallic=0.2, roughness=0.30)
+    lib["wheel_cap"] = m
 
     # Dark graphite wheel barrel
     m, nt, b = _M.mat("M_Wheel_Graphite")
@@ -116,7 +125,7 @@ def build_library():
 
     # Ventilated cast-iron brake disc
     m, nt, b = _M.mat("M_Disc_Iron")
-    _M.set_inputs(b, base=(0.145, 0.130, 0.115), metallic=0.0, roughness=0.50)
+    _M.set_inputs(b, base=(0.052, 0.045, 0.040), metallic=0.12, roughness=0.55)
     lib["iron"] = m
 
     # Arch cladding

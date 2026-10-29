@@ -1312,6 +1312,53 @@ calipers are silver; the Ultra and the 103 kWh Max show orange ones.
   photographs `12_75351_168`, `12_75351_34`); the calipers are the same sector in every design, and
   the silver one is the orange material recoloured (a dielectric, not aluminium).
 
+### Wheel options of the 06T, Seal, Z9, G9L and ES8, second pass (2026-10-29)
+
+The Wheels tab only shows when a car has more than one design or caliper colour, so the Seal and the Z9 (one wheel each)
+had none. The fix was not stand-ins: every design below is traced from a photograph of the real wheel, and the options
+that no photograph backs were dropped (the 06T's 21 in "Cyclone", "Aero Blade" and "Radiant", the ES8's Star Sail, Star
+Glow, Carbon Blade and Star Shine; the 06T's specs are kept as `a06t_wheels.STANDINS`, unbuilt).
+
+- **Where the real options came from.** Autohome's gallery has one set per trim: `car.autohome.com.cn/pic/series-s<spec>/
+  <series>-<cat>.html` (spec ids from the dropdown of `pic/series/<series>-12.html`), category 1 the exterior (side photos at
+  3840 x 2880, the wheel 300-430 px across) and 12 the details (wheel close-ups). The trims that differ in wheel:
+  06T Elite / Max / Max+ / Performance 20 in Cyclone five-spoke (all 255/45 R20), the Knight edition (spec 79261) 20 in Star
+  Spin Y spokes; Seal 550 / 700 km 19 in pinwheel, 650 km 4WD Performance (spec 56593) 19 in five-Y with yellow calipers;
+  Z9 Ultra 21 in multi-spoke, Pro / Max (specs 69563 / 69564) 20 in six-Y (255/45 R20); ES8 Signature and Luxury the
+  twenty-opening 22 in, the Lanyue pack (maker's close-up `official/lanyue_wheel.jpg`) the mirror disc.
+- **Method** is `scripts/wheel-trace` (README there), with two additions that made a wheel a ten-minute job:
+  `segment.cjs ... invert=1` traces the DARK regions between machined spokes (the windows) in one pass, and the polygon
+  list can be pasted straight into the spec; always lay the built face over the corrected photograph (`maskedge.cjs`) before
+  trusting it (the 06T Knight, Seal Performance, Z9 six-Y and both ES8 faces all matched on the first overlay). Gotcha: a
+  polygon whose bottom edge was clamped to one radius doubles back on itself and the exact boolean returns an EMPTY face
+  (0 verts); write the bottom edge by hand.
+- **Library** (`carkit.parts.wheels`): `spokes.layers` (further traced faces stepped by `dz`, each with its own windows and
+  material: the Knight's black star 14 mm under its machined Y, or a black face 1 mm over a machined one), `grow(poly, d, R)`
+  (a window pushed outwards by the chamfer's width, so the machined face under the black layer shows as the thin bright line
+  round every opening: the Seal Performance), `tyre.ridge` (the rim-protector rib), and `carkit.materials` gained
+  `wheel_black` (deep black, rough 0.36, coat 0.18: piano black mirrored the white studio and read mid-grey).
+  The five cars' `M_Alu_Machined` went from roughness 0.16-0.18 to 0.30 (diamond-cut reads satin, not chrome) and their
+  brake discs from base 0.14 to 0.085. RX, SU7 and 7X are untouched (they do not name the new keys).
+- **Exports.** `export_seal`, `export_z9` gained `WHEEL_GROUPS` and `build_wheel_options` (the 06T/ES8/G9L pattern); 06T and
+  ES8 are exported with `exterior()` (AO baked, so `_BAKEDAO` stays), the others with `web()`. `scripts/make-proxy.mjs` skip
+  patterns follow the new node names (`Star_Wheels`, `Perf_Wheels`, `Pro_Wheels`, `Lanyue_Wheels`).
+- **Calipers.** The viewer matches `caliperMaterial` by exact material name: the 06T and the ES8 named a material the GLB did
+  not have (`M_Caliper_A06T`, `M_Caliper_ES8`), so their swatches did nothing. Now `M_Caliper_Silver_Grey`, `M_Caliper_Nio_Red`
+  (a painted, dielectric red: a recoloured metal stays metal), `M_Caliper_Seal_Silver` (now painted, not bare metal).
+- **G9L 21 in turbine, re-traced (2026-10-29).** The first trace came from the purple car's right wheel (ellipse ratio 0.915) and
+  its windows were a third too small. The white car's LEFT front wheel (`c1_0043`, ratio 0.956, axle -16, -5 px) is the best of the
+  showroom set; the black SE cars (`series-s78832`) wear the 22 in aero, not the turbine. Angles are now read from the LEFT wheel
+  as photographed, and that wheel is built with `roll_left = pi` like every other design; the right wheel is the outlines
+  reflected about the vertical (`180 - angle`, `_mirror`) with no roll. A wheel's clocking differs from car to car, so the
+  right wheel cannot be overlaid on another car's photograph: check the left against its own photo only. The lip ring is black
+  (`lip="wheel_black"`, `TAB21` 0.995): the bright pads, band and swoosh are inlays.
+- **Exact-boolean trap.** With four outlines in one INTERSECT cutter, the mirrored (right) wheel's silver came out as the
+  WINDOWS' complement for two of five repeats, while every outline alone and the left wheel were fine; one thin stroke on the
+  web (21.6-42 deg, r 0.54-0.33) was the trigger, and a per-outline boolean did not cure it. Check any traced design for BOTH
+  hands by comparing the inlay's total area (`bmesh` face areas) between left and right: they must match. The stroke is not built.
+- **Not modelled:** the ES8's graphite ten-spoke on a black Luxury car (dark on dark), valve holes, caliper lettering, the
+  Knight's second-layer black spokes inside the pockets (the black layer is a face with a smaller opening), tyre lettering.
+
 ### The BYD Seal (`seal_*`): rebuilt from camera-matched photographs (2026-10-22)
 
 The first Seal was a Z9-derived guess; this is the real 2022-24 sedan (4800 x 1875 x 1460 mm, wheelbase 2920, 235/45 R19).

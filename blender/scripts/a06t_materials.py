@@ -83,7 +83,7 @@ def build_library():
 
     # Bright diamond-cut machined aluminium wheel face and roof rail bar
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.80, 0.81, 0.83), metallic=1.0, roughness=0.18)
+    _M.set_inputs(b, base=(0.64, 0.65, 0.67), metallic=1.0, roughness=0.30)
     lib["machined"] = m
 
     # Dark graphite wheel barrel / optional forged rim
@@ -105,6 +105,6 @@ def build_library():
 
     # Ventilated cast-iron brake disc
     m, nt, b = _M.mat("M_Disc_Iron")
-    _M.set_inputs(b, base=(0.140, 0.125, 0.110), metallic=0.0, roughness=0.52)
+    _M.set_inputs(b, base=(0.052, 0.045, 0.040), metallic=0.12, roughness=0.55)
     lib["iron"] = m
     return lib

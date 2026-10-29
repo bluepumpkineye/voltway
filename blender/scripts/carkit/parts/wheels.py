@@ -293,10 +293,21 @@ def preset(name, **changes):
 
 
 # ------------------------------------------------------------------- tyre
-def tyre_profile(rim_r, radius, hw, bulge=1.055, shoulder=0.016):
-    """(r, d) profile of a tyre from bead to bead across the tread."""
+def tyre_profile(rim_r, radius, hw, bulge=1.055, shoulder=0.016, ridge=False):
+    """(r, d) profile of a tyre from bead to bead across the tread. ridge: the rim protector, the small rounded rib
+    every road tyre carries just outside the rim flange (a shadow line round the wheel in the photographs)."""
     sh = radius - shoulder
     mid = (rim_r + radius) * 0.5
+    if ridge:
+        return [
+            (rim_r + 0.003, -hw * 0.90), (rim_r + 0.011, -hw * 1.040), (rim_r + 0.0165, -hw * 1.060),
+            (rim_r + 0.022, -hw * 1.030), (rim_r + 0.031, -hw * 1.015),
+            (mid, -hw * bulge), (sh - 0.010, -hw * 1.00), (sh, -hw * 0.93),
+            (radius - 0.002, -hw * 0.82), (radius, -hw * 0.40), (radius, hw * 0.40),
+            (radius - 0.002, hw * 0.82), (sh, hw * 0.93), (sh - 0.010, hw * 1.00),
+            (mid, hw * bulge), (rim_r + 0.031, hw * 1.015), (rim_r + 0.022, hw * 1.030),
+            (rim_r + 0.0165, hw * 1.060), (rim_r + 0.011, hw * 1.040), (rim_r + 0.003, hw * 0.90),
+        ], mid
     return [
         (rim_r + 0.004, -hw * 0.92), (rim_r + 0.024, -hw * 1.02),
         (mid, -hw * bulge), (sh - 0.010, -hw * 1.00), (sh, -hw * 0.93),
@@ -347,6 +358,33 @@ def _aero_face(name, collection, mat, d_face, rim_r, count, phase, depth, params
 def _polar(a_deg, r, big_r):
     a = math.radians(a_deg)
     return (big_r * r * math.cos(a), big_r * r * math.sin(a))
+
+
+def grow(poly, d, big_r):
+    """A traced outline (angle in degrees, radius / big_r) pushed outwards everywhere by d metres (negative: pulled
+    in). The black face of a two-tone wheel is cut back from each window by the width of the machined chamfer, so
+    the machined face under it shows as a thin bright line round the opening (build the machined face with the
+    window as traced, and a black layer 1 mm above it with the grown window: the layers option of the traced
+    style). Vertices move along the mean of their two edges' normals; the angles stay continuous."""
+    xy = [(big_r * r * math.cos(math.radians(a)), big_r * r * math.sin(math.radians(a))) for (a, r) in poly]
+    n = len(xy)
+    area = sum(xy[i][0] * xy[(i + 1) % n][1] - xy[(i + 1) % n][0] * xy[i][1] for i in range(n))
+    sgn = 1.0 if area > 0.0 else -1.0                       # counter-clockwise: the outward normal is (dy, -dx)
+    out = []
+    for i in range(n):
+        p0, p1, p2 = xy[i - 1], xy[i], xy[(i + 1) % n]
+        nx = ny = 0.0
+        for (ax, ay), (bx, by) in ((p0, p1), (p1, p2)):
+            dx, dy = bx - ax, by - ay
+            ln = math.hypot(dx, dy) or 1.0
+            nx += sgn * dy / ln
+            ny += -sgn * dx / ln
+        ln = math.hypot(nx, ny) or 1.0
+        x, y = p1[0] + d * nx / ln, p1[1] + d * ny / ln
+        a = math.degrees(math.atan2(y, x))
+        a += 360.0 * round((poly[i][0] - a) / 360.0)
+        out.append((a, math.hypot(x, y) / big_r))
+    return out
 
 
 def _densify(pts, step_deg=1.5, step_r=0.02):
@@ -570,7 +608,7 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
 
     # ---------------------------------------------------------------- tyre
     prof, mid = tyre_profile(rim_r, radius, hw, spec["tyre"]["bulge"],
-                             spec["tyre"]["shoulder"])
+                             spec["tyre"]["shoulder"], spec["tyre"].get("ridge", False))
     v, f = M.revolve(prof, seg)
     tyre = M.obj(prefix + "Tyre_" + tag, v, f, collection, lib[mats["tyre"]])
     M.orient_revolved(tyre, mid, 0.0)
@@ -622,6 +660,31 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
             collection.objects.link(face)
         face.rotation_euler = (0.0, 0.0, roll)
         parts.append(face)
+        # further faces stepped below or above the first, each with its own outlines and material: the second
+        # layer of a two-level wheel (a black star under the machined spokes). `dz` is the step in metres
+        # (negative = deeper); the layer takes the spec's spoke keys unless it sets them itself
+        for li, lay in enumerate(sp.get("layers", ())):
+            key = "layer%d" % li
+            lname = prefix + "Layer%d_" % li
+            src = cache.get(key)
+            if src is None or bpy.data.objects.get(src.name) is not src:
+                sp2 = dict(sp, **{k: v for k, v in lay.items() if k not in ("mat", "dz", "bevel")})
+                sp2.pop("inlay", None)
+                sp2.pop("layers", None)
+                sp2.pop("accent_r", None)
+                dz = lay.get("dz", -0.012)
+                lface = _traced_face(lname + tag, collection, lib[lay.get("mat", sp.get("mat", mats["rim"]))],
+                                     (lambda r, _dz=dz: d_face(r) + _dz), rim_r, sp2, None)
+                M.bevel(lface, lay.get("bevel", sp.get("bevel", 0.0020)), sp.get("bevel_segs", 1), 30, harden=True)
+                cache[key] = lface
+            else:
+                lface = src.copy()
+                lface.data = src.data.copy()
+                lface.name = lname + tag
+                lface.parent = None
+                collection.objects.link(lface)
+            lface.rotation_euler = (0.0, 0.0, roll)
+            parts.append(lface)
         inl = sp.get("inlay")
         # one skin per material: a dict, or a list of them (the chrome disc and the machined bars)
         for ii, inl in enumerate(inl if isinstance(inl, (list, tuple)) else ([inl] if inl else [])):
@@ -839,6 +902,15 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
                 lib[mats["caliper"]], smooth=True)
     M.bevel(cal, cs.get("bevel", 0.008), 3, 30, harden=True)
     parts.append(cal)
+    if cs.get("groove"):
+        # the split between the two halves of a real caliper: a thin dark band across the middle of the body, so
+        # the slab reads as pistons in two sections (opt-in: the other cars' wheels build as they did)
+        gw = math.radians(cs.get("groove_deg", 0.9))
+        zg = d_out + bulge_c + 0.0004
+        gv = [(r0 * math.cos(ca - gw), r0 * math.sin(ca - gw), zg), (r1 * math.cos(ca - gw), r1 * math.sin(ca - gw), zg),
+              (r1 * math.cos(ca + gw), r1 * math.sin(ca + gw), zg), (r0 * math.cos(ca + gw), r0 * math.sin(ca + gw), zg)]
+        parts.append(M.obj(prefix + "CaliperGroove_" + tag, gv, [[0, 1, 2, 3]], collection,
+                           lib[mats.get("holes", "shadow")], smooth=False))
 
     # ---------------------------------------------------------- placement
     # Proper rotations about X, never reflections: local Z (the axle, outboard

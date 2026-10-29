@@ -92,7 +92,7 @@ def build_library():
 
     # Machined luxury alloy face (14-spoke wheel face)
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.84, 0.85, 0.87), metallic=1.0, roughness=0.16)
+    _M.set_inputs(b, base=(0.64, 0.65, 0.67), metallic=1.0, roughness=0.30)
     lib["machined"] = m
 
     # The photographed wheel's faces: satin silver blades (c1_0036: 170 sRGB, flat, with bright chamfers), not
@@ -121,7 +121,7 @@ def build_library():
 
     # Brake discs
     m, nt, b = _M.mat("M_Disc_Iron")
-    _M.set_inputs(b, base=(0.140, 0.120, 0.105), metallic=0.1, roughness=0.52)
+    _M.set_inputs(b, base=(0.052, 0.045, 0.040), metallic=0.12, roughness=0.55)
     lib["iron"] = m
 
     # Wheel arch cladding & underbody liner

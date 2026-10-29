@@ -18,7 +18,7 @@ LIP = 0.2633        # the rim lip radius (m): the photograph's lip circle agains
 TAB = 0.975         # the face's edge: outside it the machined flange ring
 
 CALIPER = dict(
-    span_deg=34.0, span_rear=28.0, r_inner=0.118, d_out=0.028, steps=16
+    span_deg=34.0, span_rear=28.0, r_inner=0.118, d_out=0.028, steps=16, groove=True
 )
 
 DISH = Curve([
@@ -52,32 +52,89 @@ SPEC_SEAL_TURBINE_5 = W.preset(
     dish=DISH,
     pinstripe=False,
     roll_left=math.pi,
-    tyre=dict(bulge=1.035, shoulder=0.014),
+    tyre=dict(bulge=1.035, shoulder=0.014, ridge=True),
     hub=dict(depth=0.045, setback=0.006, cap_rise=0.004, cap_r=0.030),
     lugs=dict(count=5, pcd_r=0.0520, r=0.0090, deg=18.0, rise=0.003),
     disc=dict(style="plain", inner_r=0.115, thickness=0.028),
     caliper=CALIPER,
     mats=dict(
         tyre="rubber",
-        rim="black_gloss",
+        rim="wheel_black",
         lip="machined",
         lugs="wheel_silver",
         cap="wheel_cap",
         disc="iron",
-        barrel="black_gloss",
-        accent="black_gloss",
+        barrel="wheel_black",
+        accent="wheel_black",
         caliper="caliper",
     ),
 )
 SPEC_SEAL_TURBINE_5["spokes"] = dict(
-    style="traced", count=5, phase=0.0, depth=0.016, bevel=0.0016, mat="black_gloss",
+    style="traced", count=5, phase=0.0, depth=0.016, bevel=0.0016, mat="wheel_black",
     r_in=0.040, r_out=TAB * LIP, nr=18, seg=72, step_deg=2.0, step_r=0.025,
     windows=WINDOWS,
     inlay=dict(mat="machined", polys=[SILVER_L, SILVER_RING], lift=0.0005),
 )
 
+# ------------------------------------------------------------------------------------------ the Performance's 19 in
+# The 650 km four-wheel-drive Performance (Autohome spec 56593) wears a different 19 in wheel with yellow calipers: five
+# black Y spokes, each forking into two arms to the rim, edged by a thin machined chamfer, over open windows that show the
+# drilled disc and the caliper. Traced from the front wheel of its side photograph (imgs-6394-56593-1-x/8327314: ellipse
+# ratio 0.987, axle corrected +1, +1 px, period 72.0 degrees). The windows are the dark regions between the chamfer lines
+# (segment.cjs invert=1 on lum 105-255); the black face is the second layer, cut back from each window by the chamfer's
+# width so the machined face under it shows as the line round it (carkit.parts.wheels.grow).
+LIP_P = LIP                                   # 19 in: the same lip radius as the turbine
+CHAMFER = 0.0022                              # the machined line round each opening, metres (8 px of 1080 at 0.2633 m)
+R_BOT = 0.17                                  # the windows stop above the hub (the face keeps a 5 mm ring at r_in)
+WIN_BIG = [(2.0, 0.170), (50.8, 0.170), (51.2, 0.228), (51.4, 0.299), (51.6, 0.340), (46.6, 0.466), (43.3, 0.588),
+           (40.4, 0.749), (38.2, 0.935), (37.8, 0.945), (35.9, 0.948), (18.3, 0.949), (16.1, 0.948), (15.2, 0.940),
+           (14.8, 0.926), (13.7, 0.819), (12.2, 0.714), (9.3, 0.566), (6.8, 0.476), (4.2, 0.406), (2.6, 0.372),
+           (1.0, 0.320), (1.1, 0.273), (1.8, 0.230)]
+WIN_V = [(-28.4, 0.947), (-29.1, 0.943), (-29.7, 0.932), (-28.1, 0.816), (-24.4, 0.664), (-20.6, 0.559), (-15.8, 0.469),
+         (-13.1, 0.432), (-11.6, 0.423), (-9.5, 0.421), (-7.4, 0.423), (-6.1, 0.428), (-2.8, 0.474), (0.4, 0.530),
+         (2.4, 0.571), (5.2, 0.650), (6.7, 0.701), (8.9, 0.799), (10.8, 0.910), (10.7, 0.938), (9.8, 0.947),
+         (-3.1, 0.947), (-4.4, 0.944), (-8.6, 0.944), (-9.1, 0.947), (-10.4, 0.944)]
+WIN_BIG = [(a, max(r, R_BOT)) for (a, r) in WIN_BIG]
+# the black face's windows: each opening grown by the chamfer; its top reaches past the face's edge (r_out), which it trims
+_BLACK_WINS = [[(a, max(r, R_BOT)) for (a, r) in W.grow(w, CHAMFER, LIP_P)] for w in (WIN_BIG, WIN_V)]
+
+SPEC_SEAL_PERF = W.preset(
+    "blade_5",
+    rim_d=2.0 * LIP_P,
+    flange=(0.118, 0.125, 0.50),
+    flange_face=(1.0 - TAB) * LIP_P,
+    dish=DISH,
+    pinstripe=False,
+    roll_left=math.pi,
+    tyre=dict(bulge=1.035, shoulder=0.014, ridge=True),
+    hub=dict(depth=0.045, setback=0.006, cap_rise=0.004, cap_r=0.030),
+    lugs=dict(count=5, pcd_r=0.0580, r=0.0090, deg=23.0, rise=0.003),
+    # the Performance's discs are drilled in the photograph (a ring of dots at the rim)
+    disc=dict(style="drilled", inner_r=0.115, thickness=0.028, rings=2, per_ring=28, hole_r=0.0030),
+    caliper=CALIPER,
+    mats=dict(
+        tyre="rubber",
+        rim="wheel_black",
+        lip="machined",
+        lugs="wheel_black",
+        cap="wheel_cap",
+        disc="iron",
+        barrel="wheel_black",
+        accent="wheel_black",
+        caliper="caliper",
+    ),
+)
+SPEC_SEAL_PERF["spokes"] = dict(
+    style="traced", count=5, phase=0.0, depth=0.016, bevel=0.0010, mat="machined",
+    r_in=0.040, r_out=TAB * LIP_P, nr=18, seg=72, step_deg=2.0, step_r=0.025,
+    windows=[WIN_BIG, WIN_V],
+    layers=[dict(mat="wheel_black", dz=0.0010, depth=0.012, bevel=0.0006, r_out=0.955 * LIP_P,
+                 windows=_BLACK_WINS)],
+)
+
 DESIGNS = {
     "turbine_5": ("BYDSeal_", SPEC_SEAL_TURBINE_5),
+    "perf_5y": ("BYDSeal_Perf_", SPEC_SEAL_PERF),
 }
 DEFAULT = "turbine_5"
 

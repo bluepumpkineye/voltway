@@ -65,9 +65,7 @@ GROUPS = [
     ("Avatr06T_Blackout", "A06T_Blackout"),
 ]
 WHEEL_GROUPS = [
-    ("Avatr06T_Aero_Wheels", "A06T_Wheels_Aero"),
-    ("Avatr06T_Cyclone_Wheels", "A06T_Wheels_Cyclone"),
-    ("Avatr06T_Multi_Wheels", "A06T_Wheels_Multi"),
+    ("Avatr06T_Star_Wheels", "A06T_Wheels_Star"),
 ]
 
 CORNERS = ("FL", "FR", "RL", "RR")
