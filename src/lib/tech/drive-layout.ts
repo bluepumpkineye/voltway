@@ -1,13 +1,13 @@
 /**
- * Where the Drive tab's cards go and how their arrows run: a pure layout in screen pixels (no React, no DOM), so that it is checked
- * in Node (scripts/tech-tools/motion-test.mjs).
+ * Where the Drive tab's cards go: a pure layout in screen pixels (no React, no DOM), so that it is checked in Node
+ * (scripts/tech-tools/motion-test.mjs).
  *
  * A card floats beside the car, near the point it explains, and not over the car, the gauges, the caption or another card. For each
  * card a handful of places are tried (left of the car, right of it, above, below, and hugging the point) and the best is taken by
  * a score: how much of the card would lie outside the free part of the window, over the car's outline or over something to keep
  * clear, how far it is from its point, and a small bonus for the place it had a moment ago (so that it does not flip between two
- * as the camera moves). The arrow is a curve from the card's nearest edge to the point, with the head backed off so that a ring can
- * be drawn at the point.
+ * as the camera moves). Nothing is drawn from a card to its point: standing next to the part is what says which it is, so the cards
+ * stand close to it.
  */
 export interface Rect {
   x: number;
@@ -46,7 +46,8 @@ export interface Placed {
 
 export type Slot = 'left' | 'right' | 'above' | 'below' | 'left-near' | 'right-near' | 'above-near' | 'below-near';
 
-const GAP = 26;
+/** the space between a card and the car's outline or the point it is next to */
+const GAP = 14;
 /** the space between two cards that stand one over the other */
 const STACK = 10;
 
@@ -168,48 +169,4 @@ function separate(placed: Placed[], safe: Rect): Placed[] {
     if (!moved) break;
   }
   return placed.map((p, i) => ({ ...p, rect: rects[i] }));
-}
-
-export interface Arrow {
-  /** the curve, an SVG path from the card's edge to the head */
-  d: string;
-  /** where the head's tip is, and the way it points, rad */
-  tip: Pt;
-  angle: number;
-  /** the point the arrow is for (the ring goes here) */
-  target: Pt;
-  /** the length of the curve, about, px */
-  length: number;
-}
-
-/**
- * An arrow from a card to a point: it leaves by the edge of the card that faces the point, at the place nearest to it (kept off the
- * corners), bends a little and ends `stop` px short of the point, where the ring begins.
- */
-export function arrowTo(card: Rect, target: Pt, stop = 9): Arrow {
-  const cx = card.x + card.w / 2;
-  const cy = card.y + card.h / 2;
-  const dx = target.x - cx;
-  const dy = target.y - cy;
-  // leave by the side the point is more beyond, in the card's own proportions
-  const sideways = Math.abs(dx) / (card.w / 2) > Math.abs(dy) / (card.h / 2);
-  const inset = 16;
-  let start: Pt;
-  if (sideways) {
-    start = { x: dx > 0 ? card.x + card.w : card.x, y: Math.max(card.y + inset, Math.min(target.y, card.y + card.h - inset)) };
-  } else {
-    start = { x: Math.max(card.x + inset, Math.min(target.x, card.x + card.w - inset)), y: dy > 0 ? card.y + card.h : card.y };
-  }
-  const vx = target.x - start.x;
-  const vy = target.y - start.y;
-  const len = Math.hypot(vx, vy) || 1;
-  // the head stops short of the point
-  const ux = vx / len;
-  const uy = vy / len;
-  const tip = { x: target.x - ux * stop, y: target.y - uy * stop };
-  // a bend to one side, a tenth of the length, so that it reads as an arrow drawn on, not a ruler's line
-  const bend = Math.min(len * 0.12, 28);
-  const mid = { x: (start.x + tip.x) / 2 - uy * bend, y: (start.y + tip.y) / 2 + ux * bend };
-  const angle = Math.atan2(tip.y - mid.y, tip.x - mid.x);
-  return { d: `M${start.x.toFixed(1)} ${start.y.toFixed(1)} Q${mid.x.toFixed(1)} ${mid.y.toFixed(1)} ${tip.x.toFixed(1)} ${tip.y.toFixed(1)}`, tip, angle, target, length: len };
 }

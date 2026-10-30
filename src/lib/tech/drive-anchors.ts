@@ -1,7 +1,7 @@
 /**
- * Where on the car each instrument of the Drive tab points. A card floats near the part of the car it explains and an arrow joins
- * them: the suspension's at the tyre's arch (the spring is over it), the brake's at the disc, the steering's at the wheel's edge, the
- * motors' at the hubs they turn, the power's and the energy's at the pack under the floor, the drag's at the roof.
+ * Where on the car each instrument of the Drive tab belongs. A card floats next to the part of the car it explains: the suspension's
+ * at the tyre's arch (the spring is over it), the brake's at the disc, the steering's at the wheel's edge, the motors' at the hubs they
+ * turn, the power's and the energy's at the pack under the floor, the drag's at the roof.
  *
  * The points are in the model's frame (x forward, y up, z toward the passenger side, the rear axle at `rearX`), the frame of
  * everything that rides with the car (`CarFollower`, viewer/techRig.tsx). The viewer (viewer/TechAnchors.tsx) turns them into

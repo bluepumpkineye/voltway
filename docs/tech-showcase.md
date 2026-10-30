@@ -983,14 +983,15 @@ body from the camera's usual place; the rings on the wheels carry it), motor rpm
 
 ### Follow-up (2026-10-30, later): the cards float beside the car, and the weight card is gone
 
-The owner's note: still static; move the cards near the car, each pointing at the part it explains with an animated arrow; drop the
+The owner's note: still static; move the cards near the car, each at the part it explains (first with an animated arrow, see below); drop the
 weight-transfer and squat card from every car (not a priority, too much on the screen).
 
 - **The weight card is removed** from the type (`DriveOverlay`), the tiles, the chapters and every car's `overlays` (the callouts that
   say the weight moves to the rear axle stay: they are narrative, not a card). The planner still computes the axle load.
 - **Floating cards** (`showroom/DriveMotion.tsx`): only the cards the run has come to are on screen (no line of shut tiles any more), each
-  beside the car and joined to the part it explains by an arrow that draws itself on as the card opens, then runs a train of white
-  dashes toward the part, with a head and a pulsing ring on the part. Where each points (`targetsOf`, `drive-anchors.ts`): the
+  beside the car, next to the part it explains. (The first version joined each card to its part by an animated arrow with a ring on the
+  part; the owner found it confusing and asked for it to go, see "Arrows removed" below: standing next to the part is enough.) Where
+  each stands (`targetsOf`, `drive-anchors.ts`): the
   suspension at the tyre's arch (the rear in the pull, where the tail squats, the front under the brakes, where the nose dives), the brake
   at the disc, the steering at the front wheel's leading edge (and the rear wheel's trailing edge on a car that steers them), the motors at
   the hubs of the axles that have one, the power and the energy at the pack under the floor (the sill over it), the drag at the roof.
@@ -1004,12 +1005,17 @@ weight-transfer and squat card from every car (not a priority, too much on the s
   had (so that it does not flip as the camera moves); cards that still overlap are pushed apart. The card then glides to its place
   (`1 - exp(-10 dt)`), so a camera move is followed, not jumped to. The free part ends above the caption, which now stands over the road
   just above the gauges.
-- **Fallbacks:** the cabin camera has nothing outside to point at, so the open cards stand in a column at the left; a narrow window shows
-  one line (the card whose moment it is) under the scenario bar, as before; reduced motion freezes the dashes and the ring.
+- **Fallbacks:** the cabin camera has nothing outside to stand next to, so the open cards stand in a column at the left; a narrow window
+  shows one line (the card whose moment it is) under the scenario bar, as before.
 - The stage keeps a left inset (`deviceInset.left`) so that the car is framed clear of the cards at its left.
 - **Tests** (`motion-test.mjs`): a card stays inside the free part, beside the car and clear of the caption; two cards do not overlap and a
-  short column is spread; a slot is kept while nothing changes; the arrow leaves by the edge that faces its point, stops 9 px short and points
-  at it; the anchors mirror across the car and lie where the hubs, the arch, the pack and the roof are; each instrument points where it should.
+  short column is spread; a slot is kept while nothing changes; a card stands close to its point; the anchors mirror across the car and
+  lie where the hubs, the arch, the pack and the roof are; each instrument stands where it should.
+- **Arrows removed** (the owner's next note: "the animated arrows are confusing; floating near the relevant area should be good enough").
+  The arrow, its ring and the dashes are gone from `DriveMotion.tsx`, and `arrowTo` from `drive-layout.ts` with its tests. With nothing
+  to join a card to its part, the card stands closer to it (the gap to the car's outline or to the point is 14 px, not 26), and a test
+  holds a card within 120 px of its point. The cards still glide to their places as the camera moves, and a frame is drawn only while
+  one is on its way (the arrows' dashes had needed one every frame).
 
 **The Voyah Passion S** (added to `main` by the owner after the first version of this section: the exterior, cabin, proxy and shadow, the
 data file `src/data/vehicles/voyah-passion-s.ts`) has its scenario in that file: "Magic Carpet Launch", a launch to 100 km/h on the

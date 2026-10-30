@@ -225,6 +225,8 @@ const rxShape = B.runShape(rx.launch.drive, rx.track.duration);
   ok('a card stays inside the free part of the window', inside(one[0].rect, safe));
   ok('a card with room beside the car stands beside it, not over it', L.overlap(one[0].rect, car) === 0, `${one[0].slot}`);
   ok('it keeps clear of the caption', L.overlap(one[0].rect, scene.avoid[0]) === 0);
+  // nothing is drawn from a card to its point, so the card has to stand next to it
+  ok('it stands close to the point it explains (nothing joins them)', Math.abs(L.distanceTo(one[0].rect, { x: 560, y: 300 })) < 120, `${L.distanceTo(one[0].rect, { x: 560, y: 300 }).toFixed(0)} px`);
 
   const two = L.layoutCards(
     [
@@ -255,16 +257,6 @@ const rxShape = B.runShape(rx.launch.drive, rx.track.duration);
   // a window too narrow for anything beside the car still places the card, inside the safe part
   const tight = L.layoutCards([{ id: 'a', w: 292, h: 140, targets: [{ x: 400, y: 200 }] }], { safe: { x: 10, y: 70, w: 340, h: 460 }, car: { x: 40, y: 130, w: 280, h: 200 }, avoid: [] });
   ok('where nothing fits, the card is still placed inside the safe part', inside(tight[0].rect, { x: 10, y: 70, w: 340, h: 460 }));
-
-  // arrows
-  const card = { x: 245, y: 150, w: 292, h: 140 };
-  const target = { x: 600, y: 240 };
-  const ar = L.arrowTo(card, target, 9);
-  ok('an arrow leaves the card by the edge that faces the point', /^M537\.0 /.test(ar.d), ar.d.slice(0, 24));
-  ok('its head stops 9 px short of the point', Math.abs(Math.hypot(ar.tip.x - target.x, ar.tip.y - target.y) - 9) < 1e-6);
-  ok('and points at it (within a few degrees of the direction to the point)', (() => { const want = Math.atan2(target.y - ar.tip.y, target.x - ar.tip.x); return Math.abs(Math.atan2(Math.sin(ar.angle - want), Math.cos(ar.angle - want))) < 0.5; })());
-  const above = L.arrowTo({ x: 400, y: 300, w: 292, h: 140 }, { x: 540, y: 120 });
-  ok('a point above the card is reached from the top edge', /^M[\d.]+ 300\.0 /.test(above.d), above.d.slice(0, 24));
 
   // anchors
   const geo = { rearX: 0.3, wheelbase: 3, midZ: 0, halfTrack: 0.85, radius: 0.36, halfBody: 0.98, height: 1.6, xMin: -0.9, xMax: 4.4 };

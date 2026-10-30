@@ -5,7 +5,7 @@ import type { DriveOverlay, Vehicle } from '@/data/vehicles/schema';
 import { techClock } from '@/lib/tech/clock';
 import { beatPlan, captionsOf, launchActs, openAt, runShape, type Caption, type CaptionTone } from '@/lib/tech/drive-beats';
 import { driveAnchors, targetsOf } from '@/lib/tech/drive-anchors';
-import { arrowTo, layoutCards, type Placed, type Slot } from '@/lib/tech/drive-layout';
+import { layoutCards, type Placed, type Slot } from '@/lib/tech/drive-layout';
 import { clamp, countTo, Easing, fmt, progress, spring, SPRINGS } from '@/lib/tech/motion';
 import { useRuntime } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
@@ -15,16 +15,15 @@ import { ACCENT, AMBER, CYAN, RED, TILES, type TileCtx } from './driveTiles';
 
 /**
  * The Drive tab's data, set in motion. The figures the instruments used to hold on a card at the side float beside the car, each next to
- * the part it explains and joined to it by an arrow that draws itself on and runs its dashes toward the part: the suspension's at the
- * tyre's arch, the brake's at the disc, the motors' at the hubs, the power's and the energy's at the pack under the floor, the drag's at the
- * roof (`targetsOf`, src/lib/tech/drive-anchors.ts; the viewer puts the points on the screen each frame, viewer/TechAnchors.tsx). Only the
- * cards the run has come to are there: when it reaches the moment of one (`beatPlan`, src/lib/tech/drive-beats.ts) it opens with its
- * arrow, and the one that opened first closes. Where each goes is a layout in pixels (src/lib/tech/drive-layout.ts): beside the car, not
- * over it, the gauges or the caption. Above them, when a run begins, the trim's published figures count up.
+ * the part it explains: the suspension's at the tyre's arch, the brake's at the disc, the motors' at the hubs, the power's and the
+ * energy's at the pack under the floor, the drag's at the roof (`targetsOf`, src/lib/tech/drive-anchors.ts; the viewer puts the points on
+ * the screen each frame, viewer/TechAnchors.tsx). Nothing joins a card to its part: standing next to it says which it is. Only the
+ * cards the run has come to are there: when it reaches the moment of one (`beatPlan`, src/lib/tech/drive-beats.ts) it opens, and the one
+ * that opened first closes. Where each goes is a layout in pixels (src/lib/tech/drive-layout.ts): beside the car, not over it, the gauges
+ * or the caption. Above them, when a run begins, the trim's published figures count up.
  *
  * What the cards show is a pure function of the playhead (src/lib/tech/motion.ts): scrub the run and they open and close with it, pause it
- * and they hold. Where they stand and the arrows' running dashes follow the camera and the wall clock, so that they stay alive when the
- * run is held. Inside the cabin camera, where there is nothing outside to point at, the open cards stand in a column at the left; on a
+ * and they hold. Where they stand follows the camera, so that they keep their place beside the part when the run is held. Inside the cabin camera, where there is nothing outside to point at, the open cards stand in a column at the left; on a
  * narrow window one line shows the card whose moment it is. The controls (mode, load, road, camera) stay on the card at the right.
  */
 
@@ -36,7 +35,7 @@ const INTRO_H = 72;
 /**
  * The playhead and the wall clock, read every frame (not at the clock's ten a second): the cards are drawn from them. It renders again
  * when the playhead or the car's place on the screen (`driveAnchors`) has changed, and every frame while `live()` says something is
- * moving on its own (a card on its way to its place, an arrow's dashes).
+ * moving on its own (a card on its way to its place).
  */
 function useFrameClock(live: () => boolean): { t: number; now: number } {
   const [state, setState] = React.useState(() => ({ t: techClock.t, now: performance.now() }));
@@ -234,40 +233,7 @@ function Tile({ id, c, x, y, chip = false }: { id: DriveOverlay; c: TileCtx; x: 
 }
 
 /**
- * An arrow from a card to the part of the car it explains. It draws itself on (the line grows from the card to the part as the card opens),
- * then a bright dash train runs along it toward the part, a head sits at its end and a ring pulses on the part. The dashes and the ring
- * run on the wall clock (they are alive while the run is held); `still` freezes them (reduced motion).
- */
-function Arrow({ id, rect, target, open, now, still }: { id: DriveOverlay; rect: { x: number; y: number; w: number; h: number }; target: { x: number; y: number }; open: number; now: number; still: boolean }) {
-  const a = arrowTo(rect, target);
-  const col = ACCENT[id];
-  const draw = Easing.outCubic(clamp((open - 0.12) / 0.6));
-  const ring = Easing.outCubic(clamp((open - 0.55) / 0.35));
-  const phase = still ? 0.4 : (now / 1500) % 1;
-  const flow = still ? 0 : -((now / 1000) * 26) % 14;
-  const head = clamp((draw - 0.85) / 0.15);
-  return (
-    <g>
-      {/* a dark underlay keeps the line readable on the studio's pale floor, the white dashes on the dark road */}
-      <path d={a.d} pathLength={100} fill="none" stroke="#0a0a0a" strokeWidth={4.2} strokeLinecap="round" strokeOpacity={0.22} strokeDasharray={`${draw * 100} 100`} />
-      <path d={a.d} pathLength={100} fill="none" stroke={col} strokeWidth={1.8} strokeLinecap="round" strokeOpacity={0.9} strokeDasharray={`${draw * 100} 100`} />
-      <path d={a.d} fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeDasharray="3 11" strokeDashoffset={flow} strokeOpacity={0.9 * draw} />
-      <g transform={`translate(${a.tip.x.toFixed(1)} ${a.tip.y.toFixed(1)}) rotate(${((a.angle * 180) / Math.PI).toFixed(1)}) scale(${head})`}>
-        <path d="M2 0 L-9 -5.5 L-9 5.5 Z" fill={col} stroke="#0a0a0a" strokeOpacity={0.35} strokeWidth={0.8} />
-      </g>
-      <g opacity={ring}>
-        <circle cx={target.x} cy={target.y} r={3.2} fill={col} stroke="#fff" strokeWidth={1.2} />
-        {[0, 0.5].map((o) => {
-          const p = (phase + o) % 1;
-          return <circle key={o} cx={target.x} cy={target.y} r={5 + 13 * p} fill="none" stroke={col} strokeWidth={1.6} strokeOpacity={0.8 * (1 - p)} />;
-        })}
-      </g>
-    </g>
-  );
-}
-
-/**
- * The cards. `column` is a window wide enough for the card at the right: the open cards then float beside the car with their arrows
+ * The cards. `column` is a window wide enough for the card at the right: the open cards then float beside the car
  * (their places from `layoutCards`, eased toward each frame so that they glide when the camera moves). In the cabin camera they stand
  * in a column at the left; on a narrow window one line shows the card whose moment it is.
  */
@@ -314,8 +280,8 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
   const floating = column && cam !== 'cabin' && frame !== null;
   const rightPad = column ? DRIVE_COLUMN_W + 28 : 0;
 
-  // ---- floating: the cards beside the car, each with its arrow
-  let floatingCards: { id: DriveOverlay; x: number; y: number; ctx: TileCtx; arrows: { x: number; y: number }[] }[] = [];
+  // ---- floating: the cards beside the car, each next to the part it explains
+  let floatingCards: { id: DriveOverlay; x: number; y: number; ctx: TileCtx }[] = [];
   if (floating && frame) {
     const W = frame.width;
     const H = frame.height;
@@ -351,11 +317,10 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
         x: cur.x,
         y: cur.y,
         ctx: { t, tel, facts, setup, shape, acts, open: open(o) },
-        arrows: specs.find((sp) => sp.id === p.id)?.targets ?? [],
       };
     });
     for (const key of Object.keys(pos.current)) if (!seen.has(key)) delete pos.current[key];
-    live.current = !reduced && (moving || shown.length > 0);
+    live.current = !reduced && moving;
   } else {
     live.current = false;
   }
@@ -378,21 +343,6 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
       {cap && <StageCaption cap={cap} t={t} column={column} still={reduced} vh={vh} />}
       {floating && frame && (
         <div className="pointer-events-none absolute inset-0 z-10" role="group" aria-label="Live data from the run">
-          <svg className="absolute inset-0 h-full w-full" aria-hidden>
-            {floatingCards.map((f) =>
-              f.arrows.map((tg, i) => (
-                <Arrow
-                  key={`${f.id}-${i}`}
-                  id={f.id}
-                  rect={{ x: f.x, y: f.y, w: RAIL_W, h: HEAD + TILES[f.id].body * f.ctx.open }}
-                  target={tg}
-                  open={f.ctx.open}
-                  now={now}
-                  still={reduced}
-                />
-              )),
-            )}
-          </svg>
           {floatingCards.map((f) => (
             <Tile key={f.id} id={f.id} c={f.ctx} x={f.x} y={f.y} />
           ))}
