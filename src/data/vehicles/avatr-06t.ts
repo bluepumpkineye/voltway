@@ -341,7 +341,7 @@ export const avatr06t: Vehicle = {
       'A wagon with a sports car’s pull: a 0–100 sprint, then an S-curve under power. Watch the body stay level, and set the car against the Denza Z9 on the chart.',
     modes: ['eco', 'comfort', 'sport', 'gt'],
     defaultMode: 'gt',
-    overlays: ['weight', 'suspension', 'motors', 'power'],
+    overlays: ['suspension', 'motors', 'power'],
     finish: 'coast',
     manoeuvres: ['sweep'],
     ghost: { slug: 'denza-z9', variantId: '630-ultra-awd' },

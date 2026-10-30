@@ -420,7 +420,7 @@ export const nioEs8: Vehicle = {
       { id: 'driver', label: 'Driver', payloadKg: 75 },
       { id: 'family', label: 'Five + luggage', payloadKg: 475 },
     ],
-    overlays: ['suspension', 'brake', 'weight', 'energy'],
+    overlays: ['suspension', 'brake', 'energy'],
     finish: 'brake',
     brake100M: 34.3,
     chassis: { airSuspension: true, squatDegPerG: 0.7 },

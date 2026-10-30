@@ -380,14 +380,14 @@ type Chapter = 'launch' | 'speed' | 'curve' | 'stop';
 
 /** The instruments each chapter of a run is about, most telling first. The car's own order (`DriveSpec.overlays`) decides which of them it has room for. */
 const ABOUT: Record<Chapter, DriveOverlay[]> = {
-  launch: ['power', 'motors', 'weight', 'suspension'],
+  launch: ['power', 'motors', 'suspension'],
   speed: ['aero', 'power', 'energy'],
-  curve: ['steering', 'motors', 'weight', 'suspension'],
-  stop: ['brake', 'weight', 'suspension', 'energy'],
+  curve: ['steering', 'motors', 'suspension'],
+  stop: ['brake', 'suspension', 'energy'],
 };
 
 /**
- * The run told in chapters, each with the tiles it opens: the launch (the power, the motors, the weight), the speed (the drag, the
+ * The run told in chapters, each with the tiles it opens: the launch (the power, the motors, the suspension), the speed (the drag, the
  * energy), each curve (the steering, the motors), the stop (the brakes). A chapter runs until the next begins, so the picture
  * is always on something. Of the tiles a chapter is about that the car's scenario lists, the scenario's first stays open for the
  * chapter and, with room for a second (`max` 2), the others take turns in that place. What the run does not have (no stop, no

@@ -388,7 +388,7 @@ export const denzaZ9: Vehicle = {
       'A three-motor launch, an S-curve under power where the two rear motors share the drive to turn the car, then a crab walk on the rear-wheel steering.',
     modes: ['eco', 'comfort', 'sport'],
     defaultMode: 'sport',
-    overlays: ['motors', 'steering', 'power', 'weight'],
+    overlays: ['motors', 'steering', 'power'],
     finish: 'coast',
     manoeuvres: ['sweep', 'crab'],
     chassis: { airSuspension: true, rearSteerMaxDeg: 10, crabDeg: 15 },

@@ -9,6 +9,8 @@ const load = (p) => import(pathToFileURL(`${root}/${p}`).href);
 const M = await load('src/lib/tech/motion.ts');
 const B = await load('src/lib/tech/drive-beats.ts');
 const { planDrive } = await load('src/lib/tech/drive-run.ts');
+const L = await load('src/lib/tech/drive-layout.ts');
+const A = await load('src/lib/tech/drive-anchors.ts');
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -172,18 +174,18 @@ const rxShape = B.runShape(rx.launch.drive, rx.track.duration);
     return stop && stop.title === `${rx.launch.drive.summary.brakeM.toFixed(1)} m`;
   })());
 
-  const overlays = ['motors', 'steering', 'power', 'weight'];
+  const overlays = ['motors', 'steering', 'power'];
   const plan = B.beatPlan(overlays, z9f, shape);
   ok('the plan only has the car\'s own instruments', plan.every((b) => overlays.includes(b.overlay)));
   ok('the plan is in time order', plan.every((b, i) => i === 0 || b.from >= plan[i - 1].from));
   ok('the motors\' moment begins with the launch', plan.find((b) => b.overlay === 'motors').from <= shape.launch + 0.01);
   ok('the launch opens the car\'s first two tiles that are about it: motors and power', plan.filter((b) => b.from <= shape.launch + 0.01).map((b) => b.overlay).sort().join() === 'motors,power');
-  ok('then the weight takes the power\'s place', plan.some((b) => b.overlay === 'weight' && b.from > 1.5 && b.from < 3.2));
+  ok('the power stays open through the launch (no tile takes its place)', plan.some((b) => b.overlay === 'power' && b.from <= shape.launch + 0.01 && b.to >= 4));
   ok('a single-tile window opens only one tile at a time', B.beatPlan(overlays, z9f, shape, 1).filter((b) => b.from <= shape.launch + 0.01).length === 1);
   ok('the last chapter stays open to the end', plan.some((b) => b.to === Infinity));
   ok('a tile open in two chapters running is one moment, not two', plan.filter((b) => b.overlay === 'motors').length <= 2, plan.filter((b) => b.overlay === 'motors').map((b) => `${b.from.toFixed(1)}-${b.to}`).join(' '));
   ok('the steering has a moment in the curve and in the crab', plan.some((b) => b.overlay === 'steering' && b.from <= shape.spans.sweep[0].from + 0.4) && plan.some((b) => b.overlay === 'steering' && b.from <= shape.spans.crab[0].from + 0.5 && b.to > shape.spans.crab[0].from + 2));
-  ok('every tile of the car gets a moment of its own, the weight too', overlays.every((o) => plan.some((b) => b.overlay === o)), overlays.filter((o) => !plan.some((b) => b.overlay === o)).join());
+  ok('every tile of the car gets a moment of its own', overlays.every((o) => plan.some((b) => b.overlay === o)), overlays.filter((o) => !plan.some((b) => b.overlay === o)).join());
   ok('no moment of this car is for the brake (it has no such tile)', !plan.some((b) => b.overlay === 'brake'));
 
   let capOk = true;
@@ -203,7 +205,7 @@ const rxShape = B.runShape(rx.launch.drive, rx.track.duration);
   ok('scrubbing is stateless: the same time gives the same answer', JSON.stringify(B.openAt(plan, overlays, 7.3)) === JSON.stringify(B.openAt(plan, overlays, 7.3)));
 
   // a stop gives the brake its moment
-  const rxPlan = B.beatPlan(['brake', 'suspension', 'motors', 'weight'], rx.launch.drive, rxShape);
+  const rxPlan = B.beatPlan(['brake', 'suspension', 'motors'], rx.launch.drive, rxShape);
   const bk = rxPlan.find((b) => b.overlay === 'brake');
   ok('a run with a stop gives the brake a moment around the stop', bk && rxShape.spans.brake && bk.from <= rxShape.spans.brake[0].from && bk.to >= rxShape.spans.brake[0].to);
   ok('no moment of the brake before the car brakes', rxPlan.filter((b) => b.overlay === 'brake').every((b) => b.from >= rxShape.spans.brake[0].from - 0.4));
@@ -211,10 +213,84 @@ const rxShape = B.runShape(rx.launch.drive, rx.track.duration);
   ok('under the brakes the wheels\' friction glows, the front harder', wb.brake[0] > wb.brake[2] && wb.brake[0] > 0.05 && wb.drive.every((x) => x === 0), wb.brake.map((x) => x.toFixed(2)).join(' '));
 }
 
+
+// ---------------------------------------------------------------------------------------------- the cards' layout and anchors
+{
+  const safe = { x: 10, y: 70, w: 1060, h: 460 };
+  const car = { x: 520, y: 130, w: 300, h: 210 };
+  const scene = { safe, car, avoid: [{ x: 280, y: 400, w: 520, h: 140 }] };
+  const inside = (r, b) => r.x >= b.x - 1e-6 && r.y >= b.y - 1e-6 && r.x + r.w <= b.x + b.w + 1e-6 && r.y + r.h <= b.y + b.h + 1e-6;
+
+  const one = L.layoutCards([{ id: 'a', w: 292, h: 140, targets: [{ x: 560, y: 300 }] }], scene);
+  ok('a card stays inside the free part of the window', inside(one[0].rect, safe));
+  ok('a card with room beside the car stands beside it, not over it', L.overlap(one[0].rect, car) === 0, `${one[0].slot}`);
+  ok('it keeps clear of the caption', L.overlap(one[0].rect, scene.avoid[0]) === 0);
+
+  const two = L.layoutCards(
+    [
+      { id: 'a', w: 292, h: 140, targets: [{ x: 560, y: 300 }] },
+      { id: 'b', w: 292, h: 150, targets: [{ x: 700, y: 140 }] },
+    ],
+    scene,
+  );
+  ok('two cards do not overlap each other', L.overlap(two[0].rect, two[1].rect) === 0, `${two[0].slot} / ${two[1].slot}`);
+  ok('two cards both stay inside the free part and clear of the car', two.every((p) => inside(p.rect, safe) && L.overlap(p.rect, car) === 0));
+  ok('two cards both keep clear of the caption', two.every((p) => L.overlap(p.rect, scene.avoid[0]) === 0));
+
+  // a stack that is short of height is spread over what there is, and the cards still do not overlap
+  const short = { safe: { x: 10, y: 70, w: 1060, h: 330 }, car, avoid: [] };
+  const sq = L.layoutCards(
+    [
+      { id: 'a', w: 292, h: 150, targets: [{ x: 540, y: 250 }] },
+      { id: 'b', w: 292, h: 150, targets: [{ x: 560, y: 260 }] },
+    ],
+    short,
+  );
+  ok('two cards in a short column are pushed apart and do not overlap', L.overlap(sq[0].rect, sq[1].rect) === 0 && sq.every((p) => inside(p.rect, short.safe)), `${sq.map((p) => `${p.slot}@${p.rect.y.toFixed(0)}`).join(' ')}`);
+
+  // a slot held from the last frame is kept when another is hardly better
+  const stay = L.layoutCards([{ id: 'a', w: 292, h: 140, targets: [{ x: 560, y: 300 }] }], scene, { a: one[0].slot });
+  ok('a card keeps its slot while nothing has changed', stay[0].slot === one[0].slot);
+
+  // a window too narrow for anything beside the car still places the card, inside the safe part
+  const tight = L.layoutCards([{ id: 'a', w: 292, h: 140, targets: [{ x: 400, y: 200 }] }], { safe: { x: 10, y: 70, w: 340, h: 460 }, car: { x: 40, y: 130, w: 280, h: 200 }, avoid: [] });
+  ok('where nothing fits, the card is still placed inside the safe part', inside(tight[0].rect, { x: 10, y: 70, w: 340, h: 460 }));
+
+  // arrows
+  const card = { x: 245, y: 150, w: 292, h: 140 };
+  const target = { x: 600, y: 240 };
+  const ar = L.arrowTo(card, target, 9);
+  ok('an arrow leaves the card by the edge that faces the point', /^M537\.0 /.test(ar.d), ar.d.slice(0, 24));
+  ok('its head stops 9 px short of the point', Math.abs(Math.hypot(ar.tip.x - target.x, ar.tip.y - target.y) - 9) < 1e-6);
+  ok('and points at it (within a few degrees of the direction to the point)', (() => { const want = Math.atan2(target.y - ar.tip.y, target.x - ar.tip.x); return Math.abs(Math.atan2(Math.sin(ar.angle - want), Math.cos(ar.angle - want))) < 0.5; })());
+  const above = L.arrowTo({ x: 400, y: 300, w: 292, h: 140 }, { x: 540, y: 120 });
+  ok('a point above the card is reached from the top edge', /^M[\d.]+ 300\.0 /.test(above.d), above.d.slice(0, 24));
+
+  // anchors
+  const geo = { rearX: 0.3, wheelbase: 3, midZ: 0, halfTrack: 0.85, radius: 0.36, halfBody: 0.98, height: 1.6, xMin: -0.9, xMax: 4.4 };
+  const R = A.anchorLocal('hubRear', geo, 1);
+  const Lf = A.anchorLocal('hubRear', geo, -1);
+  ok('an anchor on the other side is its mirror across the car', near(R[0], Lf[0]) && near(R[1], Lf[1]) && near(R[2], -Lf[2]));
+  ok('the front hub is a wheelbase ahead of the rear', near(A.anchorLocal('hubFront', geo, 1)[0] - A.anchorLocal('hubRear', geo, 1)[0], 3));
+  ok('the hubs are at the wheel radius and outside the track', near(R[1], 0.36) && R[2] > 0.85);
+  ok('the arch is over the tyre, the roof over the car', A.anchorLocal('archRear', geo, 1)[1] > 0.6 && A.anchorLocal('roof', geo, 1)[1] > 1.5);
+  ok('the pack is between the axles', (() => { const b = A.anchorLocal('battery', geo, 1); return b[0] > geo.rearX && b[0] < geo.rearX + geo.wheelbase && b[1] < 0.4; })());
+  ok('the box has eight corners within the body', A.boxCorners(geo).length === 8 && A.boxCorners(geo).every((c) => c[0] >= geo.xMin && c[0] <= geo.xMax && Math.abs(c[2]) <= geo.halfBody + 1e-6));
+
+  const rwdRun = planDrive(layout, body, start, base({ motors: rwd }));
+  const frontSteer = planDrive(layout, body, start, base({ chassis: { squatDegPerG: 0.9, rollDegPerG: 1.2, cgHeightM: 0.55, staticRear: 0.5, rearSteerMaxDeg: 0, crabDeg: 15 } }));
+  const tel0 = z9f.telemetry(2);
+  const brakeTel = { ...tel0, g: -0.9 };
+  ok('the suspension points at the rear arch in the pull and the front under the brakes', A.targetsOf('suspension', z9f, tel0)[0] === 'archRear' && A.targetsOf('suspension', z9f, brakeTel)[0] === 'archFront');
+  ok('the motors point at the axles that have one', A.targetsOf('motors', z9f, tel0).join() === 'hubFront,hubRear' && A.targetsOf('motors', rwdRun.launch.drive, tel0).join() === 'hubRear');
+  ok('the steering points at the rear wheel too where the car steers them', A.targetsOf('steering', z9f, tel0).join() === 'edgeFront,edgeRear' && A.targetsOf('steering', frontSteer.launch.drive, tel0).join() === 'edgeFront');
+  ok('the brake points at the disc, the drag at the roof, the pack at the sill', A.targetsOf('brake', z9f, tel0)[0] === 'discFront' && A.targetsOf('aero', z9f, tel0)[0] === 'roof' && A.targetsOf('power', z9f, tel0)[0] === 'battery' && A.targetsOf('energy', z9f, tel0)[0] === 'batteryRear');
+}
+
 if (process.argv[2] === 'run') {
   console.log('events:', z9f.events.map((e) => `${e.t.toFixed(2)} ${e.cue}`).join(' | '));
   console.log('acts:', B.launchActs(z9f, shape.launch).map((a) => `${a.id} ${a.from.toFixed(2)}-${a.to.toFixed(2)}`).join(' | '));
-  const plan = B.beatPlan(['motors', 'steering', 'power', 'weight'], z9f, shape);
+  const plan = B.beatPlan(['motors', 'steering', 'power'], z9f, shape);
   console.log('plan:', plan.map((b) => `${b.overlay} ${b.from.toFixed(1)}-${b.to.toFixed(1)}`).join(' | '));
   for (let t = 0; t <= T; t += 1) {
     const w = B.wheelLevels(z9f, z9f.telemetry(t));

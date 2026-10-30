@@ -453,7 +453,7 @@ export const xpengG9l: Vehicle = {
       { id: 'driver', label: 'Driver', payloadKg: 75 },
       { id: 'family', label: 'Five + luggage', payloadKg: 455 },
     ],
-    overlays: ['steering', 'weight', 'motors', 'power'],
+    overlays: ['steering', 'motors', 'power'],
     finish: 'coast',
     manoeuvres: ['slalom'],
     chassis: { airSuspension: true, rearSteerMaxDeg: 15 },

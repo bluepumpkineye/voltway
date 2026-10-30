@@ -443,7 +443,7 @@ export const luxeedRx: Vehicle = {
       'A 0–100 run and then, at once, a hard stop from 100 km/h: the launch, then the deceleration, the nose dive, and how much the motors take back.',
     modes: ['eco', 'comfort', 'sport', 'sport-plus'],
     defaultMode: 'sport-plus',
-    overlays: ['brake', 'suspension', 'motors', 'weight'],
+    overlays: ['brake', 'suspension', 'motors'],
     finish: 'brake',
     brake100M: 32.4,
     chassis: { airSuspension: true },

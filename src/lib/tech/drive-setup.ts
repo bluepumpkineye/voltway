@@ -81,7 +81,7 @@ const GENERIC: DriveSpec = {
   blurb: 'A standing start to 100 km/h and on to 200, on the car’s published times.',
   modes: [],
   defaultMode: '',
-  overlays: ['power', 'weight', 'energy'],
+  overlays: ['power', 'energy'],
   finish: 'coast',
   callouts: [],
   claims: [],

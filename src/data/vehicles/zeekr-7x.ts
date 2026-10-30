@@ -396,7 +396,7 @@ export const zeekr7x: Vehicle = {
       { id: 'driver', label: 'Driver', payloadKg: 75 },
       { id: 'family', label: 'Family + luggage', payloadKg: 455 },
     ],
-    overlays: ['weight', 'suspension', 'motors', 'power'],
+    overlays: ['suspension', 'motors', 'power'],
     finish: 'cruise',
     cruiseKmh: 120,
     chassis: { airSuspension: true, squatDegPerG: 1.0 },

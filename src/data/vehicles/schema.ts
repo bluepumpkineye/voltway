@@ -425,7 +425,7 @@ export interface TechDemoSpec {
 }
 
 /** The instrument cards of the Drive tab's panel; a car's scenario lists the ones that explain it, the first leading. */
-export type DriveOverlay = 'power' | 'weight' | 'motors' | 'suspension' | 'brake' | 'energy' | 'aero' | 'steering';
+export type DriveOverlay = 'power' | 'motors' | 'suspension' | 'brake' | 'energy' | 'aero' | 'steering';
 
 /** The moments of a Drive run a callout can be pinned to (src/lib/tech/drive-run.ts gives each a time). */
 export type DriveCue = 'launch' | 'pull' | 'target' | 'cruise' | 'brake' | 'stop' | 'sweep' | 'slalom' | 'crab';

@@ -345,7 +345,7 @@ export const bydSeal: Vehicle = {
     runs: [{ from: 80, to: 160 }],
     modes: ['eco', 'comfort', 'sport'],
     defaultMode: 'sport',
-    overlays: ['aero', 'power', 'energy', 'weight'],
+    overlays: ['aero', 'power', 'energy'],
     finish: 'coast',
     aero: { cd: 0.219 },
     ghost: { slug: 'byd-seal', variantId: '650-smart-driving' },

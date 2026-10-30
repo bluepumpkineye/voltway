@@ -339,7 +339,7 @@ export const voyahPassionS: Vehicle = {
       { id: 'driver', label: 'Driver', payloadKg: 75 },
       { id: 'family', label: 'Family + luggage', payloadKg: 455 },
     ],
-    overlays: ['suspension', 'weight', 'motors', 'power'],
+    overlays: ['suspension', 'motors', 'power'],
     finish: 'coast',
     chassis: { airSuspension: true, squatDegPerG: 0.9 },
     ghost: { slug: 'zeekr-7x', variantId: 'awd' },

@@ -270,66 +270,7 @@ function MotorsBody({ c }: { c: TileCtx }) {
   );
 }
 
-// ------------------------------------------------------------------------------------------- weight
-
 const CAR_SIDE = 'M-48 12 L-46 0 Q-40 -10 -22 -12 L8 -13 Q30 -12 42 -2 L50 6 L50 12 Z';
-
-function WeightBody({ c }: { c: TileCtx }) {
-  const { tel, open, setup } = c;
-  const rear = tel.axleRear;
-  const front = 1 - rear;
-  const squat = (tel.corner[2] + tel.corner[3]) / 2;
-  const draw = sub(open, 0.1, 0.8);
-  const base = setup.input.chassis.staticRear;
-  const shift = rear - base;
-  return (
-    <div className="relative" style={{ height: 104 }}>
-      <svg width={158} height={88} viewBox="-62 -30 124 74" className="absolute left-0 top-0" aria-hidden>
-        <line x1={-60} y1={20.5} x2={60} y2={20.5} stroke={FAINT} />
-        <g transform={`rotate(${-tel.pitchDeg * 6} 0 6)`}>
-          <path d={CAR_SIDE} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.7)" strokeWidth={1.2} />
-        </g>
-        {[
-          [-32, front, CYAN],
-          [34, rear, AMBER],
-        ].map(([x, share, col]) => (
-          <g key={String(x)}>
-            <circle cx={x as number} cy={14} r={(5 + 14 * (share as number)) * draw} fill={col as string} opacity={0.28} />
-            <circle cx={x as number} cy={14} r={6.5} fill="rgba(15,18,24,0.85)" stroke="#fff" strokeWidth={1.3} />
-            <text x={x as number} y={-18} textAnchor="middle" fontSize={9} fontWeight={600} fill={col as string} className="tnum">
-              {fmt((share as number) * 100)} %
-            </text>
-          </g>
-        ))}
-        {Math.abs(shift) > 0.012 && (
-          <path
-            d={shift > 0 ? 'M-14 -8 L14 -8 M8 -12 L14 -8 L8 -4' : 'M14 -8 L-14 -8 M-8 -12 L-14 -8 L-8 -4'}
-            fill="none"
-            stroke={INK}
-            strokeWidth={1.4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={clamp(Math.abs(shift) * 12) * draw}
-          />
-        )}
-      </svg>
-      <div className="absolute top-0 grid gap-2" style={{ left: 168, width: BODY_W - 168 }}>
-        <Read label="Pitch" value={sgn(tel.pitchDeg, 1)} unit="°" size={15} />
-        <Read label="Rear squat" value={fmt(squat)} unit="mm" size={15} />
-      </div>
-      <div className="absolute bottom-0 w-full" style={{ opacity: draw }}>
-        <div className="mb-0.5 flex justify-between text-[10px] text-white/60">
-          <span className="tnum">Front {fmt(front * 100)} %</span>
-          <span className="tnum">Rear {fmt(rear * 100)} %</span>
-        </div>
-        <div className="flex h-1.5 overflow-hidden rounded-full bg-white/15">
-          <span className="h-full" style={{ width: `${front * 100}%`, background: CYAN }} />
-          <span className="h-full" style={{ width: `${rear * 100}%`, background: AMBER }} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ------------------------------------------------------------------------------------------- suspension
 
@@ -570,13 +511,6 @@ export const TILES: Record<DriveOverlay, TileDef> = {
     chip: (c) => (c.facts.motors.length > 1 ? { value: `F ${fmt(frontShare(c) * 100)} · R ${fmt((1 - frontShare(c)) * 100)}`, unit: '%' } : { value: fmt(Math.abs(c.tel.powerKw)), unit: 'kW' }),
     Body: MotorsBody,
   },
-  weight: {
-    id: 'weight',
-    title: () => 'Weight transfer & squat',
-    body: 104,
-    chip: (c) => ({ value: fmt(c.tel.axleRear * 100), unit: '% rear' }),
-    Body: WeightBody,
-  },
   suspension: {
     id: 'suspension',
     title: () => 'Suspension',
@@ -618,7 +552,6 @@ export const TILES: Record<DriveOverlay, TileDef> = {
 export const ACCENT: Record<DriveOverlay, string> = {
   power: AMBER,
   motors: AMBER,
-  weight: CYAN,
   suspension: CYAN,
   brake: RED,
   energy: GREEN,

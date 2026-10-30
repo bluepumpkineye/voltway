@@ -344,7 +344,7 @@ export const xiaomiSu7Ultra: Vehicle = {
     runs: [{ from: 100, to: 200 }],
     modes: ['eco', 'standard', 'sport', 'drag'],
     defaultMode: 'drag',
-    overlays: ['power', 'weight', 'motors', 'energy'],
+    overlays: ['power', 'motors', 'energy'],
     finish: 'coast',
     chassis: { airSuspension: true },
     ghost: { slug: 'byd-seal', variantId: '600-four-wheel-drive-smart-driving' },

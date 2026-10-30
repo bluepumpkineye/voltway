@@ -21,6 +21,7 @@ import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
 import { TechParkAssist } from './TechParkAssist';
 import { TechPowertrain } from './TechPowertrain';
+import { TechAnchors } from './TechAnchors';
 import { TechWheelFx } from './TechWheelFx';
 import { TechRival } from './TechRival';
 import { TechSensors } from './TechSensors';
@@ -158,6 +159,8 @@ function Stage({
       <TechPowertrain vehicle={vehicle} />
       {/* the Drive tab's lights on the wheels: what each motor and brake is doing */}
       <TechWheelFx vehicle={vehicle} />
+      {/* where the car's arch, disc, hubs, pack and roof are on the screen, for the cards that point at them */}
+      <TechAnchors vehicle={vehicle} />
       {/* the Drive tab's rival, in the next lane */}
       <TechRival vehicle={vehicle} />
       {/* the car and its baked shadow stand in one group, so a tech demo moves them together */}

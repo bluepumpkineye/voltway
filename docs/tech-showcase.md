@@ -949,11 +949,11 @@ later, a composition can import the same modules. No Remotion code is copied.
 - **The column of tiles** over the left of the stage (`showroom/DriveMotion.tsx`, the tiles in `showroom/driveTiles.tsx`), one for each
   instrument the car's scenario lists (`DriveSpec.overlays`). A tile is a line of live figures; when the run comes to its moment it
   opens into its own animation: the power's arc gauge rolling in with the peak marked, the torque flow's top view with the battery,
-  motors and wheels and dashes running along the wires, the weight's side view with the discs growing at the axles, four coils
+  motors and wheels and dashes running along the wires, four coils
   compressing, the brake's ruler and the motors' share of the stop, the energy against a magnified top 2 % of the pack, the drag's
   streamlines, the steering's wheels at their angles. When a run begins the trim's published figures count up above the column.
-- **The chapters** (`beatPlan`): the launch (power, motors, weight, suspension), the speed (drag, power, energy), each curve (steering,
-  motors, weight, suspension), the stop (brake, weight, suspension, energy). The car's own order of overlays says which tile a chapter
+- **The chapters** (`beatPlan`): the launch (power, motors, suspension), the speed (drag, power, energy), each curve (steering,
+  motors, suspension), the stop (brake, suspension, energy). The car's own order of overlays says which tile a chapter
   keeps open; with room for a second, the others about it take turns in that place. A chapter runs until the next begins, so the picture
   is always on something. A window under 800 px tall opens one tile at a time and shows no intro.
 - **A narrow window** has no room for a tile to open over the car: it shows the line of the tile whose moment it is, under the
@@ -980,6 +980,36 @@ rate on a real GPU was not measured (the tiles re-render every frame the playhea
 
 **Not built.** A video render of a run (Remotion proper), a tile for the rival's gap, thrust arrows on the road (they hide under the
 body from the camera's usual place; the rings on the wheels carry it), motor rpm.
+
+### Follow-up (2026-10-30, later): the cards float beside the car, and the weight card is gone
+
+The owner's note: still static; move the cards near the car, each pointing at the part it explains with an animated arrow; drop the
+weight-transfer and squat card from every car (not a priority, too much on the screen).
+
+- **The weight card is removed** from the type (`DriveOverlay`), the tiles, the chapters and every car's `overlays` (the callouts that
+  say the weight moves to the rear axle stay: they are narrative, not a card). The planner still computes the axle load.
+- **Floating cards** (`showroom/DriveMotion.tsx`): only the cards the run has come to are on screen (no line of shut tiles any more), each
+  beside the car and joined to the part it explains by an arrow that draws itself on as the card opens, then runs a train of white
+  dashes toward the part, with a head and a pulsing ring on the part. Where each points (`targetsOf`, `drive-anchors.ts`): the
+  suspension at the tyre's arch (the rear in the pull, where the tail squats, the front under the brakes, where the nose dives), the brake
+  at the disc, the steering at the front wheel's leading edge (and the rear wheel's trailing edge on a car that steers them), the motors at
+  the hubs of the axles that have one, the power and the energy at the pack under the floor (the sill over it), the drag at the roof.
+- **Anchors** (`viewer/TechAnchors.tsx`, `drive-anchors.ts`): the points are in the model's frame (`anchorLocal`: from the wheelbase, the
+  track, the tyre radius, the body's width and height, all measured off the rig) and ride with the car (`CarFollower`); each frame they are
+  projected on to the window, on the side of the car the camera is on (held until the camera is half a metre over the middle the other
+  way), with the car's outline, and published in `driveAnchors`. Nothing is drawn by it.
+- **Layout** (`drive-layout.ts`, pure and tested): for each card a handful of places (left of the car, right, above, below, and hugging the
+  point, with a stack variant under or over a card already placed) is scored by how much would lie outside the free part of the window,
+  over the car, over the caption or the trim's figures, or over another card, how far it is from its point, and a bonus for the place it
+  had (so that it does not flip as the camera moves); cards that still overlap are pushed apart. The card then glides to its place
+  (`1 - exp(-10 dt)`), so a camera move is followed, not jumped to. The free part ends above the caption, which now stands over the road
+  just above the gauges.
+- **Fallbacks:** the cabin camera has nothing outside to point at, so the open cards stand in a column at the left; a narrow window shows
+  one line (the card whose moment it is) under the scenario bar, as before; reduced motion freezes the dashes and the ring.
+- The stage keeps a left inset (`deviceInset.left`) so that the car is framed clear of the cards at its left.
+- **Tests** (`motion-test.mjs`): a card stays inside the free part, beside the car and clear of the caption; two cards do not overlap and a
+  short column is spread; a slot is kept while nothing changes; the arrow leaves by the edge that faces its point, stops 9 px short and points
+  at it; the anchors mirror across the car and lie where the hubs, the arch, the pack and the roof are; each instrument points where it should.
 
 **The Voyah Passion S** (added to `main` by the owner after the first version of this section: the exterior, cabin, proxy and shadow, the
 data file `src/data/vehicles/voyah-passion-s.ts`) has its scenario in that file: "Magic Carpet Launch", a launch to 100 km/h on the
