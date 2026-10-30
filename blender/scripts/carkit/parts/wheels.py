@@ -877,43 +877,50 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     # the face's top surface - instead of one hung from the disc's edge
     span = math.radians(cs.get("span_rear", cs.get("span_deg", 30.0)) if tag.startswith("R")
                         else cs.get("span_deg", 30.0))
-    r0 = cs["r_inner"] if "r_inner" in cs else disc_r - cs.get("r_in", 0.058)
-    r1 = min(disc_r + cs.get("r_out", 0.020), rim_r - cs.get("rim_clear", 0.034))
-    d_out = d_disc + cs.get("d_out", 0.046)
-    d_in = d_disc - cs.get("d_in", 0.080)
-    bulge_c = cs.get("bulge", 0.012)
-    steps = cs.get("steps", 12)
-    cverts, cfaces = [], []
-    for i in range(steps + 1):
-        a = ca - span + 2 * span * i / steps
-        bulge = bulge_c * math.sin(math.pi * i / steps)   # swell in the middle
-        for r in (r0, r1):
-            for dd in (d_out + bulge, d_in):
-                cverts.append((r * math.cos(a), r * math.sin(a), dd))
-    for i in range(steps):
-        b = i * 4
-        n = b + 4
-        cfaces += [[b + 0, n + 0, n + 2, b + 2], [b + 1, b + 3, n + 3, n + 1],
-                   [b + 0, b + 1, n + 1, n + 0], [b + 2, n + 2, n + 3, b + 3]]
-    cfaces.append([0, 2, 3, 1])
-    last = steps * 4
-    cfaces.append([last + 0, last + 1, last + 3, last + 2])
-    # wound outwards: the first version came out inside-out, which a double-sided
-    # material hides and an ambient-occlusion bake (carkit.bake) does not
-    cfaces = [f[::-1] for f in cfaces]
-    cal = M.obj(prefix + "Caliper_" + tag, cverts, cfaces, collection,
-                lib[mats["caliper"]], smooth=True)
-    M.bevel(cal, cs.get("bevel", 0.008), 3, 30, harden=True)
-    parts.append(cal)
-    if cs.get("groove"):
-        # the split between the two halves of a real caliper: a thin dark band across the middle of the body, so
-        # the slab reads as pistons in two sections (opt-in: the other cars' wheels build as they did)
-        gw = math.radians(cs.get("groove_deg", 0.9))
-        zg = d_out + bulge_c + 0.0004
-        gv = [(r0 * math.cos(ca - gw), r0 * math.sin(ca - gw), zg), (r1 * math.cos(ca - gw), r1 * math.sin(ca - gw), zg),
-              (r1 * math.cos(ca + gw), r1 * math.sin(ca + gw), zg), (r0 * math.cos(ca + gw), r0 * math.sin(ca + gw), zg)]
-        parts.append(M.obj(prefix + "CaliperGroove_" + tag, gv, [[0, 1, 2, 3]], collection,
-                           lib[mats.get("holes", "shadow")], smooth=False))
+    if cs.get("style", "monobloc") != "slab":
+        # the two-piece monobloc every car now has (carkit.parts.calipers); "slab" is the sector block it replaces
+        from . import calipers as CAL
+        parts += CAL.build(collection, prefix, tag, lib, mats, cs, ca, span, disc_r, d_disc,
+                           dk.get("thickness", 0.036), rim_r)
+    else:
+        r0 = cs["r_inner"] if "r_inner" in cs else disc_r - cs.get("r_in", 0.058)
+        r1 = min(disc_r + cs.get("r_out", 0.020), rim_r - cs.get("rim_clear", 0.034))
+        d_out = d_disc + cs.get("d_out", 0.046)
+        d_in = d_disc - cs.get("d_in", 0.080)
+        bulge_c = cs.get("bulge", 0.012)
+        steps = cs.get("steps", 12)
+        cverts, cfaces = [], []
+        for i in range(steps + 1):
+            a = ca - span + 2 * span * i / steps
+            bulge = bulge_c * math.sin(math.pi * i / steps)   # swell in the middle
+            for r in (r0, r1):
+                for dd in (d_out + bulge, d_in):
+                    cverts.append((r * math.cos(a), r * math.sin(a), dd))
+        for i in range(steps):
+            b = i * 4
+            n = b + 4
+            cfaces += [[b + 0, n + 0, n + 2, b + 2], [b + 1, b + 3, n + 3, n + 1],
+                       [b + 0, b + 1, n + 1, n + 0], [b + 2, n + 2, n + 3, b + 3]]
+        cfaces.append([0, 2, 3, 1])
+        last = steps * 4
+        cfaces.append([last + 0, last + 1, last + 3, last + 2])
+        # wound outwards: the first version came out inside-out, which a double-sided
+        # material hides and an ambient-occlusion bake (carkit.bake) does not
+        cfaces = [f[::-1] for f in cfaces]
+        cal = M.obj(prefix + "Caliper_" + tag, cverts, cfaces, collection,
+                    lib[mats["caliper"]], smooth=True)
+        M.bevel(cal, cs.get("bevel", 0.008), 3, 30, harden=True)
+        parts.append(cal)
+        if cs.get("groove"):
+            # the split between the two halves of a real caliper: a thin dark band across the middle of the body, so
+            # the slab reads as pistons in two sections (opt-in: the other cars' wheels build as they did)
+            gw = math.radians(cs.get("groove_deg", 0.9))
+            zg = d_out + bulge_c + 0.0004
+            gv = [(r0 * math.cos(ca - gw), r0 * math.sin(ca - gw), zg), (r1 * math.cos(ca - gw), r1 * math.sin(ca - gw), zg),
+                  (r1 * math.cos(ca + gw), r1 * math.sin(ca + gw), zg), (r0 * math.cos(ca + gw), r0 * math.sin(ca + gw), zg)]
+            parts.append(M.obj(prefix + "Caliper_Groove_" + tag, gv, [[0, 1, 2, 3]], collection,
+                               lib[mats.get("holes", "shadow")], smooth=False))
+
 
     # ---------------------------------------------------------- placement
     # Proper rotations about X, never reflections: local Z (the axle, outboard

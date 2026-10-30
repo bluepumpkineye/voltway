@@ -53,7 +53,7 @@ SPEC = W.preset(
     lugs=dict(count=5, r=0.0135, deg=AXIS - 180.0, rise=0.010, dome=True),
     # Akebono: 6 pistons on the front axle (yellow from -61 to +55 degrees round the disc in the
     # photographs), 4 on the rear (-19 to +63)
-    caliper=dict(span_deg=57.0, span_rear=41.0, r_inner=0.14, steps=16),
+    caliper=dict(span_deg=57.0, span_rear=41.0, r_inner=0.14, steps=16, lobes=3, lobes_rear=2),
     mats=dict(lugs="black_gloss", barrel="grille"))
 RIM_D = SPEC["rim_d"]
 RIM_R = RIM_D / 2.0

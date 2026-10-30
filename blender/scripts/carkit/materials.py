@@ -377,6 +377,16 @@ def build_library(paint="xiaomi_yellow", rim="gloss_black", caliper="gold",
     set_inputs(b, **CALIPERS[caliper])
     lib["caliper"] = m
 
+    # what is bolted to a caliper (carkit.parts.calipers): bolt heads, bleed screws and the hose fitting in dark
+    # zinc-black steel, the brake pads' edges in a dull composite. Neither is the caliper's paint, so the
+    # showroom's caliper swatches (which recolour one material by name) leave them alone.
+    m, nt, b = mat("M_Caliper_Hardware")
+    set_inputs(b, base=(0.030, 0.031, 0.034), metallic=0.90, roughness=0.42)
+    lib["caliper_hw"] = m
+    m, nt, b = mat("M_Caliper_Pad")
+    set_inputs(b, base=(0.018, 0.017, 0.016), metallic=0.0, roughness=0.78)
+    lib["caliper_pad"] = m
+
     # tyre rubber: warm dark grey, no sheen (a sheen lobe made whitewalls)
     m, nt, b = mat("M_Tyre")
     set_inputs(b, base=(0.014, 0.013, 0.012), metallic=0.0, roughness=0.84,

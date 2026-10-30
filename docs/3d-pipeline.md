@@ -1241,10 +1241,23 @@ otherwise. Pick the photograph with ellipse ratio above 0.99.
   where the default's wheels do, so the exterior's AO is baked once with only the default
   wheels and once per extra design alone (`export_rx.bake_exterior_ao`); the ground shadow
   uses the default only.
-- **Calipers** are a sector with a bulge, sized from the photographs: the RX's 43
-  degrees each side of the centre on the front axle and 39 on the rear, the SU7's 57 and
-  41 (6 and 4 pistons), centred 3 to 4 degrees below the horizontal (the SU7's rear 22
-  above); `r_inner` is where the bulged top stays clear of the face's top surface.
+- **Calipers** (`carkit.parts.calipers`, 2026-10-30; one builder for every car) are a two-piece monobloc: an
+  outboard plate over the disc's face with raised, twice-stepped pot covers (two lobes; three for the SU7's six-piston
+  front, `lobes` / `lobes_rear`) and a low rib across the bridge between them, an inboard plate, a bridge over the
+  disc's rim, two bolt heads, a hose fitting, two bleed screws, and the pads as dark plates set back in the slot, so
+  the disc visibly runs INTO the caliper (the slot is 4 mm clear either side of it). The envelope is the old slab's
+  (`r_inner` .. `min(disc_r + r_out, rim_r - rim_clear)`, the outer face `d_out` over the disc, covers `bulge` higher,
+  the back `d_in` behind it), so nothing that cleared the slab clears less. The sizes come from the photographs (the
+  RX's 43 degrees each side of the centre on the front axle and 39 on the rear, the SU7's 57 and 41, centred 3 to 4
+  degrees below the horizontal, the SU7's rear 22 above); `r_inner` is where the covers stay clear of the face's top
+  surface. Materials: the body is the car's own `caliper` role (the swatches recolour it by name), the bolts, screws and
+  fitting are `M_Caliper_Hardware`, the pads `M_Caliper_Pad` (`carkit.materials`; the swatches leave them alone). The old
+  sector slab is `caliper.style = "slab"`. **Every caliper part's name must hold `_Caliper_`**: the exporters put such
+  parts in the corner's caliper node, which steers but does not spin. The slab's "groove" quad was named
+  `...CaliperGroove_<tag>` and so spun with the wheel (a dark line turning round the hub in the Tech demos) on every car
+  that set `groove=True`; the monobloc has no groove object. A 3D model from Sketchfab was suggested for this and not
+  used: the listing offers no download (it is a store model), 60 k triangles with 4 K textures cannot go four to a car and
+  nine cars to a repository, and the licence would not allow the geometry to be redistributed in a public one.
 - **Budgets.** The RX's wheel nodes are about 48 k (Fengying), 52 k (Yufeng) and 51 k (Sport)
   triangles for four wheels; the exterior GLB is 3.3 MB. The SU7's wheels are about 17 k
   triangles each.
