@@ -32,7 +32,7 @@ const SEATS = [
 export function SeatsPage() {
   const t = useHa();
   const { climate, patchClimate } = useVehicleStore();
-  const { val, setVal } = useHaLocal();
+  const { val, setVal, slug } = useHaLocal();
   const [tab, setTab] = React.useState<Tab>('heat');
   const [seat, setSeat] = React.useState<(typeof SEATS)[number]['id']>('driver');
 
@@ -62,7 +62,7 @@ export function SeatsPage() {
 
       <div className="absolute" style={{ left: 640, top: 102, width: 800, height: 500, transform: 'translateX(-50%)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/hmi/luxeed-rx/cabin-seats-${t.tone}.webp`} alt="" draggable={false} className="h-full w-full object-contain" style={{ WebkitMaskImage: 'radial-gradient(ellipse at 50% 50%, #000 62%, transparent 100%)', maskImage: 'radial-gradient(ellipse at 50% 50%, #000 62%, transparent 100%)' }} />
+        <img src={`/hmi/${slug}/cabin-seats-${t.tone}.webp`} alt="" draggable={false} className="h-full w-full object-contain" style={{ WebkitMaskImage: 'radial-gradient(ellipse at 50% 50%, #000 62%, transparent 100%)', maskImage: 'radial-gradient(ellipse at 50% 50%, #000 62%, transparent 100%)' }} />
         {SEATS.map((s) => {
           const sel = s.id === seat;
           const lit = tab === 'heat' && s.id === 'driver' ? climate.seatHeatDriver > 0 : tab === 'heat' && s.id === 'passenger' ? climate.seatHeatPassenger > 0 : false;

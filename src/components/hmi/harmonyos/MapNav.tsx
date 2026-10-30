@@ -218,6 +218,7 @@ function Feed({ label, tilt = 0, sky = true }: { label: string; tilt?: number; s
 /** The 360-degree camera: the car from above, a camera selector and the feeds. */
 export function CameraPage() {
   const t = useHa();
+  const { slug } = useHaLocal();
   const dark = t.tone === 'dark';
   const { setHmiScreen } = useVehicleStore();
   const [view, setView] = React.useState<(typeof VIEWS)[number]['id']>('front');
@@ -230,7 +231,7 @@ export function CameraPage() {
       <div className="absolute overflow-hidden rounded-[30px]" style={{ left: 22, top: 24, width: 548, height: 690, background: 'repeating-linear-gradient(0deg,#9a9ca2 0 46px,#8e9096 46px 48px), repeating-linear-gradient(90deg,transparent 0 46px,rgba(0,0,0,0.12) 46px 48px)' }}>
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.35))' }} />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hmi/luxeed-rx/car-top.webp" alt="" draggable={false} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ height: 600 }} />
+        <img src={`/hmi/${slug}/car-top.webp`} alt="" draggable={false} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ height: 600 }} />
         <button type="button" className="absolute left-[16px] top-[16px] flex h-[72px] w-[62px] flex-col items-center justify-center gap-1 rounded-[18px] bg-black/60 text-[13px] text-white outline-none" onClick={() => setHmiScreen('park')} aria-label="Parking assist"><Ic.MenuAssist size={24} />Park</button>
         <button type="button" className="absolute left-[16px] top-[98px] flex h-[72px] w-[62px] flex-col items-center justify-center gap-1 rounded-[18px] bg-black/60 text-[13px] text-white outline-none" aria-label="Reverse"><Ic.Recirc size={24} />Reverse</button>
       </div>

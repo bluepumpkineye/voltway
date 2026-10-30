@@ -1,17 +1,22 @@
-"""Nio ES8 wheels: the complete official and Autohome wheel range for the all-new ES8 (NT2 platform):
+"""Nio ES8 wheels: the two 22 in wheels the all-new ES8 (NT2 platform) is shown on, both traced from photographs.
 
-    lanyue   22" Lanyue Forged High-Gloss Diamond-Cut (265/40 R22) - Flagship 10-twin-spoke forged wheel
-             with machined face, gloss black pockets, and always-upright floating centre cap. (Default)
-    sail     20" 7-Spoke Star Sail Aero (255/50 R20) - Aerodynamic 7-blade sail design with low-drag cutouts.
-             Standard executive wheel.
-    glow     21" Multi-Spoke Star Glow (265/45 R21) - 15-spoke fine radial turbine executive wheel with
-             machined silver face over dark grey barrel.
-    carbon   21" Carbon Blade Star Edge (265/45 R21) - 5-split Y-spoke sport wheel with aerodynamic blade inserts.
-    shine    22" Forged Star Shine Diamond-Cut (265/40 R22) - 10-spoke forged luxury wheel with sharp
-             diamond-cut face contrast over deep gloss black.
+    multi22   the standard 22 in (265/40 R22) wheel of the Signature and Luxury trims: a diamond-cut face with twenty
+              dark openings, ten bottle slots and ten funnel pockets alternating every 18 degrees, the bright spokes
+              between them 3-5 degrees wide; red calipers; a dark cap with the Nio mark. Traced from the REAR wheel of
+              the grey Signature car's side photograph (Autohome series 4427, spec 73547, imgs-4427-73547-1-x/11842784:
+              ellipse ratio 0.976, axle corrected -3, 0 px, period 36.0 degrees). The openings are the dark regions of
+              segment.cjs (lum 115-255, invert=1); the bottle slot's edges and the funnel's were read off the voted
+              outline (see the polygons below).
+    lanyue    the Lanyue (22 in forged, optional pack with Dawn Gold calipers): a mirror-polished face with eight
+              dark pockets that open to the rim, and a large polished cap with a black Nio roundel. Traced from the
+              maker's own close-up (blender/reference/nio-es8/official/lanyue_wheel.jpg: ellipse ratio 0.965, period
+              45.0 degrees by period.cjs); the pocket is the dark class of segment.cjs (lum 0-75).
 
-Brakes: Brembo 6-piston front calipers (Air Glow Orange, Silver Grey, or Competition Red) with ventilated discs.
-References: Autohome ES8 specification series 3954, NIO official ES8 configurator.
+The four other wheels of the first build (a 20 in Star Sail, a 21 in Star Glow, a 21 in Carbon Blade and a 22 in Star
+Shine) were stand-ins no photograph backs and are gone. A graphite ten-spoke wheel on a black Luxury car (imgs-4427-74331-
+1-x/13279102) is not built: it is dark on dark and too little of it shows.
+
+Polygons are (angle in degrees counter-clockwise from 3 o'clock, seen from outside, radius / lip radius).
 """
 import copy
 import math
@@ -19,170 +24,101 @@ import math
 from carkit.geom import Curve
 from carkit.parts import wheels as W
 
-LIP_20 = 0.2713                 # 20-inch rim lip radius (m) for 255/50 R20 (OD ~0.763 m)
-LIP_21 = 0.2840                 # 21-inch rim lip radius (m) for 265/45 R21 (OD ~0.772 m)
 LIP_22 = 0.2985                 # 22-inch rim lip radius (m) for 265/40 R22 (OD ~0.770 m)
-TAB_22 = 0.962                  # outer machined flange ring boundary on 22" Lanyue
+TAB_22 = 0.965                  # the face's edge: outside it the machined flange ring
 
-CALIPER = dict(span_deg=42.0, span_rear=36.0, r_inner=0.148, d_out=0.035, steps=16)
+CALIPER = dict(span_deg=42.0, span_rear=36.0, r_inner=0.148, d_out=0.035, steps=16, groove=True)
 
-# Dishes (face depth below flange plane by radius)
+# the dish (face depth below the flange plane by radius): flat, as photographed
 DISH_22 = Curve([
-    (0.000, 0.0580), (0.085, 0.0580), (0.115, 0.0520), (0.150, 0.0400),
-    (0.190, 0.0270), (0.230, 0.0155), (0.265, 0.0065), (0.290, 0.0018),
+    (0.000, 0.050), (0.085, 0.050), (0.115, 0.045), (0.150, 0.036),
+    (0.190, 0.026), (0.230, 0.015), (0.265, 0.006), (0.290, 0.0018),
     (LIP_22, 0.0),
 ], mode="pchip")
-
-DISH_21 = Curve([
-    (0.000, 0.0480), (0.085, 0.0480), (0.120, 0.0360), (0.170, 0.0220),
-    (0.220, 0.0110), (0.265, 0.0030), (LIP_21, 0.0),
-], mode="pchip")
-
-DISH_20 = Curve([
-    (0.000, 0.0380), (0.080, 0.0380), (0.120, 0.0280), (0.170, 0.0160),
-    (0.220, 0.0080), (0.255, 0.0020), (LIP_20, 0.0),
+DISH_LANYUE = Curve([
+    (0.000, 0.040), (0.090, 0.040), (0.140, 0.034), (0.190, 0.026),
+    (0.240, 0.016), (0.280, 0.007), (LIP_22, 0.0),
 ], mode="pchip")
 
 
-def _sym(axis, rows):
-    left = [(axis - hw, r) for (r, hw) in rows]
-    right = [(axis + hw, r) for (r, hw) in reversed(rows)]
-    return left + right
+def _bar(p, q, w):
+    """A flat bar of half-width w from p to q (metres): one quad of an emblem."""
+    dx, dy = q[0] - p[0], q[1] - p[1]
+    ln = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / ln * w, dx / ln * w
+    return [(p[0] + nx, p[1] + ny), (q[0] + nx, q[1] + ny), (q[0] - nx, q[1] - ny), (p[0] - nx, p[1] - ny)]
 
 
-# ========================================================================= 1. 22" Lanyue
-WIN_NARROW = _sym(0.0, [
-    (0.350, 3.2), (0.420, 3.8), (0.550, 4.4), (0.700, 4.8),
-    (0.840, 5.0), (0.925, 4.6), (0.946, 3.8),
-])
+# the Nio mark on the cap: two nested chevrons, bright on the dark cap
+NIO_MARK = dict(mat="machined", h=0.0128, quads=[
+    _bar((-0.0115, -0.0030), (0.0, 0.0085), 0.0015), _bar((0.0, 0.0085), (0.0115, -0.0030), 0.0015),
+    _bar((-0.0075, -0.0095), (0.0, -0.0020), 0.0013), _bar((0.0, -0.0020), (0.0075, -0.0095), 0.0013)])
 
-WIN_WIDE = _sym(18.0, [
-    (0.295, 4.6), (0.360, 5.6), (0.480, 6.4), (0.640, 6.9),
-    (0.800, 7.2), (0.915, 6.8), (0.948, 5.6),
-])
+# ========================================================================= 1. 22" multi-spoke (Signature / Luxury)
+# one 36-degree repeat: the bottle slot (narrow at the rim, wide at the hub end) and the funnel pocket (wide at the rim,
+# narrow at the hub), 17.9 degrees apart
+SLOT = [(39.8, 0.950), (39.1, 0.916), (39.2, 0.875), (38.6, 0.780), (37.9, 0.641), (36.9, 0.530), (35.8, 0.411),
+        (35.6, 0.360), (36.2, 0.320), (38.0, 0.305), (43.6, 0.298), (49.5, 0.305), (51.2, 0.325), (51.9, 0.389),
+        (50.8, 0.466), (49.9, 0.530), (48.8, 0.749), (48.3, 0.790), (48.1, 0.880), (47.6, 0.945), (47.0, 0.950)]
+POCKET = [(57.8, 0.948), (56.4, 0.940), (54.5, 0.936), (53.5, 0.922), (52.8, 0.904), (51.3, 0.900), (51.1, 0.848),
+          (51.4, 0.784), (52.9, 0.630), (54.4, 0.504), (56.6, 0.404), (56.2, 0.366), (57.8, 0.328), (60.5, 0.305),
+          (63.5, 0.302), (66.0, 0.318), (66.5, 0.350), (67.1, 0.393), (67.4, 0.454), (69.6, 0.564), (70.2, 0.636),
+          (71.7, 0.797), (72.0, 0.856), (71.9, 0.880), (71.4, 0.905), (70.5, 0.908), (69.2, 0.926), (67.4, 0.934),
+          (65.9, 0.946)]
 
-
-def _twin_bars():
-    bars = []
-    for sgn in (-1.0, 1.0):
-        c = sgn * 8.9
-        bars.append(_sym(c, [
-            (0.265, 2.8), (0.350, 2.6), (0.550, 2.3),
-            (0.780, 2.1), (0.955, 2.4), (0.985, 2.8),
-        ]))
-    return bars
-
-
-SPEC_LANYUE = W.preset(
+SPEC_MULTI = W.preset(
     "blade_5", rim_d=2.0 * LIP_22, dish=DISH_22, pinstripe=False,
     flange_face=(1.0 - TAB_22) * LIP_22, roll_left=math.pi,
-    tyre=dict(bulge=1.045, shoulder=0.016),
-    hub=dict(depth=0.0580, setback=0.008, cap_rise=0.0055, cap_r=0.036),
+    tyre=dict(bulge=1.045, shoulder=0.016, ridge=True),
+    hub=dict(depth=0.050, setback=0.008, cap_rise=0.0055, cap_r=0.032, cap_logo=NIO_MARK),
     lugs=dict(count=5, pcd_r=0.0580, r=0.0120, deg=18.0, rise=0.004, hidden=True),
     disc=dict(style="plain", inner_r=0.125, thickness=0.034),
     caliper=CALIPER,
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss",
-              disc="iron", barrel="black_gloss", accent="machined"),
+    mats=dict(rim="wheel_black", lip="machined", lugs="wheel_black", cap="cap_black",
+              disc="iron", barrel="wheel_black", accent="wheel_black"),
+)
+SPEC_MULTI["spokes"] = dict(
+    style="traced", count=10, phase=0.0, depth=0.016, bevel=0.0016, mat="machined",
+    r_in=0.038, r_out=TAB_22 * LIP_22, nr=16, seg=80, step_deg=1.5, step_r=0.025,
+    windows=[SLOT, POCKET],
+)
+SPEC_MULTI["tyre_w"] = 0.265
+
+# ========================================================================= 2. 22" Lanyue
+# one 45-degree repeat: a pocket that opens up to the rim
+LANYUE_POCKET = [(6.8, 0.960), (6.2, 0.948), (6.2, 0.929), (7.7, 0.854), (9.8, 0.782), (11.2, 0.748), (12.1, 0.736),
+                 (13.0, 0.728), (14.8, 0.721), (20.0, 0.714), (27.1, 0.719), (28.8, 0.728), (30.0, 0.741),
+                 (31.0, 0.762), (33.3, 0.835), (35.3, 0.932), (34.9, 0.956), (33.4, 0.960), (24.8, 0.960),
+                 (22.9, 0.960), (11.4, 0.960), (7.6, 0.960)]
+
+SPEC_LANYUE = W.preset(
+    "blade_5", rim_d=2.0 * LIP_22, dish=DISH_LANYUE, pinstripe=False,
+    flange_face=(1.0 - TAB_22) * LIP_22, roll_left=math.pi,
+    tyre=dict(bulge=1.045, shoulder=0.016, ridge=True),
+    # a large flat cap standing proud of the face, a black roundel in it with the mark
+    hub=dict(depth=0.040, setback=0.008, cap_rise=0.0055,
+             cap_pts=[(0.0, 0.0150), (0.060, 0.0146), (0.078, 0.0130), (0.0835, 0.0105)],
+             cap_inner=dict(mat="wheel_cap", r=0.030, h=0.0154), cap_logo=dict(NIO_MARK, h=0.0158)),
+    lugs=dict(count=5, pcd_r=0.0580, r=0.0120, deg=18.0, rise=0.004, hidden=True),
+    disc=dict(style="plain", inner_r=0.125, thickness=0.034),
+    caliper=CALIPER,
+    mats=dict(rim="wheel_black", lip="polished", lugs="wheel_black", cap="polished",
+              disc="iron", barrel="wheel_black", accent="wheel_black"),
 )
 SPEC_LANYUE["spokes"] = dict(
-    style="traced", count=10, phase=0.0, depth=0.016, bevel=0.0016, mat="black_gloss",
+    style="traced", count=8, phase=0.0, depth=0.016, bevel=0.0016, mat="polished",
     r_in=0.038, r_out=TAB_22 * LIP_22, nr=16, seg=80, step_deg=1.5, step_r=0.025,
-    windows=[WIN_NARROW, WIN_WIDE],
-    inlay=dict(mat="machined", polys=_twin_bars(), lift=0.0005),
+    windows=[LANYUE_POCKET],
 )
 SPEC_LANYUE["tyre_w"] = 0.265
 
-
-# ========================================================================= 2. 20" Star Sail Aero
-SPEC_SAIL = W.preset(
-    "aero_5window", rim_d=2.0 * LIP_20, dish=DISH_20, pinstripe=False,
-    flange_face=0.011, roll_left=math.pi,
-    tyre=dict(bulge=1.050, shoulder=0.018),
-    hub=dict(depth=0.038, setback=0.006, cap_rise=0.004, cap_r=0.034),
-    lugs=dict(count=5, pcd_r=0.0540, r=0.0120, deg=18.0, rise=0.004, hidden=True),
-    disc=dict(style="plain", inner_r=0.120, thickness=0.032),
-    caliper=CALIPER,
-    mats=dict(rim="dark_grey", lip="machined", lugs="black_gloss", cap="black_gloss",
-              disc="iron", barrel="dark_grey", accent="machined"),
-)
-SPEC_SAIL["spokes"] = dict(
-    style="aero", count=7, phase=math.pi / 7.0, depth=0.012, bevel=0.0016,
-    mat="dark_grey",
-    params=dict(r_in=0.068, r_win0=0.130, r_win1=0.230, half_angle=0.22, corner=0.25),
-)
-SPEC_SAIL["tyre_w"] = 0.255
-
-
-# ========================================================================= 3. 21" Multi-Spoke Star Glow
-SPEC_GLOW = W.preset(
-    "blade_5", rim_d=2.0 * LIP_21, dish=DISH_21, pinstripe=False,
-    flange_face=0.010, roll_left=math.pi,
-    tyre=dict(bulge=1.045, shoulder=0.016),
-    hub=dict(depth=0.048, setback=0.006, cap_rise=0.004, cap_r=0.035),
-    lugs=dict(count=5, pcd_r=0.0540, r=0.0120, deg=18.0, rise=0.004, hidden=True),
-    disc=dict(style="plain", inner_r=0.125, thickness=0.034),
-    caliper=CALIPER,
-    mats=dict(rim="dark_grey", lip="machined", lugs="black_gloss", cap="black_gloss",
-              disc="iron", barrel="dark_grey", accent="machined"),
-)
-SPEC_GLOW["spokes"] = dict(
-    style="straight", count=15, phase=0.0, depth=0.020, bevel=0.0018,
-    mat="dark_grey", face_mat="machined",
-    params=dict(r_hub=0.088, r_rim=0.265, w_hub=0.016, w_rim=0.012, twist=0.0),
-)
-SPEC_GLOW["tyre_w"] = 0.265
-
-
-# ========================================================================= 4. 21" Carbon Blade Star Edge
-SPEC_CARBON = W.preset(
-    "blade_5", rim_d=2.0 * LIP_21, dish=DISH_21, pinstripe=False,
-    flange_face=0.010, roll_left=math.pi,
-    tyre=dict(bulge=1.045, shoulder=0.016),
-    hub=dict(depth=0.050, setback=0.006, cap_rise=0.004, cap_r=0.035),
-    lugs=dict(count=5, pcd_r=0.0540, r=0.0120, deg=18.0, rise=0.004, hidden=True),
-    disc=dict(style="plain", inner_r=0.125, thickness=0.034),
-    caliper=CALIPER,
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss",
-              disc="iron", barrel="black_gloss", accent="machined"),
-)
-SPEC_CARBON["spokes"] = dict(
-    style="split_y", count=5, phase=math.pi / 2.0, depth=0.024, bevel=0.0022,
-    mat="black_gloss", face_mat="machined",
-    params=dict(r_hub=0.092, r_split=0.160, r_rim=0.268, spread=0.18, w_stem=0.038, w_leg=0.018),
-)
-SPEC_CARBON["tyre_w"] = 0.265
-
-
-# ========================================================================= 5. 22" Forged Star Shine
-SPEC_SHINE = W.preset(
-    "blade_5", rim_d=2.0 * LIP_22, dish=DISH_22, pinstripe=False,
-    flange_face=0.010, roll_left=math.pi,
-    tyre=dict(bulge=1.045, shoulder=0.016),
-    hub=dict(depth=0.056, setback=0.008, cap_rise=0.005, cap_r=0.036),
-    lugs=dict(count=5, pcd_r=0.0580, r=0.0120, deg=18.0, rise=0.004, hidden=True),
-    disc=dict(style="plain", inner_r=0.125, thickness=0.034),
-    caliper=CALIPER,
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss",
-              disc="iron", barrel="black_gloss", accent="machined"),
-)
-SPEC_SHINE["spokes"] = dict(
-    style="straight", count=10, phase=0.0, depth=0.022, bevel=0.0020,
-    mat="black_gloss", face_mat="machined",
-    params=dict(r_hub=0.094, r_rim=0.282, w_hub=0.025, w_rim=0.018, twist=0.0),
-)
-SPEC_SHINE["tyre_w"] = 0.265
-
-
 # Map internal design ID -> (object prefix, spec dict)
 DESIGNS = {
-    "lanyue": ("ES8_", SPEC_LANYUE),
-    "sail":   ("ES8_Sail_", SPEC_SAIL),
-    "glow":   ("ES8_Glow_", SPEC_GLOW),
-    "carbon": ("ES8_Carbon_", SPEC_CARBON),
-    "shine":  ("ES8_Shine_", SPEC_SHINE),
+    "multi22": ("ES8_", SPEC_MULTI),
+    "lanyue": ("ES8_Lanyue_", SPEC_LANYUE),
 }
-DEFAULT = "lanyue"
-SPEC = SPEC_LANYUE
+DEFAULT = "multi22"
+SPEC = SPEC_MULTI
 
 
 def corners(surface, tyre_w=0.265):

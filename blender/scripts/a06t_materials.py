@@ -65,6 +65,11 @@ def build_library():
                   coat=0.5, coat_rough=0.08)
     lib["pod"] = m
 
+    # the rear bumper's retro-reflectors read as dull brownish red strips in the photographs (c1_0007), not
+    # the library's saturated red
+    _M.set_inputs(next(n for n in lib["reflector"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED'),
+                  base=(0.135, 0.016, 0.014), metallic=0.0, roughness=0.26, coat=0.6, coat_rough=0.08)
+
     # Ceramic frit band around rear glass
     m, nt, b = _M.mat("M_Frit_Black")
     _M.set_inputs(b, base=(0.003, 0.003, 0.004), metallic=0.0, roughness=0.07,
@@ -78,7 +83,7 @@ def build_library():
 
     # Bright diamond-cut machined aluminium wheel face and roof rail bar
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.80, 0.81, 0.83), metallic=1.0, roughness=0.18)
+    _M.set_inputs(b, base=(0.64, 0.65, 0.67), metallic=1.0, roughness=0.30)
     lib["machined"] = m
 
     # Dark graphite wheel barrel / optional forged rim
@@ -100,6 +105,6 @@ def build_library():
 
     # Ventilated cast-iron brake disc
     m, nt, b = _M.mat("M_Disc_Iron")
-    _M.set_inputs(b, base=(0.140, 0.125, 0.110), metallic=0.0, roughness=0.52)
+    _M.set_inputs(b, base=(0.052, 0.045, 0.040), metallic=0.12, roughness=0.55)
     lib["iron"] = m
     return lib

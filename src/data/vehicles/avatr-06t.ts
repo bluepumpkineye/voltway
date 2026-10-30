@@ -121,7 +121,8 @@ export const avatr06t: Vehicle = {
       sun: { direction: [0.65, 0.45, 0.61], color: '#fff5e6', intensity: 2.8 },
       ground: { height: -0.369, radius: 24.0 },
     },
-    driverEye: [-0.36, 0.41, 1.15],
+    // 85 mm forward with the front seats (a06t_interior.FRONT_BIGHT_X): at the old x the eye stood inside the headrest
+    driverEye: [-0.275, 0.41, 1.15],
     proxyUrl: '/models/avatr-06t-proxy.glb',
     heroColor: '#524660',
   },
@@ -179,48 +180,33 @@ export const avatr06t: Vehicle = {
         colors: { INT_Leather_White: '#4b4e54', INT_Leather_Purple: '#222327' },
       },
     ],
-    caliperMaterial: 'M_Caliper_A06T',
+    caliperMaterial: 'M_Caliper_Silver_Grey',
     calipers: [
       { id: 'silver_grey', name: 'Silver Grey', nameZh: '银灰色', color: '#8e9297' },
       { id: 'yellow', name: 'Performance Yellow', nameZh: '性能黄', color: '#e8be14' },
       { id: 'red', name: 'Competition Red', nameZh: '竞技红', color: '#c42628' },
     ],
     wheels: [
+      // The maker offers two wheels, both 20 in (Autohome's photographs of every trim show only these): the standard
+      // Cyclone five-spoke on all trims, and the forged Star Spin five-spoke of the Knight edition (猎装骑士版). The 21 in
+      // "Cyclone", the Aero Blade and the Radiant multi-spoke of the first build were never photographed on a real 06T.
       {
         id: 'turbine5',
-        name: '20" 5-Blade Turbine Black',
-        nameZh: '20英寸五叶涡轮轮毂',
+        name: '20" Cyclone Five-Spoke',
+        nameZh: '20英寸气旋五辐轮毂',
         size: '20"',
         tyres: '255/45 R20 front · 265/45 R20 rear',
         node: 'Avatr06T_Wheels',
         caliper: 'silver_grey',
       },
       {
-        id: 'aero',
-        name: '20" Aero Blade Low-Drag',
-        nameZh: '20英寸旋叶低风阻轮毂',
+        id: 'star5',
+        name: '20" Star Spin Forged Five-Spoke',
+        nameZh: '20英寸星旋五辐锻造轮毂',
         size: '20"',
-        tyres: '255/50 R20 front · 265/45 R20 rear',
-        node: 'Avatr06T_Aero_Wheels',
+        tyres: '255/45 R20 front · 265/45 R20 rear',
+        node: 'Avatr06T_Star_Wheels',
         caliper: 'silver_grey',
-      },
-      {
-        id: 'cyclone',
-        name: '21" Cyclone 5-Spoke Sport',
-        nameZh: '21英寸气旋五辐运动轮毂',
-        size: '21"',
-        tyres: '265/45 R21 front · 265/45 R21 rear',
-        node: 'Avatr06T_Cyclone_Wheels',
-        caliper: 'yellow',
-      },
-      {
-        id: 'multi',
-        name: '21" Radiant Multi-Spoke Sport',
-        nameZh: '21英寸光束多辐运动轮毂',
-        size: '21"',
-        tyres: '265/45 R21 front · 265/45 R21 rear',
-        node: 'Avatr06T_Multi_Wheels',
-        caliper: 'red',
       },
     ],
     sources: [
@@ -249,6 +235,11 @@ export const avatr06t: Vehicle = {
     },
   ],
   xray: { node: 'Avatr06T_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
+  // The clear panes keep the X-ray's ghost (the front glass of c1_0001..c1_0003 shows the cabin plainly). The privacy glass
+  // (rear windows, backlight, glass roof) was drawn 55 % opaque: the cargo trim, the shelf and the headliner's lamps showed
+  // through the backlight and the roof as grey shapes the owner read as bumps and body mixed into the glass (2026-10-28). The
+  // photographed pane is dark with only the headrests' silhouettes in it (c1_0005, c1_0007), and it mirrors a dark ceiling.
+  glass: { color: '#98a4b3', opacity: 0.34, privacy: 0.84, privacyReflect: 0.55 },
   lights: { projector: {} },
   sensors: {
     lidar: [0.18, 1.45, 0],

@@ -192,6 +192,14 @@ export const bydSeal: Vehicle = {
         },
       },
     ],
+    // Two wheels, both traced from Autohome photographs of the real car (series 6394): the five-paddle turbine of the
+    // rear-drive 550 and 700 km cars, and the five-Y-spoke wheel the 650 km four-wheel-drive Performance (spec 56593)
+    // wears with yellow-orange calipers. The turbine's calipers are not visible in any photograph; grey is the build's own.
+    caliperMaterial: 'M_Caliper_Seal_Silver',
+    calipers: [
+      { id: 'silver', name: 'Silver Grey', nameZh: '银灰色', color: '#8a8e93' },
+      { id: 'yellow', name: 'Performance Amber', nameZh: '性能橙黄', color: '#e9a410' },
+    ],
     wheels: [
       {
         id: 'aero-19',
@@ -200,6 +208,16 @@ export const bydSeal: Vehicle = {
         size: '19 in',
         tyres: '235/45 R19',
         node: 'BYDSeal_Wheels',
+        caliper: 'silver',
+      },
+      {
+        id: 'perf-19',
+        name: '19-inch Five-Y-Spoke Performance',
+        nameZh: '19英寸五辐Y形性能轮毂',
+        size: '19 in',
+        tyres: '235/45 R19',
+        node: 'BYDSeal_Perf_Wheels',
+        caliper: 'yellow',
       },
     ],
     sources: [

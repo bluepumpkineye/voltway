@@ -9,6 +9,7 @@ import { denzaZ9 } from './denza-z9';
 import { avatr06t } from './avatr-06t';
 import { nioEs8 } from './nio-es8';
 import { bydSeal } from './byd-seal';
+import { voyahPassionS } from './voyah-passion-s';
 
 /** Ordered as the showcase presents them: the car we have built first. */
 export const vehicles: Vehicle[] = [
@@ -20,6 +21,7 @@ export const vehicles: Vehicle[] = [
   avatr06t,
   nioEs8,
   bydSeal,
+  voyahPassionS,
 ];
 
 export const vehiclesBySlug: Record<string, Vehicle> = Object.fromEntries(

@@ -86,7 +86,7 @@ export function ControlCentre({ vehicle }: { vehicle: Vehicle }) {
       <div className="absolute overflow-hidden rounded-[30px]" style={{ left: 36, top: 151, width: 240, height: 502, background: 'linear-gradient(180deg, rgba(255,255,255,0.20), rgba(255,255,255,0.12))', backdropFilter: 'blur(18px)' }}>
         <div className="absolute left-[21px] top-[22px] text-[22px] font-semibold">Drive mode</div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/hmi/luxeed-rx/car34.webp" alt="" draggable={false} className="absolute" style={{ left: -8, top: 92, width: 262 }} />
+        <img src={`/hmi/${vehicle.slug}/car34.webp`} alt="" draggable={false} className="absolute" style={{ left: -8, top: 92, width: 262 }} />
         <div className="absolute grid grid-cols-2 gap-[12px]" style={{ left: 17, top: 287 }}>
           {modes.filter((m) => m.id !== 'custom').map((m) => {
             const active = mode === m.id;

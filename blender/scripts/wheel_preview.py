@@ -25,7 +25,7 @@ if _HERE not in sys.path:
 
 def _fresh():
     bpy.ops.wm.read_homefile(use_empty=True)
-    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials", "seal_wheels", "seal_materials", "a06t_wheels", "a06t_materials")
+    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials", "seal_wheels", "seal_materials", "a06t_wheels", "a06t_materials", "es8_wheels", "es8_materials")
                  or m == "carkit" or m.startswith("carkit.")]:
         sys.modules.pop(name, None)
 
@@ -48,21 +48,32 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
-    if design == "seal":
+    if design == "seal" or design.startswith("seal:"):
         import seal_materials as MT
         import seal_wheels as ZW
-        prefix, spec = ZW.DESIGNS["turbine_5"]
+        prefix, spec = ZW.DESIGNS[design.split(":")[1] if ":" in design else "turbine_5"]
         lib = MT.build_library()
         col = B.fresh_collection("Wheels_seal")
         spec.pop("_faces", None)
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, 0.235, 0.343, 0.178, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
-    if design == "a06t":
-        # the Avatr 06T's 20 in turbine (traced from c1_0004's rear wheel)
+    if design.startswith("es8:"):
+        # the Nio ES8's 22 in wheels: "es8:multi22" (standard) and "es8:lanyue"
+        import es8_materials as MT
+        import es8_wheels as ZW
+        prefix, spec = ZW.DESIGNS[design.split(":")[1]]
+        lib = MT.build_library()
+        col = B.fresh_collection("Wheels_es8")
+        spec.pop("_faces", None)
+        empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, 0.265, 0.385, 0.192, 180.0)
+        empty.matrix_world = Matrix.Identity(4)
+        return spec, col, empty, parts, lib
+    if design == "a06t" or design.startswith("a06t:"):
+        # the Avatr 06T's 20 in turbine (traced from c1_0004's rear wheel); "a06t:star5" the Knight edition's Y spokes
         import a06t_materials as MT
         import a06t_wheels as ZW
-        prefix, spec = ZW.DESIGNS["turbine5"]
+        prefix, spec = ZW.DESIGNS[design.split(":")[1] if ":" in design else "turbine5"]
         lib = MT.build_library()
         col = B.fresh_collection("Wheels_a06t")
         spec.pop("_faces", None)
@@ -82,12 +93,13 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, 0.265, 0.377, 0.185, 180.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
-    if design in ("z9", "g9l"):
-        # the Denza Z9's 21 in multi-spoke and the XPeng G9L's 22 in five-spoke (traced from c1_0036 / c1_0028)
-        if design == "z9":
+    if design in ("z9", "g9l") or design.startswith("z9:"):
+        # the Denza Z9's 21 in multi-spoke ("z9:pro20": the Pro's 20 in six-Y) and the XPeng G9L's 22 in five-spoke
+        # (traced from c1_0036 / c1_0028)
+        if design.startswith("z9"):
             import z9_materials as MT
             import z9_wheels as ZW
-            prefix, spec = ZW.DESIGNS["luxury"]
+            prefix, spec = ZW.DESIGNS[design.split(":")[1] if ":" in design else "luxury"]
             w, r, dr = (0.275, 0.362, 0.185) if not front else (0.255, 0.362, 0.195)
         else:
             import g9l_materials as MT

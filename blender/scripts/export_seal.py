@@ -37,9 +37,26 @@ GROUPS = [
     ("BYDSeal_Details", "Seal_Details"),
     ("BYDSeal_Blackout", "Seal_Blackout"),
 ]
-WHEEL_GROUPS = []
+WHEEL_GROUPS = [
+    ("BYDSeal_Perf_Wheels", "Seal_Wheels_Perf"),
+]
 
 CORNERS = ("FL", "FR", "RL", "RR")
+
+
+def build_wheel_options(lib):
+    """The other wheel designs (seal_wheels), one collection each."""
+    if not WHEEL_GROUPS or bpy.data.collections.get(WHEEL_GROUPS[0][1]) is not None:
+        return
+    import seal_surface as S
+    import seal_wheels as SW
+    from carkit import build as B
+    cols = []
+    for (_, cname), name in zip(WHEEL_GROUPS, [n for n in SW.DESIGNS if n != SW.DEFAULT]):
+        col = B.fresh_collection(cname)
+        SW.build_design(col, S, lib, name)
+        cols.append(col)
+    B.ensure_uvs(cols)
 
 
 def _corner_col(cname, kind, tag):
@@ -218,6 +235,7 @@ def web(draco=True):
     sys.modules.pop("build_seal", None)
     import build_seal
     out = build_seal.main(reset=True, scene=False)
+    build_wheel_options(out["lib"])
     print("build tris:", out["tris"], "%.0f s" % (time.time() - t))
     res = main(draco=draco)
     print("export_seal.web: %.0f s" % (time.time() - t))

@@ -212,7 +212,8 @@ def cut_underlay(under="A06T_Roof_Rear_Black", x_front=-1.84, half=0.57):
 
 # ------------------------------------------------------------------- the boot
 Z_FLOOR = 0.665
-X_MOUTH, X_BULK = -2.385, -1.585
+# (refit 2026-10-28 with the tail 6-8 cm shorter: the old -2.385 stood just in front of a tail at -2.40, now at -2.32..-2.35)
+X_MOUTH, X_BULK = -2.310, -1.585
 WALL_Y = None
 
 
@@ -220,7 +221,7 @@ def _wall_y():
     global WALL_Y
     if WALL_Y is None:
         from carkit.geom import Curve
-        WALL_Y = Curve([(-2.40, 0.585), (-2.34, 0.640), (-2.26, 0.725), (-2.14, 0.795), (-2.06, 0.815),
+        WALL_Y = Curve([(-2.325, 0.585), (-2.265, 0.640), (-2.19, 0.725), (-2.085, 0.795), (-2.03, 0.815),
                         (-1.96, 0.780), (-1.88, 0.700), (-1.82, 0.650), (-1.56, 0.650)],
                        mode="pchip")
     return WALL_Y
@@ -270,7 +271,7 @@ def build_boot(col=None, lib=None):
     # The trim above the carpet leans in with height: the body narrows over the tail (its half-width at z 1.04 is 0.51 at the
     # mouth and 0.73 at x -2.2, against the wall's 0.60 and 0.78), so a straight wall's upper edge stood out of the paint at
     # the tail corners, a black fin and wing beside the lamp whenever the cabin was not stencilled to the glass (a door open)
-    hw_top = Curve([(-2.40, 0.682), (-2.30, 0.722), (-2.20, 0.752), (-2.10, 0.776), (-2.00, 0.795),
+    hw_top = Curve([(-2.325, 0.682), (-2.23, 0.722), (-2.15, 0.752), (-2.06, 0.776), (-1.985, 0.795),
                     (-1.90, 0.805), (-1.85, 0.806)], mode="pchip")
     def inside_tail(x, y, z):
         # the cap is only 2 cm thick at the corners and runs forward with height: keep the trim 12 mm in front of it

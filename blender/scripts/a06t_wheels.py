@@ -1,18 +1,25 @@
-"""Avatr 06T wheels. The default is the wheel the car is photographed on (Autohome series 8538, the
-studio turntable set), traced from the REAR wheel of c1_0004.jpg (circle-corrected: the lip's best
-fit at (2847.1, 2024.9) px, radius 184.8 px = 0.2713 m at the wheelbase scale; five repeats, 71.25
-degrees by period.cjs). The other three designs are earlier stand-ins that no photograph backs.
+"""Avatr 06T wheels. The maker offers two wheels, both 20 in (255/45 R20 front; the Autohome photographs of
+every trim show only these two), so the showroom builds exactly those:
 
-    turbine5   20 in: a five-blade turbine. Black face; five long open windows of constant width
-               (0.32 R) that sweep in from the rim, each outlined in machined silver (an inverted U:
-               the blade's leading edge, the rim band across its top, the trailing edge); a thin
-               machined line on each spoke; the disc and caliper show through the windows. 255/45 R20
-    aero       20 in: Aero Blade low-drag wheel (stand-in)
-    cyclone    21 in: Cyclone 5-spoke (stand-in)
-    multi      21 in: Radiant multi-spoke (stand-in)
+    turbine5   the standard 20 in "Cyclone" five-spoke (Chinese name: qi xuan wu fu). The wheel the car is
+               photographed on (Autohome series 8538, the studio turntable set), traced from the REAR wheel
+               of c1_0004.jpg (circle-corrected: the lip's best fit at (2847.1, 2024.9) px, radius 184.8 px
+               = 0.2713 m at the wheelbase scale; five repeats, 71.25 degrees by period.cjs). Black face;
+               five long open windows of constant width (0.32 R) that sweep in from the rim, each outlined
+               in machined silver (an inverted U: the blade's leading edge, the rim band across its top, the
+               trailing edge); a thin machined line on each spoke; the disc and caliper show through.
+    star5      the 20 in "Star Spin" forged five-spoke of the Knight edition (Autohome spec 79261): five
+               machined Y spokes (a stem from the hub that forks into two arms to the rim) over a second,
+               deeper layer of gloss black with a smaller opening in each pocket. Traced from the FRONT wheel
+               of that car's side photograph (imgs-8538-79261-1-x/13523554: ellipse ratio 0.975, axle
+               corrected -3, +12 px, period 72.0 degrees); the machined Y and its two pockets came out of
+               segment.cjs (lum 140-255), the black layer is the pockets shrunk.
+
+The 21 in "Cyclone", 20 in "Aero Blade" and 21 in "Radiant" of the first build (STANDINS below) were never
+photographed on a real 06T; they are kept as specs, not built.
 
 Polygons are (angle in degrees counter-clockwise from 3 o'clock, seen from outside, radius / lip radius).
-Build only the default (build_all) for the car; the other three are built for the export
+Build only the default (build_all) for the car; the others are built for the export
 (build_options) and swapped in the showroom configurator.
 """
 import math
@@ -24,7 +31,7 @@ from carkit.parts import wheels as W
 LIP_20 = 0.2713      # 20 in rim flange radius (m), tyre loaded radius 0.369 m
 LIP_21 = 0.2840      # 21 in rim flange radius (m), tyre loaded radius 0.375 m
 
-CALIPER = dict(span_deg=43.0, span_rear=39.0, r_inner=0.14, d_out=0.034, steps=16)
+CALIPER = dict(span_deg=43.0, span_rear=39.0, r_inner=0.14, d_out=0.034, steps=16, groove=True)
 
 DISH = Curve([(0.000, 0.0560), (0.090, 0.0560), (0.105, 0.0510), (0.130, 0.0390),
               (0.160, 0.0260), (0.190, 0.0160), (0.220, 0.0085), (0.250, 0.0035),
@@ -66,19 +73,66 @@ INLAY_C = (_shift(_C_CENTRE, -0.7) + [(47.2, 0.598)] + list(reversed(_shift(_C_C
 SPEC_TURBINE5 = W.preset(
     "blade_5", rim_d=2.0 * LIP_20, dish=DISH, pinstripe=False, flange_face=0.0057,
     roll_left=math.pi,
+    tyre=dict(ridge=True),
     hub=dict(depth=0.0560, setback=0.008, cap_rise=0.0055),
     lugs=dict(count=5, pcd_r=0.05715, r=0.0118, deg=90.0, rise=0.004),
     disc=dict(style="plain", inner_r=0.120, thickness=0.032),
     caliper=CALIPER,
-    mats=dict(rim="black_gloss", lip="graphite", lugs="black_gloss", cap="black_gloss",
+    mats=dict(rim="wheel_black", lip="graphite", lugs="wheel_black", cap="wheel_black",
               disc="iron"))
 SPEC_TURBINE5["spokes"] = dict(
-    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0018, mat="black_gloss",
+    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0018, mat="wheel_black",
     r_in=0.034, r_out=0.995 * LIP_20, nr=18, seg=72, step_deg=2.0, step_r=0.025,
     windows=[WIN_BIG],
     inlay=dict(mat="machined", polys=[INLAY_U, INLAY_C], lift=0.0004))
 
-# ------------------------------------------------------------------ 2. aero (20 in)
+# ------------------------------------------------------------------ 2. star5 (20 in, Knight edition)
+# The machined Y's two pockets (segment.cjs on the corrected photograph, invert=1): the big pocket between two
+# spokes, and the V between one spoke's two arms (the next repeat's, so it lies at -38..-9 of this one).
+POCKET_BIG = [(-14.0, 0.181), (-11.5, 0.173), (34.8, 0.173), (36.8, 0.194), (38.0, 0.198), (39.2, 0.215),
+              (42.4, 0.299), (43.8, 0.364), (44.7, 0.415), (44.9, 0.520), (44.1, 0.554), (40.5, 0.626),
+              (36.8, 0.718), (31.4, 0.910), (29.9, 0.948), (-4.5, 0.948), (-5.7, 0.939), (-8.8, 0.818),
+              (-12.4, 0.704), (-14.5, 0.649), (-19.5, 0.555), (-20.7, 0.521), (-20.7, 0.460), (-19.9, 0.409),
+              (-19.3, 0.302), (-16.7, 0.212), (-15.8, 0.195)]
+POCKET_V = [(-37.9, 0.948), (-36.4, 0.881), (-34.4, 0.815), (-33.6, 0.801), (-33.3, 0.781), (-29.1, 0.681),
+            (-25.8, 0.626), (-24.0, 0.619), (-22.5, 0.619), (-21.4, 0.624), (-18.8, 0.667), (-15.3, 0.743),
+            (-11.6, 0.851), (-9.2, 0.946)]
+
+
+def _shrunk(pts, k, r_min=0.0):
+    """A pocket's outline pulled in towards its middle by k (in angle and in radius) and kept above r_min: the
+    opening in the black layer under it, which leaves a black margin round the machined edges."""
+    ca = sum(a for (a, _) in pts) / len(pts)
+    cr = sum(r for (_, r) in pts) / len(pts)
+    return [(ca + (a - ca) * k, max(r_min, cr + (r - cr) * k)) for (a, r) in pts]
+
+
+SPEC_STAR5 = W.preset(
+    "blade_5", rim_d=2.0 * LIP_20, dish=DISH, pinstripe=False, flange_face=0.0057,
+    roll_left=math.pi,
+    tyre=dict(ridge=True),
+    hub=dict(depth=0.0560, setback=0.008, cap_rise=0.0055,
+             # the Avatr mark: a tall outline with a V and a stroke, thin white lines on the black cap
+             cap_logo=dict(mat="machined", h=0.0118, quads=[
+                 [(-0.0115, -0.0135), (-0.0105, -0.0135), (-0.0105, 0.0135), (-0.0115, 0.0135)],
+                 [(0.0105, -0.0135), (0.0115, -0.0135), (0.0115, 0.0135), (0.0105, 0.0135)],
+                 [(-0.0115, 0.0125), (0.0115, 0.0125), (0.0115, 0.0135), (-0.0115, 0.0135)],
+                 [(-0.0115, -0.0135), (0.0115, -0.0135), (0.0115, -0.0125), (-0.0115, -0.0125)],
+                 [(-0.0100, 0.0060), (-0.0090, 0.0075), (0.0000, -0.0060), (-0.0010, -0.0075)],
+                 [(0.0100, 0.0060), (0.0090, 0.0075), (0.0000, -0.0060), (0.0010, -0.0075)]])),
+    lugs=dict(count=5, pcd_r=0.05715, r=0.0118, deg=12.5, rise=0.004),
+    disc=dict(style="plain", inner_r=0.120, thickness=0.032),
+    caliper=CALIPER,
+    mats=dict(rim="wheel_black", lip="machined", lugs="wheel_black", cap="wheel_black", disc="iron"))
+SPEC_STAR5["spokes"] = dict(
+    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0024, mat="machined",
+    r_in=0.034, r_out=TAB * LIP_20, nr=18, seg=72, step_deg=2.0, step_r=0.025,
+    windows=[POCKET_BIG, POCKET_V],
+    layers=[dict(mat="wheel_black", dz=-0.014, depth=0.016, bevel=0.0015,
+                 windows=[_shrunk(POCKET_BIG, 0.84, 0.34), _shrunk(POCKET_V, 0.78, 0.60)])])
+
+# ------------------------------------------------------------------ stand-ins (not built, no photograph backs them)
+# 20 in "aero"
 SPEC_AERO = W.preset(
     "aero_5window", rim_d=2.0 * LIP_20, dish=DISH, pinstripe=False, flange_face=0.0057,
     roll_left=math.pi,
@@ -88,7 +142,7 @@ SPEC_AERO = W.preset(
     caliper=CALIPER,
     spokes=dict(style="aero", count=5, phase=0.0, depth=0.012, bevel=0.0018,
                 params=dict(r_in=0.065, r_win0=0.125, r_win1=0.235, half_angle=0.28, corner=0.35)),
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss", disc="iron"))
+    mats=dict(rim="wheel_black", lip="machined", lugs="wheel_black", cap="wheel_black", disc="iron"))
 
 # ------------------------------------------------------------------ 3. cyclone (21 in)
 SPEC_CYCLONE = W.preset(
@@ -101,7 +155,7 @@ SPEC_CYCLONE = W.preset(
     spokes=dict(style="blade", count=5, phase=math.pi / 2.0, depth=0.032, bevel=0.0022,
                 params=dict(r_hub=0.096, r_rim=0.270, w_hub=0.055, w_rim=0.118, twist=0.22, split=0.55),
                 face_mat="machined"),
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss", disc="iron"))
+    mats=dict(rim="wheel_black", lip="machined", lugs="wheel_black", cap="wheel_black", disc="iron"))
 
 # ------------------------------------------------------------------ 4. multi (21 in)
 SPEC_MULTI = W.preset(
@@ -113,11 +167,14 @@ SPEC_MULTI = W.preset(
     caliper=CALIPER,
     spokes=dict(style="straight", count=15, phase=math.pi / 2.0, depth=0.026, bevel=0.0020,
                 params=dict(r_hub=0.096, r_rim=0.272, w_hub=0.016, w_rim=0.012)),
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss", disc="iron"))
+    mats=dict(rim="wheel_black", lip="machined", lugs="wheel_black", cap="wheel_black", disc="iron"))
 
 # ------------------------------------------------------------------ the set
 DESIGNS = {
     "turbine5": ("A06T_", SPEC_TURBINE5),
+    "star5": ("A06T_Star_", SPEC_STAR5),
+}
+STANDINS = {
     "aero": ("A06T_Aero_", SPEC_AERO),
     "cyclone": ("A06T_Cyclone_", SPEC_CYCLONE),
     "multi": ("A06T_Multi_", SPEC_MULTI),

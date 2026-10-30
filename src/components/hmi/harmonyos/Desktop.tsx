@@ -176,7 +176,7 @@ function PageOne() {
 
 function FlexCard({ y = 393 }: { y?: number }) {
   const { openings, toggleOpening } = useVehicleStore();
-  const { on, toggle, notify } = useHaLocal();
+  const { on, toggle, notify, slug } = useHaLocal();
   return (
     <Card x={COL[0]} y={y} w={437} label="3D Flex Space" style={{ ...glass(0.2, 18), border: '1px solid rgba(255,255,255,0.14)' }}>
       {/* the car in its own little landscape */}
@@ -189,7 +189,7 @@ function FlexCard({ y = 393 }: { y?: number }) {
         }}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/hmi/luxeed-rx/car34.webp" alt="" className="absolute" style={{ left: 8, bottom: 22, width: 232 }} draggable={false} />
+      <img src={`/hmi/${slug}/car34.webp`} alt="" className="absolute" style={{ left: 8, bottom: 22, width: 232 }} draggable={false} />
       <div className="absolute grid grid-cols-2 gap-[12px]" style={{ left: 252, top: 14 }}>
         <Tile icon={<Ic.ChargePort size={30} />} label="Charge port" on={on.chargePort} onClick={() => { toggle('chargePort'); notify(on.chargePort ? 'Charge port closed' : 'Charge port open'); }} />
         <Tile icon={<Ic.WindowOpen size={30} />} label="Windows" on={on.windows} onClick={() => toggle('windows')} />

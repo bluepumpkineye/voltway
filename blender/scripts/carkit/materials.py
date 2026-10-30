@@ -252,6 +252,13 @@ def build_library(paint="xiaomi_yellow", rim="gloss_black", caliper="gold",
     orange_peel(m, nt, b, strength=0.04)
     lib["black_gloss"] = m
 
+    # the painted face of a wheel: deep black with a soft sheen. A piano-black (coat 1, rough 0.09) face mirrors the
+    # white studio and reads mid-grey, where the photographs of these wheels are black with only the machined edges bright
+    m, nt, b = mat("M_Wheel_Black")
+    set_inputs(b, base=(0.008, 0.008, 0.010), metallic=0.0, roughness=0.36, specular=0.24,
+               coat=0.18, coat_rough=0.14)
+    lib["wheel_black"] = m
+
     # satin black: meshes, arch liners, trims. The gloss-vs-satin contrast is
     # what separates the aero from the body.
     m, nt, b = mat("M_Black_Satin")

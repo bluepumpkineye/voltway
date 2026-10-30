@@ -158,7 +158,7 @@ def build_library():
 
     # Machined alloy face (wheel spokes)
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.82, 0.82, 0.84), metallic=1.0, roughness=0.18)
+    _M.set_inputs(b, base=(0.64, 0.65, 0.67), metallic=1.0, roughness=0.30)
     lib["machined"] = m
 
     # Gloss black body trim (lower aero chin, rocker blades, rear diffuser)
@@ -185,7 +185,7 @@ def build_library():
 
     # Brake discs
     m, nt, b = _M.mat("M_Disc_Iron")
-    _M.set_inputs(b, base=(0.140, 0.120, 0.105), metallic=0.1, roughness=0.52)
+    _M.set_inputs(b, base=(0.052, 0.045, 0.040), metallic=0.12, roughness=0.55)
     lib["iron"] = m
 
     # Wheel arch cladding & underbody liner

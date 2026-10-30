@@ -23,6 +23,7 @@ function getCarThumbnail(slug: string): string {
     'xpeng-g9l': '/hmi/xpeng-g9l/car34.webp',
     'avatr-06t': '/hmi/avatr-06t/car34.webp',
     'nio-es8': '/hmi/nio-es8/car34.webp',
+    'voyah-passion-s': '/hmi/voyah-passion-s/car34.webp',
   };
   return map[slug] ?? '/hmi/luxeed-rx/car34.webp';
 }

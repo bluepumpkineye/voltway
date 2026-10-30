@@ -67,10 +67,7 @@ GROUPS = [
     ("NioES8_Blackout", "ES8_Blackout"),
 ]
 WHEEL_GROUPS = [
-    ("NioES8_Sail_Wheels", "ES8_Wheels_Sail"),
-    ("NioES8_Glow_Wheels", "ES8_Wheels_Glow"),
-    ("NioES8_Carbon_Wheels", "ES8_Wheels_Carbon"),
-    ("NioES8_Shine_Wheels", "ES8_Wheels_Shine"),
+    ("NioES8_Lanyue_Wheels", "ES8_Wheels_Lanyue"),
 ]
 
 CORNERS = ("FL", "FR", "RL", "RR")

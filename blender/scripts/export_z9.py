@@ -37,9 +37,26 @@ GROUPS = [
     ("DenzaZ9_Details", "Z9_Details"),
     ("DenzaZ9_Blackout", "Z9_Blackout"),
 ]
-WHEEL_GROUPS = []
+WHEEL_GROUPS = [
+    ("DenzaZ9_Pro_Wheels", "Z9_Wheels_Pro"),
+]
 
 CORNERS = ("FL", "FR", "RL", "RR")
+
+
+def build_wheel_options(lib):
+    """The other wheel designs (z9_wheels), one collection each."""
+    if not WHEEL_GROUPS or bpy.data.collections.get(WHEEL_GROUPS[0][1]) is not None:
+        return
+    import z9_surface as S
+    import z9_wheels as ZW
+    from carkit import build as B
+    cols = []
+    for (_, cname), name in zip(WHEEL_GROUPS, [n for n in ZW.DESIGNS if n != ZW.DEFAULT]):
+        col = B.fresh_collection(cname)
+        ZW.build_design(col, S, lib, name)
+        cols.append(col)
+    B.ensure_uvs(cols)
 
 
 def _corner_col(cname, kind, tag):
@@ -222,6 +239,7 @@ def web(draco=True):
     sys.modules.pop("build_z9", None)
     import build_z9
     out = build_z9.main(reset=True, scene=False)
+    build_wheel_options(out["lib"])
     print("build tris:", out["tris"], "%.0f s" % (time.time() - t))
     res = main(draco=draco)
     print("export_z9.web: %.0f s" % (time.time() - t))

@@ -35,14 +35,20 @@ X_BPILLAR = -0.165           # front | rear door shut line (belt -0.19 .. sill -
 X_DLO_TIP = -1.530           # quarter window's rear tip
 X_DOOR_R_TOP = -1.120        # rear door trailing edge at the belt
 X_ROOF_GLASS_R = -1.800      # panoramic glass roof ends under the spoiler
-X_BLADE = -2.080             # the painted roof spoiler's trailing edge (c1_0004: tip at x -2.05..-2.11)
-X_FRIT = -2.125              # ceramic frit band under the roof spoiler
+X_BLADE = -2.090             # the painted roof spoiler's trailing edge on the centreline (c1_0004: the silhouette's tip
+                             # at x -2.09 in the centre plane; its swept-back sides end ~5 cm ahead of it)
+X_FRIT = -2.135              # ceramic frit band under the roof spoiler
 
 # Rear glass wraps round each C-pillar as a dark wedge under the roof spoiler (c1_0004, c1_0005)
 X_CTIP = -1.770
+# the pillar's rear edge, read again on a 2x grid crop of c1_0004 (2026-10-28: 2.5-3.4 cm under the old line at x -1.8..-2.0).
+# It flattens at z 1.10 (the glass's lower corner, c1_0006: z 1.10..1.14) instead of running on down toward the lamp as it
+# did (z 1.04 at x -2.25): that made the wedge a long hook beyond the glass's end in the side view, and cutting the hook
+# short left a gap between the wedge and the pane's corner that showed the black underlay as a ragged patch
 Z_CEDGE = Curve([
-    (-1.700, 1.300), (-1.790, 1.262), (-1.900, 1.200), (-2.000, 1.140),
-    (-2.120, 1.090), (-2.250, 1.040), (-2.410, 0.990),
+    (-1.700, 1.275), (-1.735, 1.263), (-1.807, 1.227), (-1.880, 1.182), (-1.950, 1.142),
+    (-2.000, 1.118), (-2.050, 1.104), (-2.110, 1.098), (-2.200, 1.097), (-2.300, 1.098),
+    (-2.410, 1.100),
 ], mode="pchip")
 Y_WTOP_BLADE = 0.495
 
@@ -125,7 +131,11 @@ def V_BAND_LO(x):
 
 
 def V_Q_LO(x):
-    k = _ramp(x, X_BAND_F, 0.04)
+    # The quarter's lower limit slides from the black band's top (behind x -1.77) down to the sill over 0.24 m, not
+    # 0.04: the panel's rows are spread evenly between its limits, so a limit that moved 17 cm in 4 cm sheared the quads
+    # across the whole quarter (facet normals off by 15-26 degrees at x -1.77..-1.80, the chevron streaks in a zebra
+    # render). The arch cut removes everything under the wheel opening there anyway.
+    k = _ramp(x, X_BAND_F + 0.14, 0.24)
     return V_BAND_TOP(x) + (V_SILL(x) - V_BAND_TOP(x)) * k
 
 
@@ -182,8 +192,20 @@ def V_FRAME(x):
 
 
 def V_RAIL(x):
-    """The panoramic glass roof's side edge: the painted roof strip is ~85 mm wide above the frame."""
-    return S.v_along(x, V_GT(x), 0.085)
+    """The panoramic glass roof's side edge: the painted roof strip is ~85 mm wide above the frame.
+
+    Behind x -1.2 the frame's line runs on down the pillar (the quarter window's top edge falls to its tip at -1.53), and
+    85 mm above it the glass reached out over the shoulder: seen from the side the black roof glass stood on top of the
+    C-pillar, where c1_0004 shows paint all the way to the spoiler (the 2026-10-28 side-view class diff). The edge now
+    draws in onto the crown over 0.35 m, to a line 4 cm inside the roof's edge, so the paint strip runs on, narrowing
+    smoothly, to the spoiler."""
+    v = S.v_along(x, V_GT(x), 0.085)
+    k = _smooth(_clamp01((-1.20 - x) / 0.35))
+    if k <= 0.0:
+        return v
+    y_old = abs(S.surface(x, v)[1])
+    y_new = y_old + (S.Y_ROOF(x) - 0.040 - 0.015 * k - y_old) * k
+    return S.v_at_y_upper(x, y_new)
 
 
 # Backlight lateral half-width on the shooting-brake tail
@@ -209,7 +231,10 @@ def V_RAIL_TOP(x):
     r = V_RAIL(x)
     c = V_REARGLASS(x) - 0.004
     k_f = _ramp(x, X_ROOF_F)
-    k_r = _ramp(x, X_KNEE)
+    # 0.14 m, not the default 0.03: the quarter's and roof panel's shared top limit moves from the rear glass's
+    # lateral edge to the roof rail's edge across this ramp, and over 30 mm the 18 mm grid columns could not follow it:
+    # a ragged sawtooth of black underlay along the C-pillar's top edge
+    k_r = _ramp(x, X_KNEE, 0.14)
     return c + (r - c) * k_r + (a - r) * k_f
 
 
@@ -299,10 +324,13 @@ PANELS = [
          nx=60, nv=14, arch=True, gap=dict(v0=False, x0=False, x1=False), mat="black_trim"),
     dict(name="A06T_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_Q_LO, V_Q_TOP),
          nx=56, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint",
-         fixed_x=(X_DLO_TIP, X_CTIP)),
+         # only the quarter window's tip is a real jump of the top limit (belt -> roof edge). A pair at
+         # X_CTIP was a leftover: it dropped the neighbouring columns and left a 3 mm sliver whose facet
+         # normal swung +-20 degrees (ray probe), the chevron streaks down the quarter in a zebra render
+         fixed_x=(X_DLO_TIP,)),
     dict(name="A06T_Quarter_Low", x=(N.JOIN_R, X_BAND_F + 0.030), v=(V_BAND_LO, V_BAND_TOP),
          nx=16, nv=10, arch=True, gap=dict(x0=False, x1=False, v1=False),
-         mat="black_gloss"),
+         mat="black_trim"),
     dict(name="A06T_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=60, nv=34, gap=dict(v1=False), mat="paint", offset=0.0005),
     # On the Avatr 06T (c1_0001..c1_0007.jpg), the A-pillar and upper roof arch
@@ -322,7 +350,7 @@ PANELS = [
          offset=-0.003, thickness=0.0),
     dict(name="A06T_Roof_Rear_Black", x=(N.JOIN_R, X_DLO_TIP - 0.020),
          v=(lambda x: min(V_REARGLASS(x), V_CEDGE(x) - 0.006), 1.0), nx=48, nv=24,
-         gap=dict(v1=False, x0=False), mat="black_gloss", offset=-0.003, thickness=0.0),
+         gap=dict(v1=False, x0=False), mat="black_gloss", offset=-0.008, thickness=0.0),
 
     # ---- glazing & roof panels
     dict(name="A06T_Glass_Windshield", x=(_x_header, X_COWL - 0.012),
@@ -330,7 +358,9 @@ PANELS = [
          gap=dict(v1=False)),
     # Body-colour rear roof crown leading into the shooting-brake roof spoiler
     dict(name="A06T_Roof_Paint", x=(X_KNEE, X_ROOF_GLASS_R),
-         v=(V_ROOF_LO, 1.0), nx=36, nv=24, fixed_x=(X_CTIP,),
+         # nx 36 -> 14: 4 mm columns on a 12 mm-wide strip made the Bevel modifier chew the panel's long edge into a
+         # sawtooth (found by hiding panels one at a time, 2026-10-28); the fixed X_CTIP pair lay outside the panel
+         v=(V_ROOF_LO, 1.0), nx=14, nv=24,
          gap=dict(v1=False, x0=False, v0=False), mat="paint"),
     # Panoramic dark glass roof spanning both rows
     dict(name="A06T_Glass_Roof", x=(X_ROOF_GLASS_R + 0.006, lambda v: _x_header(v) - 0.020),

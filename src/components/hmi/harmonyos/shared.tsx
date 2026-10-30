@@ -36,6 +36,7 @@ export function useNow(): Now {
 /* ------------------------------------------------- local switches and toasts */
 
 interface HaLocal {
+  slug: string;
   /** switches the showroom has no 3D or store state for (child lock, sentry mode ...) */
   on: Record<string, boolean>;
   toggle: (id: string, fallback?: boolean) => void;
@@ -79,7 +80,7 @@ const VALUES: Record<string, number> = {
   station: 0,
 };
 
-export function HaProvider({ children }: { children: React.ReactNode }) {
+export function HaProvider({ slug = 'luxeed-rx', children }: { slug?: string; children: React.ReactNode }) {
   const [on, setOn] = React.useState<Record<string, boolean>>({});
   const [val, setValState] = React.useState<Record<string, number>>({});
   const [msg, setMsg] = React.useState<string | null>(null);
@@ -91,6 +92,7 @@ export function HaProvider({ children }: { children: React.ReactNode }) {
 
   const api = React.useMemo<HaLocal>(
     () => ({
+      slug,
       on: new Proxy(on, { get: (t, k: string) => (k in t ? t[k] : DEFAULTS[k] ?? false) }),
       toggle: (id, fallback) =>
         setOn((s) => ({ ...s, [id]: !(id in s ? s[id] : fallback ?? DEFAULTS[id] ?? false) })),
@@ -103,7 +105,7 @@ export function HaProvider({ children }: { children: React.ReactNode }) {
         timer.current = window.setTimeout(() => setMsg(null), 1800);
       },
     }),
-    [on, val, lamp, setLightMode],
+    [slug, on, val, lamp, setLightMode],
   );
 
   return (

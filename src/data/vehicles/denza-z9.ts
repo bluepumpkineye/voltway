@@ -211,6 +211,16 @@ export const denzaZ9: Vehicle = {
         tyres: '255/40 R21 · 275/40 R21',
         node: 'DenzaZ9_Wheels',
       },
+      // The Pro and Max trims' 20 in wheel (Autohome series 7838, specs 69563 / 69564; the tyre reads 255/45 R20 in the
+      // photographs): six machined Y spokes. Traced from the rear wheel of imgs-7838-69563-1-x/10963307.
+      {
+        id: 'six-y-20',
+        name: '20-inch Six-Y-Spoke Machined Alloy',
+        nameZh: '20英寸六辐Y形精车轮毂',
+        size: '20 in',
+        tyres: '255/45 R20',
+        node: 'DenzaZ9_Pro_Wheels',
+      },
     ],
     sources: [
       { label: 'Autohome — 腾势Z9 Configuration & Gallery (Series 7838)', url: 'https://www.autohome.com.cn/7838/' },
