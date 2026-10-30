@@ -34,7 +34,7 @@ const num = (n: number) => n.toLocaleString('en-US');
 function stats(v: Vehicle): { name: string; value: string }[] {
   const out: { name: string; value: string }[] = [];
   const quick = Math.min(...v.variants.map((x) => x.performance.zeroTo100S ?? Infinity));
-  if (Number.isFinite(quick)) out.push({ name: '0–100 km/h', value: `${quick.toFixed(quick < 10 ? 1 : 0)} s` });
+  if (Number.isFinite(quick)) out.push({ name: '0–100 km/h', value: `${quick} s` });
   const power = Math.max(...v.variants.map((x) => x.performance.powerKw));
   if (Number.isFinite(power) && power > 0) out.push({ name: 'Peak power', value: `${num(Math.round(power))} kW` });
   const price = Math.min(...v.variants.map((x) => x.priceCny ?? Infinity));
@@ -61,7 +61,7 @@ function Car({ place, v, i }: { place: Place; v: Vehicle; i: number }) {
         style={{ ['--d' as string]: `${DELAY[place.row] + i * 0.07}s` }}
       >
         <span className={styles.shadow} aria-hidden />
-        <Image className={styles.mirror} src={`/landing/${place.slug}.webp`} width={place.w} height={place.h} alt="" unoptimized style={{ marginTop: `-${lift}%` }} />
+        <Image className={styles.mirror} src={`/landing/${place.slug}.webp`} width={place.w} height={place.h} alt="" unoptimized loading="eager" style={{ marginTop: `-${lift}%` }} />
         <Image className={styles.pic} src={`/landing/${place.slug}.webp`} width={place.w} height={place.h} alt="" unoptimized priority />
         <span className={styles.tag}>
           <b>{v.brand}</b>
