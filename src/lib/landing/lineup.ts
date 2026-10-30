@@ -29,5 +29,5 @@ export const LINEUP: Place[] = [
   { slug: 'voyah-passion-s', row: 'mid', x: 0.715, ground: 0.685, k: 0.16, w: 993, h: 564 },
   { slug: 'zeekr-7x', row: 'mid', x: 0.895, ground: 0.725, k: 0.165, w: 1022, h: 555 },
   // the hero, turned a third of the way round so that its wheels show
-  { slug: 'xiaomi-su7-ultra', row: 'front', x: 0.5, ground: 0.875, k: 0.2, w: 718, h: 671 },
+  { slug: 'xiaomi-su7-ultra', row: 'front', x: 0.5, ground: 0.875, k: 0.235, w: 984, h: 523 },
 ];
