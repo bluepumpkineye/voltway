@@ -365,7 +365,8 @@ def grow(poly, d, big_r):
     in). The black face of a two-tone wheel is cut back from each window by the width of the machined chamfer, so
     the machined face under it shows as a thin bright line round the opening (build the machined face with the
     window as traced, and a black layer 1 mm above it with the grown window: the layers option of the traced
-    style). Vertices move along the mean of their two edges' normals; the angles stay continuous."""
+    style). d may be a function of a vertex's radius / big_r, for a band that fades in (the Sport's blue ledge).
+    Vertices move along the mean of their two edges' normals; the angles stay continuous."""
     xy = [(big_r * r * math.cos(math.radians(a)), big_r * r * math.sin(math.radians(a))) for (a, r) in poly]
     n = len(xy)
     area = sum(xy[i][0] * xy[(i + 1) % n][1] - xy[(i + 1) % n][0] * xy[i][1] for i in range(n))
@@ -380,7 +381,8 @@ def grow(poly, d, big_r):
             nx += sgn * dy / ln
             ny += -sgn * dx / ln
         ln = math.hypot(nx, ny) or 1.0
-        x, y = p1[0] + d * nx / ln, p1[1] + d * ny / ln
+        dd = d(poly[i][1]) if callable(d) else d
+        x, y = p1[0] + dd * nx / ln, p1[1] + dd * ny / ln
         a = math.degrees(math.atan2(y, x))
         a += 360.0 * round((poly[i][0] - a) / 360.0)
         out.append((a, math.hypot(x, y) / big_r))
@@ -481,8 +483,9 @@ def _traced_face(name, collection, mat, d_face, big_r, sp, accent=None):
             loops.append([(cx + rad * math.cos(2 * math.pi * i / 20.0), cy + rad * math.sin(2 * math.pi * i / 20.0))
                           for i in range(20)])
     zs = [d for (_, d) in prof]
-    cutter = _prisms("_cut_" + name, loops, min(zs) - sp["depth"] - 0.03, max(zs) + 0.03)
-    C.difference(ob, [cutter], "win_", reset_materials=True)
+    if loops:                       # a plain annulus (the Yufeng's machined ring under its star) has nothing to cut
+        cutter = _prisms("_cut_" + name, loops, min(zs) - sp["depth"] - 0.03, max(zs) + 0.03)
+        C.difference(ob, [cutter], "win_", reset_materials=True)
     if not sp.get("solid"):
         # the back is never seen from outside: keep the face and the walls the cut made
         import bmesh

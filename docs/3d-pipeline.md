@@ -1202,8 +1202,11 @@ pages, `cabin-climate|seats-light|dark.webp`); `hmi_cabin` prints `HMI_SEATS`, t
 The Luxeed RX is built with its 22 in Fengying and carries two more designs, the
 21 in Yufeng and the 21 in Sport (gloss black, and a blue-accent finish that shares
 its geometry); the 20 in Starlight has no photograph and is not built. The SU7 Ultra
-has one design, the standard 21 in double-five-spoke U (its forged option is
-reservation-only, with no photograph). Every face is TRACED from Autohome photographs
+has two faces and four options: the cast 21 in double-five-spoke U (gloss black, plain or
+with the yellow contour ring: one node, the ring is the `accent` of `M_Rim_Pinstripe`) and
+the forged U (metallic neodymium or graphite black: one node, `M_Rim_Forged`; traced from
+forum photographs at 2235 x 2980 after a depth-parallax correction, because a phone held above
+the wheel shifts the deep parts down). Every face is TRACED from Autohome photographs
 the owner approved (`blender/reference/*/wheels`, local only); the method, with its four
 small tools, is in [`scripts/wheel-trace/README.md`](../scripts/wheel-trace/README.md):
 unwarp the photograph so the lip is a circle, unroll it into (angle, radius) strips
@@ -1250,9 +1253,35 @@ Assumptions and gaps, so nobody mistakes them for measurements: every photograph
 car's left side, so the right wheels are the same non-mirrored wheel (an OEM wheel is not
 handed); the dish depth is not visible face-on and is the SU7's measured profile (the
 face 12 mm below the lip at the rim, 72 mm at the hub) for the RX too; the Sport's blue is
-"the leg tops from 0.395 of the lip radius out, and the lip", as its photographs show;
-caliper lettering (LUXEED, xiaomi), the hub emblem and the Ultra script, valve holes and
-tyre stickers are not modelled.
+"a band down each leg's edge from 0.4 of the lip radius out, and the lip", as its photographs show;
+caliper lettering (LUXEED, xiaomi), the Ultra script, the emblem's "LUXEED" text, valve holes
+and tyre stickers are not modelled.
+
+**The RX's wheels, second pass (2026-10-30).** The owner asked for the four options to look
+better. Laying each built face over its photograph (`maskedge.cjs`: a check the first pass
+had skipped) showed the Fengying and the Sport right to a few pixels and the Yufeng wrong:
+fat pentagon windows where the photograph has two long open pockets either side of a swept
+fin, and a machined ring built as a separate surface that poked through the star ("chewed"
+edges). The Yufeng was traced again from the blue car's rear close-up (Autohome 13524057,
+ellipse ratio 0.989, the wheel cropped by the frame, so the unwarp was given the centre read off
+the photo) from a gamma 2.2 polar strip of the repeat no caliper hides, polygons read as strip
+pixels and converted by `scripts/wheel-trace/px2ar.cjs`. What it is: per repeat, a spike at 7
+degrees, a fin that leaves the next spike's root and sweeps back, two pockets, and a crescent of
+machined ring between the shoulders held inside a graphite hoop at r 0.82 to 0.87. It is built
+as a graphite star (windows and the crescent as a notch) over a machined annulus 3.5 mm lower
+(`spokes.layers`, no windows: the pockets end under the hoop), not as a notch through one
+surface. All three faces gained the hub cap's emblem (`rx_wheels._emblem`: a hexagon, a band
+and two chevrons as thin quads, turned to each photographed cap's own angle), domed locking
+nuts, the tyre's rim-protector rib (`tyre.ridge`), the caliper's split line (`caliper.groove`),
+a two- or three-segment bevel and `M_Alu_Machined` at roughness 0.30 (satin, not chrome).
+Library additions in `carkit.parts.wheels`: `grow(poly, d, R)` takes a function of the vertex's radius for `d`
+(a band that fades in), and a face with no windows skips the boolean (the Yufeng's annulus). The Sport's blue
+is a band down each leg's edge, as in the photographs, not the legs' tops: the top face's windows are grown by 5
+mm (fading in between 0.38 and 0.44 of the lip radius, since the stems stay black) and a second face 3 mm lower in
+the accent material, with the windows as traced, shows as the ledge. A bevel modifier cannot make it: it clamps to
+about 0.5 mm along a polyline traced at 2.5 degree steps, so the first attempt (an `accent_chamfer` option that
+painted the bevel's faces) found a chamfer 0.4 mm wide, and the first selection by `normal.z` painted whole legs
+(the dish tilts the top by up to 25 degrees). Measure a modifier's result before building on it.
 
 ### The Zeekr 7X's wheels (`zx_wheels.py`)
 

@@ -4,12 +4,12 @@ the Autohome photographs (blender/reference/luxeed-rx/wheels, owner approved).
     fengying   22 in "five-spoke": a gloss black face of five broad paddles, a
                machined wedge between each pair at the lip, a slot by the hub;
                255/40 R22 front, 275/40 R22 rear - the blue show car
-    yufeng     21 in "double five-spoke": a graphite star of five spokes, each
-               joined at the rim to a swept branch of its neighbour, inside a
-               wide machined ring; 255/45 R21, 275/45 R21 (MIIT)
+    yufeng     21 in "double five-spoke": a graphite star of five spikes, each with a
+               swept fin, over a machined ring that shows as a crescent between the
+               shoulders of the star; 255/45 R21, 275/45 R21 (MIIT)
     sport      21 in gloss black "double five-spoke": five Y spokes whose legs
                run out to a thin lip; the same tyres. One variant paints the
-               legs' tops and the lip blue (the accent material)
+               legs' edge bands and the lip blue (the accent material)
 
 Build only the default (build_all) for the car; the other two are built for
 the export (build_options) and swapped in the viewer.
@@ -22,6 +22,15 @@ fraction of the lip radius) - one repeat of the five. carkit.parts.wheels
 cuts them from a dished face. All photographs show the car's left side, so
 the left wheels are built as photographed and the right wheels as the same
 wheel (not mirrored: no right-side photograph was found).
+
+Second pass (2026-10-30). The Fengying and the Sport were laid over their photographs
+(scripts/wheel-trace maskedge) and match; the Yufeng did not (its windows were fat
+pentagons where the photograph has two long open pockets round a swept fin, and its
+ring was a separate surface that poked through the star), so it was traced again from
+the blue car's rear wheel (Autohome 13524057, ellipse ratio 0.989, lugs at 25 deg).
+All three gained the hub cap's emblem, domed locking nuts, the tyre's rim-protector rib
+and the caliper's split line, and the Sport's blue now sits in a band down each leg's
+edge, as in the photographs, not on their tops.
 
 Sizes: the lip is the rim's J flange, 17.3 mm above the bead seat: 0.2840 m
 on a 21 in rim, 0.2967 m on a 22 in; the overall diameter (0.763 m) is the
@@ -40,8 +49,73 @@ LIP_22 = 0.2967
 # The red, orange and yellow calipers of the photographs (the Yufeng's silver car, front and
 # rear, the Fengying's blue one): a monobloc about 80 degrees round the disc on the front axle
 # and 78 on the rear, centred a few degrees below the horizontal, stretching from 0.47 of the
-# lip radius out to the rim. The model's block is a sector, with a bulge.
-CALIPER = dict(span_deg=43.0, span_rear=39.0, r_inner=0.14, d_out=0.034, steps=16)
+# lip radius out to the rim. The model's block is a sector, with a bulge; `groove` is the split
+# between its two halves.
+CALIPER = dict(span_deg=43.0, span_rear=39.0, r_inner=0.14, d_out=0.034, steps=16, groove=True)
+
+
+# ------------------------------------------------------------------ helpers
+def _xy(poly, big_r):
+    return [(big_r * r * math.cos(math.radians(a)), big_r * r * math.sin(math.radians(a))) for (a, r) in poly]
+
+
+def _round(poly, big_r, rad, min_turn=25.0, n=4):
+    """A traced outline (angle, radius / big_r) with its sharp corners rounded to a radius of `rad`
+    metres (a quadratic curve per corner, at most 45 % of either edge): a window's corner in a
+    photograph is never a point."""
+    pts = _xy(poly, big_r)
+    m = len(pts)
+    out = []
+    for i in range(m):
+        p0, p1, p2 = pts[i - 1], pts[i], pts[(i + 1) % m]
+        v1 = (p0[0] - p1[0], p0[1] - p1[1])
+        v2 = (p2[0] - p1[0], p2[1] - p1[1])
+        l1, l2 = math.hypot(*v1), math.hypot(*v2)
+        if l1 < 1e-9 or l2 < 1e-9:
+            out.append(p1)
+            continue
+        c = max(-1.0, min(1.0, (v1[0] * v2[0] + v1[1] * v2[1]) / (l1 * l2)))
+        if 180.0 - math.degrees(math.acos(c)) < min_turn:
+            out.append(p1)
+            continue
+        d = min(rad, 0.45 * l1, 0.45 * l2)
+        a = (p1[0] + v1[0] / l1 * d, p1[1] + v1[1] / l1 * d)
+        b = (p1[0] + v2[0] / l2 * d, p1[1] + v2[1] / l2 * d)
+        for k in range(n + 1):
+            t = k / float(n)
+            out.append(((1 - t) ** 2 * a[0] + 2 * (1 - t) * t * p1[0] + t * t * b[0],
+                        (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * p1[1] + t * t * b[1]))
+    res, prev = [], poly[0][0]
+    for (x, y) in out:
+        ang = math.degrees(math.atan2(y, x))
+        ang += 360.0 * round((prev - ang) / 360.0)
+        res.append((ang, math.hypot(x, y) / big_r))
+        prev = ang
+    return res
+
+
+def _emblem(angle_deg, w=0.0010, mm=0.001):
+    """The Luxeed mark, white lines on the black cap (hub cap crops of the Sport's rear and the Yufeng's rear
+    photographs): a hexagon 49 mm long and 21 across, a vertical band in the middle (where "LUXEED" is
+    written, not modelled) and a chevron either side of it. `angle_deg`: the hexagon's long axis, counter-
+    clockwise from 3 o'clock as seen from outside (it differs wheel to wheel: the cap is not clocked)."""
+    hexa = [(-24.4, 0.0), (-13.2, 10.3), (13.2, 10.3), (24.4, 0.0), (13.2, -10.3), (-13.2, -10.3)]
+    lines = [(hexa[i], hexa[(i + 1) % 6]) for i in range(6)]
+    for sx in (-2.8, 2.8):
+        lines.append(((sx, 10.3), (sx, -10.3)))
+    for sg in (-1.0, 1.0):
+        lines.append(((sg * 12.2, 10.3), (sg * 2.8, 0.0)))
+        lines.append(((sg * 2.8, 0.0), (sg * 12.2, -10.3)))
+    ca, sa = math.cos(math.radians(angle_deg)), math.sin(math.radians(angle_deg))
+    quads = []
+    for (p, q) in lines:
+        dx, dy = q[0] - p[0], q[1] - p[1]
+        ln = math.hypot(dx, dy)
+        nx, ny = -dy / ln * 0.5 * w / mm, dx / ln * 0.5 * w / mm
+        quad = [(p[0] + nx, p[1] + ny), (q[0] + nx, q[1] + ny), (q[0] - nx, q[1] - ny), (p[0] - nx, p[1] - ny)]
+        quads.append([((x * ca - y * sa) * mm, (x * sa + y * ca) * mm) for (x, y) in quad])
+    return dict(mat="machined", h=0.0117, quads=quads)
+
 
 # ------------------------------------------------------------------ fengying
 # Traced from the blue car's front wheel (ellipse ratio 0.994). The face is dark and
@@ -78,60 +152,76 @@ FENG_WEDGE = [
 SPEC_FENGYING = W.preset(
     "blade_5", rim_d=2.0 * LIP_22, dish=DISH_FENG, pinstripe=False,
     flange_face=(1.0 - FENG_TAB) * LIP_22, roll_left=math.pi,
-    tyre=dict(bulge=1.045, shoulder=0.016),
-    hub=dict(depth=0.0720, setback=0.008, cap_rise=0.0055),
-    lugs=dict(count=5, pcd_r=0.05715, r=0.0120, deg=22.0, rise=0.004),
+    tyre=dict(bulge=1.045, shoulder=0.016, ridge=True),
+    hub=dict(depth=0.0720, setback=0.008, cap_rise=0.0055, cap_logo=_emblem(48.7)),
+    lugs=dict(count=5, pcd_r=0.05715, r=0.0120, deg=22.0, rise=0.004, dome=0.0070),
     disc=dict(style="plain", inner_r=0.120, thickness=0.032),
     caliper=CALIPER,
-    mats=dict(rim="black_gloss", lip="machined", lugs="black_gloss", cap="black_gloss", disc="iron"))
+    mats=dict(rim="wheel_black", lip="machined", lugs="wheel_black", cap="wheel_black", disc="iron"))
 SPEC_FENGYING["spokes"] = dict(
-    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0020, mat="black_gloss",
+    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0028, bevel_segs=2, mat="wheel_black",
     r_in=0.034, r_out=FENG_TAB * LIP_22, nr=16, seg=60, step_deg=2.5, step_r=0.03,
     windows=[FENG_WINDOW, FENG_SLOT],
     lug_holes=dict(deg=22.0, pcd=0.05715, r=0.0150, count=5),
     inlay=dict(mat="machined", polys=[FENG_WEDGE], lift=0.0004))
 
 # ------------------------------------------------------------------ yufeng
+# Traced again (see the module docstring) from the blue car's rear wheel: Autohome 13524057,
+# unwarped (ellipse ratio 0.989), the axle found by centrefit, one repeat read off a gamma 2.2
+# polar strip (the bottom one, free of the caliper) and laid over it until the outlines sat on
+# the edges. What it shows, per repeat of 72 deg (angles below are that repeat's, the spike at 7):
+#   a spike (a straight radial blade, 3-5 deg wide) at 7 deg, whose shoulder spreads over the
+#   rim from 4 to 30 deg; a fin that leaves the next spike's root (r 0.45) and sweeps back to
+#   end in the shoulder's far side at 29 deg, r 0.82; so two open pockets per repeat, one each
+#   side of the fin, floored by the hub web at r 0.30-0.45; and a crescent of machined ring
+#   between the shoulders (36-75 deg), bounded inside by a graphite hoop that keeps r 0.82-0.87.
+# The star is a graphite face, the ring a machined face 3.5 mm below it that shows in the
+# crescents and 4 mm round the shoulders (a `layers` entry): the first build had the ring as a
+# separate surface and the notches cut through the star, which came out chewed.
 # depth of the face below the flange plane, by radius (m)
 DISH_STAR = Curve([(0.000, 0.0720), (0.090, 0.0720), (0.105, 0.0660), (0.130, 0.0500),
                    (0.160, 0.0330), (0.190, 0.0200), (0.220, 0.0105), (0.250, 0.0035),
                    (0.285, 0.0)], mode="pchip")
-# the machined ring under the star's tabs: a few mm lower than they are
-DISH_RING = Curve([(0.200, 0.0225), (0.240, 0.0125), (0.2783, 0.0045)], mode="pchip")
 
-# the edge of the dark star: a tab at the rim, a slope, the floor of the
-# notch and a steep rise (rear wheel, rear_uw polar strip, 5 repeats of 72 deg)
-YUFENG_TAB = 0.965                  # the radius of the tab's flat top, the face's own edge
-YUFENG_NOTCH = [
-    (48.5, YUFENG_TAB), (54.0, 0.940), (58.0, 0.890), (63.0, 0.850), (68.0, 0.815),
-    (73.0, 0.800), (80.0, 0.797), (90.0, 0.797), (94.0, 0.825), (96.7, 0.884),
-    (98.0, 0.935), (99.0, 0.958), (99.5, YUFENG_TAB),
-    # and back along a circle outside the face: what lies beyond the outline is cut away
-    (99.5, 1.12), (48.5, 1.12)]
-YUFENG_WINDOWS = [
-    # between a spoke and the swept branch that comes back to it
-    [(34.5, 0.745), (51.7, 0.743), (54.2, 0.656), (57.5, 0.593), (61.7, 0.547), (68.3, 0.493),
-     (73.3, 0.440), (68.0, 0.400), (66.7, 0.325), (39.2, 0.325), (37.0, 0.384), (35.5, 0.500),
-     (34.5, 0.620)],
-    # between the branch and the next spoke, down to the root of the branch
-    [(64.2, 0.738), (97.4, 0.743), (97.2, 0.630), (96.2, 0.565), (95.0, 0.490), (93.3, 0.478),
-     (88.3, 0.481), (81.7, 0.499), (75.0, 0.536), (68.3, 0.597), (64.5, 0.640), (62.5, 0.690)],
-]
+YUFENG_TAB = 0.965                  # the radius of the shoulders' flat top, the face's own edge
+# pocket between a spike and the fin (the caliper and the disc show in it)
+YUF_POCKET_A = [
+    (9.25, 0.812), (28.75, 0.815), (30.17, 0.795), (31.17, 0.772), (32.67, 0.739), (34.08, 0.704),
+    (36.33, 0.659), (38.67, 0.617), (41.17, 0.583), (43.67, 0.552), (46.17, 0.513), (49.5, 0.478),
+    (53.67, 0.461), (58.67, 0.454), (63.5, 0.457), (63.67, 0.435), (62.83, 0.391), (60.33, 0.348),
+    (56.17, 0.313), (50.33, 0.300), (25.33, 0.304), (15.33, 0.313), (12.0, 0.374), (10.5, 0.443),
+    (9.5, 0.513), (9.08, 0.565)]
+# pocket between the fin and the next spike, under the ring's hoop
+YUF_POCKET_B = [
+    (41.58, 0.815), (77.83, 0.815), (77.83, 0.713), (77.17, 0.626), (76.0, 0.570), (73.25, 0.539),
+    (68.67, 0.546), (62.42, 0.565), (56.17, 0.591), (51.17, 0.630), (45.75, 0.691), (42.42, 0.783)]
+# the crescent of machined ring: the star is cut away outside the hoop (which holds r 0.87), out
+# past the face's edge (r > YUFENG_TAB) so the cut is clean
+YUF_CRESCENT = [
+    (35.75, 1.12), (35.75, 1.000), (38.67, 0.967), (42.0, 0.923), (45.33, 0.899), (50.33, 0.878),
+    (55.33, 0.870), (62.0, 0.868), (67.0, 0.873), (70.33, 0.889), (72.42, 0.915), (74.08, 0.957),
+    (74.92, 1.000), (74.92, 1.12)]
+_YUF_A = _round(YUF_POCKET_A, LIP_21, 0.0035)
+_YUF_B = _round(YUF_POCKET_B, LIP_21, 0.0035)
 
 SPEC_YUFENG = W.preset(
     "blade_5", rim_d=2.0 * LIP_21, dish=DISH_STAR, pinstripe=False, flange_face=0.0057,
     roll_left=math.pi,
-    hub=dict(depth=0.0720, setback=0.008, cap_rise=0.0055),
-    lugs=dict(count=5, pcd_r=0.05715, r=0.0118, deg=45.5, rise=0.004),
+    tyre=dict(ridge=True),
+    hub=dict(depth=0.0720, setback=0.008, cap_rise=0.0055, cap_logo=_emblem(128.6)),
+    lugs=dict(count=5, pcd_r=0.05715, r=0.0118, deg=25.0, rise=0.004, dome=0.0070),
     disc=dict(style="plain", inner_r=0.120, thickness=0.032),
     caliper=CALIPER,
-    mats=dict(rim="graphite", lip="machined", lugs="black_gloss", cap="black_gloss", disc="iron"))
+    mats=dict(rim="graphite", lip="machined", lugs="wheel_black", cap="wheel_black", disc="iron"))
 SPEC_YUFENG["spokes"] = dict(
-    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0020, mat="graphite",
+    style="traced", count=5, phase=0.0, depth=0.018, bevel=0.0024, bevel_segs=2, mat="graphite",
     r_in=0.034, r_out=YUFENG_TAB * LIP_21, nr=16, seg=60, step_deg=2.5, step_r=0.03,
-    windows=YUFENG_WINDOWS, notches=[YUFENG_NOTCH],
-    lug_holes=dict(deg=45.5, pcd=0.05715, r=0.0175, count=5),
-    ring=dict(r_in=0.215, dish=DISH_RING, depth=0.0, rings=6, mat="machined"))
+    windows=[_YUF_A, _YUF_B], notches=[YUF_CRESCENT],
+    lug_holes=dict(deg=25.0, pcd=0.05715, r=0.0175, count=5),
+    # the machined ring under the star: a plain annulus from just inside the hoop's inner edge (r 0.815) to the
+    # lip, no windows (the pockets end under the hoop, so none of it shows inside them)
+    layers=[dict(dz=-0.0035, mat="machined", bevel=0.0008, r_in=0.83 * LIP_21, r_out=0.9795 * LIP_21, nr=4,
+                 windows=[], notches=[], lug_holes=None)])
 
 # ------------------------------------------------------------------ sport
 DISH_SPORT = Curve([(0.000, 0.0720), (0.090, 0.0720), (0.105, 0.0660), (0.130, 0.0500),
@@ -150,20 +240,37 @@ SPORT_WINDOWS = [
      (331.5, 0.380), (332.0, 0.310)],
 ]
 
+# the legs run into a lip ring about 9 mm wide (the blue band of the blue car's photographs)
+SPORT_FLANGE = 0.0095
+# The blue car's legs are black on top with a blue band down each edge (the painted chamfer), from about 0.4 of the
+# lip radius out. The bevel modifier cannot make it (it clamps to 0.5 mm along the traced polylines): the top face's
+# windows are grown by the band's width, which fades in between 0.38 and 0.44 of the radius, and a second face 3 mm
+# lower in the accent material, with the windows as traced (a hair smaller, so its walls stay clear), shows as the
+# ledge. Black cars paint the accent black, so the ledge is then just a shadow line.
+SPORT_BAND = 0.0050
+
+
+def _band(r):
+    t = max(0.0, min(1.0, (r - 0.38) / 0.06))
+    return SPORT_BAND * t * t * (3.0 - 2.0 * t)
+
 SPEC_SPORT = W.preset(
-    "blade_5", rim_d=2.0 * LIP_21, dish=DISH_SPORT, pinstripe=False, flange_face=0.0057,
+    "blade_5", rim_d=2.0 * LIP_21, dish=DISH_SPORT, pinstripe=False, flange_face=SPORT_FLANGE,
     roll_left=math.pi,
-    hub=dict(depth=0.0720, setback=0.008, cap_rise=0.0055),
-    lugs=dict(count=5, pcd_r=0.05715, r=0.0118, deg=84.8, rise=0.004),
+    tyre=dict(ridge=True),
+    hub=dict(depth=0.0720, setback=0.008, cap_rise=0.0055, cap_logo=_emblem(0.0)),
+    lugs=dict(count=5, pcd_r=0.05715, r=0.0118, deg=84.8, rise=0.004, dome=0.0070),
     disc=dict(style="plain", inner_r=0.120, thickness=0.032),
     caliper=CALIPER,
-    mats=dict(rim="black_gloss", lip="accent", accent="accent", lugs="black_gloss",
-              cap="black_gloss", disc="iron"))
+    mats=dict(rim="wheel_black", lip="accent", accent="accent", lugs="wheel_black",
+              cap="wheel_black", disc="iron"))
 SPEC_SPORT["spokes"] = dict(
-    style="traced", count=5, phase=0.0, depth=0.020, bevel=0.0022, mat="black_gloss",
-    r_in=0.034, r_out=0.2805, nr=16, seg=60, step_deg=2.5, step_r=0.03, rings=(0.395,), accent_r=0.395,
-    windows=SPORT_WINDOWS,
-    lug_holes=dict(deg=84.8, pcd=0.05715, r=0.0175, count=5))
+    style="traced", count=5, phase=0.0, depth=0.020, bevel=0.0016, bevel_segs=2, mat="wheel_black",
+    r_in=0.034, r_out=LIP_21 - SPORT_FLANGE + 0.001, nr=16, seg=60, step_deg=2.5, step_r=0.03,
+    windows=[W.grow(w, _band, LIP_21) for w in SPORT_WINDOWS],
+    lug_holes=dict(deg=84.8, pcd=0.05715, r=0.0175, count=5),
+    layers=[dict(dz=-0.003, mat="accent", bevel=0.0005, r_in=0.36 * LIP_21, nr=10,
+                 windows=[W.grow(w, -0.0006, LIP_21) for w in SPORT_WINDOWS], lug_holes=None)])
 
 # ------------------------------------------------------------------ the set
 # name -> (object prefix, spec). The default keeps the build's own "RX_" names.

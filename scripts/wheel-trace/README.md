@@ -88,3 +88,23 @@ the top one. Do not read it as a depth effect (parallax moves a deep hub, not th
   picture of one repeat with the outlines over it, `lum=300:300 outlines=0` the clean mean picture alone,
   to read a shape off by eye. Works for bright shapes on dark (machined faces, the chrome disc); a window
   with the brake disc seen through it has no single luminance, read those off the mean picture.
+
+## Reading a complicated face off a polar strip (added with the RX Yufeng's re-trace)
+
+When a face is dark on dark (the Yufeng's graphite star: its windows, spokes and flanks are all within
+20 grey levels, and a classifier by luminance or saturation returned 51 speckle outlines), read it by eye,
+but read it at a scale where the eye is accurate and let the overlay do the checking:
+
+1. Unwarp (`unwarp.cjs`; if the wheel is cropped by the frame, give it the centre and radius read off the photo
+   itself, the first guess that fits only on the visible part gives a ratio of 0.88) and shift to the axle
+   (`centrefit.cjs`, `shift.cjs`). Lift with gamma 2.2: the spokes' flanks separate from the pure-black windows.
+2. Make a strip of the one repeat that no caliper hides (`polar.cjs ... 208 306 0.16 1.0 12 1150`), read the
+   polygons as strip PIXELS (x, y) into a JSON `{"name": [[x, y], ...]}` and convert them:
+
+       node scripts/wheel-trace/px2ar.cjs pix.json polys.json 208 12 1150 1.0 216
+
+   (`t0 ppd ppr r1 offset`: the strip's first angle, its pixels per degree and per unit radius, the radius at its
+   top, and an angle to subtract so the repeat's own angles start near zero). It prints the (angle, radius) points
+   for `rx_wheels.py` and writes a file `polar.cjs` accepts as its last argument (`... 0 0 polys.json`), which
+   draws them over the strip. Two or three rounds of read, overlay, nudge got every edge within about a degree.
+3. Build the face and lay it over the corrected photograph (`maskedge.cjs`), the check that matters.

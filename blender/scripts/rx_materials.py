@@ -80,16 +80,18 @@ def build_library():
     m, nt, b = _M.mat("M_Radar_Grey")
     _M.set_inputs(b, base=(0.035, 0.036, 0.038), metallic=0.0, roughness=0.40)
     lib["radar"] = m
-    # the wheels' machined faces and lip ring: bright satin aluminium
+    # the wheels' machined faces and lip ring: bright satin aluminium (diamond-cut reads satin, not
+    # chrome: roughness 0.30 as on the other cars' wheels)
     m, nt, b = _M.mat("M_Alu_Machined")
-    _M.set_inputs(b, base=(0.78, 0.78, 0.80), metallic=1.0, roughness=0.20)
+    _M.set_inputs(b, base=(0.78, 0.78, 0.80), metallic=1.0, roughness=0.30)
     lib["machined"] = m
     # the Yufeng's star: glossy graphite with a blue cast. The photographs' mid-tones
     # are sRGB ~62/64/70, but those are reflections of an outdoor sky; under the
     # showroom's white studio a lighter base (#424449) read as gunmetal, so the base
-    # is #1d1e22 and the clearcoat carries the rest
+    # is #1d1e22 and the clearcoat carries the rest. The re-traced Yufeng (2026-10-30) read nearly black in the
+    # viewer next to the photographs' slate blue, so the base got a little lighter and bluer (#26282f)
     m, nt, b = _M.mat("M_Wheel_Graphite")
-    _M.set_inputs(b, base=(0.0123, 0.0130, 0.0159), metallic=0.0, roughness=0.22,
+    _M.set_inputs(b, base=(0.0194, 0.0212, 0.0283), metallic=0.0, roughness=0.22,
                   coat=1.0, coat_rough=0.03, ior=1.45)
     lib["graphite"] = m
     # the Sport's accent - the tops of its legs and its lip: gloss black as
