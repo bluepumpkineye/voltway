@@ -4,8 +4,9 @@ import React from 'react';
  * The Voltway wordmark, drawn rather than set in a typeface: seven bold, square-cut letters that cannot change with a font that has not
  * loaded. Every letter stands on one baseline and under one cap line (the points of the V, W and A are cut flat across them, not left to
  * poke out), the stems are one weight, and the gaps are set by eye, not by the letters' boxes (the L's foot runs under the T's bar). The A
- * has no crossbar: its bar is a pulse, the one stroke in the accent. On the page the letters rise in one after the other and the pulse draws
- * last (landing.module.css; with reduced motion it is simply there).
+ * has no crossbar: its bar is a pulse, the one stroke in the accent. On the page the letters rise in one after the other and then the pulse
+ * is drawn, with a bright pen tip running along it; it holds, fades and is drawn again every few seconds (landing.module.css; with reduced
+ * motion it is simply there).
  */
 const CAP = 100;
 /** the weight of a stem */
@@ -124,6 +125,7 @@ export function Wordmark({ className, label = 'Voltway' }: { className?: string;
             {l.d && <path d={l.d} fill={`url(#wm-ink-${i})`} />}
             {l.ring && <circle cx={l.w / 2} cy={CAP / 2} r={l.ring.r} stroke={`url(#wm-ink-${i})`} strokeWidth={S} />}
             {l.pulse && <path d={l.pulse} pathLength={1} data-pulse stroke="url(#wm-pulse)" strokeWidth={10} strokeLinejoin="miter" strokeLinecap="butt" />}
+            {l.pulse && <path d={l.pulse} pathLength={1} data-spark stroke="#fff4d6" strokeWidth={10} strokeLinejoin="miter" strokeLinecap="butt" />}
           </g>
         </g>
       ))}

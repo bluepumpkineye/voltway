@@ -103,7 +103,7 @@
   content: '';
   position: absolute;
   inset: auto 0 0 0;
-  height: 26%;
+  height: 20%;
   background: linear-gradient(180deg, rgba(244, 245, 247, 0) 0%, rgba(244, 245, 247, 0.55) 55%, var(--paper) 100%);
   z-index: 5;
 }
@@ -138,11 +138,23 @@
   animation: letter 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: calc(0.1s + var(--i) * 0.09s);
 }
-.wordmark [data-pulse] {
+.wordmark [data-pulse],
+.wordmark [data-spark] {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
-  animation: draw 0.9s cubic-bezier(0.5, 0, 0.2, 1) both;
-  animation-delay: 1.05s;
+  animation-duration: 5.2s;
+  animation-delay: 1.15s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+}
+.wordmark [data-pulse] {
+  animation-name: bolt;
+}
+.wordmark [data-spark] {
+  stroke-dasharray: 0.12 2;
+  stroke-dashoffset: 0.12;
+  opacity: 0;
+  animation-name: spark;
 }
 .eyebrow {
   margin: clamp(14px, 2.4svh, 24px) 0 0;
@@ -236,11 +248,11 @@
   top: 100%;
   margin-top: 12px;
   transform: translateX(-50%);
-  display: grid;
-  justify-items: center;
-  gap: 1px;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
   white-space: nowrap;
-  padding: 5px 12px 6px;
+  padding: 6px 14px 7px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(12px);
@@ -519,6 +531,21 @@
 }
 
 /* ---------------------------------------------------------------------------------------------------------------- motion */
+/* the bolt: drawn in about a second, held, faded out, then drawn again */
+@keyframes bolt {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  19% { stroke-dashoffset: 0; opacity: 1; }
+  74% { stroke-dashoffset: 0; opacity: 1; }
+  90% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 1; opacity: 0; }
+}
+/* the pen tip: a short bright dash that stays at the head of the line while it is drawn */
+@keyframes spark {
+  0% { stroke-dashoffset: 0.12; opacity: 1; }
+  19% { stroke-dashoffset: -0.88; opacity: 1; }
+  19.5% { stroke-dashoffset: -0.88; opacity: 0; }
+  100% { stroke-dashoffset: -0.88; opacity: 0; }
+}
 @keyframes draw {
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
@@ -549,6 +576,7 @@
   .lake::before,
   .wordmark [data-letter],
   .wordmark [data-pulse],
+  .wordmark [data-spark],
   .eyebrow,
   .lede,
   .car {
@@ -581,8 +609,8 @@
   }
   .hero {
     --u: 100vw;
-    --spread: 0.84;
-    --kk: 1.6;
+    --spread: 0.86;
+    --kk: 1.5;
     height: max(600px, 152vw);
   }
   .ridges {
@@ -594,7 +622,7 @@
   }
   .tag {
     margin-top: 8px;
-    padding: 4px 9px 5px;
+    padding: 4px 10px 5px;
   }
   .tag b {
     font-size: 8px;
