@@ -25,7 +25,7 @@ export const LINEUP: Place[] = [
   { slug: 'luxeed-rx', row: 'back', x: 0.73, ground: 0.5, k: 0.15, w: 1000, h: 520 },
   // the middle row, in an arc, nose to the middle
   { slug: 'nio-es8', row: 'mid', x: 0.16, ground: 0.69, k: 0.2, w: 1016, h: 543 },
-  { slug: 'xpeng-g9l', row: 'mid', x: 0.34, ground: 0.655, k: 0.19, w: 1000, h: 520 },
+  { slug: 'xpeng-g9l', row: 'mid', x: 0.34, ground: 0.655, k: 0.19, w: 990, h: 606 },
   { slug: 'voyah-passion-s', row: 'mid', x: 0.66, ground: 0.655, k: 0.19, w: 1000, h: 520 },
   { slug: 'zeekr-7x', row: 'mid', x: 0.84, ground: 0.69, k: 0.2, w: 1000, h: 520 },
   // the hero, nose on
