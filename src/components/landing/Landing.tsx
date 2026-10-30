@@ -61,7 +61,7 @@ function Car({ place, v, i }: { place: Place; v: Vehicle; i: number }) {
         style={{ ['--d' as string]: `${DELAY[place.row] + i * 0.07}s` }}
       >
         <span className={styles.shadow} aria-hidden />
-        <Image className={styles.mirror} src={`/landing/${place.slug}.webp`} width={place.w} height={place.h} alt="" unoptimized loading="eager" style={{ marginTop: `-${lift}%` }} />
+        <Image className={styles.mirror} src={`/landing/${place.slug}.webp`} width={place.w} height={place.h} alt="" unoptimized priority style={{ marginTop: `-${lift}%` }} />
         <Image className={styles.pic} src={`/landing/${place.slug}.webp`} width={place.w} height={place.h} alt="" unoptimized priority />
         <span className={styles.tag}>
           <b>{v.brand}</b>
