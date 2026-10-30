@@ -17,7 +17,8 @@
 
 /* ------------------------------------------------------------------------------------------------------------- the scene */
 .hero {
-  --u: min(100vw, 1700px);
+  /* the scene is as wide as the window, but never so wide that the fan needs more height than the window has */
+  --u: min(100vw, 1700px, max(calc((100svh - 56px) / 0.6), 1000px));
   --horizon: 0.43;
   --spread: 1;
   --kk: 1;
@@ -115,7 +116,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: clamp(26px, 6.5svh, 64px) 20px 0;
+  padding: clamp(22px, 4.8svh, 56px) 20px 0;
   text-align: center;
   pointer-events: none;
 }
@@ -558,6 +559,13 @@
 }
 
 /* ---------------------------------------------------------------------------------------------------------------- phone */
+/* a short window has no room for the line between the title and the back row: the eyebrow stays */
+@media (min-width: 761px) and (max-height: 780px) {
+  .lede {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   .ways {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -570,9 +578,9 @@
   }
   .hero {
     --u: 100vw;
-    --spread: 0.8;
-    --kk: 1.5;
-    height: max(680px, 172vw);
+    --spread: 0.84;
+    --kk: 1.6;
+    height: max(600px, 152vw);
   }
   .ridges {
     height: 11%;
@@ -591,7 +599,8 @@
   .tag span {
     font-size: 11px;
   }
-  .back .tag {
+  /* the cars are small here and the hero hides the names of the ones beside it: only the hero is named, the grid below names them all */
+  .slot:not(.front) .tag {
     display: none;
   }
 }

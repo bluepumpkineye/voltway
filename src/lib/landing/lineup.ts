@@ -19,15 +19,15 @@ export interface Place {
 
 export const LINEUP: Place[] = [
   // the back row, smallest, on the pale water by the horizon
-  { slug: 'avatr-06t', row: 'back', x: 0.27, ground: 0.5, k: 0.15, w: 1000, h: 520 },
-  { slug: 'byd-seal', row: 'back', x: 0.41, ground: 0.475, k: 0.14, w: 1000, h: 480 },
-  { slug: 'denza-z9', row: 'back', x: 0.59, ground: 0.475, k: 0.14, w: 1000, h: 480 },
-  { slug: 'luxeed-rx', row: 'back', x: 0.73, ground: 0.5, k: 0.15, w: 1000, h: 520 },
+  { slug: 'avatr-06t', row: 'back', x: 0.27, ground: 0.5, k: 0.15, w: 972, h: 568 },
+  { slug: 'byd-seal', row: 'back', x: 0.41, ground: 0.49, k: 0.13, w: 890, h: 632 },
+  { slug: 'denza-z9', row: 'back', x: 0.59, ground: 0.49, k: 0.13, w: 905, h: 613 },
+  { slug: 'luxeed-rx', row: 'back', x: 0.73, ground: 0.5, k: 0.15, w: 967, h: 570 },
   // the middle row, in an arc, nose to the middle
   { slug: 'nio-es8', row: 'mid', x: 0.16, ground: 0.69, k: 0.2, w: 1026, h: 562 },
   { slug: 'xpeng-g9l', row: 'mid', x: 0.34, ground: 0.655, k: 0.19, w: 990, h: 606 },
-  { slug: 'voyah-passion-s', row: 'mid', x: 0.66, ground: 0.655, k: 0.19, w: 1000, h: 520 },
-  { slug: 'zeekr-7x', row: 'mid', x: 0.84, ground: 0.69, k: 0.2, w: 1000, h: 520 },
+  { slug: 'voyah-passion-s', row: 'mid', x: 0.66, ground: 0.655, k: 0.19, w: 993, h: 564 },
+  { slug: 'zeekr-7x', row: 'mid', x: 0.84, ground: 0.69, k: 0.2, w: 1022, h: 555 },
   // the hero, nose on
   { slug: 'xiaomi-su7-ultra', row: 'front', x: 0.5, ground: 0.84, k: 0.21, w: 718, h: 671 },
 ];
