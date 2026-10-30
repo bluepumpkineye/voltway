@@ -38,6 +38,7 @@ export function useXray(root: THREE.Object3D, vehicle: Vehicle, active: boolean)
       side: THREE.DoubleSide,
       envMapIntensity: 0.7,
     });
+    ghost.userData.ghost = true;
     const was: [THREE.Mesh, THREE.Material | THREE.Material[]][] = [];
     node.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -52,6 +53,45 @@ export function useXray(root: THREE.Object3D, vehicle: Vehicle, active: boolean)
       invalidate();
     };
   }, [root, vehicle, active, invalidate]);
+}
+
+/**
+ * The Drive tab's X-ray camera: the whole exterior, not only the greenhouse, goes to the pale ghost (the wheels, which are what the
+ * rig turns, and what already is a ghost stay as they are), so that the schematic motors and battery under the floor read through.
+ */
+export function useBodyGhost(root: THREE.Object3D, active: boolean) {
+  const invalidate = useThree((s) => s.invalidate);
+  React.useEffect(() => {
+    if (!active) return;
+    const ghost = new THREE.MeshPhysicalMaterial({
+      color: '#98a4b3',
+      roughness: 0.25,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      envMapIntensity: 0.6,
+    });
+    ghost.userData.ghost = true;
+    const was: [THREE.Mesh, THREE.Material | THREE.Material[]][] = [];
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      // the wheels (and their calipers) stay solid; a pane or a body already in the ghost is left alone
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) if (/wheels/i.test(p.name)) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      if (mats.every((m) => m.userData.ghost || m.name.toLowerCase().startsWith('m_glass'))) return;
+      was.push([mesh, mesh.material]);
+      mesh.material = ghost;
+    });
+    invalidate();
+    return () => {
+      for (const [mesh, m] of was) mesh.material = m;
+      ghost.dispose();
+      invalidate();
+    };
+  }, [root, active, invalidate]);
 }
 
 /** Cabin nodes that go while the X-ray tab is on (the headliner closes the view from above). */

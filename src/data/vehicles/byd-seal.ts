@@ -335,6 +335,35 @@ export const bydSeal: Vehicle = {
     simulated:
       'A simulation of 800V high-voltage boost fast charging. 25 minutes play in fourteen seconds.',
   },
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). Cd 0.219 is CarNewsChina's database figure for the Seal; the
+  // maker's page was not read, so it is not stated as the maker's.
+  drive: {
+    id: 'balanced-run',
+    title: 'Balanced Performance Run',
+    blurb:
+      'A clean 0–100 and a mid-range pull from 80 to 160 km/h on two motors, with the air resistance that builds as the speed rises. Set it against the single-motor Seal on the chart.',
+    runs: [{ from: 80, to: 160 }],
+    modes: ['eco', 'comfort', 'sport'],
+    defaultMode: 'sport',
+    overlays: ['aero', 'power', 'energy'],
+    finish: 'coast',
+    aero: { cd: 0.219 },
+    ghost: { slug: 'byd-seal', variantId: '650-smart-driving' },
+    camera: 'hero',
+    callouts: [
+      { cue: 'launch', text: 'Launch. Two motors share the pull, a little more to the rear as weight moves back.' },
+      { cue: 'pull', text: '100 km/h. Air resistance now takes a growing share of the power: it rises with the square of the speed.' },
+      { cue: 'target', text: 'Off the power. The drag alone slows the car from here.' },
+    ],
+    claims: [
+      {
+        text: 'The Seal’s drag coefficient is 0.219 Cd.',
+        source: { label: 'CarNewsChina database, BYD Seal parameters', url: 'https://db.carnewschina.com/byd/byd-seal/2025/params' },
+      },
+    ],
+    simulated:
+      'The 80–160 run, the modes’ times, the frontal area (0.85 of width times height), the split between the two motors and the energy are ours.',
+  },
   sources: [
     { label: 'Autohome — 比亚迪 海豹 EV Specifications & Gallery (Series 6394)', url: 'https://www.autohome.com.cn/6394/' },
     { label: 'BYD Official — 海豹 EV Ocean Network Sports Sedan', url: 'https://www.byd.com/' },

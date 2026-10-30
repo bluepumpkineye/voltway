@@ -1,6 +1,7 @@
 import type { Layout, PlannedRun, Sample } from './kinematics';
 import type { RoadStage } from './carpet';
 import type { Chassis } from './ride';
+import type { DriveFacts } from './drive-run';
 
 /**
  * The launch demo's run (docs/tech-showcase.md section 10): a standing start to 100 km/h and on to 200, then off
@@ -49,6 +50,8 @@ export interface LaunchReadout {
   elapsed: number;
   /** the wheels' surface speed over the road's, 0.12 = 12 % */
   slip: number;
+  /** what the run is doing at this moment (the Drive tab's scenarios, drive-run.ts): pull, ease, brake, sweep ... */
+  phase?: string;
 }
 
 /** The published times the stopwatch is checked against. */
@@ -57,6 +60,8 @@ export interface LaunchMark {
   speed: number;
   /** s */
   time: number;
+  /** the time is the maker's own figure; false: ours, from the model of the pull (a rolling pull, a mode, a load) */
+  published?: boolean;
 }
 
 export interface LaunchRun {
@@ -65,7 +70,7 @@ export interface LaunchRun {
   scroll: (t: number) => number;
   chassis: (t: number) => Chassis;
   /** what the readout shows at time t, and the published times it is checked against */
-  launch: { readout: (t: number) => LaunchReadout; marks: LaunchMark[]; target?: number };
+  launch: { readout: (t: number) => LaunchReadout; marks: LaunchMark[]; target?: number; drive?: DriveFacts };
   frame: { cx: number; cz: number; radius: number; camera: { az: number; el: number } };
 }
 

@@ -8,6 +8,7 @@ import { cx } from '../ui';
 import { HY } from './theme';
 import * as Ic from './icons';
 import { TRACKS, mmss, useClock } from './shared';
+import { useDriveSpeed } from '@/lib/tech/session';
 
 /* ---------------------------------------------------------------- parked */
 
@@ -145,7 +146,9 @@ export function DesktopCard({
 /** Xiaomi HAD's surround view: grey models on a light road, the car's own path. */
 function SrCard({ vehicle }: { vehicle: Vehicle }) {
   const { adasActive, gear } = useVehicleStore();
-  const moving = gear === 'D';
+  // on the Drive tab the screen reads the run's own speed
+  const live = useDriveSpeed();
+  const moving = gear === 'D' && (live === null || live > 1);
   const car = `/hmi/${vehicle.slug}/sr-ego.webp`;
   return (
     <DesktopCard style={{ background: 'linear-gradient(180deg, #f3f4f6 0%, #e3e6ea 45%, #cfd3d9 100%)' }}>
@@ -180,7 +183,7 @@ function SrCard({ vehicle }: { vehicle: Vehicle }) {
       <div className="absolute left-5 top-6 flex items-center gap-3" style={{ color: '#15171a' }}>
         <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full border-[4px] border-[#e5352b] bg-white text-[15px] font-bold">80</span>
         <span className="leading-none">
-          <span className="tnum text-[40px] font-semibold">{moving ? 62 : 0}</span>
+          <span className="tnum text-[40px] font-semibold">{live !== null ? Math.round(live) : moving ? 62 : 0}</span>
           <span className="ml-1 text-[13px] font-medium text-black/50">km/h</span>
         </span>
       </div>

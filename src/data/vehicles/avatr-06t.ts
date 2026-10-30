@@ -330,6 +330,30 @@ export const avatr06t: Vehicle = {
         'A simulation of Qiankun ADS 3.0 remote parking: blue surround camera beams screen the bays, the target slot is marked with a flashing P, and the car reverses in smoothly.',
     },
   ],
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). Only the dual-motor and single-motor trims are in this file's
+  // data, so the motors drawn are a front and a rear one. The tri-motor trim (one front and two rear motors, 712 kW, 2.78 s;
+  // CarNewsChina, 23 April 2026) is not added: its pack and range reports disagree. Add it as a variant and the rear pair is
+  // drawn as two motors by itself.
+  drive: {
+    id: 'shooting-brake',
+    title: 'Shooting Brake Assault',
+    blurb:
+      'A wagon with a sports car’s pull: a 0–100 sprint, then an S-curve under power. Watch the body stay level, and set the car against the Denza Z9 on the chart.',
+    modes: ['eco', 'comfort', 'sport', 'gt'],
+    defaultMode: 'gt',
+    overlays: ['suspension', 'motors', 'power'],
+    finish: 'coast',
+    manoeuvres: ['sweep'],
+    ghost: { slug: 'denza-z9', variantId: '630-ultra-awd' },
+    camera: 'chase',
+    callouts: [
+      { cue: 'launch', text: 'Launch. Weight moves to the rear axle; the long roof keeps the body level.' },
+      { cue: 'sweep', text: 'S-curve under power. The body leans a little and the drive shifts between the axles.' },
+    ],
+    claims: [],
+    simulated:
+      'The S-curve, the roll and pitch of the body and the split of the drive between the two motors are ours.',
+  },
   sources: [
     { label: 'Avatr Official - Avatr 06T', url: 'https://www.avatr.com/en/06T' },
     { label: 'Autohome - Avatr 06T Specs', url: 'https://www.autohome.com.cn/' },

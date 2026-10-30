@@ -20,6 +20,10 @@ import { TechCharge } from './TechCharge';
 import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
 import { TechParkAssist } from './TechParkAssist';
+import { TechPowertrain } from './TechPowertrain';
+import { TechAnchors } from './TechAnchors';
+import { TechWheelFx } from './TechWheelFx';
+import { TechRival } from './TechRival';
 import { TechSensors } from './TechSensors';
 import { TechStage } from './TechStage';
 import { TechLotDressing, TechStreet } from './TechStreet';
@@ -121,6 +125,10 @@ function Stage({
   const sceneKind = useVehicleStore((s) => s.sceneKind);
   const cameraMode = useVehicleStore((s) => s.cameraMode);
   const inside = cameraMode === 'interior';
+  // the Drive tab drives from the seat too: the road still rolls past the windscreen
+  const driving = useVehicleStore((s) => s.tab === 'drive');
+  // a hill lifts the car off the studio's floor: a mirror there would show it hanging in the air
+  const hill = useVehicleStore((s) => s.tab === 'drive' && (s.drive.grade ?? 0) !== 0);
   const frame = useCarFrame(vehicle);
   const outside = vehicle.assets.outside;
   const studioShadow = vehicle.assets.studioShadow;
@@ -137,16 +145,24 @@ function Stage({
       {city && outside ? (
         <OutsideWorld world={outside} inside={inside} eye={eye} />
       ) : (
-        <StudioShowroom reflections={reflections} inside={inside} />
+        <StudioShowroom reflections={reflections && !hill} inside={inside} />
       )}
       {/* the lot a tech demo drives in, when it has one */}
       {!inside && <TechStage />}
       {!inside && <TechStreet />}
       {!inside && <TechLotDressing />}
-      {!inside && <TechRoad vehicle={vehicle} />}
+      {(!inside || driving) && <TechRoad vehicle={vehicle} />}
       {!inside && <TechCharge vehicle={vehicle} />}
       {!inside && <TechSensors vehicle={vehicle} />}
       {!inside && <TechParkAssist vehicle={vehicle} />}
+      {/* the Drive tab's X-ray camera: the motors and the battery, schematic, riding with the body */}
+      <TechPowertrain vehicle={vehicle} />
+      {/* the Drive tab's lights on the wheels: what each motor and brake is doing */}
+      <TechWheelFx vehicle={vehicle} />
+      {/* where the car's arch, disc, hubs, pack and roof are on the screen, for the cards that point at them */}
+      <TechAnchors vehicle={vehicle} />
+      {/* the Drive tab's rival, in the next lane */}
+      <TechRival vehicle={vehicle} />
       {/* the car and its baked shadow stand in one group, so a tech demo moves them together */}
       <CarRoot vehicle={vehicle}>
         <CarModel vehicle={vehicle} variant={variant} url={url} />

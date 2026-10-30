@@ -166,6 +166,10 @@ export interface RigState {
   scroll: number;
   steer: [number, number, number, number];
   spin: [number, number, number, number];
+  /** the whole stage (road, car, the things that follow the car) tilted nose-up by this, rad: a hill (the Drive tab) */
+  slope: number;
+  /** where the second car stands on the floor (viewer axes) and its heading: the Drive tab's rival */
+  rival: { x: number; z: number; yaw: number };
 }
 
 const AXLE = new THREE.Vector3(0, 0, 1);
@@ -180,13 +184,17 @@ const _off = new THREE.Vector3();
 export class CarRig {
   readonly state: RigState = {
     x: 0, z: 0, yaw: 0, heave: 0, pitch: 0, roll: 0, ride: 0, lift: [0, 0, 0, 0], scroll: 0,
-    steer: [0, 0, 0, 0], spin: [0, 0, 0, 0],
+    steer: [0, 0, 0, 0], spin: [0, 0, 0, 0], slope: 0, rival: { x: 0, z: 0, yaw: 0 },
   };
   private prepared: PreparedRig | null = null;
   /** groups that carry the car's place on the floor (the exterior's wrapper, the baked shadow) */
   private roots = new Set<THREE.Object3D>();
   /** roads that roll under the car (`RigState.scroll`), each with where it stands when it has not rolled, and the period of its pattern when it repeats */
   private roads = new Map<THREE.Object3D, { baseX: number; period?: number }>();
+  /** groups that ride on the body's springs like the exterior's Sprung group: the cabin, the schematic powertrain (placed by a root outside them) */
+  private followers = new Set<THREE.Object3D>();
+  /** groups placed where the rival stands (`RigState.rival`) */
+  private rivals = new Set<THREE.Object3D>();
 
   /** The measured wheels, once an exterior with a rig is mounted. */
   get layout(): Layout | null {
@@ -207,6 +215,14 @@ export class CarRig {
     return this.prepared !== null;
   }
 
+  /** The mounted exterior's wheels, each with its hub group (it yaws with the steering and rises with the wheel's travel): what the Drive tab hangs its wheel lights on. */
+  get wheels(): readonly RigWheel[] | null {
+    return this.prepared?.wheels ?? null;
+  }
+
+  /** Counts the exteriors mounted (a new trim or a reload mounts a new one), so that whatever hangs on the wheels hangs again. */
+  mounts = 0;
+
   private subs = new Set<() => void>();
 
   /** For React: tells when a rigged exterior is mounted or goes (see `ready`). */
@@ -223,11 +239,13 @@ export class CarRig {
 
   attach(p: PreparedRig): () => void {
     this.prepared = p;
+    this.mounts++;
     this.apply();
     this.changed();
     return () => {
       if (this.prepared === p) {
         this.prepared = null;
+        this.mounts++;
         this.changed();
       }
     };
@@ -238,6 +256,24 @@ export class CarRig {
     this.apply();
     return () => {
       this.roots.delete(g);
+    };
+  }
+
+  /** A group that rides on the body's springs: it is turned with the Sprung group (pitch, roll, heave about its pivot). */
+  attachFollower(g: THREE.Object3D): () => void {
+    this.followers.add(g);
+    this.apply();
+    return () => {
+      this.followers.delete(g);
+    };
+  }
+
+  /** A group that stands where `RigState.rival` says (the Drive tab's second car). */
+  attachRival(g: THREE.Object3D): () => void {
+    this.rivals.add(g);
+    this.apply();
+    return () => {
+      this.rivals.delete(g);
     };
   }
 
@@ -258,6 +294,7 @@ export class CarRig {
     const st = this.state;
     st.heave = c?.heave ?? 0;
     st.pitch = c?.pitch ?? 0;
+    st.roll = c?.roll ?? 0;
     for (let i = 0; i < 4; i++) st.lift[i] = c?.lift[i] ?? 0;
   }
 
@@ -282,23 +319,57 @@ export class CarRig {
   /** Back to the car standing still, as the showroom shows it. */
   reset() {
     const st = this.state;
-    st.x = st.z = st.yaw = st.heave = st.pitch = st.roll = st.ride = st.scroll = 0;
+    st.x = st.z = st.yaw = st.heave = st.pitch = st.roll = st.ride = st.scroll = st.slope = 0;
+    st.rival.x = st.rival.z = st.rival.yaw = 0;
     st.lift.fill(0);
     st.steer.fill(0);
     st.spin.fill(0);
     this.apply();
   }
 
+  /**
+   * Where the stage is tilted from: a hill is a rotation about a point on the floor, behind the car for a climb and ahead of it
+   * for a descent, so that the road meets the studio's floor away from the car and the car stands a little above it.
+   */
+  private pivotX(): number {
+    const st = this.state;
+    const L = this.prepared?.layout.wheelbase ?? 3;
+    const car = this.prepared ? this.prepared.rac.x + L / 2 : 0;
+    return car - 7 * Math.sign(st.slope);
+  }
+
+  /** Put a group at (x, 0, z) heading yaw on the tilted stage. */
+  private place(g: THREE.Object3D, x: number, z: number, yaw: number) {
+    const st = this.state;
+    if (st.slope === 0) {
+      g.position.set(x, 0, z);
+      g.rotation.set(0, yaw, 0);
+      return;
+    }
+    const px = this.pivotX();
+    const c = Math.cos(st.slope);
+    const n = Math.sin(st.slope);
+    // the rotation about +z (nose up) after the yaw about +y
+    g.rotation.set(0, yaw, st.slope, 'ZYX');
+    g.position.set(px + (x - px) * c, (x - px) * n, z);
+  }
+
   /** Write the state to the scene. */
   apply() {
     const st = this.state;
-    for (const g of this.roots) {
-      g.position.set(st.x, 0, st.z);
-      g.rotation.set(0, st.yaw, 0);
+    for (const g of this.roots) this.place(g, st.x, st.z, st.yaw);
+    for (const g of this.rivals) this.place(g, st.rival.x, st.rival.z, st.rival.yaw);
+    for (const [g, { baseX, period }] of this.roads) {
+      this.place(g, baseX - (period ? st.scroll % period : st.scroll), 0, 0);
     }
-    for (const [g, { baseX, period }] of this.roads) g.position.x = baseX - (period ? st.scroll % period : st.scroll);
     const p = this.prepared;
-    if (!p) return;
+    if (!p) {
+      for (const g of this.followers) {
+        g.position.set(0, 0, 0);
+        g.quaternion.identity();
+      }
+      return;
+    }
 
     // the body: pitch about the lateral axis, roll about the long one, both about the pivot
     _qPitch.setFromAxisAngle(AXLE, st.pitch);
@@ -308,6 +379,11 @@ export class CarRig {
     p.sprung.quaternion.copy(_qBody);
     p.sprung.position.copy(p.pivot).sub(_off);
     p.sprung.position.y += st.heave + st.ride;
+    // whatever else rides on the springs (the cabin) goes the same way
+    for (const g of this.followers) {
+      g.quaternion.copy(_qBody);
+      g.position.copy(p.sprung.position);
+    }
 
     for (const w of p.wheels) {
       const i = INDEX[w.corner];

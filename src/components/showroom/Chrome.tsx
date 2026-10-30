@@ -185,6 +185,15 @@ export function CarMenu({
       </button>
       {open && cars.length > 1 && (
         <ul role="listbox" aria-label="Cars" className={`absolute left-0 top-11 z-30 min-w-[210px] overflow-hidden rounded-2xl p-1.5 ${PANEL}`}>
+          {/* the way back to the line-up */}
+          <li role="presentation" className="mb-1 border-b border-black/[0.07] pb-1">
+            <Link href="/" onClick={() => setOpen(false)} className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-medium text-neutral-900 hover:bg-black/5 ${FOCUS}`}>
+              <svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden>
+                <path d="M11 5H1.5M5 1.5 1.2 5 5 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              All models
+            </Link>
+          </li>
           {cars.map((c) => (
             <li key={c.slug} role="option" aria-selected={c.slug === current}>
               <Link

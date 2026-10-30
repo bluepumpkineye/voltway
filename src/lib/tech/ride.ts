@@ -115,6 +115,8 @@ export interface Chassis {
   heave: number;
   /** nose-up positive, rad */
   pitch: number;
+  /** leaning right positive, rad (the Drive tab's curves; left out, the body stays level) */
+  roll?: number;
   /** each hub's lift over the road's level, m: FL, FR, RL, RR */
   lift: [number, number, number, number];
 }

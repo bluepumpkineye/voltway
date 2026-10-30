@@ -60,7 +60,7 @@ export interface CarFrame {
    * the menu at the top is than its one row): the poses frame the car in what is left, as the car's screen stands beside it
    * (Dashboard tab)
    */
-  inset?: { right: number; bottom: number; top?: number };
+  inset?: { right: number; bottom: number; top?: number; left?: number };
   /**
    * the floor a tech demo uses: its centre and the radius to keep in view, m (viewer axes); the part
    * of the window a device covers, as fractions (right: of the width, bottom: of the height), which the
@@ -70,7 +70,7 @@ export interface CarFrame {
     cx: number;
     cz: number;
     radius: number;
-    inset?: { right: number; bottom: number; top?: number };
+    inset?: { right: number; bottom: number; top?: number; left?: number };
     camera?: { az: number; el: number };
   };
 }
@@ -187,6 +187,26 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPo
   };
 }
 
+/** The Drive tab's seat: the same eye, looking along the road with the dash low in the picture, a wider lens. */
+function driveSeatPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPose {
+  const base = driverPose(vehicle, frame, aspect);
+  // the camera-matched eye is low against the dash (the wheel is at its height): a taller seat lifts the eye 10 cm, so that the road
+  // shows between the horizon and the dash instead of being hidden behind it
+  const x = base.pos[0];
+  const y = base.pos[1] + 0.1;
+  const z = base.pos[2];
+  return {
+    ...base,
+    id: 'driveSeat',
+    pos: [x, y, z],
+    target: [x + 0.15, y - 0.02, z],
+    // the cluster and the playback bar are drawn over the foot of the picture: nothing lifts it clear of them
+    liftPx: 0,
+    liftFrac: 0,
+    fov: aspect < 0.9 ? Math.min(88, 60 * (1 + (0.9 - aspect))) : 60,
+  };
+}
+
 export function resolveAnchor(
   id: AnchorId,
   vehicle: Vehicle,
@@ -194,6 +214,7 @@ export function resolveAnchor(
   aspect: number,
 ): AnchorPose {
   if (id === 'driver') return driverPose(vehicle, frame, aspect);
+  if (id === 'driveSeat') return driveSeatPose(vehicle, frame, aspect);
 
   const H = vehicle.dimensions.heightMm / 1000;
   const W = vehicle.dimensions.widthMm / 1000;
@@ -243,7 +264,9 @@ export function resolveAnchor(
     const half = Math.tan((s.fov * D2R) / 2);
     const elv = el * D2R;
     // the circle must fit across what is left of the screen, and (foreshortened by the elevation, plus the car's height) up it
-    const fitAcross = st.radius / (half * Math.max(aspect * (1 - inset.right), 0.3));
+    // (the Drive tab's column of data over the left of the stage is `left`: the stage is framed between it and the card at the right)
+    const left = inset.left ?? 0;
+    const fitAcross = st.radius / (half * Math.max(aspect * (1 - inset.right - left), 0.3));
     const fitUp = (st.radius * Math.sin(elv) + H) / (half * Math.max(1 - inset.bottom - (inset.top ?? 0), 0.3));
     const dist = 1.1 * Math.max(fitAcross, fitUp);
     const d = dirFrom(az, el);
@@ -267,7 +290,7 @@ export function resolveAnchor(
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * s.lift,
       liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
-      shiftFrac: inset.right / 2,
+      shiftFrac: (inset.right - left) / 2,
     };
   }
 

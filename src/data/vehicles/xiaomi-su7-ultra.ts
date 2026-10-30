@@ -334,6 +334,43 @@ export const xiaomiSu7Ultra: Vehicle = {
     simulated:
       'A simulation. The 5.2C and the eleven minutes are published; the peak is that C-rate times the pack, and the curve between is ours. The model has no charge flap, so the socket is drawn at a place on the left rear quarter that we chose, and the pedestal and the gun (styled on a generic charging connector, not Xiaomi’s or any maker’s) are ours. Eleven minutes play in fourteen seconds.',
   },
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). Figures are the variant's above; the modes' outputs are the
+  // maker's (816 / 1,346 / 1,548 PS), what each does to the pull, the split between the motors and the body's motion are ours.
+  drive: {
+    id: 'precision-launch',
+    title: 'Precision Launch & Sustained Power',
+    blurb:
+      'A clean 0–100 and 0–200 on three motors: the pull builds in a fraction of a second, the body stays level on its springs, and the drive mode decides how hard it all is.',
+    runs: [{ from: 100, to: 200 }],
+    modes: ['eco', 'standard', 'sport', 'drag'],
+    defaultMode: 'drag',
+    overlays: ['power', 'motors', 'energy'],
+    finish: 'coast',
+    chassis: { airSuspension: true },
+    ghost: { slug: 'byd-seal', variantId: '600-four-wheel-drive-smart-driving' },
+    camera: 'hero',
+    callouts: [
+      { cue: 'launch', text: 'Launch. The pull builds in 0.15 s and holds its peak: the tail squats and weight moves onto the rear axle.' },
+      { cue: 'pull', text: '100 km/h. Past here the pull is limited by power, not grip, so it eases as the speed climbs.' },
+      { cue: 'target', text: 'Off the power. The body settles back on its springs as the pull fades.' },
+    ],
+    claims: [
+      {
+        text: 'Three motors and 1,138 kW (1,548 PS): 0–100 km/h in 1.98 s and 0–200 km/h in 6.09 s.',
+        source: { label: 'CnEVPost, Xiaomi launches the SU7 Ultra, 27 February 2025', url: 'https://cnevpost.com/2025/02/27/xiaomi-launches-su7-ultra/' },
+      },
+      {
+        text: 'The drive modes limit the output to 816 PS (Endurance) and 1,346 PS (Qualifying); Drag race, with Boost, gives the full 1,548 PS.',
+        source: { label: 'China PEV, mode outputs 816 / 1,346 / 1,548 PS', url: 'https://www.chinapev.com/xiaomi/xiaomi-su7-ultra-officially-launched-starting-at-rmb-529900-ignite-your-driving-passion/' },
+      },
+      {
+        text: 'Xiaomi’s “2 seconds to 100” excludes rollout and needs Pirelli P Zero Trofeo RS semi-slick tyres.',
+        source: { label: 'Xiaomi, SU7 Ultra', url: 'https://www.xiaomiev.com/ultra' },
+      },
+    ],
+    simulated:
+      'The 100–200 run, the Eco and Standard modes’ times (scaled from the full-power run), the one-quarter-front, three-eighths-each-rear split of the drive and the body’s motion are ours.',
+  },
   sources: [
     { label: 'CnEVPost — Xiaomi launches SU7 Ultra', url: 'https://cnevpost.com/2025/02/27/xiaomi-launches-su7-ultra/' },
     { label: 'CnEVPost — 630 km on 93.7 kWh pack', url: 'https://cnevpost.com/2024/12/05/xiaomi-su7-ultra-range-630-km-93-kwh-battery/' },

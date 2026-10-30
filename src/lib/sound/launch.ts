@@ -109,6 +109,11 @@ export class LaunchAudioController {
     return this.audio?.currentTime ?? 0;
   }
 
+  /** the motor's loudness, 0 to 1: it fades while the car brakes or crawls (the Drive tab's scenarios) */
+  setGain(gain: number) {
+    if (this.audio) this.audio.volume = Math.min(1, Math.max(0, gain));
+  }
+
   setSpeed(speed: number) {
     if (this.audio) {
       this.audio.playbackRate = speed;

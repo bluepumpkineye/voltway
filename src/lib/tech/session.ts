@@ -36,6 +36,8 @@ export interface Runtime {
   charge?: Pick<ChargeRun, 'readout' | 'gun' | 'curve' | 'pedestal' | 'cableOut' | 'gunExit' | 'profile'> | null;
   /** the Autonomous Drive demo: the traffic, the car's own place among it and the readout at time t */
   sensors?: SensorsRun['scenario'] | null;
+  /** the Drive tab's rival drawn beside the car: who it is (the stand-in is its proxy model) */
+  rival?: { slug: string } | null;
   /** a chassis demo (crab walk, compass turn, U-turn): the wheels' readout at time t, the street and what the manoeuvre needed */
   chassis?: { readout: StreetRun['readout']; facts: StreetRun['facts']; stage: StreetStage } | null;
 }
@@ -87,4 +89,11 @@ export function useChargeReadout(): ChargeReadout | null {
   const charge = useRuntime()?.charge;
   const clock = useTechClock();
   return charge ? charge.readout(clock.t) : null;
+}
+
+/** The Drive tab's run speed at the clock's time, km/h (10 Hz while it runs), or null while no such run is on: the car's screens read it. */
+export function useDriveSpeed(): number | null {
+  const drive = useRuntime()?.launch?.drive;
+  const clock = useTechClock();
+  return drive ? drive.telemetry(clock.t).speed : null;
 }

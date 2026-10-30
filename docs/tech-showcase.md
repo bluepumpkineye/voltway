@@ -245,6 +245,8 @@ positions, 0 and 32 degrees (maker's page); the 7X has five named heights over a
 | Welcome sequence of the 7X | NOT built: no published sequence found (section 13) |
 | Street environment (`street.ts`, `viewer/TechStreet.tsx`), the lot's dressing (`dressLot`), proxies for the Z9 and the G9L | built; see section 14 |
 | Z9: crab walk, compass turn, e³ parking; G9L: rear-wheel-steering U-turn, nose-in parking (`chassis.ts`, `hmi/chassis.tsx`, `showroom/Chassis.tsx`) | built, played through, idle frames 0, wheelhouse probe clean; not yet seen by the owner (section 14) |
+| Drive tab: one scenario per car (`Vehicle.drive`, `drive-setup.ts`, `drive-run.ts`, `showroom/Drive.tsx`, `scripts/tech-tools/drive-test.mjs`) | built 2026-10-27, played through in the browser pane, tsc and eslint clean; not yet seen by the owner (section 19) |
+| Drive tab, data in motion (`motion.ts`, `drive-beats.ts`, `viewer/TechWheelFx.tsx`, `showroom/DriveMotion.tsx`, `showroom/driveTiles.tsx`, `scripts/tech-tools/motion-test.mjs`) | built 2026-10-30, played through on the SU7, RX, Seal, G9L, Z9 and a phone-sized window; tsc, eslint, tests and a production build clean; not yet seen by the owner (section 20) |
 
 ## 9. Magic Carpet (Zeekr 7X), Phase 3a
 
@@ -786,3 +788,243 @@ line (waiting from 12.3 s), people cross while it is red, and it moves off 1.2 s
 lane while the car has it). `stopAndGo` and `walker` are now exported from `scenes/city.ts`. Checked: `scene-test.mjs trafficlight` (nearest car 1.4 m,
 lead 3.75 m, people 3.2 m, accel -2.6 to 1.7 m/s^2), played in the Browser pane through amber, red, waiting, green and moving off; tsc and eslint clean.
 Not done: a production build in a copy, the owner's look at the lidar and the scene, the 510's demo without a lidar (it shows the pod).
+
+## 19. The Drive tab: one scenario per car (2026-10-27)
+
+**Owner request:** the Drive tab played the same standing start for every car. Each car now has a scenario of its own, built from
+what is particular to it (its motors, its chassis, its mode list), with the pull, the stop, the S-curve and the crab walk
+simulated on the variant's published figures.
+
+**The pieces.** `Vehicle.drive` (`DriveSpec`, schema.ts) is the car's scenario: its title and blurb, which of its own modes
+(`cockpit.driveModes`) and loads it offers, which instrument cards explain it (`overlays`, the first leading), what follows the pull
+(`finish`: coast, cruise or a stop; `manoeuvres`: sweep, slalom, crab), the 100-0 distance it is calibrated to, a chassis block
+(squat and roll per g, centre of gravity, rear-wheel limit, crab angle, air suspension), the drag coefficient when one is
+published, the rival the chart draws behind it, the camera it opens on, narrative callouts pinned to moments of the run, cited
+claims and a note on what is simulated. A car without one gets the generic scenario (the Xpeng P7+ today). The Voyah Passion S, added to the showroom the same week, has one too (section 20).
+`src/lib/tech/drive-setup.ts` turns a car, its trim and the visitor's choices into `DriveInput`; `src/lib/tech/drive-run.ts`
+(`planDrive`, no value imports: run it under Node) is the planner; `drive` in `demos.ts` hands it to the director;
+`showroom/Drive.tsx` is the panel; the GT7 cockpit HUD (`showroom/Launch.tsx`) is unchanged apart from reading the run's phase.
+Store: `drive` (`DriveChoice`: run, mode, load, camera, stop, rival). URL: `?tab=drive&variant=&run=&mode=&load=`.
+
+**The run** (all of it ours except the figures said below). The pull is the launch's (section 10: a plateau that builds in
+0.15 s and reaches 100 km/h at the maker's time, then falls as a power-limited car's, a = a0 (V100 / v)^p with p solved so that 200 km/h
+comes at its 0-200; where the maker has none, 3.15 times the 0-100 for a car that reaches 200 km/h, said on screen). New:
+- **Mode and load.** A mode's time is the 0-100 scaled by the cube root of the share of the peak it lets through (the car's own published
+  figure where it has one: the SU7 Ultra's Endurance, Qualifying and Drag race, else `lib/performance.ts`' factors) and a load's by
+  the mass ratio to the 0.4; the 0-200 keeps the shape. The panel says "modelled" (a star on the chip) once either differs from the
+  maker's own run (full power, driver alone: 75 kg is ours).
+- **Rolling pulls** (80-160 on the Seal, 80-140 on the ES8, 100-200 on the SU7, 0-150 on the 7X) come from the same curve.
+- **A stop**: calibrated so that 100-0 takes the published distance (RX 32.4 m, ES8 34.3 m; else 36 m, ours); the car lifts to the run's
+  speed first so the stop starts from it. The brake blend (regeneration limited to 30 % of the peak power and 0.3 g, fading below 8 km/h)
+  and the energy recovered are ours.
+- **S-curve under power** (Z9, 06T): a sine path of 1.0 m over 130 m wavelength, two periods, while the car pushes on at 0.26 g to
+  130 km/h (0.4 g lateral at most). The rear motors share the drive between the wheels by the lateral acceleration (outside wheel
+  favoured, up to 70/30); the body rolls on its spring (1.3 to 1.7 degrees per g, ours) and the rig's `roll` is now written by the
+  director (`Chassis.roll`).
+- **Slalom** (G9L): two periods of 1.4 m over 24 m at 16 km/h. The wheels' angles come from one rule, a rotation about a point on
+  the car's axis (`steerFor`: every wheel points along its own velocity), with the rear wheels turning against the front by 0.6 of
+  its angle, within their 15 degrees; the fronts then need less angle than they would alone, which the card reads out.
+- **Crab walk** (Z9): 1.8 m sideways at 7 km/h, the fronts at 15 degrees and the rears at their 10, as the Tech tab's crab walk.
+- **Telemetry** per instant (`DriveTelemetry`): power and torque (scaled so that the maker's own run draws the variant's peak), the
+  motors' shares and power, the rear axle's share of the weight (the transfer is a g times the centre of gravity's height over the
+  wheelbase), pitch, roll, each corner's spring travel, energy used and recovered, the range that energy would have driven (at the
+  car's ordinary consumption), drag, the wheels' angles. The split of the drive between the motors (a quarter to the front on three
+  motors, 40 to 60 on two) is ours, as is every damping figure.
+
+**The panel.** A column at the right of a wide window (a bar under the menu that opens over the car on a narrower one): the trim
+(from the car's variants that have a time), the car's modes, the load (where the scenario has one), what follows the run, four
+cameras (hero, chase, side, top: the stage's look, not rebuilding the run), the callout of the moment, the instrument cards, a speed
+chart with a rival's published pull behind it, and, at the end of a run, a summary with a link to the rival's Drive tab. The playback
+bar now stands on this tab as well (play, replay, scrub, speed) with the run's moments marked on it (launch, 100 km/h, peak, brake, stop,
+S-curve, slalom, crab walk); a click on a mark goes there. The HUD's motor sound fades while the car brakes or crawls (`setGain`).
+
+| Car | Scenario | After the pull | Leading instruments | Rival on the chart |
+|---|---|---|---|---|
+| SU7 Ultra | Precision Launch & Sustained Power | coast; 100-200 run; Eco to Drag race | power & torque, weight transfer, motors, energy | Seal AWD |
+| Luxeed RX | Track-Bred Sprint + Stop | 100-0 in 32.4 m | braking, suspension, motors, weight | 7X AWD |
+| BYD Seal | Balanced Performance Run | coast; 80-160 run | aero drag (Cd 0.219), power, energy | its own single-motor trim |
+| Zeekr 7X | SUV Supercar Launch | 0-150, then a 120 km/h cruise; load toggle | weight, suspension, motors, power | G9L |
+| Xpeng G9L | Effortless Authority + Maneuverability | slalom on the rear-wheel steering; load toggle | steering, weight, motors, power | 7X |
+| Denza Z9 | Hyper-GT Launch + Vectoring Mastery | S-curve under power, then a crab walk | motors (torque vectoring), steering, power, weight | 06T |
+| Avatr 06T | Shooting Brake Assault | S-curve under power | weight, suspension, motors, power | Z9 |
+| Nio ES8 | Refined Reserve Power | 100-0 in 34.3 m; 80-140 run; load toggle | suspension, braking, weight, energy | Z9 |
+
+**Figures from the brief that are not used, and why.** The scenario brief quoted figures that disagree with this repo's sourced
+data or that this repo has no trim for; the repo's figures stay, and the scenarios pick up a new trim by themselves:
+- SU7: the brief's Max AWD (3.08 s) is not in the data; the car here is the Ultra (1.98 s).
+- 7X: the brief says 500 kW, 790 Nm and 3.7 s; this file has the refreshed 7X at 585 kW and 2.98 s (Paul Tan, 2025-10-22), and press
+  quotes 475 kW and 3.8 s for the earlier Performance AWD.
+- 06T: the tri-motor trim (712 kW, 2.78 s, one front and two rear motors; CarNewsChina, 2026-04-23, as the search summary read it)
+  is not a variant here (pack and range reports disagree), so the motors drawn are a front and a rear one. Add it as a variant
+  with a `motorCount` of 3 and the rear pair draws as two motors, and the S-curve shows the vectoring.
+- RX: CnEVPost also says "as little as 3.6 s" for 0-100; this file has 3.9 s for the dual-motor car. Not changed.
+- ES8: the brief says 34.9 m for 100-0; NIO's page (cited in the 'primeride-launch' demo) says 34.3 m, which is used. That demo's text
+  also says 480 kW and 850 N·m against this file's 520 kW and 700 N·m: left alone, not asked.
+- Seal: Cd 0.219 is CarNewsChina's database figure (the maker's page was not read), cited as such.
+- Not built: a booking button, motor rpm (only the RX's 21,000 is published here and the gearing is not), a camera under the floor
+  (the camera cannot go below it: the X-ray sees through the body instead), a rival that squats and turns its wheels (its stand-in is
+  a marker of where the other car is).
+
+### Follow-up the same day: the S-curve bug, more cameras, a rival car, wet roads and hills, voice
+
+**The S-curve bug (owner's screenshot of the Z9).** The cabin is a second model that stands outside the exterior's `CarRoot`, so it
+stayed where the car started while the body moved sideways and turned: the seats showed through the windscreen out of place. The
+Tech tab hid the glass tint for that reason (`clearTab` in `CarModel`); the Drive tab, added later, did not. The cabin now rides with
+the car: `CarFollower` (`viewer/techRig.tsx`) takes the car's place on the floor (`CarRig.attachRoot`) and the body's pitch, roll and
+heave (`CarRig.attachFollower`, written in `apply` beside the Sprung group); the cabin is wrapped in it. The S-curve's wheels are
+drawn `SWEEP_STEER_DRAWN` (8) times wider than they turn, within 6 degrees, because the real angle at 100 km/h is about half a degree
+and cannot be seen; the readout gives the real angle and the panel says so (`DriveTelemetry.steerScale`).
+
+**Cameras.** Cabin: the driver's seat (`driveSeat` anchor: the camera-matched eye lifted 10 cm so that the road shows between the
+horizon and the dash, a 60 degree lens, a near plane of 10 cm so that the road 4 mm over the floor resolves 100 m away), the road rolling past the
+windscreen, the cabin and the road moving with the car (the camera follows the car's sideways travel and heading as deltas, so a drag
+still looks about), the HyperOS screen reading the run's speed (`useDriveSpeed`), the gear set to D while it is on. X-ray: the whole
+exterior goes to the pale ghost (`useBodyGhost`; the greenhouse's, the doors' and the glass' own X-ray as on the X-ray tab), wheels
+solid, and a schematic of what drives the car rides with the body (`viewer/TechPowertrain.tsx`): a flat battery between the axles
+and a motor at each place the variant has one, lit by the run's readout (the battery by the power, each motor by its share), with
+dots running from the battery to the motors under power and back under the brakes. **A schematic, said so:** the sizes and places
+come from the wheelbase and the track measured off the model; the maker publishes no layout of packs and motors that this follows.
+
+**Rival car.** The panel's "Rival car" switch draws the chart's rival beside the car (`viewer/TechRival.tsx`: its proxy model in neutral
+paint, as the Tech tab's parked cars, in the lane to the passenger's side, 3.4 m over; the road widens to 9.6 m). It stands abreast
+at the start and moves by its own published pull (`pullTrack`: the start speed held for the stand on the line, its pull curve, then
+the speed it reached), so the quicker car draws ahead; the panel reads the gap in metres. Its wheels do not turn and its body does not
+squat. Same wet and same hill as the car's, with its own grip (all-wheel-drive or not).
+
+**Wet road and hill** (`roadEnv`, drive-run.ts; all ours: the maker's run is dry and level). Wet: the acceleration is capped at the
+tyres' 0.72 g (all four wheels on an all-wheel-drive car, three fifths of that on a rear-driven one), the slip is 1.8 times, the stop is
+what they hold (0.7 g). Hill (down 6, level, up 6 per cent): g times the slope comes off the pull and goes on to the stop uphill, and into the
+force the battery feels, so a climb costs energy and a descent gives some back. A run on either is no longer the maker's figure (a
+star on the chip). Pictures: the wet road gets a dark gloss that mirrors the studio (`WetSheen`); a hill tilts the whole stage, road
+and car and cabin and rival, about a point on the floor 7 m behind the car for a climb and ahead of it for a descent
+(`CarRig.place`, `RigState.slope`), so that the road meets the studio's floor away from the car; the floor's mirror is off while it
+tilts, since the car would hang in its reflection. The 0-100 on a wet SU7 Ultra is 4.0 s (the 0.72 g plateau), 0.08 s slower
+uphill, and the 100-0 of a car calibrated to 34 m is 58 m wet.
+
+**Voice.** "Read the callouts" speaks each callout as the run reaches it, through the browser's own speech synthesis (nothing is sent
+anywhere), when the site's sound switch is on; what is said is the callout's first full sentence without its label (`spokenForm`),
+so that it is done before the next. A pause, a scrub or a new run stops it.
+
+The panel keeps all of this in the URL (`?tab=drive&run=&mode=&load=&road=wet&hill=6`). Tests: `drive-test.mjs check` now also covers
+the wet road, the hill, the stop on both and the rival's track.
+
+**Checked 2026-10-27:** tsc and eslint clean; `scripts/tech-tools/drive-test.mjs check` (the 0-100 and 0-200 reach the published times, the
+new planner agrees with `planLaunch` within 0.3 km/h through a pull to 200, a mode and a load slow the car in the right order, the stop
+is the published distance, the manoeuvres stay on the road and within the rear wheels' limits); `scripts/tech-tools/drive-cars.mjs`
+plays every car's scenario headlessly; the SU7, Z9, G9L, ES8 and RX played through in the browser pane (desktop and a 390 px window),
+mode, load, run and stop changed with the URL following. The follow-up (2026-10-27, later): the Z9's and the 06T's S-curve with the cabin in
+place, the Cabin and X-ray cameras on the SU7 and the Z9 (a car with no X-ray spec), the rival beside the SU7, a wet and a +6 % 7X, a phone-sized
+window; tsc, eslint, `drive-test.mjs check` and a production build clean. Not done: the owner's look; voice was not heard (the pane has no speech
+engine), only its text checked.
+
+## 20. The Drive tab's data in motion (2026-10-30)
+
+The owner's note: the figures sat on a card at the side, were static, and nobody read them. They are now set in motion over the scene,
+and the card keeps only the controls (trim, mode, load, "after the run", road, hill, rival, voice, camera), the narrative callout, the
+run's summary and the speed chart. The cards for power, weight, motors, suspension, brake, energy, drag and steering are gone from the
+card; each is a tile in the new column (below), and the wheels carry the motors' story themselves.
+
+**The method is Remotion's, the code is ours.** A picture is a function of the frame and keeps no state, so an animation is a value
+worked out from "seconds since it began": it plays forwards, paused, scrubbed and twice the same. That rules out CSS transitions for the
+data (a transition runs on the browser's clock, not the run's: it lags a scrub and does not play back), and the Remotion skill
+(`remotion-best-practices`) says as much. `src/lib/tech/motion.ts` has the few functions the data needs in Remotion's own names and
+shapes: `interpolate` (with `Easing`, including `bezier`), `spring` (the damped oscillator in closed form, so any t can be asked in any
+order), `presence` (in, hold, out), `stagger`, `countTo`, `flash`. The Remotion package is **not** a dependency: it is source-available
+under its own licence for companies, and the showroom needs a few pure functions, not a video renderer; if a video of a run is wanted
+later, a composition can import the same modules. No Remotion code is copied.
+
+**What the visitor sees**
+- **The wheels** (`viewer/TechWheelFx.tsx`). Each wheel wears a ring of light that hangs on its hub group (`RigWheel.steer`, so it
+  steers with the S-curve's turned wheels, rises with the wheel's travel and tilts with a hill): cyan for the front motor, amber for the
+  rear, green while a motor feeds the battery, red while the friction brakes work; a band runs round it the way the wheel turns, faster
+  the more energy has gone through. At the launch the wheels are lit in turn, as acts: the front motor's, then the rear motors', then
+  all (`launchActs`), the others dimmed; a car with one driven axle lights that axle. Where a split is the point (an act, the
+  S-curve, the brakes) a tag with the wheel's own kW stands over the wheel that faces the camera. A wheel's power is its motor's, shared
+  over the wheels it turns (`wheelsOf`): the Z9's front motor drives both front wheels, each rear motor its own wheel, so the S-curve's
+  torque vectoring shows as two rear rings of different brightness.
+- **Captions** in kinetic type over the road (`StageCaption`): a label, the headline's words rising out of masks one after another, a
+  rule, a line. For each act, for the moment the power peaks, for the S-curve ("The rear motors favour the outside wheel", on a car whose
+  rear motors are separate, else "S-curve under power"), the slalom, the crab walk, and the stop (the distance, stamped when the car
+  stops). One at a time: one that would cut across another waits, or is dropped if too little of its time is left to be read.
+- **The column of tiles** over the left of the stage (`showroom/DriveMotion.tsx`, the tiles in `showroom/driveTiles.tsx`), one for each
+  instrument the car's scenario lists (`DriveSpec.overlays`). A tile is a line of live figures; when the run comes to its moment it
+  opens into its own animation: the power's arc gauge rolling in with the peak marked, the torque flow's top view with the battery,
+  motors and wheels and dashes running along the wires, four coils
+  compressing, the brake's ruler and the motors' share of the stop, the energy against a magnified top 2 % of the pack, the drag's
+  streamlines, the steering's wheels at their angles. When a run begins the trim's published figures count up above the column.
+- **The chapters** (`beatPlan`): the launch (power, motors, suspension), the speed (drag, power, energy), each curve (steering,
+  motors, suspension), the stop (brake, suspension, energy). The car's own order of overlays says which tile a chapter
+  keeps open; with room for a second, the others about it take turns in that place. A chapter runs until the next begins, so the picture
+  is always on something. A window under 800 px tall opens one tile at a time and shows no intro.
+- **A narrow window** has no room for a tile to open over the car: it shows the line of the tile whose moment it is, under the
+  scenario bar, and the caption above the gauges. **Reduced motion:** tiles are open or shut with nothing in between, the intro is
+  static, captions appear and go.
+- The stage is now framed between the column and the card: `deviceInset` has a `left` (the Drive tab sets it from `RAIL_W`), used by
+  the `techWide` pose in `anchors.ts` (`fitAcross` and `shiftFrac`); the side camera no longer runs under the tiles.
+
+**Honest about what is ours.** The motors' split of a launch is modelled, not published, and the "all together" act says so. The act
+lines state the share the run has at the middle of the act (the planner moves the drive rearward as the weight does), so the caption
+and the tile's rows agree. The energy tile's magnified bar is labelled as such. Everything else on a tile is the run's own readout.
+
+**Tests.** `node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/motion-test.mjs check`: the interpolation,
+easing, spring (overshoot, no overshoot, settle time) and presence; the run's shape (launch, spans, peak); the wheels' levels for one,
+two and three motors; the acts (order, no gap, shares from the data, squeezed into a quick car's pull); the spotlight's cross-fade; the
+captions (order, never overlapping, the planner's own stop distance); the chapters (the first two tiles of a launch, every tile of the
+car gets a moment of its own, never more than two open, no jump in 20 ms); the brake's glow under the stop.
+
+**Checked 2026-10-30:** tsc, eslint (`src`), `motion-test.mjs check`, `drive-test.mjs check` and a production build clean; played through
+in the browser pane on the Z9 (the acts, the S-curve, the crab, the X-ray camera), the SU7, the RX (launch and stop, side camera), the
+Seal (aero), the G9L (slalom) and a 390 px window. The first frames of the pane's software renderer are slow (a screenshot a few seconds
+after a seek can show the previous frame): the pictures above were taken after a longer wait. Not done: the owner's look; the frame
+rate on a real GPU was not measured (the tiles re-render every frame the playhead moves: a few hundred SVG nodes).
+
+**Not built.** A video render of a run (Remotion proper), a tile for the rival's gap, thrust arrows on the road (they hide under the
+body from the camera's usual place; the rings on the wheels carry it), motor rpm.
+
+### Follow-up (2026-10-30, later): the cards float beside the car, and the weight card is gone
+
+The owner's note: still static; move the cards near the car, each at the part it explains (first with an animated arrow, see below); drop the
+weight-transfer and squat card from every car (not a priority, too much on the screen).
+
+- **The weight card is removed** from the type (`DriveOverlay`), the tiles, the chapters and every car's `overlays` (the callouts that
+  say the weight moves to the rear axle stay: they are narrative, not a card). The planner still computes the axle load.
+- **Floating cards** (`showroom/DriveMotion.tsx`): only the cards the run has come to are on screen (no line of shut tiles any more), each
+  beside the car, next to the part it explains. (The first version joined each card to its part by an animated arrow with a ring on the
+  part; the owner found it confusing and asked for it to go, see "Arrows removed" below: standing next to the part is enough.) Where
+  each stands (`targetsOf`, `drive-anchors.ts`): the
+  suspension at the tyre's arch (the rear in the pull, where the tail squats, the front under the brakes, where the nose dives), the brake
+  at the disc, the steering at the front wheel's leading edge (and the rear wheel's trailing edge on a car that steers them), the motors at
+  the hubs of the axles that have one, the power and the energy at the pack under the floor (the sill over it), the drag at the roof.
+- **Anchors** (`viewer/TechAnchors.tsx`, `drive-anchors.ts`): the points are in the model's frame (`anchorLocal`: from the wheelbase, the
+  track, the tyre radius, the body's width and height, all measured off the rig) and ride with the car (`CarFollower`); each frame they are
+  projected on to the window, on the side of the car the camera is on (held until the camera is half a metre over the middle the other
+  way), with the car's outline, and published in `driveAnchors`. Nothing is drawn by it.
+- **Layout** (`drive-layout.ts`, pure and tested): for each card a handful of places (left of the car, right, above, below, and hugging the
+  point, with a stack variant under or over a card already placed) is scored by how much would lie outside the free part of the window,
+  over the car, over the caption or the trim's figures, or over another card, how far it is from its point, and a bonus for the place it
+  had (so that it does not flip as the camera moves); cards that still overlap are pushed apart. The card then glides to its place
+  (`1 - exp(-10 dt)`), so a camera move is followed, not jumped to. The free part ends above the caption, which now stands over the road
+  just above the gauges.
+- **Fallbacks:** the cabin camera has nothing outside to stand next to, so the open cards stand in a column at the left; a narrow window
+  shows one line (the card whose moment it is) under the scenario bar, as before.
+- The stage keeps a left inset (`deviceInset.left`) so that the car is framed clear of the cards at its left.
+- **Tests** (`motion-test.mjs`): a card stays inside the free part, beside the car and clear of the caption; two cards do not overlap and a
+  short column is spread; a slot is kept while nothing changes; a card stands close to its point; the anchors mirror across the car and
+  lie where the hubs, the arch, the pack and the roof are; each instrument stands where it should.
+- **Arrows removed** (the owner's next note: "the animated arrows are confusing; floating near the relevant area should be good enough").
+  The arrow, its ring and the dashes are gone from `DriveMotion.tsx`, and `arrowTo` from `drive-layout.ts` with its tests. With nothing
+  to join a card to its part, the card stands closer to it (the gap to the car's outline or to the point is 14 px, not 26), and a test
+  holds a card within 120 px of its point. The cards still glide to their places as the camera moves, and a frame is drawn only while
+  one is on its way (the arrows' dashes had needed one every frame).
+
+**The Voyah Passion S** (added to `main` by the owner after the first version of this section: the exterior, cabin, proxy and shadow, the
+data file `src/data/vehicles/voyah-passion-s.ts`) has its scenario in that file: "Magic Carpet Launch", a launch to 100 km/h on the
+trim picked (3.8 s on the 680 AWD Ultra+, 5.9 s on the two single-motor trims) and a rolling 80-120 km/h pull, with the load toggle
+(a family and luggage, 455 kg, ours), air suspension on (`chassis.airSuspension`), the instruments suspension, weight, motors and power,
+and the 7X's AWD as the chart's rival. Every figure in it is the data file's own (510 kW, 770 N·m, 3.8 s on two motors; 290 kW, 410 N·m,
+5.9 s on one; 2,345 kg kerb weight); the claims cite the Autohome specification page that the data file already cites, which this
+session could not read (the sites were not reachable: the web fetch failed at the DNS lookup, and a later `curl` of them returned no
+connection), so those two claims rest on the data file's own reading. The maker publishes no 0-200, 100-0 or Cd for it, so none is invented:
+the 0-200 chip is estimated from the 0-100 (starred), the stop, if the visitor asks for one, uses the generic 36 m (ours), and there is no
+drag card. It opens on the flagship trim, as every car does (`flagshipVariant`): the 680 AWD Ultra+. A single-motor trim lights its rear wheels only: the front
+wheels are not driven, so neither the rings nor the tags light them.

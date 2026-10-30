@@ -1,0 +1,637 @@
+/*
+  The landing page. A calm lake at first light: the line-up stands on the water in a fan, the hero car in front and two rows behind it
+  facing outward, each with its reflection. The wordmark is at the top. Below the scene: the models as a plain grid (the
+  way in for a phone and for a keyboard), what the showroom does, and the small print.
+  Light, quiet, one warm accent (the pulse in the wordmark); motion is slow and stops with "reduce motion".
+*/
+.page {
+  --ink: #0d1626;
+  --ink-soft: #4a5873;
+  --line: rgba(13, 22, 38, 0.1);
+  --paper: #f4f5f7;
+  --accent: #ff6a1f;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* ------------------------------------------------------------------------------------------------------------- the scene */
+.hero {
+  /* the scene is as wide as the window, but never so wide that the fan needs more height than the window has */
+  --u: min(100vw, 1700px, max(calc((100svh - 56px) / 0.6), 1000px));
+  --horizon: 0.43;
+  --spread: 1;
+  --kk: 1;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: max(680px, min(calc(100svh - 56px), calc(var(--u) * 0.6)));
+  background: #cfdbee;
+}
+
+.sky {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: calc(var(--horizon) * 100%);
+  background:
+    radial-gradient(60% 55% at 50% 18%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #a9c4e6 0%, #c9d8ef 34%, #e9e2ee 62%, #f8e6dd 88%, #fbe9d9 100%);
+}
+
+.cloud {
+  position: absolute;
+  width: 34vw;
+  height: 7vw;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+  filter: blur(6px);
+  animation: drift 80s ease-in-out infinite alternate;
+}
+.cloud:nth-child(1) { top: 14%; left: -6%; }
+.cloud:nth-child(2) { top: 26%; right: -8%; width: 40vw; animation-duration: 110s; animation-direction: alternate-reverse; opacity: 0.85; }
+.cloud:nth-child(3) { top: 8%; left: 38%; width: 26vw; opacity: 0.55; animation-duration: 95s; }
+
+.ridges {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: calc(var(--horizon) * 100% - 15%);
+  height: 15%;
+}
+.ridges svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lakeRidges {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  top: calc(var(--horizon) * 100%);
+  height: 15%;
+  transform: scaleY(-1);
+  opacity: 0.32;
+  filter: blur(1.4px);
+  -webkit-mask-image: linear-gradient(0deg, #000, transparent 85%);
+  mask-image: linear-gradient(0deg, #000, transparent 85%);
+}
+.lakeRidges svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lake {
+  position: absolute;
+  inset: calc(var(--horizon) * 100%) 0 0 0;
+  background: linear-gradient(180deg, #ecdfe0 0%, #d6dfec 16%, #bfd0e4 52%, #aec4dd 100%);
+}
+.lake::before {
+  /* a faint light from the horizon on the water, and the glints in it */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(50% 22% at 50% 0%, rgba(255, 236, 218, 0.8), transparent 75%),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0) 0 9px, rgba(255, 255, 255, 0.2) 9px 10px);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 80%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 80%);
+  animation: shimmer 9s ease-in-out infinite alternate;
+}
+.lake::after {
+  /* the water ends in the page's own grey, so the scene and what follows are one surface */
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 20%;
+  background: linear-gradient(180deg, rgba(244, 245, 247, 0) 0%, rgba(244, 245, 247, 0.55) 55%, var(--paper) 100%);
+  z-index: 5;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------- the head */
+.head {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(22px, 4.8svh, 56px) 20px 0;
+  text-align: center;
+  pointer-events: none;
+}
+.head > * {
+  pointer-events: auto;
+}
+.title {
+  margin: 0;
+  line-height: 0;
+}
+.wordmark {
+  display: block;
+  width: clamp(260px, min(40vw, 70svh), 620px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 6px 18px rgba(255, 255, 255, 0.55));
+}
+.wordmark [data-letter] {
+  animation: letter 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.1s + var(--i) * 0.09s);
+}
+.wordmark [data-pulse],
+.wordmark [data-spark] {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation-duration: 5.2s;
+  animation-delay: 1.15s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+}
+.wordmark [data-pulse] {
+  animation-name: bolt;
+}
+.wordmark [data-spark] {
+  stroke-dasharray: 0.12 2;
+  stroke-dashoffset: 0.12;
+  opacity: 0;
+  animation-name: spark;
+}
+.eyebrow {
+  margin: clamp(14px, 2.4svh, 24px) 0 0;
+  font-size: clamp(11px, 1.05vw, 13px);
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #2d3d5c;
+  animation: fade 0.9s 1.2s both;
+}
+.lede {
+  margin: 10px 0 0;
+  max-width: 52ch;
+  text-wrap: balance;
+  font-size: clamp(15px, 1.4vw, 18px);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  animation: fade 0.9s 1.35s both;
+}
+/* ------------------------------------------------------------------------------------------------------------- the fan */
+.scene {
+  position: absolute;
+  inset: 0;
+  margin-inline: auto;
+  width: var(--u);
+  z-index: 3;
+}
+.fan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.slot {
+  position: absolute;
+  left: calc((0.5 + (var(--x) - 0.5) * var(--spread)) * 100%);
+  top: calc(var(--g) * 100%);
+  width: calc(var(--k) * var(--kk) * var(--u));
+  transform: translate(-50%, -100%);
+}
+.back { z-index: 1; }
+.mid { z-index: 2; }
+.front { z-index: 4; }
+
+.car {
+  position: relative;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  outline: none;
+  animation: rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d);
+  transition: opacity 0.35s, filter 0.35s;
+}
+.shadow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(24, 40, 68, 0.5), rgba(24, 40, 68, 0));
+  filter: blur(3px);
+}
+.pic {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+  filter: drop-shadow(0 10px 14px rgba(24, 40, 68, 0.18));
+}
+.mirror {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  height: auto;
+  transform: scaleY(-1);
+  opacity: 0.5;
+  filter: blur(1.6px) saturate(0.85);
+  /* the picture is turned upside down, and its mask with it: this fade runs from the tyres down */
+  -webkit-mask-image: linear-gradient(0deg, #000 0%, transparent 72%);
+  mask-image: linear-gradient(0deg, #000 0%, transparent 72%);
+  pointer-events: none;
+  transition: opacity 0.35s;
+}
+
+.tag {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  white-space: nowrap;
+  padding: 6px 14px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgba(13, 22, 38, 0.07), 0 6px 18px -10px rgba(13, 22, 38, 0.3);
+  transition: background 0.25s, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s;
+}
+.tag b {
+  font-size: clamp(8.5px, 0.72vw, 10px);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.tag span {
+  font-size: clamp(11px, 1.05vw, 14px);
+  font-weight: 650;
+  color: var(--ink);
+}
+.back .tag {
+  top: auto;
+  bottom: 100%;
+  margin: 0 0 9px;
+}
+
+.car:hover .pic,
+.car:focus-visible .pic {
+  transform: translateY(-7px) scale(1.035);
+}
+.car:hover .tag,
+.car:focus-visible .tag {
+  background: #fff;
+  transform: translateX(-50%) translateY(3px);
+  box-shadow: 0 0 0 1px rgba(13, 22, 38, 0.1), 0 12px 28px -10px rgba(13, 22, 38, 0.4);
+}
+.car:focus-visible .tag {
+  box-shadow: 0 0 0 2px var(--ink), 0 12px 28px -10px rgba(13, 22, 38, 0.4);
+}
+.fan:has(.car:hover) .car:not(:hover),
+.fan:has(.car:focus-visible) .car:not(:focus-visible) {
+  opacity: 0.55;
+  filter: saturate(0.75);
+}
+
+/* ------------------------------------------------------------------------------------------------------------ the models */
+.section {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+}
+.models {
+  padding: clamp(36px, 6vw, 72px) 0 clamp(28px, 5vw, 56px);
+}
+.kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.h2 {
+  margin: 8px 0 0;
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.sub {
+  margin: 10px 0 0;
+  max-width: 56ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.grid {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  color: inherit;
+  text-decoration: none;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--line), 0 14px 34px -26px rgba(13, 22, 38, 0.45);
+  outline: none;
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.3s;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0 0 1px rgba(13, 22, 38, 0.14), 0 26px 44px -26px rgba(13, 22, 38, 0.5);
+}
+.card:focus-visible {
+  box-shadow: 0 0 0 2px var(--ink), 0 26px 44px -26px rgba(13, 22, 38, 0.5);
+}
+.art {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background:
+    radial-gradient(70% 60% at 50% 100%, rgba(255, 236, 218, 0.9), transparent 70%),
+    linear-gradient(180deg, #d4e0f1 0%, #e8e3ee 58%, #f3e9e4 100%);
+}
+.art img {
+  position: absolute;
+  inset: 16px 22px 14px;
+  width: calc(100% - 44px);
+  height: calc(100% - 30px);
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 12px 14px rgba(24, 40, 68, 0.22));
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.card:hover .art img {
+  transform: translateY(-4px) scale(1.04);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px 18px;
+  flex: 1;
+}
+.brand {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.stats {
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.stats dt {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.stats dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.open {
+  margin-top: auto;
+  padding-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.open svg {
+  transition: transform 0.25s;
+}
+.card:hover .open svg {
+  transform: translateX(4px);
+}
+
+/* ---------------------------------------------------------------------------------------------------------- what it does */
+.does {
+  padding: clamp(28px, 5vw, 56px) 0;
+}
+.ways {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.ways li {
+  padding: 16px 16px 15px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.ways b {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+}
+.ways span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* ----------------------------------------------------------------------------------------------------------------- trust */
+.trust {
+  padding: clamp(20px, 4vw, 40px) 0 clamp(36px, 6vw, 72px);
+}
+.proof {
+  list-style: none;
+  margin: 0;
+  padding: clamp(18px, 3vw, 28px);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 22px 28px;
+  border-radius: 24px;
+  background: #0d1626;
+  color: #e8edf6;
+}
+.proof b {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  color: #fff;
+}
+.proof span {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #a9b6cc;
+}
+.proof i {
+  display: block;
+  margin-bottom: 8px;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------------------------------------------- footer */
+.foot {
+  border-top: 1px solid var(--line);
+  padding: 26px 0 40px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.foot .section {
+  display: grid;
+  gap: 10px;
+}
+.foot strong {
+  color: var(--ink);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.foot a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------- motion */
+/* the bolt: drawn in about a second, held, faded out, then drawn again */
+@keyframes bolt {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  19% { stroke-dashoffset: 0; opacity: 1; }
+  74% { stroke-dashoffset: 0; opacity: 1; }
+  90% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 1; opacity: 0; }
+}
+/* the pen tip: a short bright dash that stays at the head of the line while it is drawn */
+@keyframes spark {
+  0% { stroke-dashoffset: 0.12; opacity: 1; }
+  19% { stroke-dashoffset: -0.88; opacity: 1; }
+  19.5% { stroke-dashoffset: -0.88; opacity: 0; }
+  100% { stroke-dashoffset: -0.88; opacity: 0; }
+}
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes letter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes drift {
+  from { transform: translateX(-3vw); }
+  to { transform: translateX(5vw); }
+}
+@keyframes shimmer {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud,
+  .lake::before,
+  .wordmark [data-letter],
+  .wordmark [data-pulse],
+  .wordmark [data-spark],
+  .eyebrow,
+  .lede,
+  .car {
+    animation: none;
+  }
+  .pic,
+  .card,
+  .art img {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------------------------------- phone */
+/* a short window has no room for the line between the title and the back row: the eyebrow stays */
+@media (min-width: 761px) and (max-height: 780px) {
+  .lede {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .ways {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .ways {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero {
+    --u: 100vw;
+    --spread: 0.86;
+    --kk: 1.5;
+    height: max(600px, 152vw);
+  }
+  .ridges {
+    height: 11%;
+    top: calc(var(--horizon) * 100% - 11%);
+  }
+  .lakeRidges {
+    height: 11%;
+  }
+  .tag {
+    margin-top: 8px;
+    padding: 4px 10px 5px;
+  }
+  .tag b {
+    font-size: 8px;
+  }
+  .tag span {
+    font-size: 11px;
+  }
+  /* the cars are small here and the hero hides the names of the ones beside it: only the hero is named, the grid below names them all */
+  .slot:not(.front) .tag {
+    display: none;
+  }
+}

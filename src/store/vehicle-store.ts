@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import type { DriveMode } from '@/lib/performance';
-import type { AnchorId, TechDevice } from '@/data/vehicles/schema';
+import type { AnchorId, DriveCamera, TechDevice } from '@/data/vehicles/schema';
 import { isLowBeam, type LightMode } from '@/lib/lights';
 import type { ParkSpeed, ParkStage } from '@/lib/tech/park';
 import type { Pivot, StreetStage } from '@/lib/tech/street';
@@ -62,6 +62,37 @@ export type ShowroomTab = 'colour' | 'interior' | 'dashboard' | 'wheels' | 'dime
 
 /** The tabs that stage the car on a floor of its own and play a demonstration on it (src/lib/tech). */
 export const isStageTab = (tab: ShowroomTab) => tab === 'tech' || tab === 'charging' || tab === 'drive';
+
+export type DriveSurface = 'dry' | 'wet';
+
+/** What the visitor has chosen on the Drive tab (src/lib/tech/drive-setup.ts); null leaves the choice to the car's scenario. */
+export interface DriveChoice {
+  /** the run, "0-100" */
+  run: string | null;
+  /** the car's own drive mode, by its id */
+  mode: string | null;
+  /** the load, by its id */
+  load: string | null;
+  /** the camera the visitor picked (the scenario opens on its own) */
+  cam: DriveCamera | null;
+  /** a stop after the run: the visitor's choice */
+  brake: boolean | null;
+  /** the rival the chart draws behind the car (a slug), or '' for none */
+  ghost: string | null;
+  /** the rival's stand-in car drawn beside the car, on the road, moving by its own pull */
+  rival: boolean | null;
+  /** the callouts spoken as the run reaches them */
+  voice: boolean | null;
+  /** the road: dry (the maker's own run) or wet */
+  surface: DriveSurface | null;
+  /** the hill, per cent: negative downhill; null is level */
+  grade: number | null;
+}
+
+export const DRIVE_CHOICE_NONE: DriveChoice = { run: null, mode: null, load: null, cam: null, brake: null, ghost: null, rival: null, voice: null, surface: null, grade: null };
+
+/** The X-ray view: the X-ray tab, or the Drive tab's X-ray camera (the body see-through, the motors and the battery drawn). */
+export const isXrayView = (s: { tab: ShowroomTab; drive: DriveChoice }) => s.tab === 'xray' || (s.tab === 'drive' && s.drive.cam === 'xray');
 
 /** Which end of the car the Dashboard tab looks at: the lamps are at both. */
 export type LightsView = 'front' | 'rear';
@@ -200,6 +231,8 @@ export interface VehicleUiState {
   techSpeed: number;
   /** launch demo target threshold in km/h (100 or 200) */
   launchTarget: number;
+  /** the Drive tab's choices: run, mode, load, camera, a stop, the rival on the chart */
+  drive: DriveChoice;
   /**
    * the floor the running demo uses (viewer axes, m): the camera keeps it in view; `camera` is the
    * demo's preferred look (azimuth and elevation, degrees)
@@ -209,7 +242,7 @@ export interface VehicleUiState {
    * the part of the window the devices of the Tech and Dashboard tabs cover, as fractions (right: of
    * the width, bottom: of the height); the camera frames the car clear of it
    */
-  deviceInset: { right: number; bottom: number };
+  deviceInset: { right: number; bottom: number; left?: number };
   /**
    * How much taller the menu at the top of the showroom is than its one row (a Tech demo's second row, a phone's wrapped
    * tabs), as a fraction of the window's height: the camera keeps the car clear of it, as it does of a device
@@ -305,6 +338,8 @@ export interface VehicleUiState {
   setTechDemo: (id: string) => void;
   setTechSpeed: (speed: number) => void;
   setLaunchTarget: (speed: number) => void;
+  /** change some of the Drive tab's choices (one that does not fit the trim is ignored by the setup) */
+  setDrive: (patch: Partial<DriveChoice>) => void;
   setTechStage: (stage: VehicleUiState['techStage']) => void;
   setTechScene: (scene: ParkStage | null) => void;
   setTechStreet: (street: StreetStage | null) => void;
@@ -336,7 +371,7 @@ export interface VehicleUiState {
 
 const anchorState = (anchorId: AnchorId) => ({
   anchorId,
-  cameraMode: anchorId === 'driver' ? ('interior' as const) : ('exterior' as const),
+  cameraMode: anchorId === 'driver' || anchorId === 'driveSeat' ? ('interior' as const) : ('exterior' as const),
 });
 
 const initialClimate: ClimateState = {
@@ -427,6 +462,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   techDemoId: '',
   techSpeed: 1,
   launchTarget: 100,
+  drive: DRIVE_CHOICE_NONE,
   techStage: null,
   deviceInset: { right: 0, bottom: 0 },
   uiTop: 0,
@@ -542,13 +578,14 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setTechDemo: (techDemoId) => set({ techDemoId }),
   setTechSpeed: (techSpeed) => set({ techSpeed }),
   setLaunchTarget: (launchTarget) => set({ launchTarget }),
+  setDrive: (patch) => set((st) => ({ drive: { ...st.drive, ...patch } })),
   setTechStage: (techStage) => set({ techStage }),
   setTechScene: (techScene) => set({ techScene }),
   setTechStreet: (techStreet) => set({ techStreet }),
   setCompass: (compassPivot, compassAngle) => set({ compassPivot, compassAngle }),
   setDeviceInset: (deviceInset) =>
     set((s) =>
-      s.deviceInset.right === deviceInset.right && s.deviceInset.bottom === deviceInset.bottom ? {} : { deviceInset },
+      s.deviceInset.right === deviceInset.right && s.deviceInset.bottom === deviceInset.bottom && (s.deviceInset.left ?? 0) === (deviceInset.left ?? 0) ? {} : { deviceInset },
     ),
   setUiTop: (uiTop) => set((s) => (Math.abs(s.uiTop - uiTop) < 0.002 ? {} : { uiTop })),
   setTechStatus: (techStatus) => set({ techStatus }),
@@ -632,6 +669,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       techDemoId: '',
       techSpeed: 1,
       launchTarget: 100,
+      drive: DRIVE_CHOICE_NONE,
       techStage: null,
       techScene: null,
       techStreet: null,

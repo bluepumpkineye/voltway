@@ -434,6 +434,36 @@ export const luxeedRx: Vehicle = {
       devOnly: true,
     },
   ],
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). The stop is calibrated to the 32.4 m CnEVPost quotes; CnEVPost
+  // also says 0-100 "as little as 3.6 s" for the best trim, where this file's dual-motor figure is 3.9 s (not changed here).
+  drive: {
+    id: 'sprint-stop',
+    title: 'Track-Bred Sprint + Stop',
+    blurb:
+      'A 0–100 run and then, at once, a hard stop from 100 km/h: the launch, then the deceleration, the nose dive, and how much the motors take back.',
+    modes: ['eco', 'comfort', 'sport', 'sport-plus'],
+    defaultMode: 'sport-plus',
+    overlays: ['brake', 'suspension', 'motors'],
+    finish: 'brake',
+    brake100M: 32.4,
+    chassis: { airSuspension: true },
+    ghost: { slug: 'zeekr-7x', variantId: 'awd' },
+    camera: 'side',
+    callouts: [
+      { cue: 'launch', text: 'Launch. Both motors pull and weight moves to the rear axle: the tail squats.' },
+      { cue: 'target', text: '100 km/h. Off the power, then straight to the brakes.' },
+      { cue: 'brake', text: 'Hard stop. Weight swings to the front axle and the nose dives; the motors take back a little, the friction brakes do the rest.' },
+      { cue: 'stop', text: 'Stopped from 100 km/h.' },
+    ],
+    claims: [
+      {
+        text: 'The RX stops from 100 km/h in 32.4 m.',
+        source: { label: 'CnEVPost, Luxeed launches the RX, 28 September 2026', url: 'https://cnevpost.com/2026/09/28/luxeed-launches-rx-suv/' },
+      },
+    ],
+    simulated:
+      'The stop is calibrated to the 32.4 m. How the braking is split between the motors’ regeneration and the friction brakes, the dive and the energy are ours.',
+  },
   sources: [
     { label: 'CnEVPost - Luxeed opens RX pre-orders', url: 'https://cnevpost.com/2026/08/20/luxeed-opens-pre-orders-rx-suv/' },
     { label: 'CarNewsChina - 586 hp, pre-orders Aug 20', url: 'https://carnewschina.com/2026/08/18/cherys-luxeed-rx-from-ex-ferrari-designer-586-hp-to-start-pre-orders-on-august-20/' },

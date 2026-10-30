@@ -302,7 +302,9 @@ export type AnchorId =
   // the Dashboard tab: the car's screen beside the car, looking at one end of it
   | 'dashFront'
   | 'dashRear'
-  | 'driver';
+  | 'driver'
+  // the Drive tab's seat: the driver's eye looking down the road, not at the dash
+  | 'driveSeat';
 
 /**
  * What a car offers the showroom. Colour values are matched by eye to the
@@ -420,6 +422,76 @@ export interface TechDemoSpec {
    * 'city', src/lib/tech/sensors.ts). Left out, the driver's first.
    */
   scenario?: string;
+}
+
+/** The instrument cards of the Drive tab's panel; a car's scenario lists the ones that explain it, the first leading. */
+export type DriveOverlay = 'power' | 'motors' | 'suspension' | 'brake' | 'energy' | 'aero' | 'steering';
+
+/** The moments of a Drive run a callout can be pinned to (src/lib/tech/drive-run.ts gives each a time). */
+export type DriveCue = 'launch' | 'pull' | 'target' | 'cruise' | 'brake' | 'stop' | 'sweep' | 'slalom' | 'crab';
+
+/** What a car does after the pull, in its scenario: manoeuvres follow one another, a stop is the visitor's choice. */
+export type DriveManoeuvre = 'sweep' | 'slalom' | 'crab';
+
+/** The Drive tab's cameras: four outside, one in the driver's seat (the cabin rides with the car), one with the body see-through and the motors and battery drawn. */
+export type DriveCamera = 'hero' | 'chase' | 'side' | 'top' | 'cabin' | 'xray';
+
+/**
+ * One car's Drive scenario (docs/tech-showcase.md section 19): what the run is, which of the car's own modes and loads
+ * it offers, which instruments explain it and what follows the pull. The numbers behind the run (the 0-100 time, the
+ * power, the weight) are the variant's; this is the part that is particular to the car, so that two cars do not play the
+ * same sequence. Everything about the motion is simulated and says so in `simulated`.
+ */
+export interface DriveSpec {
+  id: string;
+  /** the scenario's name, "Track-Bred Sprint + Stop" */
+  title: string;
+  /** one line about what the visitor sees */
+  blurb: string;
+  /** runs besides 0-100 (and 0-200, where the variant has a time for it), km/h; a rolling pull starts above 0 */
+  runs?: { from: number; to: number }[];
+  /** the run shown first, "0-100"; the first of the list otherwise */
+  defaultRun?: string;
+  /** the car's own modes (ids from `cockpit.driveModes`) the scenario offers, and the one it opens in (the full-power one) */
+  modes: string[];
+  defaultMode: string;
+  /** the loads on offer (payload on top of the kerb weight); left out, the driver alone */
+  loads?: { id: string; label: string; payloadKg: number }[];
+  /** the instrument cards, the first leading */
+  overlays: DriveOverlay[];
+  /** what follows the pull: the speed is held (coast), eased to `cruiseKmh` and held, or the car brakes to a stop */
+  finish: 'coast' | 'cruise' | 'brake';
+  cruiseKmh?: number;
+  /** the maker's 100-0 km/h braking distance, m, which the stop is calibrated to (else 36 m, ours) */
+  brake100M?: number;
+  /** after the pull, in this order, on runs that end at 150 km/h or less */
+  manoeuvres?: DriveManoeuvre[];
+  /**
+   * What the car's chassis does, where it differs from the generic car (all ours unless a claim says otherwise): the
+   * nose-up squat in degrees per g, the roll in degrees per g, the centre of gravity's height, the rear axle's share of
+   * the static weight, the crab angle and the largest rear-wheel angle (published where the claims say so).
+   */
+  chassis?: {
+    squatDegPerG?: number;
+    rollDegPerG?: number;
+    cgHeightM?: number;
+    staticRear?: number;
+    airSuspension?: boolean;
+    rearSteerMaxDeg?: number;
+    crabDeg?: number;
+  };
+  /** the drag coefficient, when it is published, and the frontal area if it is not the dimensions' 0.85 x width x height */
+  aero?: { cd: number; areaM2?: number };
+  /** the rival whose speed curve the chart draws behind the car's own */
+  ghost?: { slug: string; variantId?: string };
+  /** the camera the run opens on */
+  camera?: DriveCamera;
+  /** short lines pinned to the moments of the run */
+  callouts: { cue: DriveCue; text: string }[];
+  /** published facts shown with the scenario, each cited */
+  claims: TechClaim[];
+  /** what is illustrative */
+  simulated: string;
 }
 
 /**
@@ -569,6 +641,8 @@ export interface Vehicle {
   glass?: { color: string; opacity: number; privacy?: number; reflect?: number; privacyReflect?: number };
   /** The Tech tab's demonstrations, see TechDemoSpec. */
   tech?: TechDemoSpec[];
+  /** The Drive tab's scenario for this car; left out, a standing start to 100 km/h and on to 200, see DriveSpec. */
+  drive?: DriveSpec;
   /**
    * The DC charge port, for the Charging tab's gun: the mouth of the DC socket in the viewer's axes (x forward, y up,
    * z toward the passenger side), the direction pointing out of it, and how far a gun's nose goes in, m. A car whose

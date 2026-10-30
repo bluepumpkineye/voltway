@@ -61,11 +61,14 @@ export function TechControls({
   onSpeed,
   disabled,
   spec,
+  markers,
 }: {
   speed: number;
   onSpeed: (s: number) => void;
   disabled?: string;
   spec?: TechDemoSpec;
+  /** named moments of the run (the Drive tab's launch, brake, stop), marked on the scrubber and jumped to by a click */
+  markers?: { t: number; label: string }[];
 }) {
   const clock = useTechClock();
   const resume = React.useRef(false);
@@ -124,6 +127,18 @@ export function TechControls({
           onChange={(e) => techClock.seek(Number(e.target.value))}
           className="h-1 w-full min-w-0 cursor-pointer accent-neutral-900 disabled:cursor-default disabled:opacity-35"
         />
+        {clock.duration > 0 &&
+          markers?.map((m) => (
+            <button
+              key={`${m.label}-${m.t}`}
+              type="button"
+              title={`${m.label} · ${m.t.toFixed(1)} s`}
+              aria-label={`Go to ${m.label}`}
+              onClick={() => techClock.seek(m.t)}
+              className={`absolute top-1/2 h-3 w-[3px] -translate-y-1/2 rounded bg-cyan-600/70 hover:bg-cyan-600 ${FOCUS}`}
+              style={{ left: `calc(${(m.t / clock.duration) * 100}% * 0.96 + 2%)` }}
+            />
+          ))}
         {/* where the demonstration waits for the visitor (the car parked, until they ask for the way out) */}
         {clock.duration > 0 &&
           clock.stops.map((s) => (

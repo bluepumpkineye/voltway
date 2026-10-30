@@ -379,6 +379,40 @@ export const denzaZ9: Vehicle = {
     simulated:
       'A simulation. The 19 minutes from 10 to 80 % is the configuration table’s; no peak power is published for this car, so the peak is derived from the window’s average power and the curve is ours. No source says which side the charge port is on, and the model has none: the socket is drawn on the left rear quarter at a place we chose, and the pedestal and the gun (styled on a generic charging connector, not Denza’s or any maker’s) are ours. Nineteen minutes play in fourteen seconds.',
   },
+  // The Drive tab's scenario (docs/tech-showcase.md section 19). Crab walk: front wheels 15 degrees, rear wheels at most 10 (the
+  // 'crab' demo above); the sources describe the Z9 GT, which shares the platform.
+  drive: {
+    id: 'hyper-gt',
+    title: 'Hyper-GT Launch + Vectoring Mastery',
+    blurb:
+      'A three-motor launch, an S-curve under power where the two rear motors share the drive to turn the car, then a crab walk on the rear-wheel steering.',
+    modes: ['eco', 'comfort', 'sport'],
+    defaultMode: 'sport',
+    overlays: ['motors', 'steering', 'power'],
+    finish: 'coast',
+    manoeuvres: ['sweep', 'crab'],
+    chassis: { airSuspension: true, rearSteerMaxDeg: 10, crabDeg: 15 },
+    ghost: { slug: 'avatr-06t', variantId: '650-ultra-ev-awd' },
+    camera: 'chase',
+    callouts: [
+      { cue: 'launch', text: 'Launch. Three motors pull together; weight moves to the rear axle.' },
+      { cue: 'sweep', text: 'Torque vectoring. In the curve the rear motors favour the outside wheel and push the car round.' },
+      { cue: 'crab', text: 'Crab walk. All four wheels turn the same way and the car slides sideways. The rear wheels stop at 10°; the rear motors’ differential does the rest.' },
+      { cue: 'stop', text: 'Parked.' },
+    ],
+    claims: [
+      {
+        text: 'The e³ platform pairs three motors driving independently with independent dual-motor rear-wheel steering.',
+        source: { label: 'BYD China, 22 August 2024', url: 'https://www.byd.com/cn/news/2024/detail543' },
+      },
+      {
+        text: 'In a crab walk the rear wheels steer up to ±10°; with the rear motors’ differential, the crab angle reaches 15°.',
+        source: { label: 'Xchuxing, Z9 GT drive', url: 'https://www.xchuxing.com/article/133019' },
+      },
+    ],
+    simulated:
+      'The S-curve, the crab’s pace (7 km/h) and shift (1.8 m), and how far the rear motors favour the outside wheel are ours. The sources describe the Z9 GT, which shares this platform.',
+  },
   sources: [
     { label: 'Autohome — 腾势Z9 Specifications (Series 7838)', url: 'https://www.autohome.com.cn/7838/' },
     { label: 'Denza Official — Z9 Executive Flagship Sedan', url: 'https://www.denza.com/' },
