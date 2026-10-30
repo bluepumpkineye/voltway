@@ -246,6 +246,7 @@ positions, 0 and 32 degrees (maker's page); the 7X has five named heights over a
 | Street environment (`street.ts`, `viewer/TechStreet.tsx`), the lot's dressing (`dressLot`), proxies for the Z9 and the G9L | built; see section 14 |
 | Z9: crab walk, compass turn, e³ parking; G9L: rear-wheel-steering U-turn, nose-in parking (`chassis.ts`, `hmi/chassis.tsx`, `showroom/Chassis.tsx`) | built, played through, idle frames 0, wheelhouse probe clean; not yet seen by the owner (section 14) |
 | Drive tab: one scenario per car (`Vehicle.drive`, `drive-setup.ts`, `drive-run.ts`, `showroom/Drive.tsx`, `scripts/tech-tools/drive-test.mjs`) | built 2026-10-27, played through in the browser pane, tsc and eslint clean; not yet seen by the owner (section 19) |
+| Drive tab, data in motion (`motion.ts`, `drive-beats.ts`, `viewer/TechWheelFx.tsx`, `showroom/DriveMotion.tsx`, `showroom/driveTiles.tsx`, `scripts/tech-tools/motion-test.mjs`) | built 2026-10-30, played through on the SU7, RX, Seal, G9L, Z9 and a phone-sized window; tsc, eslint, tests and a production build clean; not yet seen by the owner (section 20) |
 
 ## 9. Magic Carpet (Zeekr 7X), Phase 3a
 
@@ -916,3 +917,70 @@ place, the Cabin and X-ray cameras on the SU7 and the Z9 (a car with no X-ray sp
 window; tsc, eslint, `drive-test.mjs check` and a production build clean. Not done: the owner's look; voice was not heard (the pane has no speech
 engine), only its text checked.
 
+## 20. The Drive tab's data in motion (2026-10-30)
+
+The owner's note: the figures sat on a card at the side, were static, and nobody read them. They are now set in motion over the scene,
+and the card keeps only the controls (trim, mode, load, "after the run", road, hill, rival, voice, camera), the narrative callout, the
+run's summary and the speed chart. The cards for power, weight, motors, suspension, brake, energy, drag and steering are gone from the
+card; each is a tile in the new column (below), and the wheels carry the motors' story themselves.
+
+**The method is Remotion's, the code is ours.** A picture is a function of the frame and keeps no state, so an animation is a value
+worked out from "seconds since it began": it plays forwards, paused, scrubbed and twice the same. That rules out CSS transitions for the
+data (a transition runs on the browser's clock, not the run's: it lags a scrub and does not play back), and the Remotion skill
+(`remotion-best-practices`) says as much. `src/lib/tech/motion.ts` has the few functions the data needs in Remotion's own names and
+shapes: `interpolate` (with `Easing`, including `bezier`), `spring` (the damped oscillator in closed form, so any t can be asked in any
+order), `presence` (in, hold, out), `stagger`, `countTo`, `flash`. The Remotion package is **not** a dependency: it is source-available
+under its own licence for companies, and the showroom needs a few pure functions, not a video renderer; if a video of a run is wanted
+later, a composition can import the same modules. No Remotion code is copied.
+
+**What the visitor sees**
+- **The wheels** (`viewer/TechWheelFx.tsx`). Each wheel wears a ring of light that hangs on its hub group (`RigWheel.steer`, so it
+  steers with the S-curve's turned wheels, rises with the wheel's travel and tilts with a hill): cyan for the front motor, amber for the
+  rear, green while a motor feeds the battery, red while the friction brakes work; a band runs round it the way the wheel turns, faster
+  the more energy has gone through. At the launch the wheels are lit in turn, as acts: the front motor's, then the rear motors', then
+  all (`launchActs`), the others dimmed; a car with one driven axle lights that axle. Where a split is the point (an act, the
+  S-curve, the brakes) a tag with the wheel's own kW stands over the wheel that faces the camera. A wheel's power is its motor's, shared
+  over the wheels it turns (`wheelsOf`): the Z9's front motor drives both front wheels, each rear motor its own wheel, so the S-curve's
+  torque vectoring shows as two rear rings of different brightness.
+- **Captions** in kinetic type over the road (`StageCaption`): a label, the headline's words rising out of masks one after another, a
+  rule, a line. For each act, for the moment the power peaks, for the S-curve ("The rear motors favour the outside wheel", on a car whose
+  rear motors are separate, else "S-curve under power"), the slalom, the crab walk, and the stop (the distance, stamped when the car
+  stops). One at a time: one that would cut across another waits, or is dropped if too little of its time is left to be read.
+- **The column of tiles** over the left of the stage (`showroom/DriveMotion.tsx`, the tiles in `showroom/driveTiles.tsx`), one for each
+  instrument the car's scenario lists (`DriveSpec.overlays`). A tile is a line of live figures; when the run comes to its moment it
+  opens into its own animation: the power's arc gauge rolling in with the peak marked, the torque flow's top view with the battery,
+  motors and wheels and dashes running along the wires, the weight's side view with the discs growing at the axles, four coils
+  compressing, the brake's ruler and the motors' share of the stop, the energy against a magnified top 2 % of the pack, the drag's
+  streamlines, the steering's wheels at their angles. When a run begins the trim's published figures count up above the column.
+- **The chapters** (`beatPlan`): the launch (power, motors, weight, suspension), the speed (drag, power, energy), each curve (steering,
+  motors, weight, suspension), the stop (brake, weight, suspension, energy). The car's own order of overlays says which tile a chapter
+  keeps open; with room for a second, the others about it take turns in that place. A chapter runs until the next begins, so the picture
+  is always on something. A window under 800 px tall opens one tile at a time and shows no intro.
+- **A narrow window** has no room for a tile to open over the car: it shows the line of the tile whose moment it is, under the
+  scenario bar, and the caption above the gauges. **Reduced motion:** tiles are open or shut with nothing in between, the intro is
+  static, captions appear and go.
+- The stage is now framed between the column and the card: `deviceInset` has a `left` (the Drive tab sets it from `RAIL_W`), used by
+  the `techWide` pose in `anchors.ts` (`fitAcross` and `shiftFrac`); the side camera no longer runs under the tiles.
+
+**Honest about what is ours.** The motors' split of a launch is modelled, not published, and the "all together" act says so. The act
+lines state the share the run has at the middle of the act (the planner moves the drive rearward as the weight does), so the caption
+and the tile's rows agree. The energy tile's magnified bar is labelled as such. Everything else on a tile is the run's own readout.
+
+**Tests.** `node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/motion-test.mjs check`: the interpolation,
+easing, spring (overshoot, no overshoot, settle time) and presence; the run's shape (launch, spans, peak); the wheels' levels for one,
+two and three motors; the acts (order, no gap, shares from the data, squeezed into a quick car's pull); the spotlight's cross-fade; the
+captions (order, never overlapping, the planner's own stop distance); the chapters (the first two tiles of a launch, every tile of the
+car gets a moment of its own, never more than two open, no jump in 20 ms); the brake's glow under the stop.
+
+**Checked 2026-10-30:** tsc, eslint (`src`), `motion-test.mjs check`, `drive-test.mjs check` and a production build clean; played through
+in the browser pane on the Z9 (the acts, the S-curve, the crab, the X-ray camera), the SU7, the RX (launch and stop, side camera), the
+Seal (aero), the G9L (slalom) and a 390 px window. The first frames of the pane's software renderer are slow (a screenshot a few seconds
+after a seek can show the previous frame): the pictures above were taken after a longer wait. Not done: the owner's look; the frame
+rate on a real GPU was not measured (the tiles re-render every frame the playhead moves: a few hundred SVG nodes).
+
+**Not built.** A video render of a run (Remotion proper), a tile for the rival's gap, thrust arrows on the road (they hide under the
+body from the camera's usual place; the rings on the wheels carry it), motor rpm.
+
+**The Voyah Passion S** is not in the showroom yet: the repository has no data file and no model for it (a car needs the built
+exterior, cabin, proxy and shadow of `docs/3d-pipeline.md`), and the sites that hold its specifications were not reachable from the
+session that did this work (the web fetch failed at the DNS lookup, so nothing was read, and nothing was written from memory).

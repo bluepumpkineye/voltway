@@ -215,6 +215,14 @@ export class CarRig {
     return this.prepared !== null;
   }
 
+  /** The mounted exterior's wheels, each with its hub group (it yaws with the steering and rises with the wheel's travel): what the Drive tab hangs its wheel lights on. */
+  get wheels(): readonly RigWheel[] | null {
+    return this.prepared?.wheels ?? null;
+  }
+
+  /** Counts the exteriors mounted (a new trim or a reload mounts a new one), so that whatever hangs on the wheels hangs again. */
+  mounts = 0;
+
   private subs = new Set<() => void>();
 
   /** For React: tells when a rigged exterior is mounted or goes (see `ready`). */
@@ -231,11 +239,13 @@ export class CarRig {
 
   attach(p: PreparedRig): () => void {
     this.prepared = p;
+    this.mounts++;
     this.apply();
     this.changed();
     return () => {
       if (this.prepared === p) {
         this.prepared = null;
+        this.mounts++;
         this.changed();
       }
     };

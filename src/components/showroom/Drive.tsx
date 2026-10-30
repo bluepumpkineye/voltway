@@ -2,13 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import type { DriveOverlay, Vehicle } from '@/data/vehicles/schema';
+import type { Vehicle } from '@/data/vehicles/schema';
 import { vehicles } from '@/data/vehicles';
 import { techClock, useTechClock } from '@/lib/tech/clock';
 import { soundOn, subscribeSound } from '@/lib/sound/engine';
 import { useRuntime } from '@/lib/tech/session';
 import { DRIVE_CAMERAS, camerasOf, driveSetup, type DriveSetup } from '@/lib/tech/drive-setup';
-import { HOLD, pullCurve, type DriveFacts, type DriveTelemetry } from '@/lib/tech/drive-run';
+import { HOLD, pullCurve, type DriveFacts } from '@/lib/tech/drive-run';
 import { rivalEnv, rivalOf, rivalTrack } from '@/lib/tech/drive-rival';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { BELOW_TOP, FOCUS, GLASS, PANEL } from './Chrome';
@@ -56,339 +56,6 @@ function Seg<T extends string>({
     </div>
   );
 }
-
-function Card({ title, lead, children }: { title: string; lead?: boolean; children: React.ReactNode }) {
-  return (
-    <section className={`rounded-xl px-3 py-2.5 ${lead ? 'bg-neutral-900 text-white' : 'bg-black/[0.04] text-neutral-800'}`}>
-      <h3 className={`mb-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-/** A horizontal bar from 0 (or from the middle, if signed) with a fill that follows the value. */
-function Bar({ value, max, color = 'bg-cyan-500', signed = false, dark = false }: { value: number; max: number; color?: string; signed?: boolean; dark?: boolean }) {
-  const x = clamp(value / max, signed ? -1 : 0, 1);
-  return (
-    <div className={`relative h-1.5 w-full overflow-hidden rounded-full ${dark ? 'bg-white/15' : 'bg-black/10'}`}>
-      {signed && <span className={`absolute left-1/2 top-0 h-full w-px ${dark ? 'bg-white/40' : 'bg-black/30'}`} />}
-      <span
-        className={`absolute top-0 h-full rounded-full transition-[width,left] duration-100 ease-linear ${color}`}
-        style={signed ? { left: `${50 + Math.min(0, x) * 50}%`, width: `${Math.abs(x) * 50}%` } : { left: 0, width: `${x * 100}%` }}
-      />
-    </div>
-  );
-}
-
-function Stat({ label, value, unit, dark = false }: { label: string; value: string; unit?: string; dark?: boolean }) {
-  return (
-    <div className="min-w-0">
-      <div className={`text-[10px] ${dark ? 'text-neutral-400' : 'text-neutral-500'}`}>{label}</div>
-      <div className="tnum text-[17px] font-semibold leading-tight">
-        {value}
-        {unit && <span className={`ml-0.5 text-[11px] font-normal ${dark ? 'text-neutral-400' : 'text-neutral-500'}`}>{unit}</span>}
-      </div>
-    </div>
-  );
-}
-
-/** The car from above: four wheels, each turned by its angle and shaded by how hard it is driven. */
-function TopCar({ steer, drive, dark = false }: { steer: [number, number, number, number]; drive: [number, number, number, number]; dark?: boolean }) {
-  const L = 62;
-  const track = 30;
-  const spots: [number, number][] = [
-    [-track / 2, -L / 2],
-    [track / 2, -L / 2],
-    [-track / 2, L / 2],
-    [track / 2, L / 2],
-  ];
-  return (
-    <svg viewBox="-34 -48 68 96" className="h-[88px] w-[62px] shrink-0" aria-hidden>
-      <rect x={-12} y={-L / 2 - 6} width={24} height={L + 12} rx={9} fill={dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)'} stroke={dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.25)'} />
-      <line x1={0} y1={-L / 2} x2={0} y2={L / 2} stroke={dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.12)'} strokeDasharray="2 3" />
-      {spots.map(([x, y], i) => (
-        <g key={i} transform={`translate(${x} ${y}) rotate(${steer[i]})`}>
-          <rect
-            x={-3.4}
-            y={-8}
-            width={6.8}
-            height={16}
-            rx={2}
-            fill={`rgba(245,158,11,${0.12 + 0.88 * clamp(drive[i], 0, 1)})`}
-            stroke={dark ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)'}
-            strokeWidth={0.8}
-          />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-// ------------------------------------------------------------------------------------------- the instruments
-
-interface Ctx {
-  tel: DriveTelemetry;
-  facts: DriveFacts;
-  setup: DriveSetup;
-  peakKw: number;
-}
-
-function PowerCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, peakKw, setup } = c;
-  const peakNm = setup.input.peakNm;
-  const regen = tel.powerKw < 0;
-  return (
-    <Card title="Power & torque" lead={lead}>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat dark={lead} label={regen ? 'Recovered' : 'Power'} value={f0(Math.abs(tel.powerKw))} unit="kW" />
-        <Stat dark={lead} label="Torque" value={tel.torqueNm === null ? '–' : f0(Math.abs(tel.torqueNm))} unit={tel.torqueNm === null ? undefined : 'Nm'} />
-        <Stat dark={lead} label="Accel" value={f2(tel.g)} unit="g" />
-      </div>
-      <div className="mt-2 space-y-1.5">
-        <Bar dark={lead} value={Math.abs(tel.powerKw)} max={peakKw} color={regen ? 'bg-emerald-500' : 'bg-amber-400'} />
-        {peakNm !== undefined && <Bar dark={lead} value={Math.abs(tel.torqueNm ?? 0)} max={peakNm} color={tel.torqueNm !== null && tel.torqueNm < 0 ? 'bg-emerald-500' : 'bg-cyan-400'} />}
-        <Bar dark={lead} value={tel.g} max={1.6} signed color={tel.g < 0 ? 'bg-rose-500' : 'bg-cyan-400'} />
-      </div>
-      <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        Bars: power of {f0(peakKw)} kW, torque of {peakNm ?? '–'} Nm, acceleration.
-      </p>
-    </Card>
-  );
-}
-
-function WeightCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel } = c;
-  const rear = tel.axleRear * 100;
-  const squat = (tel.corner[2] + tel.corner[3]) / 2;
-  return (
-    <Card title="Weight transfer & squat" lead={lead}>
-      <div className="flex items-center gap-3">
-        <svg viewBox="-60 -26 120 52" className="h-[52px] w-[110px] shrink-0" aria-hidden>
-          <line x1={-58} y1={20} x2={58} y2={20} stroke={lead ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)'} />
-          <g transform={`rotate(${-tel.pitchDeg * 6} 0 6)`}>
-            <path
-              d="M-48 12 L-46 0 Q-40 -10 -22 -12 L8 -13 Q30 -12 42 -2 L50 6 L50 12 Z"
-              fill={lead ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.08)'}
-              stroke={lead ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)'}
-              strokeWidth={1.2}
-            />
-          </g>
-          <circle cx={-32} cy={14} r={6} fill="none" stroke={lead ? '#fff' : '#111'} strokeWidth={1.4} />
-          <circle cx={34} cy={14} r={6} fill="none" stroke={lead ? '#fff' : '#111'} strokeWidth={1.4} />
-        </svg>
-        <div className="grid flex-1 grid-cols-2 gap-x-2">
-          <Stat dark={lead} label="Pitch" value={`${tel.pitchDeg >= 0 ? '+' : ''}${f1(tel.pitchDeg)}`} unit="°" />
-          <Stat dark={lead} label="Rear squat" value={f0(squat)} unit="mm" />
-        </div>
-      </div>
-      <div className="mt-2">
-        <div className={`mb-0.5 flex justify-between text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-          <span className="tnum">Front {f0(100 - rear)} %</span>
-          <span className="tnum">Rear {f0(rear)} %</span>
-        </div>
-        <div className={`flex h-1.5 overflow-hidden rounded-full ${lead ? 'bg-white/15' : 'bg-black/10'}`}>
-          <span className="h-full bg-sky-400 transition-[width] duration-100 ease-linear" style={{ width: `${100 - rear}%` }} />
-          <span className="h-full bg-amber-400 transition-[width] duration-100 ease-linear" style={{ width: `${rear}%` }} />
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function MotorsCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, facts, peakKw, setup } = c;
-  const ms = facts.motors;
-  const modePeak = peakKw * setup.input.powerFrac;
-  const level = (id: string) => {
-    const j = ms.findIndex((m) => m.id === id);
-    return j < 0 ? 0 : clamp(tel.motorKw[j] / Math.max(modePeak * 0.55, 1), 0, 1);
-  };
-  const wheel = (corner: 0 | 1 | 2 | 3) => {
-    const front = corner < 2;
-    const left = corner % 2 === 0;
-    if (front) return level('front');
-    return Math.max(level(left ? 'rear-left' : 'rear-right'), level('rear'));
-  };
-  const rl = ms.findIndex((m) => m.id === 'rear-left');
-  const rr = ms.findIndex((m) => m.id === 'rear-right');
-  const showSplit = rl >= 0 && rr >= 0;
-  return (
-    <Card title={ms.length > 2 ? 'Tri-motor torque flow' : ms.length === 2 ? 'Dual-motor torque flow' : 'Motor'} lead={lead}>
-      <div className="flex items-center gap-3">
-        <TopCar dark={lead} steer={[0, 0, 0, 0]} drive={[wheel(0), wheel(1), wheel(2), wheel(3)]} />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          {ms.map((m, j) => (
-            <div key={m.id}>
-              <div className={`flex justify-between text-[10px] ${lead ? 'text-neutral-300' : 'text-neutral-600'}`}>
-                <span>{m.label}</span>
-                <span className="tnum">
-                  {f0(tel.motorShare[j] * 100)} % · {f0(tel.motorKw[j])} kW
-                </span>
-              </div>
-              <Bar dark={lead} value={tel.motorShare[j]} max={1} color="bg-amber-400" />
-            </div>
-          ))}
-        </div>
-      </div>
-      {showSplit && (
-        <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-          {tel.phase === 'crab'
-            ? 'The rear motors turn the two wheels at different rates, a differential that holds the crab angle.'
-            : Math.abs(tel.vectoring) > 0.04
-              ? `Torque vectoring: the rear motors favour the ${tel.vectoring > 0 ? 'right' : 'left'} wheel, ${f0(50 + Math.abs(tel.vectoring) * 50)} to ${f0(50 - Math.abs(tel.vectoring) * 50)}.`
-              : 'Driving straight, the rear motors share equally.'}
-        </p>
-      )}
-    </Card>
-  );
-}
-
-function SuspensionCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, setup } = c;
-  const names = ['Front left', 'Front right', 'Rear left', 'Rear right'];
-  return (
-    <Card title="Suspension" lead={lead}>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-        {tel.corner.map((mm, i) => (
-          <div key={names[i]}>
-            <div className={`flex justify-between text-[10px] ${lead ? 'text-neutral-300' : 'text-neutral-600'}`}>
-              <span>{names[i]}</span>
-              <span className="tnum">
-                {mm >= 0 ? '+' : ''}
-                {f0(mm)} mm
-              </span>
-            </div>
-            <Bar dark={lead} value={mm} max={45} signed color={mm >= 0 ? 'bg-amber-400' : 'bg-sky-400'} />
-          </div>
-        ))}
-      </div>
-      <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        {setup.spec.chassis?.airSuspension ? 'Air suspension. ' : ''}+ compressed, − extended. Body roll {tel.rollDeg >= 0 ? '+' : ''}
-        {f1(tel.rollDeg)}°.
-      </p>
-    </Card>
-  );
-}
-
-function BrakeCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, facts } = c;
-  const braking = tel.g < -0.05 && tel.speed > 0.5;
-  const regen = braking ? tel.regenFrac : 0;
-  const sum = facts.summary;
-  return (
-    <Card title="Braking" lead={lead}>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat dark={lead} label="Decel" value={braking ? f2(-tel.g) : '0.00'} unit="g" />
-        <Stat dark={lead} label="Distance" value={f1(tel.brakeDistM)} unit="m" />
-        <Stat dark={lead} label="Motors" value={f0(regen * 100)} unit="%" />
-      </div>
-      <div className="mt-2">
-        <div className={`mb-0.5 flex justify-between text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-          <span>Regeneration</span>
-          <span>Friction brakes</span>
-        </div>
-        <div className={`flex h-1.5 overflow-hidden rounded-full ${lead ? 'bg-white/15' : 'bg-black/10'}`}>
-          <span className="h-full bg-emerald-500 transition-[width] duration-100 ease-linear" style={{ width: `${regen * 100}%` }} />
-          <span className="h-full bg-rose-500 transition-[width] duration-100 ease-linear" style={{ width: braking ? `${(1 - regen) * 100}%` : '0%' }} />
-        </div>
-      </div>
-      <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        {sum.brakeM === null
-          ? 'Switch on “Then stop” to see a full stop.'
-          : `Stop from ${f0(sum.brakeFromKmh ?? 0)} km/h: ${f1(sum.brakeM)} m in ${f1(sum.brakeS ?? 0)} s.`}
-      </p>
-    </Card>
-  );
-}
-
-function EnergyCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, setup } = c;
-  const net = tel.energyWh - tel.regenWh;
-  return (
-    <Card title="Energy & range" lead={lead}>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat dark={lead} label="Used" value={f0(tel.energyWh)} unit="Wh" />
-        <Stat dark={lead} label="Recovered" value={f0(tel.regenWh)} unit="Wh" />
-        <Stat dark={lead} label="Range cost" value={tel.rangeKm === null ? '–' : f2(tel.rangeKm)} unit={tel.rangeKm === null ? undefined : 'km'} />
-      </div>
-      <div className="mt-2">
-        <Bar dark={lead} value={Math.max(net, 0)} max={Math.max(setup.variant.battery.capacityKwh * 5, 1)} color="bg-amber-400" />
-      </div>
-      <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        Of a {f0(setup.variant.battery.capacityKwh)} kWh pack; the range is what the same energy drives at the car’s ordinary consumption.
-      </p>
-    </Card>
-  );
-}
-
-function AeroCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, setup } = c;
-  const total = Math.max(Math.abs(tel.powerKw), 1);
-  const share = tel.powerKw > 1 ? clamp(tel.dragKw / total, 0, 1) : 0;
-  return (
-    <Card title="Aero drag" lead={lead}>
-      <div className="grid grid-cols-3 gap-2">
-        <Stat dark={lead} label="Drag force" value={f0(tel.dragN)} unit="N" />
-        <Stat dark={lead} label="Drag power" value={f0(tel.dragKw)} unit="kW" />
-        <Stat dark={lead} label="Speed" value={f0(tel.speed)} unit="km/h" />
-      </div>
-      <div className="mt-2">
-        <Bar dark={lead} value={tel.dragN} max={1500} color="bg-sky-400" />
-      </div>
-      <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        {setup.spec.aero ? `Cd ${setup.spec.aero.cd}. ` : ''}Drag grows with the square of the speed; now it takes {f0(share * 100)} % of the power.
-      </p>
-    </Card>
-  );
-}
-
-function SteeringCard({ c, lead }: { c: Ctx; lead: boolean }) {
-  const { tel, facts } = c;
-  const hasRear = facts.rearSteerMaxDeg > 0;
-  const crab = tel.phase === 'crab';
-  // the axle angles are enough for the drawing (the car's own wheels take the planner's per-corner angles)
-  const steer: [number, number, number, number] = [tel.steerFront, tel.steerFront, tel.steerRear, tel.steerRear];
-  const active = tel.phase === 'slalom' || tel.phase === 'crab';
-  return (
-    <Card title={hasRear ? 'Rear-wheel steering' : 'Steering'} lead={lead}>
-      <div className="flex items-center gap-3">
-        <TopCar dark={lead} steer={steer} drive={[0, 0, 0, 0]} />
-        <div className="grid flex-1 grid-cols-2 gap-x-2 gap-y-1">
-          <Stat dark={lead} label="Front" value={`${tel.steerFront >= 0 ? '+' : ''}${f1(tel.steerFront)}`} unit="°" />
-          <Stat dark={lead} label="Rear" value={hasRear ? `${tel.steerRear >= 0 ? '+' : ''}${f1(tel.steerRear)}` : '0.0'} unit="°" />
-          {crab ? (
-            <Stat dark={lead} label="Crab angle" value={f1(Math.abs(tel.crabDeg))} unit="°" />
-          ) : (
-            <Stat dark={lead} label="Curve radius" value={tel.radius === null || tel.radius > 150 ? '–' : f1(tel.radius)} unit={tel.radius === null || tel.radius > 150 ? undefined : 'm'} />
-          )}
-          {hasRear && !crab && <Stat dark={lead} label="Front alone" value={f1(Math.abs(tel.frontOnly))} unit="°" />}
-        </div>
-      </div>
-      <p className={`mt-1.5 text-[10px] ${lead ? 'text-neutral-400' : 'text-neutral-500'}`}>
-        {tel.steerScale > 1
-          ? `The wheels turn this little in a gentle curve at speed; the car draws them ${tel.steerScale} times wider so that it shows.`
-          : hasRear
-          ? active
-            ? crab
-              ? 'All four wheels turn the same way: the car slides sideways without turning.'
-              : `The rear wheels turn against the front: the fronts need ${f1(Math.abs(tel.frontOnly) - Math.abs(tel.steerFront))}° less than they would alone.`
-            : `Rear wheels turn up to ${facts.rearSteerMaxDeg}°; they come into play in the slow manoeuvres.`
-          : 'Front wheels steer the car.'}
-      </p>
-    </Card>
-  );
-}
-
-const CARDS: Record<DriveOverlay, (p: { c: Ctx; lead: boolean }) => React.JSX.Element> = {
-  power: PowerCard,
-  weight: WeightCard,
-  motors: MotorsCard,
-  suspension: SuspensionCard,
-  brake: BrakeCard,
-  energy: EnergyCard,
-  aero: AeroCard,
-  steering: SteeringCard,
-};
 
 // ------------------------------------------------------------------------------------------- the chart
 
@@ -638,6 +305,16 @@ function PostRun({ vehicle, setup, facts, ghostSlug, onClose }: { vehicle: Vehic
   );
 }
 
+/** The scenario as the visitor has set it (trim, mode, load, run, stop, road and hill): what the planner was given. */
+export function useDriveSetup(vehicle: Vehicle): DriveSetup {
+  const choice = useVehicleStore((s) => s.drive);
+  const variantId = useVehicleStore((s) => s.variantId);
+  return React.useMemo(
+    () => driveSetup(vehicle, { variantId, runId: choice.run, modeId: choice.mode, loadId: choice.load, brake: choice.brake, surface: choice.surface, grade: choice.grade }),
+    [vehicle, variantId, choice.run, choice.mode, choice.load, choice.brake, choice.surface, choice.grade],
+  );
+}
+
 function PanelBody({ vehicle }: { vehicle: Vehicle }) {
   const choice = useVehicleStore((s) => s.drive);
   const variantId = useVehicleStore((s) => s.variantId);
@@ -647,13 +324,9 @@ function PanelBody({ vehicle }: { vehicle: Vehicle }) {
   const facts = useRuntime()?.launch?.drive ?? null;
   const [hidden, setHidden] = React.useState(false);
 
-  const setup = React.useMemo(
-    () => driveSetup(vehicle, { variantId, runId: choice.run, modeId: choice.mode, loadId: choice.load, brake: choice.brake }),
-    [vehicle, variantId, choice.run, choice.mode, choice.load, choice.brake],
-  );
+  const setup = useDriveSetup(vehicle);
   const { spec } = setup;
   const ghostSlug = choice.ghost ?? spec.ghost?.slug ?? '';
-  const tel = facts ? facts.telemetry(clock.t) : null;
   const canSpeak = useVoice(setup, facts, Boolean(choice.voice));
   const rivalCar = React.useMemo(() => rivalOf(vehicles, vehicle, spec, ghostSlug), [vehicle, spec, ghostSlug]);
   const canBeside = Boolean(rivalCar?.car.assets.proxyUrl);
@@ -661,8 +334,6 @@ function PanelBody({ vehicle }: { vehicle: Vehicle }) {
   // a new run shows its summary again
   React.useEffect(() => setHidden(false), [setup.run.id, setup.mode.id, setup.load.id, variantId, setup.brake]);
 
-  const ctx: Ctx | null = facts && tel ? { tel, facts, setup, peakKw: setup.variant.performance.powerKw } : null;
-  const cards = spec.overlays.filter((o, i, all) => all.indexOf(o) === i);
   const trims = vehicle.variants.filter((v) => v.performance.zeroTo100S !== undefined);
 
   return (
@@ -760,15 +431,6 @@ function PanelBody({ vehicle }: { vehicle: Vehicle }) {
 
       {done && facts && !hidden && <PostRun vehicle={vehicle} setup={setup} facts={facts} ghostSlug={ghostSlug} onClose={() => setHidden(true)} />}
 
-      {ctx && (
-        <div className="space-y-2">
-          {cards.map((o, i) => {
-            const Card = CARDS[o];
-            return <Card key={o} c={ctx} lead={i === 0} />;
-          })}
-        </div>
-      )}
-
       {facts && (
         <section className="rounded-xl bg-black/[0.04] px-3 py-2.5">
           <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-neutral-500">Speed against time</h3>
@@ -791,8 +453,8 @@ export function DrivePanel({ vehicle, column }: { vehicle: Vehicle; column: bool
     return (
       <aside
         aria-label="Drive scenario"
-        className={`hy-scroll pointer-events-auto absolute right-3 bottom-3 z-20 overflow-y-auto rounded-2xl p-3 ${BELOW_TOP} ${PANEL}`}
-        style={{ width: DRIVE_COLUMN_W }}
+        className={`hy-scroll pointer-events-auto absolute right-3 z-20 overflow-y-auto rounded-2xl p-3 ${BELOW_TOP} ${PANEL}`}
+        style={{ width: DRIVE_COLUMN_W, maxHeight: 'calc(100% - var(--top-ui, 56px) - 20px)' }}
       >
         <PanelBody vehicle={vehicle} />
       </aside>

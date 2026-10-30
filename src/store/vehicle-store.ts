@@ -242,7 +242,7 @@ export interface VehicleUiState {
    * the part of the window the devices of the Tech and Dashboard tabs cover, as fractions (right: of
    * the width, bottom: of the height); the camera frames the car clear of it
    */
-  deviceInset: { right: number; bottom: number };
+  deviceInset: { right: number; bottom: number; left?: number };
   /**
    * How much taller the menu at the top of the showroom is than its one row (a Tech demo's second row, a phone's wrapped
    * tabs), as a fraction of the window's height: the camera keeps the car clear of it, as it does of a device
@@ -585,7 +585,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   setCompass: (compassPivot, compassAngle) => set({ compassPivot, compassAngle }),
   setDeviceInset: (deviceInset) =>
     set((s) =>
-      s.deviceInset.right === deviceInset.right && s.deviceInset.bottom === deviceInset.bottom ? {} : { deviceInset },
+      s.deviceInset.right === deviceInset.right && s.deviceInset.bottom === deviceInset.bottom && (s.deviceInset.left ?? 0) === (deviceInset.left ?? 0) ? {} : { deviceInset },
     ),
   setUiTop: (uiTop) => set((s) => (Math.abs(s.uiTop - uiTop) < 0.002 ? {} : { uiTop })),
   setTechStatus: (techStatus) => set({ techStatus }),

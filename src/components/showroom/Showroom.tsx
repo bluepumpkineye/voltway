@@ -24,6 +24,7 @@ import { showroomCars } from '@/lib/showroom/cars';
 import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
 import { ChassisTools, NoseInTools } from './Chassis';
 import { DRIVE_COLUMN_W, DrivePanel } from './Drive';
+import { DriveMotion, RAIL_W } from './DriveMotion';
 import { LaunchTools } from './Launch';
 import { ParkAssistTools } from './ParkAssist';
 import { SensorsTools } from './Sensors';
@@ -340,8 +341,12 @@ export function Showroom({
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
       else setDeviceInset({ right: 0, bottom: 0.48 });
     } else if (tab === 'drive') {
-      // the panel at the right of a wide window, the instruments and the playback bar under the car
-      setDeviceInset({ right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : 0, bottom: 0.4 });
+      // the card at the right of a wide window and the column of data at the left, the gauges and the playback bar under the car
+      setDeviceInset({
+        right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : 0,
+        left: dash.wide ? Math.min(0.3, (RAIL_W + 24) / dash.vw) : 0,
+        bottom: 0.4,
+      });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
   }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
@@ -516,6 +521,7 @@ export function Showroom({
         </div>
       )}
 
+      {ready && tab === 'drive' && <DriveMotion vehicle={vehicle} column={dash.wide} />}
       {ready && tab === 'drive' && <DrivePanel vehicle={vehicle} column={dash.wide} />}
 
       <div
