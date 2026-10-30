@@ -423,28 +423,52 @@ def build_emblem(collection, lib):
 
 
 # -------------------------------------------------------- hood ridges
+RIDGE_X0 = 1.02          # a little ahead of the cowl
+RIDGE_X1 = 2.56          # where the sweep would end if the hood went on (it does not: see _ridge_end)
+
+
+def _ridge_xy(t):
+    """The ridge's centreline on the plan, one side (+y): from the cowl at y 0.44 forward and inwards."""
+    return RIDGE_X0 + (RIDGE_X1 - RIDGE_X0) * t, 0.44 - 0.22 * (t ** 1.2)
+
+
+def _ridge_end(inset=0.012):
+    """The sweep parameter at which the ridge reaches the hood's front edge (the shut line to the nose cap,
+    N.JOIN_F at the hood's own v there), stopped `inset` short of it. The first build ran the sweep on to
+    x 2.56, 0.26 m past the edge and out over the prow, where the two lines hung in the air."""
+    for k in range(401):
+        t = k / 400.0
+        x, y = _ridge_xy(t)
+        if x >= N.JOIN_F(S.v_at_y_upper(x, y)) - inset:
+            return t
+    return 1.0
+
+
 def build_hood_features(collection, lib):
-    """Twin sculpted power bulges / crease ridges on the front hood (c1_0002.jpg)
-    sweeping forward from cowl (y=0.44, z=0.96) to front prow (y=0.24, z=0.74).
-    """
-    made = []
-    nc = 28
-    for side in (-1, 1):
-        cols = []
-        for i in range(nc + 1):
-            t = i / float(nc)
-            x = 1.02 + (2.56 - 1.02) * t
-            y_c = (0.44 - 0.22 * (t ** 1.2)) * side
-            z_c = S.Z_ROOF(x) - 0.002 + 0.007 * math.sin(math.pi * t)
-            p0 = (x, y_c - 0.014 * side, z_c)
-            p1 = (x, y_c, z_c + 0.0055)
-            p2 = (x, y_c + 0.014 * side, z_c)
-            cols.append([p0, p1, p2])
-        c_ob = M.mesh_from_rows(f"Z9_Hood_Ridge_{'R' if side > 0 else 'L'}", cols, collection)
-        c_ob.data.materials.append(lib["paint"])
-        M.finish(c_ob, thickness=0.002, bevel=0.0)
-        made.append(c_ob)
-    return made
+    """Twin soft ridges on the front hood (c1_0002.jpg: two creases that bound a central panel and run to the
+    lamps' inner tips), sweeping forward from the cowl and stopping at the hood's front edge. They lie ON the hood's
+    own surface (section points, not the centreline height) and rise and fall along their length, so they end
+    flush; one side is built and mirrored. They join the bonnet (z9_bays.split_bonnet) and swing with it."""
+    t_end = _ridge_end()
+    nc = 40
+    cols = []
+    for i in range(nc + 1):
+        s = i / float(nc)
+        x, y_c = _ridge_xy(t_end * s)
+        env = geom.smoothstep(s / 0.10) * geom.smoothstep((1.0 - s) / 0.18)
+        row = []
+        for dy in (-0.020, -0.012, -0.005, 0.0, 0.005, 0.012, 0.020):
+            v = S.v_at_y_upper(x, y_c + dy)
+            y_s, z_s = S.section_v(x, v)
+            lift = 0.0060 * env * math.cos(0.5 * math.pi * dy / 0.020) ** 2.0
+            row.append((x, y_s, z_s + lift - 0.0006))
+        cols.append(row)
+    ob = M.mesh_from_rows("Z9_Hood_Ridge", cols, collection)
+    M.orient(ob.data, lambda c: (0.0, 0.0, 1.0))
+    ob.data.materials.append(lib["paint"])
+    M.mirror_y(ob)
+    M.finish(ob, thickness=0.0016, bevel=0.0)
+    return [ob]
 
 
 # ------------------------------------------------------------- build all

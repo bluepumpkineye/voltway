@@ -263,7 +263,9 @@ def split_bonnet():
     for c in list(hood.users_collection):
         c.objects.unlink(hood)
     col.objects.link(hood)
-    bonnet = X.join("Z9_Bonnet", [hood.name, liner.name])
+    # the two soft ridges (z9_front.build_hood_features) are painted on the hood and open with it
+    names = [hood.name, liner.name] + [n for n in ("Z9_Hood_Ridge",) if n in bpy.data.objects]
+    bonnet = X.join("Z9_Bonnet", names)
     h = bonnet_hinge()
     bonnet.data.transform(Matrix.Translation(-h))
     bonnet.matrix_world = Matrix.Translation(h)
