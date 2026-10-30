@@ -800,7 +800,7 @@ simulated on the variant's published figures.
 (`finish`: coast, cruise or a stop; `manoeuvres`: sweep, slalom, crab), the 100-0 distance it is calibrated to, a chassis block
 (squat and roll per g, centre of gravity, rear-wheel limit, crab angle, air suspension), the drag coefficient when one is
 published, the rival the chart draws behind it, the camera it opens on, narrative callouts pinned to moments of the run, cited
-claims and a note on what is simulated. A car without one gets the generic scenario (the Xpeng P7+ today).
+claims and a note on what is simulated. A car without one gets the generic scenario (the Xpeng P7+ today). The Voyah Passion S, added to the showroom the same week, has one too (section 20).
 `src/lib/tech/drive-setup.ts` turns a car, its trim and the visitor's choices into `DriveInput`; `src/lib/tech/drive-run.ts`
 (`planDrive`, no value imports: run it under Node) is the planner; `drive` in `demos.ts` hands it to the director;
 `showroom/Drive.tsx` is the panel; the GT7 cockpit HUD (`showroom/Launch.tsx`) is unchanged apart from reading the run's phase.
@@ -981,6 +981,14 @@ rate on a real GPU was not measured (the tiles re-render every frame the playhea
 **Not built.** A video render of a run (Remotion proper), a tile for the rival's gap, thrust arrows on the road (they hide under the
 body from the camera's usual place; the rings on the wheels carry it), motor rpm.
 
-**The Voyah Passion S** is not in the showroom yet: the repository has no data file and no model for it (a car needs the built
-exterior, cabin, proxy and shadow of `docs/3d-pipeline.md`), and the sites that hold its specifications were not reachable from the
-session that did this work (the web fetch failed at the DNS lookup, so nothing was read, and nothing was written from memory).
+**The Voyah Passion S** (added to `main` by the owner after the first version of this section: the exterior, cabin, proxy and shadow, the
+data file `src/data/vehicles/voyah-passion-s.ts`) has its scenario in that file: "Magic Carpet Launch", a launch to 100 km/h on the
+trim picked (3.8 s on the 680 AWD Ultra+, 5.9 s on the two single-motor trims) and a rolling 80-120 km/h pull, with the load toggle
+(a family and luggage, 455 kg, ours), air suspension on (`chassis.airSuspension`), the instruments suspension, weight, motors and power,
+and the 7X's AWD as the chart's rival. Every figure in it is the data file's own (510 kW, 770 N·m, 3.8 s on two motors; 290 kW, 410 N·m,
+5.9 s on one; 2,345 kg kerb weight); the claims cite the Autohome specification page that the data file already cites, which this
+session could not read (the sites were not reachable: the web fetch failed at the DNS lookup, and a later `curl` of them returned no
+connection), so those two claims rest on the data file's own reading. The maker publishes no 0-200, 100-0 or Cd for it, so none is invented:
+the 0-200 chip is estimated from the 0-100 (starred), the stop, if the visitor asks for one, uses the generic 36 m (ours), and there is no
+drag card. It opens on the flagship trim, as every car does (`flagshipVariant`): the 680 AWD Ultra+. A single-motor trim lights its rear wheels only: the front
+wheels are not driven, so neither the rings nor the tags light them.

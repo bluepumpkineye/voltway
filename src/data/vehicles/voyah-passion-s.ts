@@ -326,6 +326,41 @@ export const voyahPassionS: Vehicle = {
         'A simulation. Road traffic, speeds, braking timing and visual sensor beam cones are illustrative; other vehicles use neutral showroom stand-in proxies.',
     },
   ],
+  drive: {
+    id: 'magic-carpet-launch',
+    title: 'Magic Carpet Launch',
+    blurb:
+      'A launch to 100 km/h on the trim you pick (3.8 s on the dual-motor Ultra+, 5.9 s on the single-motor cars) and a rolling pull from 80 to 120 km/h, with the air suspension holding the body level. Load the car with a family and see what changes.',
+    runs: [{ from: 80, to: 120 }],
+    defaultRun: '0-100',
+    modes: ['eco', 'comfort', 'sport'],
+    defaultMode: 'sport',
+    loads: [
+      { id: 'driver', label: 'Driver', payloadKg: 75 },
+      { id: 'family', label: 'Family + luggage', payloadKg: 455 },
+    ],
+    overlays: ['suspension', 'weight', 'motors', 'power'],
+    finish: 'coast',
+    chassis: { airSuspension: true, squatDegPerG: 0.9 },
+    ghost: { slug: 'zeekr-7x', variantId: 'awd' },
+    camera: 'hero',
+    callouts: [
+      { cue: 'launch', text: 'Launch. The motors pull, the weight moves to the rear axle and the air suspension holds the body level.' },
+      { cue: 'target', text: 'Off the power. The body settles back on its springs.' },
+    ],
+    claims: [
+      {
+        text: 'The 680 AWD Ultra+ makes 510 kW and 770 N·m from two motors and reaches 100 km/h in 3.8 s; the single-motor rear-drive trims make 290 kW and 410 N·m and take 5.9 s.',
+        source: { label: 'Autohome - Voyah Passion S Specifications', url: 'https://car.autohome.com.cn/config/series/8534.html' },
+      },
+      {
+        text: 'The Passion S has Magic Carpet air suspension with continuous damping control.',
+        source: { label: 'Autohome - Voyah Passion S Specifications', url: 'https://car.autohome.com.cn/config/series/8534.html' },
+      },
+    ],
+    simulated:
+      'The 80–120 km/h pull, the load (a family of five and luggage, 455 kg), the squat, the split between the two motors and the energy are ours. The maker publishes no 0–200 or 100–0 time for the Passion S, so the chart’s 0–200 is estimated from the 0–100 and the stop is not calibrated to a figure. The car’s kerb weight (2,345 kg) is from the data file.',
+  },
   sources: [
     { label: 'Voyah Official Website - Voyah Passion S (岚图追光S)', url: 'https://www.voyah.com.cn/' },
     { label: 'Autohome - Voyah Passion S Series 8534', url: 'https://www.autohome.com.cn/8534/' },

@@ -75,7 +75,8 @@ a demonstration's facts behind the "Simulation" button on its playback bar.
   sequence for all: the SU7 Ultra's launch through its drive modes, the RX's sprint
   and 100-0 stop, the Seal's mid-range pull against its own drag, the 7X with a family
   on board, the G9L's slalom on rear-wheel steering, the Z9's S-curve under power
-  and crab walk, the 06T's S-curve, the ES8's reserve power and stop. A card at the
+  and crab walk, the 06T's S-curve, the ES8's reserve power and stop, the Voyah Passion S's
+  Magic Carpet launch. A card at the
   right gives the car's own modes, loads, road and cameras and a speed chart with a
   rival's pull behind it. The figures are set in motion over the scene: the wheels
   light by what each motor and brake does (the front motor's, then the rear's, then

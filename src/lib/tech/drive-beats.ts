@@ -191,11 +191,11 @@ export function launchActs(facts: DriveFacts, launch: number): Act[] {
   };
   const both = front.length > 0 && rear.length > 0;
   if (front.length) {
-    push('front', both ? 1.6 : 2.4, `Front axle · ${front.length} ${motorWord(front.length)}`, (mid) => `${pct(share('front', mid))} of the drive`, [1, 1, both ? 0.16 : 1, both ? 0.16 : 1]);
+    push('front', both ? 1.6 : 2.4, `Front axle · ${front.length} ${motorWord(front.length)}`, (mid) => `${pct(share('front', mid))} of the drive`, [1, 1, both ? 0.16 : 0, both ? 0.16 : 0]);
   }
   if (rear.length) {
     const sided = rear.some((m) => m.side);
-    push('rear', both ? 1.6 : 2.4, `Rear axle · ${rear.length} ${motorWord(rear.length)}`, (mid) => `${pct(share('rear', mid))} of the drive${sided ? ', one motor to each wheel' : ''}`, [both ? 0.16 : 1, both ? 0.16 : 1, 1, 1]);
+    push('rear', both ? 1.6 : 2.4, `Rear axle · ${rear.length} ${motorWord(rear.length)}`, (mid) => `${pct(share('rear', mid))} of the drive${sided ? ', one motor to each wheel' : ''}`, [both ? 0.16 : 0, both ? 0.16 : 0, 1, 1]);
   }
   if (both) {
     push('all', 2, `All ${facts.motors.length} ${motorWord(facts.motors.length)} together`, () => 'Every wheel pulls. The split is modelled.', [1, 1, 1, 1]);
