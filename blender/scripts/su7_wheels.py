@@ -20,6 +20,7 @@ Sizes: 265/35 R21 front, 305/30 R21 rear; carbon-ceramic discs 430 mm front,
 410 mm rear; Akebono calipers, 6-piston front at 3 o'clock (straight
 rearward), 4-piston rear at about 2 o'clock.
 """
+import copy
 import math
 
 from carkit.parts import wheels as W
@@ -62,12 +63,49 @@ SPEC["spokes"] = dict(
     windows=[_outline(AXIS, SLOT_HW), _outline(AXIS + 36.0, GAP_HW)],
     lug_holes=dict(deg=AXIS - 180.0, pcd=0.05715, r=0.0165, count=5))
 
+# ------------------------------------------------------------------------------------------ the forged U wheel
+# The maker's option (21 in U-shaped forged wheel, 9.5J front / 11J rear, 5 x 114.3, in "metallic neodymium" or
+# "graphite black", 10,000 yuan each; Autohome series 7915 forum photographs of the part, 2235 x 2980 px, the
+# wheel 1300 px across, ellipse ratio 0.972 at (1120, 1355) px). Same family as the cast U, but milled: the
+# ribs are slimmer, the U windows are teardrops (widest, +-18.5 deg, half-way down) and the gaps between them
+# are V wedges that taper to a tip at 0.54 R and carry on as a narrow slit to the hub, where the cast wheel's
+# gaps stay wide to 0.40 R.
+#
+# Read as the other wheels were (docs/3d-pipeline.md, "Wheel designs"), with one addition: the photograph was
+# taken from above, so the hub stood 43 px (of 2400) below the rim's centre; `parallax.cjs` undoes that with the
+# face's own depth profile (585 px per metre of depth) before the polar strip, which brought the five repeats to
+# 72 deg apart. The five repeats still differ by +-4 deg (what is left of the perspective), so the outlines are
+# MEDIAN half-widths of four U windows and four V wedges about each one's own axis, mirrored: the real wheel is
+# symmetric (D5), the photograph is not.
+FORGED_U_HW = [(0.945, 11.2), (0.900, 11.7), (0.850, 12.4), (0.800, 12.7), (0.750, 13.4), (0.725, 14.0),
+               (0.700, 14.5), (0.675, 15.1), (0.650, 15.7), (0.625, 16.2), (0.600, 16.9), (0.575, 17.3),
+               (0.550, 18.0), (0.525, 18.3), (0.500, 18.5), (0.475, 18.3), (0.450, 18.1), (0.425, 17.8),
+               (0.400, 17.4), (0.375, 16.7), (0.350, 16.2), (0.330, 15.3), (0.312, 13.2), (0.298, 10.0),
+               (0.288, 6.0), (0.282, 0.0)]
+FORGED_V_HW = [(0.945, 14.9), (0.890, 14.1), (0.865, 13.6), (0.840, 12.9), (0.815, 12.3), (0.790, 11.5),
+               (0.765, 10.7), (0.740, 9.9), (0.715, 9.1), (0.690, 8.2), (0.665, 7.3), (0.640, 6.0),
+               (0.615, 5.0), (0.590, 3.6), (0.570, 2.8), (0.550, 2.5), (0.500, 2.4), (0.400, 2.4),
+               (0.330, 2.3), (0.300, 1.8), (0.290, 0.0)]
 
-def build_all(collection, surface, lib):
-    """Four corners, sized and tracked to the real car."""
-    corners = [
-        # tag, axle x, sign, tyre width, rolling radius, disc radius,
-        # caliper deg, outer sidewall y (~20 mm inside the arch lip)
+SPEC_FORGED = copy.deepcopy(SPEC)
+SPEC_FORGED["pinstripe"] = False
+SPEC_FORGED["mats"] = dict(SPEC["mats"], rim="forged", lip="forged", barrel="grille")
+SPEC_FORGED["spokes"] = dict(
+    SPEC["spokes"], mat="forged", depth=0.026, bevel=0.0042,
+    windows=[_outline(AXIS, FORGED_U_HW), _outline(AXIS + 36.0, FORGED_V_HW)])
+
+# internal design id -> (object prefix, spec); the first is the car as it is photographed
+DESIGNS = {
+    "u_cast": ("SU7Ultra_", SPEC),
+    "u_forged": ("SU7Ultra_Forged_", SPEC_FORGED),
+}
+DEFAULT = "u_cast"
+
+
+def corners(surface):
+    # tag, axle x, sign, tyre width, rolling radius, disc radius,
+    # caliper deg, outer sidewall y (~20 mm inside the arch lip)
+    return [
         ("FL", surface.FRONT_AXLE, 1, 0.265, 0.3595, 0.215, 177.0, 0.9625),
         ("FR", surface.FRONT_AXLE, -1, 0.265, 0.3595, 0.215, 183.0, 0.9625),
         # On the left, local +Y maps to world -Z, so "rearward and 22 degrees
@@ -76,4 +114,22 @@ def build_all(collection, surface, lib):
         ("RL", surface.REAR_AXLE, 1, 0.305, 0.3582, 0.205, 202.0, 0.9650),
         ("RR", surface.REAR_AXLE, -1, 0.305, 0.3582, 0.205, 158.0, 0.9650),
     ]
-    return W.build_set(collection, "SU7Ultra_", lib, SPEC, corners)
+
+
+def build_design(collection, surface, lib, name):
+    prefix, spec = DESIGNS[name]
+    return W.build_set(collection, prefix, lib, spec, corners(surface))
+
+
+def build_all(collection, surface, lib):
+    """Four corners, sized and tracked to the real car: the default design."""
+    return build_design(collection, surface, lib, DEFAULT)
+
+
+def build_options(collection, surface, lib):
+    """The other designs, one collection each is the exporter's business: this builds them into `collection`."""
+    made = []
+    for name in DESIGNS:
+        if name != DEFAULT:
+            made += build_design(collection, surface, lib, name)
+    return made

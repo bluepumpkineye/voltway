@@ -177,9 +177,57 @@ export const xiaomiSu7Ultra: Vehicle = {
         },
       },
     ],
+    // The maker's launch list (27 Feb 2025) has four wheels, all 21 in (265/35 R21 front, 305/30 R21 rear, Pirelli P Zero): the
+    // cast U wheel, the same with a yellow contour ring (+1,000 yuan), and the forged U wheel in metallic neodymium or graphite
+    // black (+10,000 yuan each; milled, so its ribs are slimmer: xiaomiev.com/ultra now says "reservation only"). The calipers
+    // are the one yellow Akebono set whatever the wheel. The build is photographed with the ring (every Autohome car has it), so
+    // that is the first option and the plain one a recolour of its ring. The forged wheel is traced from the maker's part
+    // (Autohome forum photographs, series 7915); a third wheel in the regulatory filing's option sheet (a grey disc with five
+    // U-shaped cut-outs) is in none of the sales lists and is not built.
+    wheels: [
+      {
+        id: 'u-ring',
+        name: '21" U-Shape Wheel, Yellow Contour Ring',
+        nameZh: '21英寸U型轮毂 黄轮廓圈',
+        size: '21"',
+        tyres: '265/35 R21 front · 305/30 R21 rear',
+        node: 'SU7Ultra_Wheels',
+        accent: { material: 'M_Rim_Pinstripe', color: '#e4bf10' },
+      },
+      {
+        id: 'u-plain',
+        name: '21" U-Shape Wheel',
+        nameZh: '21英寸U型轮毂',
+        size: '21"',
+        tyres: '265/35 R21 front · 305/30 R21 rear',
+        node: 'SU7Ultra_Wheels',
+        accent: { material: 'M_Rim_Pinstripe', color: '#0f0f10' },
+      },
+      {
+        id: 'forged-neodymium',
+        name: '21" U-Shape Forged Wheel, Metallic Neodymium',
+        nameZh: '21英寸U型锻造轮毂 金属钕色',
+        size: '21"',
+        tyres: '265/35 R21 front · 305/30 R21 rear',
+        node: 'SU7Ultra_Forged_Wheels',
+        accent: { material: 'M_Rim_Forged', color: '#4e5b6c', metalness: 0.85, roughness: 0.42 },
+      },
+      {
+        id: 'forged-graphite',
+        name: '21" U-Shape Forged Wheel, Graphite Black',
+        nameZh: '21英寸U型锻造轮毂 石墨黑',
+        size: '21"',
+        tyres: '265/35 R21 front · 305/30 R21 rear',
+        node: 'SU7Ultra_Forged_Wheels',
+        accent: { material: 'M_Rim_Forged', color: '#1d1d1f', metalness: 0.7, roughness: 0.34 },
+      },
+    ],
     sources: [
-      { label: 'Xiaomi - SU7 Ultra: five exterior colours', url: 'https://www.xiaomiev.com/ultra' },
+      { label: 'Xiaomi - SU7 Ultra: five exterior colours; the 21 in forged wheel (reservation only)', url: 'https://www.xiaomiev.com/ultra' },
       { label: 'Autohome - SU7 Ultra 2025 configuration table: interior colours', url: 'https://car.autohome.com.cn/config/spec/70545.html' },
+      { label: 'Auto China - SU7 Ultra configurator: the four wheel options', url: 'https://auto-china.com/en/xiaomi-su7-ultra/config' },
+      { label: 'Autohome forum - the original 21 in forged wheel (9.5J / 11J, 5 x 114.3)', url: 'https://club.autohome.com.cn/bbs/thread/aaed131e8eb4d2e3/116399332-1.html' },
+      { label: 'IT之家 - the Ultra track kit includes the 21 in U-shaped forged wheel', url: 'https://www.ithome.com/0/837/403.htm' },
     ],
   },
   // The four doors swing on their leading edge (the hinge: mid height, on the

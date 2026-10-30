@@ -15,5 +15,13 @@ TAIL_LIGHTS = 1.3
 
 
 def build_library():
-    return _M.build_library(paint="xiaomi_yellow", rim="gloss_black", caliper="gold",
-                            lights_on=LIGHTS_ON, tail_lights=TAIL_LIGHTS)
+    lib = _M.build_library(paint="xiaomi_yellow", rim="gloss_black", caliper="gold",
+                           lights_on=LIGHTS_ON, tail_lights=TAIL_LIGHTS)
+    # The forged U wheel (an option: Autohome's forum photograph of the maker's part, series 7915) is a satin
+    # blue-grey metal, "metallic neodymium" (the photograph's lit ribs average sRGB 102, 121, 140); its other
+    # finish, graphite black, is the same material recoloured in the showroom (WheelOption.accent). Satin, not
+    # a mirror: a gloss metal here reflected the white studio and read as chrome.
+    m, nt, b = _M.mat("M_Rim_Forged")
+    _M.set_inputs(b, base=(0.078, 0.104, 0.150), metallic=0.85, roughness=0.42)
+    lib["forged"] = m
+    return lib

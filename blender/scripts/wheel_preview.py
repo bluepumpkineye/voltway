@@ -37,12 +37,13 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
     from carkit import build as B
     from carkit.parts import wheels as W
     sign = 1 if side == "left" else -1
-    if design == "su7":
+    if design == "su7" or design.startswith("su7:"):
+        # the SU7 Ultra's cast U wheel; "su7:forged" the optional forged one (su7_wheels.DESIGNS)
         import su7_materials as MT
         import su7_wheels as SW
         lib = MT.build_library()
         col = B.fresh_collection("SU7_Wheels")
-        prefix, spec = "SU7Ultra_", SW.SPEC
+        prefix, spec = SW.DESIGNS["u_forged" if design == "su7:forged" else "u_cast"]
         spec.pop("_faces", None)
         w, r, dr = (0.265, 0.3595, 0.215) if front else (0.305, 0.3582, 0.205)
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)

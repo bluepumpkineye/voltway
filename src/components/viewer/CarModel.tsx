@@ -218,7 +218,7 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
       // meshes, so match the node's own name on any object.
       const name = o.name.toLowerCase();
       if (name.endsWith('_blackout')) blackout.push(o);
-      if (name === 'su7ultra_body' || name === 'su7ultra_wheels') shell.push(o);
+      if (name === 'su7ultra_body' || /^su7ultra_(\w+_)?wheels$/.test(name)) shell.push(o);
       if (!(o instanceof THREE.Mesh)) return;
       o.castShadow = true;
       o.receiveShadow = true;

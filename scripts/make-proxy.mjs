@@ -23,7 +23,7 @@ import { MeshoptSimplifier } from 'meshoptimizer';
 /** The nodes whose wheels and calipers are not the default design (matched on the node's name). */
 const CARS = {
   'luxeed-rx': { skip: /Yufeng|Sport|Caliper|DoorFrame/ },
-  'su7-ultra': { skip: /DoorFrame|TrunkArms/ },
+  'su7-ultra': { skip: /DoorFrame|TrunkArms|Forged_Wheels/ },
   'zeekr-7x': { skip: /Fork_Wheels|Multi_Wheels|DoorFrame/ },
   // the default wheel design of each, already cut into corners
   'denza-z9': { skip: /Pro_Wheels|Caliper|DoorFrame/ },

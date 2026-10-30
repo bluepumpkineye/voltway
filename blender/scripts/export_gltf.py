@@ -100,11 +100,78 @@ GROUPS = [
     ("SU7Ultra_Blackout", "SU7_Blackout"),
 ]
 INTERIOR_GROUPS = [("SU7Ultra_Cabin", "SU7_Interior")]
+# the other wheel designs (su7_wheels.DESIGNS), one node of four wheels each; the Wheels tab shows one at a time
+WHEEL_GROUPS = [
+    ("SU7Ultra_Forged_Wheels", "SU7_Wheels_Forged"),
+]
+CORNERS = ("FL", "FR", "RL", "RR")
 
 # where the cabin probe is shot from: between the front seats at head height
 PROBE_AT = (-0.35, 0.0, 1.10)
 # how much of the render rig's lights the probe (the cabin's reflections) sees
 PROBE_LIGHT_MIX = 0.3
+
+
+def build_wheel_options(lib):
+    """The other wheel designs (su7_wheels), one collection each, on the car's own material library. Before
+    prepare_exterior(): rebuilding the library after it would undo export_safe()."""
+    if not WHEEL_GROUPS or bpy.data.collections.get(WHEEL_GROUPS[0][1]) is not None:
+        return
+    import su7_surface as S
+    import su7_wheels as SW
+    from carkit import build as B
+    cols = []
+    for (_, cname), name in zip(WHEEL_GROUPS, [n for n in SW.DESIGNS if n != SW.DEFAULT]):
+        col = B.fresh_collection(cname)
+        SW.build_design(col, S, lib, name)
+        cols.append(col)
+    B.ensure_uvs(cols)
+    return cols
+
+
+def _corner_col(cname, kind, tag):
+    return "%s_%s_%s" % (cname, kind, tag)
+
+
+def wheels_split():
+    return bpy.data.collections.get(_corner_col(GROUPS[1][1], "W", "FL")) is not None
+
+
+def split_wheels():
+    """Re-collect every wheel design's parts by corner (one node per corner, origin at the hub, and one for its
+    brake caliper, which does not spin: what the Tech tab's rig wants, src/lib/tech/rig.ts). Once, after the
+    ambient occlusion has been baked (it is per design, with the four wheels together) and before the merge."""
+    if wheels_split():
+        return
+    for _, cname in [GROUPS[1]] + WHEEL_GROUPS:
+        src = bpy.data.collections.get(cname)
+        if src is None:
+            continue
+        for ob in list(src.objects):
+            if ob.type != 'MESH':
+                continue
+            # a part is named <prefix><Part>_<tag> and parented to the corner's empty
+            who = (ob.parent.name if ob.parent is not None else ob.name).split(".")[0]
+            tag = who.rsplit("_", 1)[-1]
+            if tag not in CORNERS:
+                raise RuntimeError("wheel part %s has no corner (%s)" % (ob.name, who))
+            kind = "C" if "_Caliper_" in ob.name else "W"
+            name = _corner_col(cname, kind, tag)
+            dst = bpy.data.collections.get(name) or bpy.data.collections.new(name)
+            if dst.name not in bpy.context.scene.collection.children:
+                bpy.context.scene.collection.children.link(dst)
+            src.objects.unlink(ob)
+            dst.objects.link(ob)
+
+
+def wheel_corner_groups(options=True):
+    """(node, collection) per corner of the default design, and of the others."""
+    out = []
+    for node, cname in [GROUPS[1]] + (WHEEL_GROUPS if options else []):
+        for tag in CORNERS:
+            out.append(("%s_%s" % (node, tag), _corner_col(cname, "W", tag)))
+            out.append(("%s_Caliper_%s" % (node, tag), _corner_col(cname, "C", tag)))
+    return out
 
 
 def split_blackout():
@@ -185,11 +252,17 @@ def prepare_exterior():
     split_greenhouse()        # roof rail and glass above the belt: the X-ray's ghost
 
 
-def exterior_groups():
+def exterior_groups(options=True):
+    """Every exterior group; options=False leaves out the extra wheel designs."""
     import su7_bays as BY
     import su7_openings as OP
     import su7_trunk as TR
-    return GROUPS + OP.door_groups() + BY.bonnet_groups() + TR.trunk_groups() + [GREENHOUSE_GROUP]
+    if wheels_split():
+        core = [g for g in GROUPS if g != GROUPS[1]]
+        return (core + wheel_corner_groups(options) + OP.door_groups() + BY.bonnet_groups()
+                + TR.trunk_groups() + [GREENHOUSE_GROUP])
+    return (GROUPS + OP.door_groups() + BY.bonnet_groups() + TR.trunk_groups() + [GREENHOUSE_GROUP]
+            + (WHEEL_GROUPS if options else []))
 
 
 def open_all(on=True):
@@ -212,10 +285,15 @@ def bake_exterior_ao(samples=512):
     it. Before the merge, where the parts have their own names."""
     from carkit import bake as BK
     prepare_exterior()
-    objs = []
-    for _, cname in exterior_groups():
-        col = bpy.data.collections.get(cname)
-        objs += [o for o in (col.objects if col else ()) if o.type == 'MESH']
+
+    def meshes(groups):
+        return [o for _, cname in groups for o in
+                (bpy.data.collections[cname].objects if cname in bpy.data.collections else ())
+                if o.type == 'MESH']
+
+    objs = meshes(exterior_groups(options=False))
+    # each extra wheel design is baked alone, standing where the default wheels do, with the others hidden
+    extra = [(cname, meshes([(n, cname)])) for n, cname in WHEEL_GROUPS if cname in bpy.data.collections]
     hide = [o for cname in ("SU7_Interior",)
             for o in (bpy.data.collections[cname].all_objects if cname in bpy.data.collections else ())]
     ground = bpy.data.objects.get("Ground")
@@ -223,7 +301,13 @@ def bake_exterior_ao(samples=512):
         hide.append(ground)
     open_all(True)
     try:
-        return BK.ambient_occlusion(objs, samples=samples, distance=AO_DISTANCE, hide=hide)
+        stats = BK.ambient_occlusion(objs, samples=samples, distance=AO_DISTANCE,
+                                     hide=hide + [o for _, ms in extra for o in ms])
+        own = meshes([GROUPS[1]])
+        for cname, ms in extra:
+            gone = own + [o for c, other in extra if c != cname for o in other]
+            BK.ambient_occlusion(ms, samples=samples, distance=AO_DISTANCE, hide=hide + gone)
+        return stats
     finally:
         open_all(False)
 
@@ -243,7 +327,7 @@ def bake_ground_shadow():
     vehicle data (assets.studioShadow). Run on the merged exterior, shut."""
     from carkit import studio
     car = []
-    for _, cname in exterior_groups():
+    for _, cname in exterior_groups(options=False):
         col = bpy.data.collections.get(cname)
         car += [o for o in (col.objects if col else ()) if o.type == 'MESH']
     hide = [o for o in (bpy.data.collections["SU7_Interior"].all_objects
@@ -294,6 +378,7 @@ def main(draco=True, ao=True, ao_samples=512, shadow=True):
     open_all(False)           # every part at its hinge, as the closed car (the arms start elsewhere)
     if ao:
         bake_exterior_ao(ao_samples)
+    split_wheels()
     merge_for_export()
     if shadow:
         bake_ground_shadow()
@@ -306,7 +391,8 @@ def web_ext(draco=True):
         sys.modules.pop(m, None)
     import build_su7
     from carkit import materials as MB
-    build_su7.main(interior=False)
+    out = build_su7.main(interior=False)
+    build_wheel_options(out["lib"])
     MB.export_safe()
     return main(draco=draco)
 
@@ -479,7 +565,8 @@ def web_cabin(draco=True, look="baked"):
     for m in [m for m in sys.modules if m.startswith("su7_") or m == "build_su7"]:
         sys.modules.pop(m, None)
     import build_su7
-    build_su7.main(interior=False)
+    out = build_su7.main(interior=False)
+    build_wheel_options(out["lib"])
     import su7_interior as IN
     IN.main()
     import su7_trunk as TR
@@ -508,7 +595,8 @@ def web(samples=256, probe_samples=384):
     for m in [m for m in sys.modules if m.startswith("su7_") or m == "build_su7"]:
         sys.modules.pop(m, None)
     import build_su7
-    build_su7.main(interior=False)
+    out = build_su7.main(interior=False)
+    build_wheel_options(out["lib"])
     import su7_interior as IN
     IN.main()
     import su7_trunk as TR
