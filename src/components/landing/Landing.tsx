@@ -100,7 +100,7 @@ export function Landing() {
           <h1 className={styles.title}>
             <Wordmark className={styles.wordmark} />
           </h1>
-          <p className={styles.eyebrow}>The Chinese EV showroom</p>
+          <p className={styles.eyebrow}>The Digital Showroom</p>
           <p className={styles.lede}>Choose a car to walk around, sit inside and drive.</p>
         </div>
 

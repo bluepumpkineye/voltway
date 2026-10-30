@@ -129,21 +129,20 @@
 }
 .wordmark {
   display: block;
-  width: clamp(250px, min(36vw, 64svh), 560px);
+  width: clamp(260px, min(40vw, 70svh), 620px);
   height: auto;
+  overflow: visible;
   filter: drop-shadow(0 6px 18px rgba(255, 255, 255, 0.55));
 }
-.wordmark [data-stroke] {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  animation: draw 1.15s cubic-bezier(0.65, 0, 0.2, 1) both;
-  animation-delay: calc(0.1s + var(--i) * 0.11s);
+.wordmark [data-letter] {
+  animation: letter 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.1s + var(--i) * 0.09s);
 }
 .wordmark [data-pulse] {
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
   animation: draw 0.9s cubic-bezier(0.5, 0, 0.2, 1) both;
-  animation-delay: 1.15s;
+  animation-delay: 1.05s;
 }
 .eyebrow {
   margin: clamp(14px, 2.4svh, 24px) 0 0;
@@ -524,6 +523,10 @@
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
 }
+@keyframes letter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
 @keyframes fade {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
@@ -544,7 +547,7 @@
 @media (prefers-reduced-motion: reduce) {
   .cloud,
   .lake::before,
-  .wordmark [data-stroke],
+  .wordmark [data-letter],
   .wordmark [data-pulse],
   .eyebrow,
   .lede,

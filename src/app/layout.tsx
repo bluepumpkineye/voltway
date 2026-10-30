@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Voltway — The Chinese EV Showroom',
+  title: 'Voltway — The Digital Showroom',
   description:
     'Walk round the best Chinese electric vehicles in 3D: change the paint, sit inside, use the real dashboard, see what the technology does and check the specifications.',
 };

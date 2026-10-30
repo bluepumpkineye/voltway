@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Landing } from '@/components/landing/Landing';
 
 export const metadata: Metadata = {
-  title: 'Voltway — Choose a Chinese EV to explore in 3D',
+  title: 'Voltway — The Digital Showroom',
   description: 'Nine Chinese electric cars in 3D. Pick one, change the paint, sit inside, run it down the road and check the specifications.',
 };
 
