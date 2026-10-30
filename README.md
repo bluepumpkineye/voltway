@@ -17,17 +17,34 @@ npm install
 npm run dev
 ```
 
-Then open <http://localhost:3000>: the showroom opens on the SU7 Ultra, and the
-car menu at the top-left changes car.
+Then open <http://localhost:3000>: the landing page shows the whole line-up on a
+lake, and a car opens in its own showroom. The car menu at the top-left of a
+showroom changes car, and its "All models" row goes back to the line-up.
 
 ## What's here
 
 | Route | What it does |
 |---|---|
-| `/` | The showroom, opened on the first car |
-| `/showroom/[slug]` | The showroom for one car (`xiaomi-su7-ultra`, `luxeed-rx`, `zeekr-7x`, `xpeng-g9l`, `denza-z9`, `avatr-06t`, `nio-es8`, `byd-seal`); a slug with no showroom goes to `/` |
+| `/` | The landing page: "Voltway" over the line-up in a fan (the hero car in front, two rows behind it), each car a link to its showroom, then the models as a grid, what the showroom does, and the small print |
+| `/showroom/[slug]` | The showroom for one car (`xiaomi-su7-ultra`, `luxeed-rx`, `zeekr-7x`, `xpeng-g9l`, `denza-z9`, `avatr-06t`, `nio-es8`, `byd-seal`, `voyah-passion-s`); a slug with no showroom goes to `/` |
 | `/vehicles`, `/vehicles/[slug]`, `/compare` | Retired (the old Voltway site); they redirect to `/` and `/showroom/[slug]`. Everything the vehicle page held is in the showroom's Specifications tab |
-| `/capture/hmi/[slug]`, `/capture/view/[slug]` | Tools of the 3D pipeline (the HMI at native size, the viewer through a locked camera); development only, they are not found in a production build |
+| `/capture/hmi/[slug]`, `/capture/view/[slug]`, `/capture/lineup/[slug]` | Tools of the 3D pipeline (the HMI at native size, the viewer through a locked camera, a car on a clear background for the landing page); development only, they are not found in a production build |
+
+### The landing page
+
+`src/components/landing/Landing.tsx` (a server component, styled by `landing.module.css`).
+The fan is `src/lib/landing/lineup.ts`: each car's place (across, down, size) and the
+size of its picture. The pictures in `public/landing/<slug>.webp` are rendered from the
+cars' own 3D models, in the showroom's studio light, from the angle of their place in the
+fan. To render them again, with `npm run dev` running:
+
+```bash
+node scripts/landing-shots.mjs [slug ...]     # needs Playwright (not a dependency of the site)
+```
+
+It prints each picture's size: copy those into `lineup.ts`. The wordmark is drawn in
+strokes (`Wordmark.tsx`), not set in a typeface, so no font has to load for it. Motion
+is slow and stops under "reduce motion".
 
 ### The showroom
 

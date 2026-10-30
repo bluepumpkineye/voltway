@@ -6,7 +6,7 @@ export default function NotFound() {
       <div>
         <h1 className="text-[15px] font-semibold text-neutral-900">That page is not in the showroom.</h1>
         <Link href="/" className="mt-3 inline-block rounded-full bg-neutral-900 px-5 py-2 text-[13px] font-medium text-white">
-          Back to the showroom
+          Back to all models
         </Link>
       </div>
     </main>
