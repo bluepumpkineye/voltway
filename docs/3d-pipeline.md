@@ -1401,6 +1401,38 @@ Glow, Carbon Blade and Star Shine; the 06T's specs are kept as `a06t_wheels.STAN
 - **Not modelled:** the ES8's graphite ten-spoke on a black Luxury car (dark on dark), valve holes, caliper lettering, the
   Knight's second-layer black spokes inside the pockets (the black layer is a face with a smaller opening), tyre lettering.
 
+### The Nio ES8, second pass (2026-10-30): the silhouette against the maker's render
+
+The owner: "a genuine full-size crossover SUV, our render looks like a wagon: the cabin too high, the seats too small (space above
+the headrests), more body, especially the fenders; and the front air vents more prominent". The eye was right and the cause was
+numbers. `scripts/silhouette` (README there) reads a level side picture's outline and a GLB's in the same frame; the maker's
+configurator render (`blender/reference/nio-es8/official/color_white.jpg`; its wheelbase and height agree with the published 3130
+and 1800 mm to 1 %, scaled 362 px/m from the wheels and the height) against the shipped model said:
+
+- the tail agreed to 1 cm; the NOSE stood 0.25 m too far forward (front overhang 1.075 against the render's 0.83: the build had
+  followed the published 5280 mm length, which the render does not show: it measures 5.05 m for the same wheelbase and height);
+- the hood was 8 to 10 cm low (cowl z 1.12 against 1.22, nose edge 0.95), the windscreen 39 degrees against 31 and its base 0.12 m too far
+  forward (x 1.32 against 1.20), the roof flat at 1.80 over the front seats where the car crowns from 1.67 at the header (x 0.42) to its peak
+  at x -0.65 to -0.95, and the beltline 8.5 cm low (glass bottom z 1.205 at the front door, 1.26 at the quarter, ours 1.12 to 1.175): a tall
+  band of glass over a shallow body, which is what read as an estate;
+- the door cuts: the B-pillar at x -0.13 (low) to -0.20 (belt) instead of -0.07, the rear door's trailing edge at -1.46 to -1.42 instead of
+  -1.08 to -1.25 (the real rear door is 1.27 m long, ours was 1.13), the handles at -0.06 to 0.17 and -1.34 to -1.10.
+
+What changed (`es8_surface.py` and what hangs on it): `Z_ROOF` re-read from the render (hood, screen, roof, backlight); `COWL_X` 1.20; the
+nose in by a squeeze of everything ahead of the front wheelhouse (`fx(x)`: x above 2.05 goes to 2.05 + (x - 2.05) * 0.593, the front-most
+point to `X_FRONT` 2.40; `FC()` builds a curve through it; `es8_nose` JOIN_F / NOSE_X_OF_Z, `es8_front`'s lamp outlines, the frunk's tub,
+liner and hinge in `es8_bays` and the hood's side line follow); `Z_SHOULDER` up with the hood; the stations in `es8_panels` (door cuts,
+belt, A-pillar foot and top, glass edges), `es8_side` (mirror, handles, the fender vent, 0.5 m tall now). The front end gained what the
+photographs show (Autohome 12707358, front): a tall lower grille (z 0.30 to 0.585 behind the plate, seven louvres), the small black
+corner intakes under each lamp cluster (`VENT_YZ`: a cut, a tunnel and three bars) and the dark band across the nose under the hood's
+lip. The seats rose 4 cm and their backrests grew 9 % (the SU7-derived bucket looked small in a cabin this tall; the rear spec was
+16 % shorter for a roof that is not there). The cabin and the exterior were re-exported (`export_es8.web_cabin(look="hall")` and the
+exterior with AO), the proxy remade, the in-car screen's car and cabin cards redrawn (`hmi_art`, `hmi_cabin`).
+
+Not done: the published 5280 mm still stands in `nio-es8.ts` (the maker's figure; the model is 5.04 m); the landing page's picture
+(`public/landing/nio-es8.webp`, `scripts/landing-shots.mjs` needs Playwright) still shows the old shape; the nose's plan is rounder than the
+real car's squarer corners; the face band is a plain trapezoid (the real one has a shallow point under the emblem).
+
 ### The BYD Seal (`seal_*`): rebuilt from camera-matched photographs (2026-10-22)
 
 The first Seal was a Z9-derived guess; this is the real 2022-24 sedan (4800 x 1875 x 1460 mm, wheelbase 2920, 235/45 R19).

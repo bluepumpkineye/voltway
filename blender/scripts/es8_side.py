@@ -16,9 +16,10 @@ BODY = N.BODY
 proud = BODY.proud
 
 # ------------------------------------------------------------------ mirrors
-MIRROR_REAR = (0.815, 0.965, 1.155)
+# (2026-10-30: the beltline went up 8.5 cm with the door cuts, and the mirror with it)
+MIRROR_REAR = (0.800, 0.965, 1.240)
 MIRROR_SIZE = (0.180, 0.155, 0.138)
-MIRROR_ARM = (0.905, 0.905, 1.088)
+MIRROR_ARM = (0.900, 0.905, 1.173)
 
 
 def build_mirrors(collection, lib):
@@ -29,7 +30,7 @@ def build_mirrors(collection, lib):
         mats=("paint", "mirror_glass", "black_gloss", "black_gloss"),
     )
     # Lower ADAS surround-view camera pod under mirror arm
-    x0, x1, z0, z1 = 0.835, 1.005, 1.022, 1.082
+    x0, x1, z0, z1 = 0.825, 0.990, 1.107, 1.167
     cx, cy = 0.5 * (x0 + x1), 0.925
     rows = []
     for (x, dz) in ((x1, 0.0), (0.5 * (x0 + x1), 0.012), (x0, 0.004)):
@@ -46,9 +47,11 @@ def build_mirrors(collection, lib):
 
 
 # ------------------------------------------------------------------ handles
+# the render: the front handle spans x -0.06 to 0.17 at z 1.0, the rear one -1.34 to -1.10 at z 1.04 (the first build had them
+# at 0.11 to 0.34 and -0.96 to -0.73, on the old door cuts)
 HANDLES = (
-    ("F",  0.110,  0.340, 0.995),
-    ("R", -0.960, -0.730, 1.005),
+    ("F", -0.060,  0.170, 1.008),
+    ("R", -1.340, -1.110, 1.040),
 )
 
 
@@ -69,8 +72,9 @@ def build_handles(collection, lib):
 
 # ----------------------------------------- front fender side-LiDAR & camera blade
 # Vertical gloss-black sensor blade on the trailing edge of the front fender ahead of the front door
-GILL_UP = [(1.145, 0.945), (1.115, 0.948), (1.082, 0.945)]
-GILL_LO = [(1.115, 0.695), (1.085, 0.692), (1.055, 0.695)]
+# (the render's vent is 0.5 m tall, z 0.52 to 1.0, just ahead of the door's front edge)
+GILL_UP = [(1.125, 1.000), (1.092, 1.003), (1.060, 1.000)]
+GILL_LO = [(1.100, 0.560), (1.070, 0.557), (1.040, 0.560)]
 
 
 def build_fender_lidar(collection, lib):
@@ -80,7 +84,7 @@ def build_fender_lidar(collection, lib):
         outward=(0.0, 1.0, 0.0),
     )]
     # Wide-angle solid-state side LiDAR window + ADAS rear-facing camera
-    p, n = BODY.side_point(1.105, 0.865)
+    p, n = BODY.side_point(1.090, 0.900)
     c = (p[0] + n[0] * 0.005, p[1] + n[1] * 0.005, p[2] + n[2] * 0.005)
     made += lamps.projector("ES8_Gill_Cam", c, n, 0.013, collection, lib)
     return made

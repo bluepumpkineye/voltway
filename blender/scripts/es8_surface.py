@@ -9,6 +9,15 @@ Dimensions from https://www.nio.cn/es8:
   Wheelbase: 3130 mm  ->  axles at x = +/- 1.565
   Track:     1720 mm (front) / 1733 mm (rear)
   Tyres:     265/40 R22 (OD 771 mm -> R = 0.385 m)
+
+Second pass (2026-10-30): laid over the maker's side render (blender/reference/nio-es8/official/color_white.jpg, the one
+level, long-lens picture: its wheelbase and height agree with the published 3130 and 1800 to 1 %) and over the Autohome
+showroom photographs (series 4427, spec 74331, c1_0034), the first build read as an estate: its nose stood 0.25 m too far
+forward (the render's front overhang is 0.83 m, ours was 1.08; the tail agrees to 1 cm), its hood 8 to 10 cm low, its
+windscreen steeper (39 against 31 degrees) with the base 0.12 m too far forward, its roof flat and 5 to 10 cm too high over
+the front seats, and its beltline 8 cm low, so the glass was a tall band over a shallow body. The numbers below are read off
+that render (scale from the wheels and the height, 362 px/m). The published 5280 mm length is not what the photographs show
+(they put the car at about 5.05 m for a 3130 mm wheelbase); the build follows the photographs.
 """
 from carkit.geom import Curve, Joined
 from carkit.body import LoftBody
@@ -28,37 +37,57 @@ TYRE_W = 0.265
 TRACK_F, TRACK_R = 1.720, 1.733
 ARCH_R = 0.485
 
+# The nose stands 0.83 m ahead of the front axle (the build had 1.075). Everything ahead of the front wheelhouse is
+# squeezed in x: a point at x > X_SQ goes to X_SQ + (x - X_SQ) * K_SQ, so the front-most point (HALF_L) lands on X_FRONT.
+X_FRONT = 2.400
+X_SQ = 2.050
+K_SQ = (X_FRONT - X_SQ) / (HALF_L - X_SQ)
+
+
+def fx(x):
+    return x if x <= X_SQ else X_SQ + (x - X_SQ) * K_SQ
+
+
+def FC(points, **kw):
+    """A Curve whose points ahead of the wheelhouse are squeezed by fx."""
+    return Curve([(fx(x), z) for (x, z) in points], **kw)
+
+
 V_SHOULDER = 0.520
-COWL_X = 1.320               # base of windshield
+COWL_X = 1.200               # base of windshield (the render: the hood meets the screen at x 1.15 to 1.2, z 1.22)
 KNEE_X = -2.180              # roof spoiler trailing edge (SUV full-length roof)
 BACKLIGHT_X = KNEE_X
 
 # ------------------------------------------------------------- silhouette (Z)
 Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve([
-    # SUV raked backlight from roof spoiler lip (-2.180, z=1.640) directly to tail lightbar shelf (-2.640, z=1.115)
-    (-HALF_L, 1.115), (-2.550, 1.165), (-2.460, 1.265), (-2.360, 1.395),
-    (-2.260, 1.530), (KNEE_X, 1.640),
+    # the backlight, from the roof spoiler's lip down to the tail lightbar shelf; read off the render (the glass runs
+    # ~0.06 m further back than the first build's, the bumper end is where it was)
+    (-HALF_L, 1.115), (-2.600, 1.170), (-2.550, 1.235), (-2.470, 1.330),
+    (-2.390, 1.440), (-2.310, 1.570), (-2.240, 1.660), (KNEE_X, 1.700),
 ]), Curve([
-    # Long, majestic 3-row SUV roof crown (peaking at 1.800 m) + smooth 30-deg windshield down to cowl (1.320, z=1.120)
-    (KNEE_X, 1.640), (-2.120, 1.695), (-2.020, 1.728), (-1.850, 1.752),
-    (-1.550, 1.775), (-1.150, 1.790), (-0.650, 1.798), (-0.250, 1.800),
-    (0.150, 1.792), (0.420, 1.770), (0.550, 1.740), (0.680, 1.655),
-    (0.840, 1.525), (1.000, 1.385), (1.160, 1.245), (1.280, 1.145),
-    (COWL_X, 1.120),
+    # the roof crowns gently from the screen header (z 1.67 at x 0.42) to its peak (1.80, x -0.65 to -0.95) and falls
+    # to the spoiler; then the screen at 31 degrees to the cowl (1.20, z 1.222)
+    (KNEE_X, 1.700), (-2.100, 1.725), (-2.000, 1.738), (-1.850, 1.756),
+    (-1.550, 1.780), (-1.250, 1.796), (-0.950, 1.802), (-0.650, 1.802),
+    (-0.350, 1.796), (-0.050, 1.774), (0.150, 1.745), (0.300, 1.716),
+    (0.420, 1.665), (0.550, 1.585), (0.650, 1.535), (0.750, 1.480),
+    (0.850, 1.424), (0.950, 1.364), (1.050, 1.300), (1.120, 1.255),
+    (COWL_X, 1.222),
 ])), Curve([
-    # Clamshell hood from cowl (+1.320, z=1.120) forward to Shark-Nose X-Bar apex (+2.640)
-    (COWL_X, 1.120), (1.480, 1.108), (1.720, 1.090), (1.960, 1.062),
-    (2.180, 1.025), (2.360, 0.978), (2.480, 0.935), (HALF_L, 0.875),
+    # the hood: flat from the cowl, rolling over at the nose (z 0.95 at the front-most point, X_FRONT)
+    (COWL_X, 1.222), (1.350, 1.206), (1.500, 1.196), (1.650, 1.182),
+    (1.800, 1.166), (1.950, 1.146), (2.050, 1.124), (2.150, 1.094),
+    (2.250, 1.050), (2.330, 1.000), (X_FRONT, 0.950), (2.500, 0.900), (HALF_L, 0.840),
 ]))
 
-Z_FLOOR = Curve([
+Z_FLOOR = FC([
     (-HALF_L, 0.310), (-2.450, 0.268), (-2.150, 0.228),
     (REAR_AXLE, 0.212), (-1.100, 0.198), (0.000, 0.195),
     (1.100, 0.198), (FRONT_AXLE, 0.212), (2.150, 0.225),
     (2.450, 0.245), (HALF_L, 0.268),
 ])
 
-Z_HIP = Curve([
+Z_HIP = FC([
     (-HALF_L, 0.660), (-2.350, 0.760), (-1.950, 0.805),
     (REAR_AXLE, 0.810), (-0.800, 0.790), (0.000, 0.770),
     (0.900, 0.750), (COWL_X, 0.735), (FRONT_AXLE, 0.720),
@@ -66,48 +95,50 @@ Z_HIP = Curve([
 ])
 
 # Signature Nio ES8 horizontal 16 mm belt/shoulder line ("宽舷肩线")
+# (the front half follows the higher hood: shoulder = hood - 0.045, as the first build had it)
 Z_SHOULDER = Curve([
     (-HALF_L, 1.060), (-2.400, 1.100), (-2.050, 1.140),
     (REAR_AXLE, 1.135), (-0.800, 1.125), (0.000, 1.115),
-    (0.850, 1.105), (COWL_X, 1.085), (FRONT_AXLE, 1.050),
-    (2.050, 0.990), (2.380, 0.935), (HALF_L, 0.865),
+    (0.850, 1.115), (COWL_X, 1.177), (FRONT_AXLE, 1.143),
+    (2.050, 1.079), (2.250, 1.005), (2.330, 0.955), (X_FRONT, 0.905),
+    (2.500, 0.860), (HALF_L, 0.800),
 ])
 
-Z_CREST = Curve([
+Z_CREST = FC([
     (-HALF_L, -0.045), (-2.350, -0.065), (KNEE_X, -0.085),
     (-1.400, -0.090), (-0.400, -0.092), (0.450, -0.088),
     (0.900, -0.068), (COWL_X, -0.032), (1.800, -0.030),
     (2.300, -0.025), (HALF_L, 0.000),
 ])
 
-Y_HIP = Curve([
+Y_HIP = FC([
     (-HALF_L, 0.760), (-2.420, 0.855), (-2.100, 0.920),
     (REAR_AXLE, 0.935), (-0.800, 0.935), (0.000, 0.940),
     (0.900, 0.935), (COWL_X, 0.920), (FRONT_AXLE, 0.915),
     (2.100, 0.915), (2.420, 0.885), (HALF_L, 0.800),
 ])
 
-Y_SHOULDER = Curve([
+Y_SHOULDER = FC([
     (-HALF_L, 0.680), (-2.400, 0.765), (-2.050, 0.815),
     (REAR_AXLE, 0.855), (-0.800, 0.885), (0.000, 0.895),
     (0.850, 0.880), (COWL_X, 0.850), (FRONT_AXLE, 0.835),
     (2.100, 0.805), (2.420, 0.765), (HALF_L, 0.690),
 ])
 
-Y_ROOF = Curve([
+Y_ROOF = FC([
     (-HALF_L, 0.570), (-2.400, 0.580), (KNEE_X, 0.595),
     (-1.600, 0.625), (-0.600, 0.650), (0.350, 0.660),
     (0.850, 0.715), (COWL_X, 0.815), (1.650, 0.800),
     (2.150, 0.760), (2.350, 0.710), (2.450, 0.650), (HALF_L, 0.580),
 ])
 
-Y_ROCKER = Curve([
+Y_ROCKER = FC([
     (-HALF_L, 0.730), (-2.350, 0.825), (-1.750, 0.895),
     (-0.800, 0.920), (0.000, 0.925), (0.850, 0.920),
     (FRONT_AXLE, 0.910), (2.150, 0.880), (2.420, 0.835), (HALF_L, 0.740),
 ], mode="pchip")
 
-UNDERCUT = Curve([
+UNDERCUT = FC([
     (-HALF_L, 0.000), (-2.100, 0.000), (-1.250, 0.015),
     (-0.650, 0.024), (0.450, 0.024), (1.000, 0.012),
     (1.400, 0.000), (HALF_L, 0.000),

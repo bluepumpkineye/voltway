@@ -14,31 +14,34 @@ GAP = BP.GAP
 SKIN = M.SKIN
 
 # ----------------------------------------------------------------- stations
-X_COWL = S.COWL_X            # 1.320, windscreen base
-X_ROOF_F = 0.520             # windscreen header
+X_COWL = S.COWL_X            # 1.200, windscreen base
+X_ROOF_F = 0.420             # windscreen header
 X_KNEE = S.KNEE_X            # -2.180, roof spoiler trailing edge
-X_DLO_FRONT = 0.740          # where roof-side glass line meets A-pillar
-X_DOOR_TOP_F = 1.035         # front door leading edge at belt
-X_GLASS_F = 1.030            # front door glass front edge
-X_FOOT_END = 1.210           # A-pillar foot end
+X_DLO_FRONT = 0.620          # where roof-side glass line meets A-pillar
+X_DOOR_TOP_F = 1.000         # front door leading edge at belt
+X_GLASS_F = 0.995            # front door glass front edge
+X_FOOT_END = 1.090           # A-pillar foot end
 X_DLO_TIP = -1.880           # 3rd-row quarter glass rear tip
 X_BLADE = -2.175             # roof spoiler trailing edge
 X_ROOF_GLASS_R = -1.650      # panoramic glass roof rear edge
-GB_F = -0.045                # B-pillar front door glass edge
-GB_R = -0.185                # B-pillar rear door glass edge
-X_BPILLAR_C = -0.065         # B-pillar nominal center station
-X_DOOR_R_TOP = -1.200        # rear door trailing edge at beltline
+GB_F = -0.175                # B-pillar front door glass edge
+GB_R = -0.310                # B-pillar rear door glass edge
+X_BPILLAR_C = -0.190         # B-pillar nominal center station
+X_DOOR_R_TOP = -1.420        # rear door trailing edge at beltline
 
+# Door cuts, z -> x, read off the maker's side render (2026-10-30; the first build had the B-pillar at -0.07 and the rear
+# door's trailing edge at -1.2: its rear door was 1.13 m long, the real one is 1.27): front door edge near x 0.99, B-pillar
+# leaning back at the top (-0.13 at z 0.3, -0.20 at the belt), rear door edge near -1.44 (-1.46 low, -1.42 high).
 _DOOR_F_EDGE = Curve([
-    (0.25, 1.015), (0.50, 1.025), (0.80, 1.030), (1.14, 1.035),
+    (0.25, 0.985), (0.50, 0.990), (0.80, 0.995), (1.14, 1.000),
 ], mode="pchip")
 
 _DOOR_B_EDGE = Curve([
-    (0.25, -0.075), (0.55, -0.070), (0.85, -0.062), (1.14, -0.055),
+    (0.25, -0.125), (0.55, -0.140), (0.85, -0.170), (1.14, -0.200),
 ], mode="pchip")
 
 _DOOR_R_EDGE = Curve([
-    (0.32, -1.080), (0.55, -1.150), (0.85, -1.215), (1.14, -1.245),
+    (0.32, -1.460), (0.55, -1.450), (0.85, -1.435), (1.14, -1.420),
 ], mode="pchip")
 
 
@@ -70,18 +73,19 @@ def v_up(x, z):
 
 # ------------------------------------------------------------ window lines
 # Horizontal 16 mm beltline ("宽舷肩线")
+# (raised 8.5 cm in the second pass: the render's glass bottom is at z 1.205 at the front door and 1.26 at the quarter)
 BELT_Z = Curve([
-    (1.05, 1.120), (0.60, 1.125), (0.00, 1.132), (-0.75, 1.142),
-    (-1.35, 1.155), (X_DLO_TIP, 1.175),
+    (1.05, 1.205), (0.60, 1.210), (0.00, 1.217), (-0.75, 1.228),
+    (-1.35, 1.240), (X_DLO_TIP, 1.262),
 ])
 
 DLO_TOP_Z = Curve([
-    (X_DLO_FRONT, 1.445), (0.42, 1.595), (0.00, 1.655), (-0.55, 1.662),
+    (X_DLO_FRONT, 1.440), (0.42, 1.560), (0.00, 1.650), (-0.55, 1.662),
     (-1.15, 1.650), (-1.60, 1.615), (X_DLO_TIP, 1.540),
 ])
 
-A_FOOT = (1.300, 1.115)
-A_TOP = (X_ROOF_F, 1.565)
+A_FOOT = (1.185, 1.172)
+A_TOP = (X_ROOF_F, 1.560)
 
 
 def z_a(x):
@@ -184,7 +188,7 @@ def _hood_front(v):
 
 Y_HOOD = Curve([
     (X_COWL, 0.795), (1.55, 0.785), (1.85, 0.775),
-    (2.15, 0.750), (2.35, 0.700), (2.46, 0.640),
+    (S.fx(2.15), 0.750), (S.fx(2.35), 0.700), (S.fx(2.46), 0.640),
 ])
 
 
@@ -286,10 +290,10 @@ PANELS = [
     dict(name="ES8_Glass_DoorFront", x=(GB_F, X_GLASS_F),
          v=(lambda x: V_BELT(x) + 0.010, lambda x: V_GT(x) - 0.004),
          nx=72, nv=28, glass="glass"),
-    dict(name="ES8_Glass_DoorRear", x=(-1.20, GB_R),
+    dict(name="ES8_Glass_DoorRear", x=(X_DOOR_R_TOP + 0.015, GB_R),
          v=(lambda x: V_BELT(x) + 0.010, lambda x: V_GT(x) - 0.004),
          nx=52, nv=28, glass="glass_dark"),
-    dict(name="ES8_Glass_Quarter", x=(X_DLO_TIP + 0.012, -1.24),
+    dict(name="ES8_Glass_Quarter", x=(X_DLO_TIP + 0.012, X_DOOR_R_TOP - 0.010),
          v=(lambda x: V_BELT(x) + 0.008, lambda x: V_GT(x) - 0.004),
          nx=28, nv=16, glass="glass_dark"),
     dict(name="ES8_Glass_Rear", x=(lambda v: N.JOIN_R(v) + 0.004, X_BLADE - 0.006),

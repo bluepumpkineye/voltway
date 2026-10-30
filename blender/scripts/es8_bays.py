@@ -11,15 +11,16 @@ from mathutils.bvhtree import BVHTree
 from carkit.bay import (smooth, inset_poly, radial, finish as _finish, prism as _prism,
                         rrect as _rrect, disc as _disc, is_cw as _cw)
 
-HOOD_HALF = [(1.32, 0.805), (1.60, 0.835), (1.95, 0.840), (2.25, 0.815), (2.38, 0.770),
-             (2.51, 0.550)]
-HOOD_HINGE = (1.335, 1.115)
+# (2026-10-30: the cowl moved back to 1.20 and the nose in by the squeeze es8_surface.fx; the frunk follows)
+HOOD_HALF = [(1.20, 0.805), (1.60, 0.835), (1.95, 0.840), (2.169, 0.815), (2.246, 0.770),
+             (2.323, 0.550)]
+HOOD_HINGE = (1.215, 1.213)
 HOOD_DEG = 62.0
 APRON_DROP = 0.060
 TUB_DEPTH = 0.245     # Nio ES8 230L ultra-wide deep frunk tub
-TUB = [(1.480, 0.0), (1.480, 0.360), (1.500, 0.440), (1.555, 0.485), (1.720, 0.495),
-       (1.920, 0.485), (2.060, 0.455), (2.150, 0.395), (2.195, 0.295), (2.210, 0.150),
-       (2.210, 0.0)]
+TUB = [(1.360, 0.0), (1.360, 0.360), (1.380, 0.440), (1.435, 0.485), (1.620, 0.495),
+       (1.850, 0.485), (2.000, 0.455), (2.070, 0.395), (2.110, 0.295), (2.130, 0.150),
+       (2.130, 0.0)]
 WALL = [(0.0, 0.0), (0.004, -0.008), (0.010, -0.022), (0.018, -0.075), (0.026, -0.155),
         (0.036, -0.220), (0.052, -0.245)]
 
@@ -58,7 +59,7 @@ class Hood:
 
 
 def rim_outline(inset=0.040, n=64):
-    x0, x1 = 1.355, 2.340
+    x0, x1 = 1.240, 2.200
     xs = [x0 + (x1 - x0) * k / n for k in range(n + 1)]
     right = [(x, -max(0.05, hood_half(x) - inset)) for x in xs]
     h = max(0.05, hood_half(x1) - inset)
@@ -137,15 +138,15 @@ def build_frunk(collection="ES8_Details"):
     made.append(_finish(bm, "ES8_Frunk_Floor", col, satin, smooth_shade=False))
     made.append(tube("ES8_Frunk_TubSeal", [(x, y, zA(x, y) + 0.004) for (x, y) in tub],
                      ellipse(0.0070, 0.0060, 8), col, rubber, closed=True, lateral=(0.0, 0.0, 1.0)))
-    cx, cy = 1.650, -0.585
+    cx, cy = 1.550, -0.585
     made.append(_disc("ES8_Frunk_CapWell", cx, cy, 0.036, zA, 0.012, col, shadow))
     made.append(_disc("ES8_Frunk_Cap", cx, cy, 0.026, zA, 0.040, col, _cap_material(), lift=0.016))
     for k, sy in enumerate((-1, 1)):
-        made.append(_prism("ES8_Frunk_Pocket%d" % k, _rrect(2.14, sy * 0.610, 0.100, 0.130, 0.040),
+        made.append(_prism("ES8_Frunk_Pocket%d" % k, _rrect(2.04, sy * 0.610, 0.100, 0.130, 0.040),
                            zA, 0.006, col, shadow, 0.0030))
-        made.append(_prism("ES8_Frunk_Slot%d" % k, _rrect(2.15, sy * 0.610, 0.030, 0.012, 0.010),
+        made.append(_prism("ES8_Frunk_Slot%d" % k, _rrect(2.05, sy * 0.610, 0.030, 0.012, 0.010),
                            zA, 0.020, col, gloss, 0.0045))
-    for k, (x, y) in enumerate(((1.42, -0.710), (1.42, 0.710), (2.05, -0.745), (2.05, 0.745))):
+    for k, (x, y) in enumerate(((1.30, -0.710), (1.30, 0.710), (1.98, -0.745), (1.98, 0.745))):
         made.append(_disc("ES8_Frunk_Stop%d" % k, x, y, 0.018, zA, 0.010, col, shadow))
     made += _build_cowl(col, hood, zA, satin, rubber, shadow)
     return made
@@ -187,7 +188,7 @@ def _build_cowl(col, hood, zA, satin, rubber, shadow):
 def build_hood_liner(col, inset=0.150):
     from carkit.interior.sweep import grid_mesh
     hood = Hood()
-    xa, xb = 1.410, 2.300
+    xa, xb = 1.290, 2.170
     xm, hl = 0.5 * (xa + xb), 0.5 * (xb - xa)
     rows = []
     for i in range(29):

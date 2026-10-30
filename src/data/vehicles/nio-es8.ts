@@ -10,6 +10,8 @@ export const nioEs8: Vehicle = {
   tagline: 'Flagship smart electric 6-seater SUV with Banyan System and 3-minute Power Swap.',
   summary:
     'NIO’s 5,280 mm flagship luxury electric SUV built on the second-generation NT 2.0 platform. Powered by a 520 kW dual-motor intelligent AWD system launching from 0-100 km/h in 3.97s, it features an ultra-long 3,130 mm wheelbase, executive Zero-Gravity Lounge seating, intelligent dual-chamber air suspension, Banyan Smart Cockpit with NOMI Mate 2.0, and Aquila Super Sensing with roof Watchtower LiDAR.',
+  // The maker's published figures. The 3D model follows the maker's own side render instead (blender/scripts/es8_surface.py,
+  // scripts/silhouette): for the same wheelbase and height it is about 5.05 m long, 0.23 m shorter at the nose.
   dimensions: {
     lengthMm: 5280,
     widthMm: 2010,

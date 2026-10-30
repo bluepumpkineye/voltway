@@ -72,8 +72,9 @@ CLUSTER_C = (0.9085, DRIVER_Y, 1.059)      # 10.2 in, in the band behind the whe
 PASSENGER_C = (0.9085, -0.460, 1.059)
 SMALL_W, SMALL_H = 0.205, 0.078
 
-FRONT_BIGHT_X, FRONT_BIGHT_Z = 0.100, 0.585
-REAR_BIGHT_X, REAR_BIGHT_Z, REAR_Y = -0.940, 0.610, 0.370
+# (2026-10-30: the seats rose 4 cm and their backrests grew 9 %: the SU7-derived bucket looked small in a cabin this tall)
+FRONT_BIGHT_X, FRONT_BIGHT_Z = 0.100, 0.625
+REAR_BIGHT_X, REAR_BIGHT_Z, REAR_Y = -0.940, 0.650, 0.370
 
 MIRROR_C = (0.450, 0.000, 1.580)           # frameless rear-view mirror near windscreen header
 
@@ -510,13 +511,22 @@ def build_wheel(col, lib):
 
 
 # ------------------------------------------------------------------ seats
-def _rear_spec():
-    """The rear seats: the front seat, backrest 16 % shorter so the head
-    restraint clears the falling roof."""
+def _front_spec():
+    """The front seats: the bucket with the backrest 9 % taller."""
     import copy
     from carkit.interior import seat as SE
     sp = copy.deepcopy(SE.LUXEED_RX_FRONT)
-    sp["backrest"]["spine"] = [(x * 0.95, z * 0.84) for (x, z) in sp["backrest"]["spine"]]
+    sp["backrest"]["spine"] = [(x * 1.04, z * 1.09) for (x, z) in sp["backrest"]["spine"]]
+    return sp
+
+
+def _rear_spec():
+    """The rear seats: the same seat, backrest 2 % taller than the bucket's (it was 16 % shorter for a roof that is not
+    there: the cabin's roof runs flat at 1.80 over the rear rows)."""
+    import copy
+    from carkit.interior import seat as SE
+    sp = copy.deepcopy(SE.LUXEED_RX_FRONT)
+    sp["backrest"]["spine"] = [(x * 1.00, z * 1.02) for (x, z) in sp["backrest"]["spine"]]
     return sp
 
 
@@ -524,7 +534,7 @@ def build_seats(col, lib):
     from carkit.interior import seat as SE
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
-        parts, cush, back = SE.seat(col, lib, SE.LUXEED_RX_FRONT,
+        parts, cush, back = SE.seat(col, lib, _front_spec(),
                                     (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), name="int_seat_" + tag)
         made += parts
         made.append(SE.base(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), FLOOR_Z,

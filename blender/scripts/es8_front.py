@@ -21,19 +21,24 @@ NOSE = N.NOSE
 PLACER = P.Placer(BODY.proud)
 
 # --------------------------------------------------------------- hardpoints
+def _fx(pts):
+    """Plan outlines read for the first build's nose, brought back by the nose squeeze (es8_surface.fx)."""
+    return [(S.fx(x), y) for (x, y) in pts]
+
+
 # Double-Dash dual-layer crystal DRLs (spanning from near central emblem to outer bonnet edge)
-HOUSE_UP_XY = [(2.542, 0.380), (2.518, 0.480), (2.476, 0.590), (2.418, 0.690), (2.355, 0.765)]
-HOUSE_LO_XY = [(2.576, 0.380), (2.552, 0.480), (2.510, 0.590), (2.452, 0.690), (2.390, 0.765)]
+HOUSE_UP_XY = _fx([(2.542, 0.380), (2.518, 0.480), (2.476, 0.590), (2.418, 0.690), (2.355, 0.765)])
+HOUSE_LO_XY = _fx([(2.576, 0.380), (2.552, 0.480), (2.510, 0.590), (2.452, 0.690), (2.390, 0.765)])
 
-UP_IN_UP_XY  = [(2.545, 0.395), (2.530, 0.480), (2.508, 0.575)]
-UP_IN_LO_XY  = [(2.560, 0.395), (2.545, 0.480), (2.523, 0.575)]
-UP_OUT_UP_XY = [(2.482, 0.595), (2.432, 0.685), (2.370, 0.760)]
-UP_OUT_LO_XY = [(2.497, 0.595), (2.447, 0.685), (2.385, 0.760)]
+UP_IN_UP_XY  = _fx([(2.545, 0.395), (2.530, 0.480), (2.508, 0.575)])
+UP_IN_LO_XY  = _fx([(2.560, 0.395), (2.545, 0.480), (2.523, 0.575)])
+UP_OUT_UP_XY = _fx([(2.482, 0.595), (2.432, 0.685), (2.370, 0.760)])
+UP_OUT_LO_XY = _fx([(2.497, 0.595), (2.447, 0.685), (2.385, 0.760)])
 
-LO_IN_UP_XY  = [(2.561, 0.405), (2.546, 0.480), (2.524, 0.575)]
-LO_IN_LO_XY  = [(2.573, 0.405), (2.558, 0.480), (2.536, 0.575)]
-LO_OUT_UP_XY = [(2.498, 0.595), (2.448, 0.685), (2.386, 0.755)]
-LO_OUT_LO_XY = [(2.510, 0.595), (2.460, 0.685), (2.398, 0.755)]
+LO_IN_UP_XY  = _fx([(2.561, 0.405), (2.546, 0.480), (2.524, 0.575)])
+LO_IN_LO_XY  = _fx([(2.573, 0.405), (2.558, 0.480), (2.536, 0.575)])
+LO_OUT_UP_XY = _fx([(2.498, 0.595), (2.448, 0.685), (2.386, 0.755)])
+LO_OUT_LO_XY = _fx([(2.510, 0.595), (2.460, 0.685), (2.398, 0.755)])
 
 # Vertical HDPL projector headlamp pocket in outer bumper cheek (y, z loop)
 POCKET_YZ = [
@@ -47,16 +52,26 @@ POCKET_YZ = [
     (0.742, 0.675),
 ]
 
-# Trapezoidal lower active grille opening (half-outline y, z)
+# Lower active grille opening (half-outline y, z). The first build's was a low strip (z 0.305 to 0.465); the real car's
+# (Autohome 12707358, front) is a tall black opening from the bumper's chrome strip up to behind the plate (z 0.30 to
+# 0.58), a little narrower at the top with chamfered corners, and it is what makes the nose read as an SUV's.
 BAND_OUTLINE = [
-    (-0.020, 0.465),
-    ( 0.540, 0.462),
-    ( 0.630, 0.435),
-    ( 0.685, 0.340),
-    ( 0.655, 0.305),
+    (-0.020, 0.585),
+    ( 0.440, 0.585),
+    ( 0.520, 0.540),
+    ( 0.578, 0.440),
+    ( 0.600, 0.350),
+    ( 0.575, 0.305),
     (-0.020, 0.305),
 ]
 BAND_RECESS = 0.030
+
+# The small black corner air intakes under each headlamp cluster (y, z loop), as the real front shows them
+VENT_YZ = [
+    (0.755, 0.515), (0.862, 0.522), (0.880, 0.500), (0.884, 0.430),
+    (0.870, 0.408), (0.762, 0.402), (0.746, 0.424), (0.745, 0.495),
+]
+VENT_SLATS = (0.432, 0.458, 0.484)             # the three horizontal bars across each
 
 
 # ----------------------------------------------------------------- helpers
@@ -82,7 +97,7 @@ def _place(p, d):
 
 
 def _cut_band(ob):
-    c = C.prism_x("_band_" + ob.name, BAND_OUTLINE, S.HALF_L + 0.35, S.HALF_L - 0.65)
+    c = C.prism_x("_band_" + ob.name, BAND_OUTLINE, S.X_FRONT + 0.35, S.X_FRONT - 0.65)
     sheet = C.sheet_bvh(ob)
     C.difference(ob, [c], "band_", reset_materials=True)
     C.prune_off_sheet(ob, sheet)
@@ -104,6 +119,25 @@ def _cut_pocket(ob):
     c = C.prism_dir("_pocket_" + ob.name, loop, d, back=0.16, front=0.10)
     sheet = C.sheet_bvh(ob)
     C.difference(ob, [c], "pocket_", reset_materials=True)
+    C.prune_off_sheet(ob, sheet)
+
+
+def _vent_loop():
+    pts, ns = [], []
+    for (_x, y, z) in geom.polyline([(0.0, y, z) for (y, z) in VENT_YZ + VENT_YZ[:1]], 40)[:-1]:
+        p, n = face(y, z)
+        pts.append(p)
+        ns.append(n)
+    d = [sum(n[i] for n in ns) for i in range(3)]
+    L = math.sqrt(sum(c * c for c in d))
+    return pts, tuple(c / L for c in d)
+
+
+def _cut_vent(ob):
+    loop, d = _vent_loop()
+    c = C.prism_dir("_vent_" + ob.name, loop, d, back=0.16, front=0.10)
+    sheet = C.sheet_bvh(ob)
+    C.difference(ob, [c], "vent_", reset_materials=True)
     C.prune_off_sheet(ob, sheet)
 
 
@@ -129,11 +163,11 @@ def build_fascia(collection, lib):
         "ES8_Fascia", NOSE, collection, lib,
         N.NOSE_Z_LO + 0.001, N.NOSE_Z_HI - 0.0008, 0.0, 1.0, 48, 48,
         mat="paint", top_to_centre=True,
-        cuts=(_cut_band, _cut_pocket),
+        cuts=(_cut_band, _cut_pocket, _cut_vent),
     )]
 
     # Recessed black grille panel behind the trapezoidal opening
-    rows, _ = BP.cap_rows(NOSE, 0.295, 0.480, 0.0, 0.70, 16, 32, offset=-BAND_RECESS)
+    rows, _ = BP.cap_rows(NOSE, 0.295, 0.592, 0.0, 0.70, 24, 32, offset=-BAND_RECESS)
     band = M.mesh_from_rows("ES8_Band", rows, collection)
     M.orient(band.data, geom.axial(1.0))
     band.data.materials.append(lib["grille"])
@@ -141,9 +175,10 @@ def build_fascia(collection, lib):
     M.finish(band, thickness=0.0025, bevel=0.0)
     made.append(band)
 
-    # Active horizontal louvers inside the lower grille
-    for idx, z_slat in enumerate((0.340, 0.382, 0.424)):
-        pts = [face(y, z_slat, -0.010)[0] for y in (0.0, 0.18, 0.36, 0.52, 0.62)]
+    # Active horizontal louvers inside the lower grille: four heavy bars low, finer ones up behind the plate
+    for idx, z_slat in enumerate((0.334, 0.370, 0.406, 0.442, 0.478, 0.512, 0.546)):
+        wy = (0.0, 0.18, 0.36, 0.50, 0.57) if z_slat < 0.46 else (0.0, 0.18, 0.34, 0.46, 0.50)
+        pts = [face(y, z_slat, -0.010)[0] for y in wy]
         slat_rows = [
             [(p[0] + 0.008, p[1], p[2] - 0.004) for p in pts],
             [(p[0] - 0.012, p[1], p[2] + 0.004) for p in pts],
@@ -154,10 +189,20 @@ def build_fascia(collection, lib):
         M.finish(slat, thickness=0.003, bevel=0.0)
         made.append(slat)
 
+    # The dark face panel across the nose under the hood's lip (the real car's black shark-nose band, z 0.72 to 0.84)
+    prow = []
+    for z in (0.715, 0.745, 0.775, 0.805, 0.836):
+        half = 0.475 + 0.055 * (z - 0.715) / 0.121
+        prow.append([face(y, z, 0.0030)[0] for y in (0.0, 0.5 * half, 0.8 * half, half)])
+    panel = M.grid("ES8_Face_Panel", prow, collection, lib["grille"], geom.axial(1.0))
+    M.mirror_y(panel)
+    M.finish(panel, thickness=0.003, bevel=0.0008)
+    made.append(panel)
+
     # Central 4D mmWave radar module in lower grille
     made.append(fittings.rounded_panel(
-        "ES8_Radar", (S.HALF_L, 0.0, 0.385), 0.082, 0.050, 0.010,
-        lambda p, d: face(p[1], p[2], d), S.HALF_L, collection, lib["black_gloss"],
+        "ES8_Radar", (S.X_FRONT, 0.0, 0.385), 0.082, 0.050, 0.010,
+        lambda p, d: face(p[1], p[2], d), S.X_FRONT, collection, lib["black_gloss"],
         d=-0.008, ny=16,
     ))
     return made
@@ -234,6 +279,19 @@ def build_headlamps(collection, lib):
     M.mirror_y(tun)
     made.append(tun)
 
+    # 2b. The small corner air intakes under the lamp clusters: a dark tunnel and three horizontal bars
+    vloop, vd = _vent_loop()
+    vtun = _tunnel("ES8_Vent_Tunnel", vloop, vd, 0.060, collection, lib["black_gloss"])
+    M.mirror_y(vtun)
+    made.append(vtun)
+    for idx, zb in enumerate(VENT_SLATS):
+        pts = [face(y, zb, -0.012)[0] for y in (0.770, 0.805, 0.840, 0.872)]
+        srows = [[(p[0] + 0.006, p[1], p[2] - 0.004) for p in pts], [(p[0] - 0.006, p[1], p[2] + 0.004) for p in pts]]
+        bar = M.grid("ES8_Vent_Bar_%d" % idx, srows, collection, lib["grille"], geom.const((1.0, 0.0, 0.0)))
+        M.mirror_y(bar)
+        M.finish(bar, thickness=0.004, bevel=0.0)
+        made.append(bar)
+
     # Stacked dual HDPL MicroLED projector modules inside the vertical pocket
     for idx, (yp, zp) in enumerate(((0.805, 0.725), (0.808, 0.625))):
         p, n = face(yp, zp, -0.008)
@@ -247,9 +305,9 @@ def build_emblem_and_plate(collection, lib):
     made = []
     # Nio Sky & Earth emblem on sloped upper Shark-Nose panel between DRLs
     emb = fittings.rounded_panel(
-        "ES8_Emblem", (S.HALF_L, 0.0, 0.902), 0.026, 0.019, 0.005,
+        "ES8_Emblem", (S.X_FRONT, 0.0, 0.902), 0.026, 0.019, 0.005,
         lambda p, d: face(p[1], p[2], d),
-        S.HALF_L, collection, lib["chrome"], d=0.0025, ny=14,
+        S.X_FRONT, collection, lib["chrome"], d=0.0025, ny=14,
         outward=(0.82, 0.0, 0.57),
     )
     made.append(emb)
