@@ -33,6 +33,7 @@ from carkit import export as _X
 MODELS = os.path.normpath(os.path.join(_HERE, "..", "..", "public", "models"))
 DEST = os.path.join(MODELS, "avatr-06t.glb")
 DEST_INTERIOR = os.path.join(MODELS, "avatr-06t-interior.glb")
+DEST_LIGHTMAP = os.path.join(MODELS, "avatr-06t-cabin-light.webp")
 DEST_PROBE = os.path.join(MODELS, "avatr-06t-cabin.hdr")
 DEST_OUTSIDE = os.path.join(MODELS, "avatr-06t-outside.jpg")
 DEST_OUTSIDE_LIGHT = os.path.join(MODELS, "avatr-06t-outside-light.hdr")
@@ -50,7 +51,7 @@ PROTECTED = {"screen_main", "screen_cluster", "screen_mirror_L", "screen_mirror_
              "int_tailgate", "int_parcel_shelf", "int_rear_sill",
              "int_headliner", "int_cpillar", "int_cpillar_flange", "int_qtr_lower"}
 INTERIOR_GROUPS = [("Avatr06T_Cabin", "A06T_Interior")]
-PROBE_AT = (-0.40, 0.0, 1.15)
+PROBE_AT = (-0.20, 0.0, 1.15)
 PROBE_LIGHT_MIX = 0.3
 
 BLACKOUT = ("A06T_Shell_Shadow", "A06T_Greenhouse_Black", "A06T_Roof_Rear_Black", "A06T_Glass_RearBack")
@@ -333,7 +334,7 @@ def hmi_cabin(res=(1500, 940), samples=120, shots=("climate", "seats")):
 
     CAMS = {
         "climate": ((-1.05, 0.0, 1.52), (1.10, 0.0, 0.70), 17.0),
-        "seats": ((-1.45, -0.55, 1.78), (0.25, 0.22, 0.52), 19.0),
+        "seats": ((-1.45, -0.55, 1.78), (0.45, 0.22, 0.52), 19.0),
     }
     for o in objs:
         n = o.name.lower()
@@ -477,7 +478,44 @@ def atlas_cabin(samples=512):
     return AA.atlas_for("A06T_Interior", samples=samples)
 
 
-def export_interior(draco=True, look="baked"):
+def bake_lightmap(samples=512, size=2048, world="white"):
+    """The cabin's diffuse light on the occlusion atlas's UV set (carkit.lightmap) with the body in place: the light comes in
+    through the glass. world="white": a uniform white studio, strength 1 (Rivian's stills: a white cove round the car; the
+    hall's narrow ceiling strips came through the glass like spotlights, a 570:1 spread between the lit patches and the
+    rest); world="hall": public/models/cabin-hall.hdr. Writes DEST_LIGHTMAP and
+    DEST_LIGHTMAP + ".json" ({"intensity": scale}, the vehicle data's assets.interiorLightMap.intensity). Runs after
+    atlas_cabin(), on the merged export meshes."""
+    import json
+    from carkit import aoatlas as AA
+    from carkit import lightmap as LM
+    from carkit import scene as SC
+    col = bpy.data.collections["A06T_Interior"]
+    objs = AA.cabin_objects(col)
+    if world == "hall":
+        SC.hdri_world(os.path.join(MODELS, "cabin-hall.hdr"), strength=1.0)
+    else:
+        w = bpy.data.worlds.new("W_Studio_White")
+        w.use_nodes = True
+        bg = next(n for n in w.node_tree.nodes if n.type == 'BACKGROUND')
+        bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        bg.inputs["Strength"].default_value = 1.0
+        bpy.context.scene.world = w
+    lamps = [o for o in bpy.data.objects if o.type == 'LIGHT' and not o.hide_render]
+    for o in lamps:
+        o.hide_render = True
+    # the black sheets under the glass would stop the light at every window
+    hide = [o for o in bpy.data.objects if o.name in BLACKOUT or "Blackout" in o.name or o.name.startswith("Ground")]
+    try:
+        _img, scale = LM.bake(objs, DEST_LIGHTMAP, samples=samples, size=size, hide=hide, blur=2)
+    finally:
+        for o in lamps:
+            o.hide_render = False
+    with open(DEST_LIGHTMAP + ".json", "w") as f:
+        json.dump({"intensity": round(scale, 5)}, f)
+    return scale
+
+
+def export_interior(draco=True, look="baked", lightmap=False):
     """look="baked": per-vertex Cycles light under the outdoor world (bake_cabin and bake_cabin_open first).
     look="hall": HIMA's cabin light - no vertex light, a 2048 occlusion atlas on a second UV set, lit in the viewer by
     the shared hall environment (public/models/cabin-hall.hdr, carkit.hall_env; export_zx.web_cabin writes it)."""
@@ -494,12 +532,14 @@ def export_interior(draco=True, look="baked"):
     _X.merge_for_export(INTERIOR_GROUPS, PROTECTED)
     if look == "hall":
         atlas_cabin()
+        if lightmap:
+            bake_lightmap()
     os.makedirs(os.path.dirname(DEST_INTERIOR), exist_ok=True)
     return _X.export(DEST_INTERIOR, INTERIOR_GROUPS, "Avatr06T_Cabin", draco=draco,
                      attributes=True, image_format='WEBP' if look == "hall" else 'AUTO')
 
 
-def web_cabin(samples=160, probe_samples=256, draco=True, look="baked"):
+def web_cabin(samples=160, probe_samples=256, draco=True, look="baked", lightmap=False):
     """The cabin alone: fresh build of body and cabin -> the interior GLB, with the exterior, the probe and the outside
     world left as they are.
 
@@ -522,7 +562,7 @@ def web_cabin(samples=160, probe_samples=256, draco=True, look="baked"):
     if look == "hall":
         prepare_exterior()    # the doors are hinged nodes before join_doors() makes the cards
         cabin_screens()
-        res = {"interior": export_interior(draco=draco, look="hall")}
+        res = {"interior": export_interior(draco=draco, look="hall", lightmap=lightmap)}
         print("web_cabin (hall): %.0f s" % (time.time() - t))
         return res
     stats = bake_cabin(samples, probe_samples)

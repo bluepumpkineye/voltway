@@ -40,3 +40,7 @@ public/demo/
 # Temporary test models and HDRs
 public/models/_*
 public/models/*-ao.glb
+
+# Scratch scripts and temporary spreadsheets
+scratch/
+*.xlsx

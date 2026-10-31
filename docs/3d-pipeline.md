@@ -723,6 +723,44 @@ Found on the way, worth knowing:
 - Caliper colours (`useCaliper`, the Wheels tab) are a tween of one material's
   colour, like the paint; the first option is the car as built.
 
+### The baked light map, and the Avatr 06T's own cabin (`carkit/lightmap.py`, `a06t_cockpit/console/seats/doorcards.py`)
+
+Built 2026-10-31 after the owner set Rivian's R1S configurator (rivian.com/configurations/builder/r1s) as the interior
+target. Rivian's "View in 3D" is not a model in the browser: it is ZeroLight's OmniStream, Unreal Engine on a cloud GPU sent
+as a WebRTC video stream (940 x 720 in the Browser pane), and its gallery stills are offline Unreal renders (3072 x 1728 WebP,
+one per paint/interior combination, `media.rivian.com/rivian-main/image/upload/v1/unreal-v2/r1s/<view>/...`). We stay on
+three.js (the owner's decision of 2026-09-30), so we copy the stills' look, not the technology. What makes them read as
+premium, at 1:1: light (a white studio through every window, soft bounce, a contact shadow in every seam), rounded edges
+with a highlight on each, dark gaps between parts, twin stitching and piping, materials at real scale.
+
+**The light map** is the step past the hall look's occlusion atlas. `carkit.lightmap.bake(objs, path)` runs after
+`aoatlas.unwrap` on the merged export meshes and bakes Cycles DIFFUSE (direct + indirect, colour off: irradiance only, so a
+trim swap still recolours the albedo) onto the same UV set, with the body in the scene and the glass made thin
+(`bake.thin_glass`: else no daylight comes through), under the shared hall (`cabin-hall.hdr`), the black underlays hidden.
+Stored as an 8-bit image of (irradiance / scale) ** (1 / 2.2), scale = the 99.5th percentile; a 3x3 in-island blur takes the
+Monte Carlo grain. The vehicle data's `assets.interiorLightMap {url, intensity: scale, ibl?, ao?}` makes the viewer
+(`CarModel.tsx`, `CabinWithLightMap` / `hallLighting`) set it as every cabin material's `lightMap` on uv1 (flipY false,
+intensity x pi: three's lambert divides by pi) and light the diffuse from it; the hall keeps `ibl` (0.15) of its diffuse
+fill and all of its reflections; the atlas keeps `ao` (0.35) for the creases. `export_a06t.web_cabin(look="hall",
+lightmap=True)` does it all (about 10 minutes) and writes `avatr-06t-cabin-light.webp` plus `.json` with the intensity.
+
+**Not in use (2026-10-31).** On the 06T the owner found the light-mapped cabin "less polished than the other interiors": a physically lit cabin is darker and flatter than the hall look, and 2048 texels across the whole cabin are coarse (mip levels also bled neighbouring islands into the seat backs: the viewer now loads it without mipmaps). The 06T is back on the full hall look (no `interiorLightMap`). To bring it back: bake at 4096, under the white studio (`bake_lightmap(world="white")`; the hall's ceiling strips act as spotlights through the glass), and use it to modulate the hall's diffuse (normalised, as a better occlusion) rather than replace it.
+
+**The 06T's own cabin** replaces the Luxeed RX stand-in (references: blender/reference/avatr-06t/interior/_sources.md, the
+owner-approved board R1_interior_refs.jpg). Hardpoints come from `a06t_cabinsolve.solve_front()` (c10_0001, the dash
+straight-on: the A-pillars' glass edges plus the 15.6 in screen held at 0.352 x 0.226, 7.5 px). That photo's camera depth is
+NOT pinned: lenses from 14 to 24 mm fit within 1 px (camera x -0.18 .. -0.62), so read only what does not move with it (the
+screen, the band, the cupholders' x 0.17-0.24) and do not read seat positions from it (its seats were adjusted for the shot:
+the backrests are out of frame). The 6.7 in e-mirror displays (0.145 x 0.08 = a 16:9 6.7 in panel at x 0.55) pinned the
+display band's depth. The first dash ran its top pad 16 mm under the windscreen in the face's lilac: from outside it filled the windscreen as a pale slab, and the band stood at the driver's eye (owner: "reduce the dashboard size"); the band and face are now 5 cm lower, the top pad falls to a low shelf at the cowl and is dark matte (`INT_Dash_Top`), the wheel 9 % smaller. The Interior tab looks from between the front seats (`assets.driverView`, anchors.ts): from the eye the wheel filled the picture. Seats were judged against c3_0001 through the viewer with the door open (the aperture is the
+camera-matched exterior): the backrest stands just ahead of the B-pillar trim; the bight is at x -0.07 (it was -0.175 with the
+RX seat, whose reclined backrest then stood behind the pillar). Modules: `a06t_cockpit` (dash sweep, display band with
+`screen_cluster` and `screen_mirror_L/R`, the dash ends seen with a door open, the squircle wheel with a satin U frame),
+`a06t_console` (the floating bridge, the arch the screen stands on), `a06t_seats` (zero-gravity fronts with a purple yoke and
+headrest, the rear bench), `a06t_doorcards` (front and rear cards from length fractions of c3_0003 / c3_0020). The shell is
+the first build's, recoloured. Cabin-only Cycles renders through the solved camera (scratchpad `iter_cab.py`, 50 s) were the
+dev loop; `porting/poke_probe_a06t.py` after any dash change (the top pad's corners stood outside the A-pillar's foot).
+
 ### Openings: doors, bonnet and tailgate (`rx_openings.py`, `rx_bays.py`, `rx_gate.py`)
 
 A part that opens is its own glTF node with its **origin on the hinge**, so
@@ -1658,7 +1696,7 @@ Interior and web:
   - **A class-coloured render with the photo underneath** (`porting/glass_diff.py`): every object gets a class colour (windows, black glass, trim; Object Info colour into an emission shader, so paint still hides what is behind it) and the outlines are drawn over the photograph. A studio photograph shows the bright studio through its windows, so thresholding the photo's dark pixels is useless; compare the outlines with the frames and trim edges instead. It showed (1) the black roof glass reaching over the C-pillar's top where the photo shows paint all the way to the spoiler (`a06t_panels.V_RAIL` ran 85 mm above the window's falling top line: behind x -1.2 the edge now draws in onto the crown), (2) two black wings hanging under the rear glass at its corners: `_Pane` closed its outline at the lateral edge's WIDEST point and dragged the lower edge down to it, and with the shorter tail that point is the loft's tail end at z 1.0, so the glass sagged 13 cm; it now closes where the side edge meets the lower edge's rounded corner (`GLASS_LOW`), and (3) the wedge's hook toward the lamp (the pillar's rear edge ran on down to z 1.0; it now flattens at 1.10, the glass's lower corner).
   - **Read the edge with a program, then draw it on the crop before believing it.** A hand reading of a gridded 2x crop put the backlight's silhouette 25 px off and led to a "straight 47 degree" refit that put the glass 2.5-9 cm too high; the programmatic top edge drawn as dots on the same crop showed the real profile is the 30 degree rake the old line already had, with the blade's tip standing 0.1 m behind the glass's top and the background visible in the gap. The refit was reverted. The fixes that stayed: knee 1.344 (so the blade carries a 0.17 slope back to its tip, as in the photo), blade tip -2.09, glass top -1.985.
   - The lamp bar's horns now run 0.19 m further forward along the quarter (the photo's lamp reaches x -1.91): in the rear view that is 4 cm of y, spread over 17 cm of x, so the extra `LAMP_UPPER/LOWER` points sit close together. The rails stand 3 cm (not 4.7) over the roof's edge and draw in 2.2 cm toward the rear.
-  - A cabin photograph can date a seat: through the rear door's glass the side photo shows the front headrests at x -0.52, 8 cm ahead of where the stand-in cabin had them, so the front seats moved forward 85 mm (`a06t_interior.FRONT_BIGHT_X`). The screens, cluster and HMI overlay stay where they are: the overlay's homography is fitted to them. The Interior tab's eye (`driverEye`) moves with the seat, or the camera ends up inside the headrest and the tab is a black screen.
+  - A cabin photograph can date a seat: through the rear door's glass the side photo shows the front headrests ahead of where the stand-in cabin had them. In the 2026-10-31 redesign, the dashboard top pad was shortened from 50.2 cm to 22.5 cm (crest at x = 0.865, trough tucked at z = 0.932-0.940 below cowl z = 1.015 so it is invisible from exterior sightlines), and the front seats were relocated forward (`FRONT_BIGHT_X = 0.150`), centering the cushion in the door aperture and placing the backrest forward of the B-pillar (x = -0.165). The 15.6" screen (x = 0.650), steering wheel (x = 0.530), console arch (x = 0.750) and driver eye (`driverEye = [0.13, 0.40, 1.20]`) were calibrated to match.
   - **Shortening a car's tail leaves cabin pieces standing out of it, and only a door-open render shows them** (the cabin is stencilled to the glass while the car is shut, `clearGlass.ts`): the C-pillar trim (built to x -2.44), the parcel shelf (to -2.46) and the rear sill stood 5-16 cm behind the new tail as grey plates, the owner's "render confusion on the tailgate" in the top-down shot with the front door open. `porting/poke_probe_a06t.py` builds the body and the cabin in one scene and lists the cabin vertices outside the skin, from the centreline out (SIDE) and from far behind along +x (TAIL: the side test cannot see an x beyond the car's end). Run it after any change to an exterior's length. Pieces built along `S.BODY` run on to the loft's own end (-2.47), not to the tail cap's.
   - **A black speckle band across a paint plate in the viewer, not in Cycles, is two coplanar sheets**: the spoiler plate's black underside had thickness 0 for its first quarter (it lay exactly on the paint), and WebGL z-fought them. Underlays and undersides keep 3 mm.
   - **Privacy glass is a per-car opacity** (`Vehicle.glass.privacy`; the default 0.55 is for a car whose glass is photographed clear). With the cabin visible through the roof and the backlight at 55 %, the cargo trim, shelf and the headliner's lamps read as grey bumps in the glass; the A06T's is 0.84 with `privacyReflect` 0.55, the clear panes keep the X-ray ghost.

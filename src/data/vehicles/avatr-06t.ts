@@ -121,8 +121,10 @@ export const avatr06t: Vehicle = {
       sun: { direction: [0.65, 0.45, 0.61], color: '#fff5e6', intensity: 2.8 },
       ground: { height: -0.369, radius: 24.0 },
     },
-    // 85 mm forward with the front seats (a06t_interior.FRONT_BIGHT_X): at the old x the eye stood inside the headrest
-    driverEye: [-0.275, 0.41, 1.15],
+    // the 06T's own seat: the bight at x 0.150, cushion centered in door aperture, backrest aligned with B-pillar
+    driverEye: [0.22, 0.40, 1.17],
+    // Seated driver view with wide-angle lens showing the cockpit, console, and seating area
+    driverView: { back: 0.0, out: 0.0, lift: 0.0, fov: 56, look: [0.18, -0.035, 0.040] },
     proxyUrl: '/models/avatr-06t-proxy.glb',
     heroColor: '#524660',
   },
@@ -166,18 +168,44 @@ export const avatr06t: Vehicle = {
       },
     ],
     trims: [
+      // The three cabins Autohome photographed (series 8538, cat 3: photos 1-64, 116-160 and 65-115). The cabin is built in
+      // the first; the others recolour its materials (INT_Leather_White_Perf's texture carries the white, so its colour
+      // is the target divided by 0.58). The red cabin's seats have horizontal pleats the recolour does not model.
       {
         id: 'misty-purple-cotton-white',
         name: 'Misty Purple & Cotton White',
         nameZh: '暮紫/烟白',
-        swatch: ['#3e344e', '#dedad5'],
+        swatch: ['#7d798c', '#cbcac6'],
       },
       {
-        id: 'deep-charcoal-slate',
-        name: 'Deep Charcoal Slate',
-        nameZh: '暮灰',
-        swatch: ['#222327', '#4b4e54'],
-        colors: { INT_Leather_White: '#4b4e54', INT_Leather_Purple: '#222327' },
+        id: 'tinted-charcoal',
+        name: 'Tinted Charcoal',
+        nameZh: '深紫',
+        swatch: ['#3c3844', '#524d5d'],
+        colors: {
+          INT_Leather_White: '#524d5d',
+          INT_Leather_White_Perf: '#6b6479',
+          INT_Leather_Purple: '#3c3844',
+          INT_Trim_Purple: '#4b4855',
+          INT_Plastic_White: '#3f3d48',
+          INT_Headliner: '#38373f',
+          INT_Thread_White: '#595561',
+        },
+      },
+      {
+        id: 'kalypso-red',
+        name: 'Kalypso Red',
+        nameZh: '岱红',
+        swatch: ['#272729', '#aa3f40'],
+        colors: {
+          INT_Leather_White: '#aa3f40',
+          INT_Leather_White_Perf: '#d85354',
+          INT_Leather_Purple: '#aa3f40',
+          INT_Trim_Purple: '#9b3c3e',
+          INT_Plastic_White: '#272729',
+          INT_Headliner: '#212122',
+          INT_Thread_White: '#a03f3f',
+        },
       },
     ],
     caliperMaterial: 'M_Caliper_Silver_Grey',

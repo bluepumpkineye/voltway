@@ -166,6 +166,12 @@ export interface VehicleAssets {
   /** Equirectangular HDR the cabin is lit and reflects by: shot from inside the cabin (a baked cabin) or the shared hall,
    * `/models/cabin-hall.hdr` (a cabin with an occlusion atlas, docs/3d-pipeline.md, "The hall look"). */
   interiorProbeUrl?: string;
+  /**
+   * The cabin's diffuse light baked into one texture on its second UV set (carkit.lightmap), stored as (irradiance /
+   * intensity) ** (1 / 2.2). `ibl`: how much of the hall's diffuse fill stays (default 0.15); `ao`: how much of the
+   * occlusion atlas (default 0.35: the bake already holds the shade).
+   */
+  interiorLightMap?: { url: string; intensity: number; ibl?: number; ao?: number };
   /** The world the car stands in, in both views (export_gltf.OUTSIDE), or
    * only through the cabin's glass (`exterior: false`). */
   outside?: OutsideWorld;
@@ -174,6 +180,13 @@ export interface VehicleAssets {
    * (Blender); the viewer maps it to glTF's [x, z, -y].
    */
   driverEye?: [number, number, number];
+  /**
+   * The Interior tab's seated camera, moved off the eye (metres, build axes): `back` behind it, `out` toward the driver's door,
+   * `lift` up; `fov` (degrees, vertical) for a wider lens; `look` the aim's offset from the camera in glTF axes (x forward, y
+   * up, z to the right). Set for a car whose eye stands close to the wheel, so the picture takes in the front seats. The Drive
+   * tab keeps the eye itself.
+   */
+  driverView?: { back?: number; out?: number; lift?: number; fov?: number; look?: [number, number, number] };
   /**
    * The car's shadow on the studio floor, baked in Blender
    * (carkit.studio.ground_shadow): a WebP whose alpha is the shade. `size` and

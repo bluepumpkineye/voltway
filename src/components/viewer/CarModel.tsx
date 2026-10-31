@@ -292,7 +292,7 @@ export function CabinModel(props: Props & { probeUrl?: string }) {
   return props.probeUrl ? (
     <CabinWithProbe {...props} probeUrl={props.probeUrl} />
   ) : (
-    <Cabin {...props} probe={null} />
+    <Cabin {...props} probe={null} lightMap={null} />
   );
 }
 
@@ -302,10 +302,39 @@ function CabinWithProbe(props: Props & { probeUrl: string }) {
     tex.mapping = THREE.EquirectangularReflectionMapping;
     return tex;
   }, [tex]);
-  return <Cabin {...props} probe={probe} />;
+  const lm = props.vehicle.assets.interiorLightMap;
+  return lm ? (
+    <CabinWithLightMap {...props} probe={probe} lightMapUrl={lm.url} />
+  ) : (
+    <Cabin {...props} probe={probe} lightMap={null} />
+  );
 }
 
-function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture | null }) {
+/** A cabin whose diffuse light is baked into a texture on its second UV set (carkit.lightmap, assets.interiorLightMap). */
+function CabinWithLightMap(props: Props & { probe: THREE.Texture | null; lightMapUrl: string }) {
+  const tex = useLoader(THREE.TextureLoader, props.lightMapUrl);
+  const lightMap = React.useMemo(() => {
+    // the atlas is addressed like the glTF's own textures: TEXCOORD_1, no flip
+    tex.flipY = false;
+    tex.channel = 1;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // no mip levels: islands a few texels apart, of very different brightness, blended at the coarser levels and showed as
+    // jagged bright patches along the seat backs' edges (the light is smooth, so the full-size map does not alias)
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }, [tex]);
+  return <Cabin {...props} lightMap={lightMap} />;
+}
+
+function Cabin({
+  vehicle,
+  variant,
+  url,
+  probe,
+  lightMap = null,
+}: Props & { probe: THREE.Texture | null; lightMap?: THREE.Texture | null }) {
   const { scene } = useGLTF(url, DRACO_PATH);
   const model = useClonedScene(scene);
   const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
@@ -397,7 +426,10 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
       const atlas = !baked && Boolean(g.getAttribute('uv1'));
       for (const m of materialsOf(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
-        if (atlas) hallLighting(m, probe);
+        if (atlas) {
+          const lm = vehicle.assets.interiorLightMap;
+          hallLighting(m, probe, lightMap && lm ? { ...lm, map: lightMap } : null);
+        }
         else if (baked) {
           const id = m.userData.opening as OpeningId | undefined;
           const hinges = hingesOf(vehicle);
@@ -409,7 +441,7 @@ function Cabin({ vehicle, variant, url, probe }: Props & { probe: THREE.Texture 
       }
     });
     return { ambient, screens };
-  }, [model, probe, vehicle]);
+  }, [model, probe, lightMap, vehicle]);
 
   // ---- live material state, driven by the HMI
   React.useEffect(() => {
@@ -490,24 +522,39 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
  */
 const HALL_AO = 0.6;
 
-function hallLighting(m: THREE.MeshStandardMaterial, env: THREE.Texture | null) {
+type CabinLightMap = { map: THREE.Texture; intensity: number; ibl?: number; ao?: number };
+
+/**
+ * With a baked light map (carkit.lightmap: Cycles diffuse light, direct + indirect, irradiance only) the map lights the diffuse
+ * in place of the hall: it already holds the windows' light, the footwells' shade and the bounce off the seats. The hall keeps a
+ * little diffuse fill (`ibl`) and all of the reflections, and the occlusion atlas only its creases (`ao`).
+ */
+function hallLighting(m: THREE.MeshStandardMaterial, env: THREE.Texture | null, lm: CabinLightMap | null = null) {
   if (m.userData.baked) return;
   m.userData.baked = true;
-  m.aoMapIntensity = HALL_AO;
+  m.aoMapIntensity = lm ? (lm.ao ?? 0.35) : HALL_AO;
   if (env) {
     m.envMap = env;
     m.envMapIntensity = 1.0;
   }
+  if (lm) {
+    m.lightMap = lm.map;
+    // the bake is irradiance / intensity, and three's lambert divides by pi
+    m.lightMapIntensity = lm.intensity * Math.PI;
+  }
+  const ibl = lm ? (lm.ibl ?? 0.15) : 1.0;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uHallGain = HALL_GAIN;
     shader.uniforms.uCabinGain = CABIN_GAIN;
+    shader.uniforms.uIblKeep = { value: ibl };
     shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', 'uniform vec2 uHallGain;\nuniform float uCabinGain;\nvoid main() {')
+      .replace('void main() {', 'uniform vec2 uHallGain;\nuniform float uCabinGain;\nuniform float uIblKeep;\nvoid main() {')
       .replace(
         '#include <lights_fragment_maps>',
-        `#include <lights_fragment_maps>
-        iblIrradiance *= uHallGain.x * uCabinGain;
-        irradiance *= 0.0;
+        `irradiance *= 0.0;
+        #include <lights_fragment_maps>
+        iblIrradiance *= uHallGain.x * uCabinGain * uIblKeep;
+        irradiance *= uCabinGain;
         radiance *= uHallGain.y;
         #ifdef USE_CLEARCOAT
           clearcoatRadiance *= uHallGain.y;
@@ -526,7 +573,7 @@ function hallLighting(m: THREE.MeshStandardMaterial, env: THREE.Texture | null) 
         #endif`,
       );
   };
-  m.customProgramCacheKey = () => 'cabin-hall-v1';
+  m.customProgramCacheKey = () => (lm ? 'cabin-hall-lm-v1' : 'cabin-hall-v1');
   m.needsUpdate = true;
 }
 

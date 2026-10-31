@@ -162,19 +162,23 @@ function exteriorFit(s: Shot, L: number, W: number, H: number): number {
  * demo's) lifts the picture clear of it, as the stage's poses are lifted, and on a portrait window it also opens the view
  * out, so that the centre screen, which is to the right of the seat, is not cut off.
  */
-function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPose {
+function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number, atEye = false): AnchorPose {
   const [x, y, z] = vehicle.assets.driverEye ?? [-0.38, 0.42, 1.18];
+  // a car's own framing for the Interior tab (assets.driverView); the Drive tab's seat (atEye) keeps the eye
+  const dv = atEye ? undefined : vehicle.assets.driverView;
   // HIMA seats the eye further back than the photographs' (docs/hima-benchmark.md): with a 46 degree lens the wheel then
   // sits low in the picture and the dash fills the width
-  const pos: V3 = [x - EYE_BACK, z, -y];
+  const pos: V3 = [x - EYE_BACK - (dv?.back ?? 0), z + (dv?.lift ?? 0), -(y + (dv?.out ?? 0))];
+  const look = dv?.look ?? [0.142, -0.038, 0.031];
+  const fov = dv?.fov ?? 46;
   return {
     id: 'driver',
     mode: 'interior',
     pos,
     // the camera pivots 15 cm ahead of the eye, so a drag turns the head
     // rather than swinging the eye across the cabin
-    target: [pos[0] + 0.142, pos[1] - 0.038, pos[2] + 0.031],
-    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.min(88, 46 * (1 + (0.9 - aspect))) : 46,
+    target: [pos[0] + look[0], pos[1] + look[1], pos[2] + look[2]],
+    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.min(88, fov * (1 + (0.9 - aspect))) : fov,
     minDistance: 0.05,
     maxDistance: 0.3,
     minPolar: 0.2 * Math.PI,
@@ -189,7 +193,7 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPo
 
 /** The Drive tab's seat: the same eye, looking along the road with the dash low in the picture, a wider lens. */
 function driveSeatPose(vehicle: Vehicle, frame: CarFrame, aspect: number): AnchorPose {
-  const base = driverPose(vehicle, frame, aspect);
+  const base = driverPose(vehicle, frame, aspect, true);
   // the camera-matched eye is low against the dash (the wheel is at its height): a taller seat lifts the eye 10 cm, so that the road
   // shows between the horizon and the dash instead of being hidden behind it
   const x = base.pos[0];
