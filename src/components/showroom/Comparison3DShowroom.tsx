@@ -14,18 +14,12 @@ import { FOCUS, GLASS } from './Chrome';
 
 type BottomTab = 'specs' | 'dimensions' | 'space' | 'color';
 
+/**
+ * The model list's picture of a car: its side view in a light paint, on a transparent background (public/compare/<slug>.webp,
+ * rendered by scripts/compare-shots.mjs from the car's own model). Pale on a pale card, so that no car reads as a dark shape.
+ */
 function getCarThumbnail(slug: string): string {
-  const map: Record<string, string> = {
-    'xiaomi-su7-ultra': '/hmi/xiaomi-su7-ultra/parked.webp',
-    'luxeed-rx': '/hmi/luxeed-rx/car34.webp',
-    'zeekr-7x': '/hmi/zeekr-7x/car34.webp',
-    'denza-z9': '/hmi/denza-z9/car34.webp',
-    'xpeng-g9l': '/hmi/xpeng-g9l/car34.webp',
-    'avatr-06t': '/hmi/avatr-06t/car34.webp',
-    'nio-es8': '/hmi/nio-es8/car34.webp',
-    'voyah-passion-s': '/hmi/voyah-passion-s/car34.webp',
-  };
-  return map[slug] ?? '/hmi/luxeed-rx/car34.webp';
+  return `/compare/${slug}.webp`;
 }
 
 function formatPriceWan(priceCny?: number): string {
@@ -230,6 +224,12 @@ export function Comparison3DShowroom({
 }: Comparison3DShowroomProps) {
   // Drawer state
   const [drawerOpen, setDrawerOpen] = React.useState(true);
+  // on a phone the list would cover the cars: it opens from its button instead
+  React.useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) setDrawerOpen(false);
+  }, []);
+  // the specification sheet, the camera presets and the tabs, which on a phone stand over the lower car: one button hides them all
+  const [panelsHidden, setPanelsHidden] = React.useState(false);
   const [bottomTab, setBottomTab] = React.useState<BottomTab>('specs');
   const [specsMinimized, setSpecsMinimized] = React.useState(false);
 
@@ -456,11 +456,18 @@ export function Comparison3DShowroom({
                 }`}
               >
                 {/* Vehicle Thumbnail Preview */}
-                <div className="relative mb-2 flex h-24 w-full items-center justify-center overflow-hidden rounded-lg bg-white/70 p-2">
+                <div className="relative mb-2 flex h-24 w-full items-center justify-center overflow-hidden rounded-lg bg-gradient-to-b from-white to-neutral-200 p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={thumb}
                     alt={`${car.brand} ${car.model}`}
+                    loading="lazy"
+                    // a car without a side view yet shows its old picture
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      const old = `/hmi/${car.slug}/${car.slug === 'xiaomi-su7-ultra' ? 'parked' : 'car34'}.webp`;
+                      if (!img.src.endsWith(old)) img.src = old;
+                    }}
                     className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
                   />
                   {isSelected && (
@@ -500,6 +507,7 @@ export function Comparison3DShowroom({
 
       {/* Floating Bottom Section: Mode Selector Pills (HIMA Style) */}
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex flex-col items-center gap-3 px-3">
+        <div className={panelsHidden ? 'hidden' : 'contents'}>
         {/* Floating Content Sheet according to Active Bottom Tab */}
         {bottomTab === 'specs' && (
           <div className="pointer-events-auto w-full max-w-3xl rounded-2xl p-4 shadow-xl ring-1 ring-black/[0.08] backdrop-blur-2xl bg-white/90 transition-all">
@@ -769,6 +777,20 @@ export function Comparison3DShowroom({
             </button>
           ))}
         </div>
+        </div>
+
+        {/* One button for all of the above: the cars in their fullness, then the panels back */}
+        <button
+          type="button"
+          aria-pressed={panelsHidden}
+          onClick={() => setPanelsHidden((h) => !h)}
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-medium text-neutral-800 shadow-md ${GLASS} ${FOCUS}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d={panelsHidden ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'} />
+          </svg>
+          <span>{panelsHidden ? 'Show panels' : 'Hide panels'}</span>
+        </button>
       </div>
     </div>
   );

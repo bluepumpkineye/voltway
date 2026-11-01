@@ -18,7 +18,7 @@ import { chargeDemo } from '@/lib/tech/charging';
 import { BELOW_TOP, CarMenu, FOCUS, GLASS, InfoButton, SceneToggle, SoundToggle, TabBar } from './Chrome';
 import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
 import { CaliperSwatches, DimensionChips, PaintSwatches, TrimSwatches, WheelChips } from './Swatches';
-import { CHARGE_COLUMN_W, ChargePanel } from './Charge';
+import { CHARGE_COLUMN_W, ChargePanel, chargeSideWidth } from './Charge';
 import { COMPARE_COLUMN_W, SPECS_COLUMN_W, SpecsPanel } from './Specs';
 import { showroomCars } from '@/lib/showroom/cars';
 import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
@@ -179,6 +179,8 @@ export function Showroom({
   // The menu at the top publishes its height, so a panel that hangs from under it (a screen's column, a sheet) starts below it
   const root = React.useRef<HTMLDivElement>(null);
   const top = React.useRef<HTMLElement>(null);
+  // the same height in px, for what is sized to fit under the menu (the sideways phone's charging tablet)
+  const [topPx, setTopPx] = React.useState(56);
   React.useEffect(() => {
     const el = top.current;
     const host = root.current;
@@ -186,6 +188,7 @@ export function Showroom({
     const f = () => {
       const h = Math.ceil(el.getBoundingClientRect().height);
       host.style.setProperty('--top-ui', `${h}px`);
+      setTopPx(h);
       // what the menu takes beyond its one row, for the camera (a Tech demo's second row, a phone's wrapped tabs)
       setUiTop(Math.max(0, h - ONE_ROW) / Math.max(window.innerHeight, 1));
     };
@@ -339,17 +342,20 @@ export function Showroom({
       else setDeviceInset({ right: 0, bottom: 0 });
     } else if (tab === 'charging') {
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
+      // a phone held sideways: the tablet stands at the right, and the car has the rest of the width
+      else if (dash.short) setDeviceInset({ right: Math.min(0.6, chargeSideWidth(dash.vw, dash.vh, topPx) / dash.vw), bottom: 0 });
       else setDeviceInset({ right: 0, bottom: 0.48 });
     } else if (tab === 'drive') {
       // the card at the right of a wide window and the column of data at the left, the gauges and the playback bar under the car
       setDeviceInset({
         right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : 0,
         left: dash.wide ? Math.min(0.3, (RAIL_W + 24) / dash.vw) : 0,
-        bottom: 0.4,
+        // a sideways phone's gauges and playback bar are a smaller stack than a tall window's
+        bottom: dash.short ? 0.3 : 0.4,
       });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
-  }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
+  }, [tab, dash.wide, dash.short, dash.vw, dash.vh, topPx, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
   // the sheet gives way to the column when the window grows wide, and shuts when the tab is left
   React.useEffect(() => {
     if (dash.wide || tab !== 'dimensions') setSpecsOpen(false);
@@ -517,7 +523,7 @@ export function Showroom({
       )}
       {ready && tab === 'charging' && (
         <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-label="Charging">
-          <ChargePanel vehicle={vehicle} compact={!dash.wide} />
+          <ChargePanel vehicle={vehicle} layout={dash.wide ? 'column' : dash.short ? 'side' : 'dock'} top={topPx} />
         </div>
       )}
 

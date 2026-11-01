@@ -30,13 +30,19 @@ export function dashColumnWidth(windowWidth: number): number {
 export function useDashboardLayout() {
   const wide = useWide();
   const [vw, setVw] = React.useState(1280);
+  const [vh, setVh] = React.useState(900);
   React.useEffect(() => {
-    const f = () => setVw(window.innerWidth);
+    const f = () => {
+      setVw(window.innerWidth);
+      setVh(window.innerHeight);
+    };
     f();
     window.addEventListener('resize', f);
     return () => window.removeEventListener('resize', f);
   }, []);
-  return { wide, vw, colW: dashColumnWidth(vw), screenFits: wide || vw >= 700 };
+  // a phone held sideways: the same test as the `short` variant in globals.css
+  const short = vw > vh && vh <= 520;
+  return { wide, vw, vh, short, colW: dashColumnWidth(vw), screenFits: wide || vw >= 700 };
 }
 
 const MODE_LABEL: Record<LightMode, string> = { off: 'Off', position: 'Position', low: 'Low beam', auto: 'Auto' };
