@@ -263,8 +263,22 @@ def V_Q_TOP(x):
     """The quarter / C-pillar paint runs right up to the roof edge behind the quarter window's tip: it is
     one continuous skin, and the dark wedge of the rear glass lies on it as a separate, slightly proud
     piece (so no paint boundary has to follow the wedge's curved outline)."""
+    if x > X_DLO_TIP + 1e-6:
+        return V_BELT(x)
+    return V_RAIL_TOP(x)
+
+
+def V_QBASE(x):
+    """The quarter's own top edge: the belt to the glass's tip, then a ramp up to the roof edge, which it has reached
+    by X_CTIP and follows behind it. The C-pillar's front piece (A06T_Quarter_Pillar) fills the wedge above the ramp.
+    The quarter used to run to V_Q_TOP itself, which jumps 25 cm within 3 mm at the tip (a fixed_x pair): a strip of
+    sheared quads that folded the sheet back on itself (dihedral ~177 degrees along the whole tip station), the
+    vertical crease and chevron streaks down the quarter (the ES8 and 7X fixed the same defect the same way)."""
     if x >= X_DLO_TIP:
         return V_BELT(x)
+    if x >= X_CTIP:
+        s = _smooth((X_DLO_TIP - x) / (X_DLO_TIP - X_CTIP))
+        return V_BELT(X_DLO_TIP) + (V_RAIL_TOP(x) - V_BELT(X_DLO_TIP)) * s
     return V_RAIL_TOP(x)
 
 
@@ -279,7 +293,10 @@ def V_WEDGE_TOP(x):
         return V_WTOP(x)
     if x >= X_FRIT:
         return V_FRIT(x) + 0.004
-    return S.v_along(x, V_REARGLASS(x), 0.014) - 0.001
+    # behind the spoiler the wedge runs up to the backlight's side edge and 3 mm over it. It was 14 mm: two sheets of the
+    # same glass lying on the same surface over a strip that wide, tessellated differently, z-fought along the whole
+    # edge (a saw-tooth of black and grey where one reflects the studio and the other does not)
+    return S.v_along(x, V_REARGLASS(x), 0.003) - 0.001
 
 
 def _x_header(v):
@@ -322,12 +339,12 @@ PANELS = [
          nx=38, nv=40, arch=True, gap=dict(v0=False), mat="paint"),
     dict(name="A06T_Rocker", x=(-1.12, 1.22), v=(V_SILL, V_ROCK),
          nx=60, nv=14, arch=True, gap=dict(v0=False, x0=False, x1=False), mat="black_trim"),
-    dict(name="A06T_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_Q_LO, V_Q_TOP),
-         nx=56, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint",
-         # only the quarter window's tip is a real jump of the top limit (belt -> roof edge). A pair at
-         # X_CTIP was a leftover: it dropped the neighbouring columns and left a 3 mm sliver whose facet
-         # normal swung +-20 degrees (ray probe), the chevron streaks down the quarter in a zebra render
-         fixed_x=(X_DLO_TIP,)),
+    dict(name="A06T_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_Q_LO, V_QBASE),
+         nx=56, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint"),
+    # the C-pillar's front piece: the tab of the quarter between the glass's tip and the ramp's rear end, from the
+    # quarter's top edge up to the roof edge. A panel of its own, so no limit jumps inside one grid (see V_QBASE)
+    dict(name="A06T_Quarter_Pillar", x=(X_CTIP + 0.002, X_DLO_TIP), v=(V_QBASE, V_Q_TOP),
+         nx=12, nv=24, gap=dict(v0=False, x1=False), mat="paint"),
     dict(name="A06T_Quarter_Low", x=(N.JOIN_R, X_BAND_F + 0.030), v=(V_BAND_LO, V_BAND_TOP),
          nx=16, nv=10, arch=True, gap=dict(x0=False, x1=False, v1=False),
          mat="black_trim"),
@@ -366,8 +383,13 @@ PANELS = [
     dict(name="A06T_Glass_Roof", x=(X_ROOF_GLASS_R + 0.006, lambda v: _x_header(v) - 0.020),
          v=(lambda x: V_RAIL(x) + 0.004, 0.9995), nx=56, nv=22, glass="glass_dark",
          gap=dict(v1=False)),
+    # No fixed_x column at the blade's foot (X_BLADE): panel_grid sorts the columns by their x at v = 0.5, where this
+    # strip's x-limit (the cap's join) is far from its own, so the fixed pair landed on the wrong side of the ordinary
+    # columns and the sheet folded back on itself in its rows (a saw-toothed flap standing up from the glass: dihedral
+    # 180 degrees on 20 edges, checked by a fold probe). The step the limit makes there is a ramp of one column instead
+    # (the same fix as the 7X's, zx_panels).
     dict(name="A06T_Glass_Wedge", x=(lambda v: N.JOIN_R(v) + 0.002, X_CTIP),
-         v=(V_CEDGE, V_WEDGE_TOP), nx=48, nv=10, glass="glass_dark", fixed_x=(X_BLADE,),
+         v=(V_CEDGE, V_WEDGE_TOP), nx=48, nv=10, glass="glass_dark",
          gap=dict(x0=False, v1=False), offset=0.0016),
     dict(name="A06T_Glass_DoorFront", x=(GB_F, 0.940),
          v=(lambda x: V_BELT(x) + 0.010, lambda x: V_GT(x) - 0.004),

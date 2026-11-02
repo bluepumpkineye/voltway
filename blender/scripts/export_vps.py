@@ -214,8 +214,7 @@ def bake_exterior_ao(samples=256):
     ground = bpy.data.objects.get("Ground")
     if ground is not None:
         hide.append(ground)
-    open_all(True)
-    try:
+    def bake():
         stats = BK.ambient_occlusion(objs, samples=samples, distance=AO_DISTANCE,
                                      hide=hide + [o for _, ms in extra for o in ms])
         own = meshes([GROUPS[1]])
@@ -223,6 +222,11 @@ def bake_exterior_ao(samples=256):
             gone = own + [o for c, other in extra if c != cname for o in other]
             BK.ambient_occlusion(ms, samples=samples, distance=AO_DISTANCE, hide=hide + gone)
         return stats
+
+    # open: the jambs and bays are enclosed shut; shut: the skins beside an open door are not shaded by it (carkit.bake)
+    try:
+        return BK.ambient_occlusion_poses(objs + [o for _, ms in extra for o in ms],
+                                          [lambda: open_all(True), lambda: open_all(False)], bake)
     finally:
         open_all(False)
 
@@ -254,7 +258,7 @@ def main(draco=True, ao=True, ao_samples=256, shadow=True):
     if shadow:
         sh_info = bake_ground_shadow()
     os.makedirs(os.path.dirname(DEST), exist_ok=True)
-    res = _X.export(DEST, groups, "VoyahPassionS_Body", draco=draco, attributes=ao)
+    res = _X.export(DEST, groups, "VoyahPassionS_Body", draco=draco, attributes=ao, draco_normal_bits=14)
     return {"export": res, "shadow": sh_info}
 
 

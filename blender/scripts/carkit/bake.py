@@ -347,6 +347,44 @@ def ambient_occlusion(objects, samples=512, distance=1.0, hide=(), see_through=g
     return stats
 
 
+def ambient_occlusion_poses(objects, poses, bake, export=EXPORT_ATTR_AO):
+    """Run `bake()` once in each pose of the car and keep the brightest occlusion per vertex.
+
+    The jambs, the frunk and the boot are inside a closed car and bake black when everything is shut, so the exterior is
+    baked with every opening swung open. But then a door standing open shades the fender beside it, and the raised bonnet
+    shades its own rear corners: soft dark smears along the shut lines and at the bonnet's corners that the closed car
+    does not have. A vertex on the OUTER skin is brighter shut than open (nothing stands next to it any more); a vertex
+    on a jamb, a liner or the underside of a lid is brighter open (it is enclosed shut). So the maximum over the poses
+    is right for both, without telling them apart.
+
+    objects: every mesh `bake()` writes `export` on (the unmerged parts); poses: callables that put the car in each pose,
+    the last one being the pose it should stay in; bake: runs the occlusion bake over the parts and returns its stats.
+    Returns the stats of the first pose's bake."""
+    best, first = {}, None
+    for pose in poses:
+        pose()
+        stats = bake()
+        first = first or stats
+        for o in objects:
+            at = o.data.attributes.get(export)
+            if at is None:
+                continue
+            v = np.empty(len(at.data), np.float32)
+            at.data.foreach_get("value", v)
+            prev = best.get(o.name)
+            best[o.name] = v if prev is None or len(prev) != len(v) else np.maximum(prev, v)
+    for o in objects:
+        v = best.get(o.name)
+        at = o.data.attributes.get(export)
+        if v is None or at is None or len(at.data) != len(v):
+            continue
+        at.data.foreach_set("value", v)
+    allv = np.concatenate([v for v in best.values()]) if best else np.zeros(1, np.float32)
+    print("ambient occlusion over %d poses: min %.3f  p5 %.3f  p50 %.3f  mean %.3f"
+          % (len(poses), allv.min(), np.percentile(allv, 5), np.percentile(allv, 50), allv.mean()))
+    return first
+
+
 def probe_mix(location, path, lights, mix=0.3, **kw):
     """A probe with the rig's lights at `mix` of their real brightness.
 

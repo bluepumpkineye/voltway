@@ -150,6 +150,36 @@ function bakedOcclusion(m: THREE.Material) {
 
 // ------------------------------------------------------------------ exterior
 
+/**
+ * Where two surfaces lie on one plane the depth buffer picks a winner per pixel, and the picture is ragged: dashes along the
+ * windscreen's foot where the black pillar trim lies on the cowl's paint, a yellow speckle along the top of a window where the
+ * glass's edge meets the roof rail's paint. The glass, and the black trim and underlay of the greenhouse, are pushed a hair
+ * back (two units of depth plus two of slope: far less than any detail is proud), so the paint wins every tie. Only the
+ * greenhouse's trim: the black of a door (a flush handle, a vent) is let into the paint and must win it.
+ */
+const GREENHOUSE_NODE = /(greenhouse|blackout)$/;
+
+function inGreenhouse(o: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (GREENHOUSE_NODE.test(p.name.toLowerCase())) return true;
+  return false;
+}
+
+/** The materials of a mesh with the tie-break set; the greenhouse's trim is cloned first, the car's one M_Black_Gloss is shared with the doors. */
+function pushBehindPaint(o: THREE.Mesh): THREE.Material[] {
+  const out = materialsOf(o).map((m) => {
+    const name = m.name.toLowerCase();
+    const glass = name.startsWith('m_glass');
+    if (!glass && !(name === 'm_black_gloss' && inGreenhouse(o))) return m;
+    const mine = glass ? m : m.clone();
+    mine.polygonOffset = true;
+    mine.polygonOffsetFactor = 2;
+    mine.polygonOffsetUnits = 2;
+    return mine;
+  });
+  if (out.some((m, i) => m !== materialsOf(o)[i])) o.material = Array.isArray(o.material) ? out : out[0];
+  return out;
+}
+
 interface Props {
   vehicle: Vehicle;
   variant: Variant;
@@ -223,7 +253,7 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
       o.castShadow = true;
       o.receiveShadow = true;
       if (baked) bindOcclusion(o.geometry);
-      for (const m of materialsOf(o)) {
+      for (const m of pushBehindPaint(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
         if (baked && takesOcclusion(m)) bakedOcclusion(m);
         // the dark backing of a pane that is not in the blackout node (the tailgate's)

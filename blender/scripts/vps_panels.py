@@ -233,8 +233,24 @@ def V_WTOP(x):
 
 
 def V_Q_TOP(x):
+    """The quarter / C-pillar paint's top edge: the belt along the quarter glass, the roof edge behind its tip."""
+    if x > X_DLO_TIP + 1e-6:
+        return V_BELT(x)
+    return V_RAIL_TOP(x)
+
+
+def V_QBASE(x):
+    """The quarter's own top edge: the belt to the glass's tip, then a ramp up to the roof edge, which it has reached
+    by X_CTIP and follows behind it. The C-pillar's front piece (VPS_Quarter_Pillar) fills the wedge above the ramp.
+    The quarter used to run to V_Q_TOP itself, which jumps 25 cm within 3 mm at the tip (a fixed_x pair): a strip of
+    sheared quads that folded the sheet back on itself (dihedral 179 degrees along the whole tip station), a
+    vertical crease down the C-pillar and the wheel arch's top corner (docs/3d-pipeline.md, the ES8 and 7X fixed
+    the same defect the same way)."""
     if x >= X_DLO_TIP:
         return V_BELT(x)
+    if x >= X_CTIP:
+        s = _smooth((X_DLO_TIP - x) / (X_DLO_TIP - X_CTIP))
+        return V_BELT(X_DLO_TIP) + (V_RAIL_TOP(x) - V_BELT(X_DLO_TIP)) * s
     return V_RAIL_TOP(x)
 
 
@@ -290,9 +306,12 @@ PANELS = [
          nx=40, nv=10, arch=True, gap=dict(v0=False, v1=False), mat="black_gloss"),
     dict(name="VPS_Rocker", x=(-1.020, 1.060), v=(V_SILL, V_SILL_HI),
          nx=64, nv=8, arch=True, gap=dict(v0=False, x0=False, x1=False), mat="black_gloss"),
-    dict(name="VPS_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_Q_LO, V_Q_TOP),
-         nx=58, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint",
-         fixed_x=(X_DLO_TIP,)),
+    dict(name="VPS_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_Q_LO, V_QBASE),
+         nx=58, nv=48, arch=True, gap=dict(v0=False, x0=False), mat="paint"),
+    # the C-pillar's front piece: the tab of the quarter between the glass's tip and the ramp's rear end, from the
+    # quarter's top edge up to the roof edge. A panel of its own, so no limit jumps inside one grid (see V_QBASE)
+    dict(name="VPS_Quarter_Pillar", x=(X_CTIP + 0.002, X_DLO_TIP), v=(V_QBASE, V_Q_TOP),
+         nx=12, nv=24, gap=dict(v0=False, x1=False), mat="paint"),
     dict(name="VPS_Quarter_Low", x=(N.JOIN_R, X_BAND_F + 0.030), v=(V_BAND_LO, V_BAND_TOP),
          nx=18, nv=10, arch=True, gap=dict(x0=False, x1=False, v1=False),
          mat="black_gloss"),
