@@ -88,7 +88,8 @@ export const avatr06t: Vehicle = {
     accentColor: '#7A5CFF',
     ambientLighting: true,
     ambientHue: 275,
-    defaultTheme: 'dark',
+    // the car's pages in the photographs are the light UI (blender/reference/avatr-06t/hmi); the home keeps its dark wallpaper
+    defaultTheme: 'light',
     driveModes: [
       { id: 'comfort', label: 'Comfort', native: '舒适', group: 'street', model: 'comfort' },
       { id: 'eco', label: 'Eco', native: '经济', group: 'street', model: 'eco' },

@@ -1226,6 +1226,31 @@ Art from the build: `z9_cabin.hmi_art()` / `g9l_cabin.hmi_art()` (the car at 3/4
 pages, `cabin-climate|seats-light|dark.webp`); `hmi_cabin` prints `HMI_SEATS`, the fractions where each seat's button goes
 (the `SEATS` arrays in `SeatsPage`/`SeatsTab`). Check a skin without the car: `/capture/hmi/<slug>?screen=<id>`.
 
+**2026-11-02: each car wears its own OS** (owner: "replicate the respective OS/UX"). Before, the 06T's `skin: 'avatr'` had no
+route and drew the generic placeholder, and the Seal wore the Z9's DiLink 150. Now:
+- `'avatr'` (06T, `components/hmi/avatr/`): the Huawei HarmonyOS 4 cockpit in Avatr's layer, read off Autohome series 8538 cat 10
+  (#15-46, #75-96, in `blender/reference/avatr-06t/hmi`). A wallpaper home with a row of glass cards (frequent apps, the air-quality
+  suggestion, HUAWEI ADS, music, range), a status bar and a bottom bar of its own (one temperature pager, 360, the car, demisters,
+  heated wheel, volume), pale blue-grey pages (light is its default, `defaultTheme: 'light'`; the dark theme works), the vehicle
+  control panel (drive-mode card + switch grid), climate with the cabin full-bleed, seats (heat, ventilation, massage, zero gravity),
+  Huawei Music, the Settings app (12 pages: Vehicle control, Driving, Sound, Lights, Energy, Assisted driving, Smart scenes, Display,
+  Connections, Smart assistant, Vehicle status, System) and the App Centre (three tabs). It reuses the RX's HarmonyOS blocks (icons,
+  `AppIcon`, `NavPage`, `CameraPage`, `HaProvider`) and writes the same store.
+- `'byd'` (Seal, `components/hmi/byd/`): the real Seal's DiLink (series 6394, `blender/reference/byd-seal-ev/hmi`, cat 10 #23-40 night
+  and #90-101 day; the Seal 07 photos in `blender/reference/byd-seal` are another car). Wallpaper home (moon and dolphins, drawn)
+  with four glass capsules, the tall system bar (back, home, settings, fan, driver temperature, seat heat, passenger temperature,
+  demister, apps, split, windows), the air-conditioning page, the vehicle page, phone, music, 360, the app panel and Settings
+  (DiLink / DiPilot / New energy / Vehicle settings / Vehicle health with their top tabs). Night is the default, day is a theme.
+  Not built: the 15.6" screen's portrait rotation (s_0040) and the cluster.
+- `'xos'` (G9L, `components/hmi/xos/`) was rebuilt on the car's two-panel layout (`Split.tsx`: the car panel at the left is a third of
+  the width, the right panel is the map, a settings sheet or the app centre) and its Settings is `Settings.tsx`: the nine-item icon
+  menu, the tile grid, and the deeper pages (Driving mode, Unlock & welcome, Ambient light, Lights, Doors & windows, Seats & steering
+  wheel, Maintenance, Map, Driver assist with its VLA 2.0 banner, Smart voice, Sound, Charging, Smart camera, Display, Device connection).
+- `'dilink'` (Z9): the seat page got the photographed top tab row, back key and centred All off / All on; the climate cabin is tinted
+  to the photo's cold blue.
+Check any skin without the car: `/capture/hmi/<slug>?screen=<id>&page=<settings page>&theme=light|dark&apps=1`. The photos are
+Chinese: labels are English translations of them, and every wallpaper, cover and mascot is drawn (the cars' own are artwork we do not ship).
+
 **Two viewer fixes that apply to every cabin (`CarModel.tsx`, `bakeSmooth.ts`).**
 
 - **The screen was drawn over the steering wheel.** The HMI is a web page above the canvas, so it covered anything between
@@ -1586,6 +1611,16 @@ Side-by-side crops of the photograph and the model at the same pixels found, in 
 - **Not fixed:** a tiny kink where the sail's wedge ends over the lamp shelf (visible only in a 25 cm close-up), and the flank's long
   reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`). The tail's shoulders, mirrors
   included, still stand ~4 cm wider per side than the rear photograph's at z 1.25 (c1_0006 through its camera).
+
+### The X-ray anatomy (`carkit.anatomy`, SU7 first)
+
+The X-ray tab's exploded view is built from a small parts library of its own, not from the exterior's mesh: a battery pack with twelve cell
+blocks, motors (casing, stator, rotor, reducer, inverter), subframes and a rear casting, double-wishbone and multi-link corners, a steering
+rack. A car is one `CarSpec.from_dims(...)` (its measured hubs, tyre, size, pack and motors) and the parts take its size; the explode
+plan scales with the wheelbase. The result is a Draco GLB with the plan in each node's extras (`public/models/su7-ultra-xray.glb`), read by
+`src/lib/xray/` and `src/components/viewer/XrayDirector.tsx`. The shapes are ours, labelled as such. The whole story, how to add a car
+and the checks are in [docs/xray.md](xray.md); the SU7 is the only car wired, the Zeekr 7X's anatomy was built in Blender as proof that
+the parts rescale.
 
 ### Judging the web result against the photo
 

@@ -84,7 +84,8 @@ export const bydSeal: Vehicle = {
   ],
   cockpit: {
     os: 'DiLink 100',
-    skin: 'dilink',
+    // the Seal's own DiLink (blender/reference/byd-seal-ev/hmi), not the Denza Z9's DiLink 150 ('dilink')
+    skin: 'byd',
     accentColor: '#1791FF',
     ambientLighting: true,
     defaultTheme: 'dark',

@@ -1,16 +1,17 @@
 'use client';
 
 import React from 'react';
-import type { Vehicle, Variant } from '@/data/vehicles/schema';
+import type { Vehicle } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import type { LightMode } from '@/lib/lights';
 import * as Ic from '../dilink/icons';
 import { XO } from './theme';
 import { useDate, useXo } from './shared';
+import { MapPanel, Sheet, Split } from './Split';
 
 /* ------------------------------------------------------------ shared pieces */
 
-function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
+export function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) {
   return (
     <button
       type="button"
@@ -26,7 +27,7 @@ function Switch({ on, onClick, label }: { on: boolean; onClick: () => void; labe
   );
 }
 
-function Row({ label, sub, children }: { label: string; sub?: string; children?: React.ReactNode }) {
+export function Row({ label, sub, children }: { label: string; sub?: string; children?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-6 rounded-[12px] px-5 py-[7px]" style={{ minHeight: 58, background: XO.card }}>
       <div className="min-w-0">
@@ -38,7 +39,7 @@ function Row({ label, sub, children }: { label: string; sub?: string; children?:
   );
 }
 
-function Segment({ options, value, onPick, minW = 84 }: { options: string[]; value: number; onPick: (i: number) => void; minW?: number }) {
+export function Segment({ options, value, onPick, minW = 84 }: { options: string[]; value: number; onPick: (i: number) => void; minW?: number }) {
   return (
     <div className="flex overflow-hidden rounded-[10px]" style={{ background: 'rgba(26,28,38,0.08)' }}>
       {options.map((o, i) => (
@@ -56,7 +57,7 @@ function Segment({ options, value, onPick, minW = 84 }: { options: string[]; val
   );
 }
 
-function Slider({ value, onChange, min = 0, max = 100, label, w = 240 }: { value: number; onChange: (n: number) => void; min?: number; max?: number; label: string; w?: number }) {
+export function Slider({ value, onChange, min = 0, max = 100, label, w = 240 }: { value: number; onChange: (n: number) => void; min?: number; max?: number; label: string; w?: number }) {
   return (
     <input type="range" min={min} max={max} value={value} aria-label={label} onChange={(e) => onChange(Number(e.target.value))} className="cursor-pointer" style={{ width: w, accentColor: XO.green }} />
   );
@@ -65,48 +66,14 @@ function Slider({ value, onChange, min = 0, max = 100, label, w = 240 }: { value
 /* ------------------------------------------------------------------ the map */
 
 /**
- * The home (c10_0020): a tall panel on the left with the car from above on a dark blue-grey cloud,
- * the map beside it with the search field at the top, the assistant's mascot at the bottom right.
+ * The home (c10_0020): the car panel at the left (a tall dark cloud with the car from above) and the map
+ * in a panel of its own beside it, with the search card, the settings and charging keys and the mascot.
  */
 export function MapHome({ vehicle }: { vehicle: Vehicle }) {
-  const { notify } = useXo();
   return (
-    <div className="absolute inset-0" style={{ background: '#dfe3ea' }}>
-      <svg viewBox="0 0 1280 800" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full" aria-hidden>
-        <rect width="1280" height="800" fill="#e6ebef" />
-        <path d="M300 800C340 640 380 540 500 480S560 300 520 160 560 40 600 0H1280V300C1100 330 980 420 920 560S760 720 700 800Z" fill="#cfe6cf" opacity="0.75" />
-        <path d="M980 0C1010 120 1040 200 1100 280S1220 420 1280 450V0Z" fill="#c8def0" opacity="0.8" />
-        <path d="M-20 700C300 620 520 420 760 380S1100 250 1300 200" fill="none" stroke="#fff" strokeWidth="24" />
-        <path d="M640 800C660 600 700 420 760 380S840 180 800 0" fill="none" stroke="#fff" strokeWidth="18" />
-        <path d="M470 0C500 160 540 300 600 430" stroke="#fff" strokeWidth="12" fill="none" />
-        <path d="M760 380C830 420 880 470 910 560" stroke="#f3c969" strokeWidth="9" fill="none" strokeLinecap="round" />
-        <circle cx="900" cy="560" r="16" fill="#5a7cff" stroke="#fff" strokeWidth="5" />
-        <path d="M900 545 910 570 900 565 890 570z" fill="#fff" />
-      </svg>
-      <div className="absolute overflow-hidden rounded-[16px]" style={{ left: 44, top: 60, width: 290, bottom: 84, background: 'radial-gradient(70% 55% at 50% 50%, #6a7490, #8c95ad 55%, #a9b0c5)' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/hmi/${vehicle.slug}/car-top.webp`}
-          alt=""
-          draggable={false}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none"
-          style={{ height: 520, width: 'auto', filter: 'brightness(0.9)' }}
-        />
-        <span className="absolute bottom-3 left-3 flex h-[34px] w-[34px] items-center justify-center rounded-[9px]" style={{ background: 'rgba(255,255,255,0.6)' }}><Ic.CarSide size={20} /></span>
-      </div>
-      <button
-        type="button"
-        onClick={() => notify('Search (showroom demo)')}
-        className="absolute flex items-center gap-3 rounded-[12px] px-4 text-left text-[16px] focus:outline-none"
-        style={{ left: 360, top: 64, width: 400, height: 46, background: 'rgba(255,255,255,0.95)', color: XO.text3 }}
-      >
-        <Ic.Search size={18} /> Search destination
-      </button>
-      <span className="absolute flex h-[38px] w-[38px] items-center justify-center rounded-[10px]" style={{ right: 28, bottom: 90, background: 'rgba(255,255,255,0.9)' }}><Ic.Link size={20} /></span>
-    </div>
+    <Split vehicle={vehicle}>
+      <MapPanel />
+    </Split>
   );
 }
 
@@ -385,127 +352,6 @@ function SeatsTab({ vehicle }: { vehicle: Vehicle }) {
   );
 }
 
-/* ----------------------------------------------------------------- settings */
-
-const MENU = ['Vehicle', 'Map', 'Driver assist', 'Smart voice', 'Sound', 'Charging', 'Display', 'Connections'] as const;
-
-/**
- * Settings (c10_0030-0048): a menu down the left, the page beside it, the map's car panel at the far
- * left. Vehicle opens as a grid of cards; its Driving mode page lists the car's modes, power
- * response, steering feel and brake pedal feel; Ambient light has its own page.
- */
-export function SettingsPage({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
-  const { val, setVal, on, toggle, notify } = useXo();
-  const { driveMode, modeId, setCarMode, ambientOn, ambientHue, ambientBrightness, setAmbient, soc, media, patchMedia, setHmiScreen } = useVehicleStore();
-  const modes = vehicle.cockpit.driveModes ?? [];
-  const street = modes.filter((m) => m.group === 'street');
-  const special = modes.filter((m) => m.group === 'special');
-  const current = modes.findIndex((m) => (modeId ? m.id === modeId : m.model === driveMode));
-  const sub = val.subPage;
-  const page = val.setPage;
-  const hasChassis = (vehicle.tech ?? []).some((d) => d.driver === 'uturn' || d.driver === 'park');
-
-  let body: React.ReactNode;
-  if (MENU[page] === 'Vehicle' && sub === 0) {
-    const cards = [
-      { id: 'mode', label: 'Driving mode', sub: modes[current]?.label ?? 'Standard', go: 1, tone: 'linear-gradient(145deg,#6a5ca8,#3a2f6e)' },
-      { id: 'ambient', label: 'Ambient light', sub: ambientOn ? 'On' : 'Off', go: 2, tone: 'linear-gradient(145deg,#b79a86,#8c6e5c)' },
-      { id: 'lights', label: 'Lights', sub: 'Headlamps, welcome', go: 3, tone: 'linear-gradient(145deg,#7e8a9c,#5a6678)' },
-      { id: 'doors', label: 'Doors and mirrors', sub: 'Lock, fold', go: 4, tone: 'linear-gradient(145deg,#8a8f9a,#666b78)' },
-      { id: 'seat', label: 'Seats and steering', sub: 'Memory, comfort', go: 5, tone: 'linear-gradient(145deg,#a89a96,#7e716e)' },
-      { id: 'chassis', label: 'Rear-wheel steering', sub: hasChassis ? 'Open the demonstration' : '15° rear axle', go: -1, tone: 'linear-gradient(145deg,#6f8aa8,#4c6685)' },
-    ];
-    body = (
-      <div className="grid grid-cols-2 gap-[12px]">
-        {cards.map((c) => (
-          <button key={c.id} type="button" onClick={() => (c.go < 0 ? (hasChassis ? setHmiScreen('chassis') : notify('Rear-wheel steering (showroom demo)')) : setVal('subPage', c.go))} className="flex h-[130px] flex-col justify-between rounded-[14px] px-[18px] py-[14px] text-left text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40" style={{ background: c.tone }}>
-            <span className="text-[17px]">{c.label}</span>
-            <span className="text-[13px] opacity-80">{c.sub}</span>
-          </button>
-        ))}
-      </div>
-    );
-  } else if (MENU[page] === 'Vehicle' && sub === 1) {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <Row label="Driving mode"><Segment options={street.concat(special).map((m) => m.label)} value={Math.max(0, street.concat(special).findIndex((m) => m.id === modes[current]?.id))} onPick={(i) => { const m = street.concat(special)[i]; setCarMode(m.id, m.model); }} minW={92} /></Row>
-        <Row label="Power response"><Segment options={['Eco', 'Comfort', 'Sport']} value={val.power} onPick={(i) => setVal('power', i)} minW={92} /></Row>
-        <Row label="Steering feel"><Segment options={['Light', 'Standard', 'Heavy']} value={val.steer} onPick={(i) => setVal('steer', i)} minW={92} /></Row>
-        <Row label="Brake pedal feel"><Segment options={['Soft', 'Standard', 'Firm']} value={val.brake} onPick={(i) => setVal('brake', i)} minW={92} /></Row>
-      </div>
-    );
-  } else if (MENU[page] === 'Vehicle' && sub === 2) {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <Row label="Ambient light"><Switch on={ambientOn} onClick={() => setAmbient({ ambientOn: !ambientOn })} label="Ambient light" /></Row>
-        <Row label="Star-field band" sub="The field of lights across the dash"><Switch on={ambientOn} onClick={() => setAmbient({ ambientOn: !ambientOn })} label="Star-field band" /></Row>
-        <Row label="Brightness"><Slider value={Math.round(ambientBrightness * 100)} onChange={(n) => setAmbient({ ambientBrightness: n / 100 })} label="Ambient brightness" /></Row>
-        <Row label="Colour"><Slider value={ambientHue} min={0} max={360} onChange={(n) => setAmbient({ ambientHue: n })} label="Ambient colour" /></Row>
-        <Row label="Mode"><Segment options={['Fixed', 'Breathing', 'Music rhythm']} value={val.ambMode} onPick={(i) => setVal('ambMode', i)} minW={104} /></Row>
-      </div>
-    );
-  } else if (MENU[page] === 'Vehicle') {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <Row label="Fold mirrors when locked"><Switch on={on.mirrorsOut} onClick={() => toggle('mirrorsOut')} label="Fold mirrors" /></Row>
-        <Row label="Head-up display"><Switch on={on.hud} onClick={() => toggle('hud')} label="Head-up display" /></Row>
-        <Row label="Sentry mode"><Switch on={on.sentry} onClick={() => toggle('sentry')} label="Sentry mode" /></Row>
-      </div>
-    );
-  } else if (MENU[page] === 'Charging') {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <div className="flex items-end gap-6 rounded-[14px] px-6 py-5" style={{ background: XO.card }}>
-          <span className="tnum text-[64px] font-light leading-none">{Math.round(soc * 100)}<span className="text-[26px]">%</span></span>
-          <span className="pb-2 text-[18px]" style={{ color: XO.text2 }}>{variant.name}</span>
-        </div>
-        <Row label="Charge limit" sub="Stop charging at"><Segment options={['80%', '90%', '100%']} value={1} onPick={() => notify('Charge limit (showroom demo)')} minW={70} /></Row>
-      </div>
-    );
-  } else if (MENU[page] === 'Sound') {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <Row label="Volume"><Slider value={media.volume} onChange={(n) => patchMedia({ volume: n })} label="Volume" /></Row>
-        <Row label="Sound field"><Segment options={['Driver', 'Front', 'Whole car']} value={1} onPick={() => notify('Sound field (showroom demo)')} minW={92} /></Row>
-      </div>
-    );
-  } else if (MENU[page] === 'Display') {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <Row label="Screen brightness"><Slider value={val.brightness} min={30} onChange={(n) => setVal('brightness', n)} label="Screen brightness" /></Row>
-        <Row label="Head-up display"><Switch on={on.hud} onClick={() => toggle('hud')} label="Head-up display" /></Row>
-      </div>
-    );
-  } else {
-    body = (
-      <div className="flex flex-col gap-[10px]">
-        <Row label="Model" sub={`${vehicle.brand} ${vehicle.model} ${vehicle.year}`}><span className="text-[15px]" style={{ color: XO.text2 }}>{variant.name}</span></Row>
-        <Row label="Operating system"><span className="text-[15px]" style={{ color: XO.text2 }}>{vehicle.cockpit.os}</span></Row>
-        <Row label="Software" sub="This is a showroom demonstration"><span className="text-[15px]" style={{ color: XO.text3 }}>Up to date</span></Row>
-      </div>
-    );
-  }
-  return (
-    <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #eceaf3, #e3e1ee)' }}>
-      <div className="absolute flex flex-col" style={{ left: 42, top: 66, width: 190 }}>
-        {MENU.map((p, i) => (
-          <button key={p} type="button" onClick={() => { setVal('setPage', i); setVal('subPage', 0); }} className="relative flex h-[50px] items-center rounded-[10px] px-[16px] text-left text-[16px] focus:outline-none" style={{ background: page === i ? '#fff' : 'transparent', boxShadow: page === i ? '0 1px 5px rgba(0,0,0,0.12)' : undefined, color: page === i ? XO.text : XO.text2 }}>
-            {p}
-          </button>
-        ))}
-      </div>
-      <div className="absolute overflow-y-auto pr-2" style={{ left: 256, top: 66, width: 760, bottom: 90, scrollbarWidth: 'none' }}>
-        {sub > 0 && MENU[page] === 'Vehicle' && (
-          <button type="button" onClick={() => setVal('subPage', 0)} className="mb-[10px] flex items-center gap-2 text-[15px] focus:outline-none" style={{ color: XO.text2 }}>
-            <Ic.Chev dir="l" size={16} /> Vehicle
-          </button>
-        )}
-        {body}
-      </div>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------- media, apps, camera */
 
 const TRACKS = [
@@ -555,17 +401,17 @@ const APPS: { id: string; label: string; c: [string, string] }[] = [
   { id: 'set', label: 'Settings', c: ['#9aa0b4', '#6c7388'] },
 ];
 
-export function AppCentre() {
+export function AppCentre({ vehicle }: { vehicle: Vehicle }) {
   const { notify } = useXo();
-  const { setHmiScreen, setAppCentreOpen } = useVehicleStore();
+  const { setHmiScreen, setAppCentreOpen, openSettings } = useVehicleStore();
   const run = (id: string) => {
     const to: Record<string, () => void> = {
       nav: () => setHmiScreen('nav'),
       music: () => setHmiScreen('media'),
       cam: () => setHmiScreen('camera'),
-      car: () => setHmiScreen('settings'),
-      set: () => setHmiScreen('settings'),
-      ev: () => setHmiScreen('settings'),
+      car: () => openSettings('vehicle'),
+      set: () => openSettings('vehicle'),
+      ev: () => openSettings('charging'),
     };
     if (to[id]) {
       setAppCentreOpen(false);
@@ -573,16 +419,19 @@ export function AppCentre() {
     } else notify('This app is not part of the showroom demo');
   };
   return (
-    <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #eceaf3, #e3e1ee)' }}>
-      <div className="absolute grid grid-cols-6 gap-x-[40px] gap-y-[36px]" style={{ left: 150, right: 150, top: 130 }}>
-        {APPS.map((a) => (
-          <button key={a.id} type="button" onClick={() => run(a.id)} className="flex flex-col items-center gap-[10px] focus:outline-none">
-            <span className="block h-[84px] w-[84px] rounded-[22px]" style={{ background: `linear-gradient(145deg, ${a.c[0]}, ${a.c[1]})`, boxShadow: '0 8px 18px rgba(40,40,80,0.22)' }} />
-            <span className="text-[14px]" style={{ color: XO.text2 }}>{a.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
+    <Split vehicle={vehicle}>
+      <Sheet>
+        <div className="absolute inset-x-0 top-[22px] text-center text-[17px]">App centre</div>
+        <div className="absolute grid grid-cols-5 gap-x-[26px] gap-y-[30px]" style={{ left: 54, right: 54, top: 86 }}>
+          {APPS.map((a) => (
+            <button key={a.id} type="button" onClick={() => run(a.id)} className="flex flex-col items-center gap-[9px] focus:outline-none">
+              <span className="block h-[72px] w-[72px] rounded-[20px]" style={{ background: `linear-gradient(145deg, ${a.c[0]}, ${a.c[1]})`, boxShadow: '0 6px 14px rgba(40,40,80,0.2)' }} />
+              <span className="text-[13px]" style={{ color: XO.text2 }}>{a.label}</span>
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    </Split>
   );
 }
 

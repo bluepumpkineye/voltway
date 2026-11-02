@@ -80,7 +80,7 @@ export interface ScreenSpec {
   interactive?: boolean;
 }
 
-export type HmiSkin = 'hyperos' | 'harmonyos' | 'banyan' | 'zeekros' | 'xos' | 'dilink' | 'avatr';
+export type HmiSkin = 'hyperos' | 'harmonyos' | 'banyan' | 'zeekros' | 'xos' | 'dilink' | 'avatr' | 'byd';
 
 /** One of the car's own drive modes, named as its HMI names it. */
 export interface CarDriveMode {

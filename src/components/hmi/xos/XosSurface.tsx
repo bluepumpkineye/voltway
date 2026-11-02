@@ -8,7 +8,8 @@ import { ChassisScreen } from '../chassis';
 import { XoProvider, useXo } from './shared';
 import { XO } from './theme';
 import { BottomBar, StatusBar } from './Bars';
-import { AppCentre, CameraPage, MapHome, MediaPage, QuickPanel, SettingsPage } from './Pages';
+import { AppCentre, CameraPage, MapHome, MediaPage, QuickPanel } from './Pages';
+import { SettingsPage } from './Settings';
 
 /**
  * The XPeng G9L's centre screen, as XOS Tianji draws it.
@@ -89,7 +90,7 @@ function Surface({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
       </div>
       {appCentreOpen && (
         <div className="absolute inset-0 overflow-hidden" style={{ animation: 'xoUp 240ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
-          <AppCentre />
+          <AppCentre vehicle={vehicle} />
         </div>
       )}
       <StatusBar variant={variant} />

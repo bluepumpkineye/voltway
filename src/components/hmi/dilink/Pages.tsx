@@ -171,7 +171,7 @@ export function ClimatePage({ vehicle }: { vehicle: Vehicle }) {
           draggable={false}
           onError={() => setImg(false)}
           className="pointer-events-none absolute select-none"
-          style={{ left: 190, top: 170, width: 900, height: 292, objectFit: 'cover', opacity: 0.95 }}
+          style={{ left: 190, top: 170, width: 900, height: 292, objectFit: 'cover', opacity: 0.95, filter: 'grayscale(1) brightness(0.8) contrast(1.6) sepia(1) hue-rotate(170deg) saturate(2.4)', mixBlendMode: 'screen' }}
         />
       )}
       {!img && (
@@ -218,7 +218,7 @@ export function ClimatePage({ vehicle }: { vehicle: Vehicle }) {
 
 /* ---------------------------------------------------------------------- seats */
 
-const SEAT_TABS = ['Ventilation', 'Heating', 'Massage', 'Position'];
+const SEAT_TABS = ['Ventilation', 'Heating', 'Massage', 'Adjust', 'Follow-me seat'];
 // where each seat's back is in the picture (blender/scripts/cabin_hmi.py HMI_SEATS, the picture's 760 x 447 contained in
 // its box at 330, 106)
 const SEATS = [
@@ -234,7 +234,7 @@ const SEATS = [
  */
 export function SeatsPage({ vehicle }: { vehicle: Vehicle }) {
   const { val, setVal, on, toggle, notify } = useDl();
-  const { climate, patchClimate } = useVehicleStore();
+  const { climate, patchClimate, setHmiScreen } = useVehicleStore();
   const [img, setImg] = React.useState(true);
   const tab = val.seatTab;
   const level = (id: string) => {
@@ -244,20 +244,26 @@ export function SeatsPage({ vehicle }: { vehicle: Vehicle }) {
   const press = (id: string) => {
     if (tab === 1 && id === 'FL') return patchClimate({ seatHeatDriver: (climate.seatHeatDriver + 1) % 4 });
     if (tab === 1 && id === 'FR') return patchClimate({ seatHeatPassenger: (climate.seatHeatPassenger + 1) % 4 });
-    if (tab === 3) return notify('Seat position (showroom demo)');
+    if (tab >= 3) return notify('Seat position (showroom demo)');
     toggle(tab === 1 ? 'heat' + id : `t${tab}${id}`);
   };
   return (
     <div className="absolute inset-0">
       <Glow y="50%" />
-      <div className="absolute flex flex-col gap-[10px]" style={{ left: 34, top: 80 }}>
+      <button type="button" aria-label="Back" onClick={() => setHmiScreen('home')} className="absolute flex h-[40px] w-[40px] items-center justify-center rounded-[8px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60" style={{ left: 34, top: 72, background: DL.card }}>
+        <Ic.Chev dir="l" size={18} />
+      </button>
+      <div className="absolute flex gap-[44px] text-[17px]" style={{ left: 640, top: 74, transform: 'translateX(-50%)' }} role="tablist">
         {SEAT_TABS.map((t, i) => (
-          <Pill key={t} on={tab === i} onClick={() => setVal('seatTab', i)} w={150} h={46}>{t}</Pill>
+          <button key={t} role="tab" aria-selected={tab === i} type="button" onClick={() => setVal('seatTab', i)} className="relative whitespace-nowrap pb-[8px] focus:outline-none" style={{ color: tab === i ? '#fff' : DL.text2 }}>
+            {t}
+            {tab === i && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full" style={{ background: DL.text }} />}
+          </button>
         ))}
       </div>
-      <div className="absolute flex flex-col gap-[10px]" style={{ left: 34, bottom: 30 }}>
-        <Pill onClick={() => { patchClimate({ seatHeatDriver: 0, seatHeatPassenger: 0 }); notify('All off'); }} w={150} h={42}>All off</Pill>
-        <Pill onClick={() => { patchClimate({ seatHeatDriver: 3, seatHeatPassenger: 3 }); notify('All on'); }} w={150} h={42}>All on</Pill>
+      <div className="absolute flex gap-[18px]" style={{ left: 640, bottom: 24, transform: 'translateX(-50%)' }}>
+        <button type="button" onClick={() => { patchClimate({ seatHeatDriver: 0, seatHeatPassenger: 0 }); notify('All off'); }} className="flex h-[64px] w-[74px] flex-col items-center justify-center gap-[3px] rounded-[10px] text-[12px] focus:outline-none" style={{ background: DL.card }}><Ic.SeatHeat size={22} />All off</button>
+        <button type="button" onClick={() => { patchClimate({ seatHeatDriver: 3, seatHeatPassenger: 3 }); notify('All on'); }} className="flex h-[64px] w-[74px] flex-col items-center justify-center gap-[3px] rounded-[10px] text-[12px] focus:outline-none" style={{ background: DL.card }}><Ic.SeatVent size={22} />All on</button>
       </div>
       {img && (
         // eslint-disable-next-line @next/next/no-img-element

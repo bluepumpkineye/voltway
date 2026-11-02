@@ -17,6 +17,8 @@ import { ZeekrOsSurface } from './zeekros/ZeekrOsSurface';
 import { DilinkSurface } from './dilink/DilinkSurface';
 import { XosSurface } from './xos/XosSurface';
 import { BanyanSurface } from './banyan/BanyanSurface';
+import { AvatrSurface } from './avatr/AvatrSurface';
+import { BydSurface } from './byd/BydSurface';
 import { ChassisScreen } from './chassis';
 
 const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
@@ -36,7 +38,7 @@ const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
  * Authored at a fixed 1280x800 and scaled by the caller, so the same component
  * renders identically whether it is mounted flat on the page or projected onto
  * the screen quad inside the 3D cabin. A car whose OS has been rebuilt from its
- * maker's own screens gets that skin (HyperOS, HarmonyOS, ZEEKR OS, Banyan, DiLink, XOS);
+ * maker's own screens gets that skin (HyperOS, HarmonyOS, ZEEKR OS, Banyan, DiLink, XOS, Avatr, BYD);
  * the rest share the generic one below.
  */
 export function HmiSurface({
@@ -54,6 +56,8 @@ export function HmiSurface({
   if (vehicle.cockpit.skin === 'dilink') return <DilinkSurface vehicle={vehicle} variant={variant} />;
   if (vehicle.cockpit.skin === 'xos') return <XosSurface vehicle={vehicle} variant={variant} />;
   if (vehicle.cockpit.skin === 'banyan') return <BanyanSurface vehicle={vehicle} variant={variant} className={className} />;
+  if (vehicle.cockpit.skin === 'avatr') return <AvatrSurface vehicle={vehicle} variant={variant} />;
+  if (vehicle.cockpit.skin === 'byd') return <BydSurface vehicle={vehicle} variant={variant} />;
   return <GenericSurface vehicle={vehicle} variant={variant} className={className} />;
 }
 
