@@ -263,7 +263,7 @@ export function resolveAnchor(
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * 0.6,
       liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
-      shiftFrac: inset.right / 2 - 0.1,
+      shiftFrac: (inset.right - (inset.left ?? 0)) / 2 - 0.1,
     };
   }
 
@@ -314,7 +314,9 @@ export function resolveAnchor(
   // less of the window still. Zooming in is limited by the first, not the second: the visitor may come as
   // close to the lamps as on a tab with no device.
   const inset = frame.inset ?? { right: 0, bottom: 0 };
-  const dist = near * Math.max(1, REF_ASPECT / Math.max(aspect * (1 - inset.right), 0.2));
+  // (a column of controls at the left of a phone held sideways leaves it less still)
+  const leftIn = inset.left ?? 0;
+  const dist = near * Math.max(1, REF_ASPECT / Math.max(aspect * (1 - inset.right - leftIn), 0.2));
 
   const d = dirFrom(s.az, s.el);
   // the camera looks at the middle of the car, so a drag turns the car in place; with a device beside it the
@@ -333,6 +335,6 @@ export function resolveAnchor(
     rotateSpeed: 0.55,
     liftPx: LIFT_PX * s.lift,
     liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
-    shiftFrac: inset.right / 2,
+    shiftFrac: (inset.right - leftIn) / 2,
   };
 }

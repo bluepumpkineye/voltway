@@ -41,6 +41,9 @@ export function useCarFrame(vehicle: Vehicle): CarFrame {
   }, [scene, vehicle]);
 }
 
+/** the width the tab column takes at the left of a phone held sideways, px (see Showroom) */
+const SHORT_MENU_W = 136;
+
 /** The pixels a pose lifts the picture by: its own, and what a device at the bottom of the window covers. */
 const liftOf = (p: { liftPx: number; liftFrac?: number }, windowHeight: number) =>
   p.liftPx + (p.liftFrac ?? 0) * windowHeight;
@@ -70,7 +73,12 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   // every pose frames the car in the part that is left
   const deviceInset = useVehicleStore((s) => s.deviceInset);
   const uiTop = useVehicleStore((s) => s.uiTop);
-  const inset = React.useMemo(() => ({ ...deviceInset, top: uiTop }), [deviceInset, uiTop]);
+  // a phone held sideways has the menu's tabs in a column at the left: the car is framed clear of it unless a tab says otherwise
+  const sideways = size.width > size.height && size.height <= 520;
+  const inset = React.useMemo(
+    () => ({ ...deviceInset, left: deviceInset.left ?? (sideways ? SHORT_MENU_W / Math.max(size.width, 1) : 0), top: uiTop }),
+    [deviceInset, uiTop, sideways, size.width],
+  );
   const frame = React.useMemo(
     () => (stage ? { ...carFrame, inset, stage: { ...stage, inset } } : { ...carFrame, inset }),
     [carFrame, stage, inset],

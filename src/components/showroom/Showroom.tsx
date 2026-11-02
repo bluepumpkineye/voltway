@@ -16,7 +16,7 @@ import { driveDemo } from '@/lib/tech/drive-demo';
 import { useRuntime } from '@/lib/tech/session';
 import { chargeDemo } from '@/lib/tech/charging';
 import { BELOW_TOP, CarMenu, FOCUS, GLASS, InfoButton, SceneToggle, SoundToggle, TabBar } from './Chrome';
-import { DashboardControls, DashboardScreen, useDashboardLayout } from './Dashboard';
+import { DashboardControls, DashboardScreen, dashSideWidth, useDashboardLayout } from './Dashboard';
 import { CaliperSwatches, DimensionChips, PaintSwatches, TrimSwatches, WheelChips } from './Swatches';
 import { CHARGE_COLUMN_W, ChargePanel, chargeSideWidth } from './Charge';
 import { COMPARE_COLUMN_W, SPECS_COLUMN_W, SpecsPanel } from './Specs';
@@ -346,7 +346,7 @@ export function Showroom({
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
       // a phone held sideways: the tablet stands at the right, and the car has the rest of the width
       else if (dash.short) setDeviceInset({ right: Math.min(0.6, chargeSideWidth(dash.vw, dash.vh, topPx) / dash.vw), bottom: 0, left: SHORT_MENU_W / dash.vw });
-      else setDeviceInset({ right: 0, bottom: 0.48 });
+      else setDeviceInset({ right: 0, bottom: 0.22 });
     } else if (tab === 'drive') {
       // the card at the right of a wide window and the column of data at the left, the gauges and the playback bar under the car
       setDeviceInset({
@@ -359,6 +359,10 @@ export function Showroom({
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
   }, [tab, dash.wide, dash.short, dash.vw, dash.vh, topPx, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
+  // a phone has no column for the car's screen: it opens as a sheet when the Dashboard tab does, and the visitor can shut it
+  React.useEffect(() => {
+    if (tab === 'dashboard' && !dash.wide && !dash.short) setScreenOpen(true);
+  }, [tab, dash.wide, dash.short]);
   // the sheet gives way to the column when the window grows wide, and shuts when the tab is left
   React.useEffect(() => {
     if (dash.wide || tab !== 'dimensions') setSpecsOpen(false);
@@ -374,6 +378,8 @@ export function Showroom({
         ? boostColumnWidth(dash.vw) + 40
         : tab === 'dashboard' && dash.wide
           ? dash.colW + 40
+          : tab === 'dashboard' && dash.short
+            ? dashSideWidth(dash.vw, dash.vh, topPx) + 16
           : specsColumn && !compareMaximized
             ? currentSpecsCol + 40
             : chargeColumn
@@ -441,15 +447,16 @@ export function Showroom({
               ]}
             />
           </div>
-          <div className="order-2 ml-auto flex items-center gap-2 xl:order-none xl:justify-self-end">
+          <div className="order-2 ml-auto flex items-center gap-1.5 max-[380px]:gap-1 sm:gap-2 xl:order-none xl:justify-self-end">
             <button
               type="button"
               onClick={() => setCompareSlug(otherCars[0]?.slug ?? null)}
-              className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] font-medium text-neutral-800 transition-colors ${GLASS} ${FOCUS}`}
+              className={`pointer-events-auto flex items-center gap-1.5 rounded-full px-3.5 py-1.5 max-sm:px-2.5 max-sm:py-2 max-[380px]:px-2 text-[12px] font-medium text-neutral-800 transition-colors ${GLASS} ${FOCUS}`}
               title="Compare side-by-side with another model"
+              aria-label="Compare side-by-side with another model"
             >
               <span>◫</span>
-              <span>Compare</span>
+              <span className="max-sm:hidden">Compare</span>
             </button>
             {canCity && <SceneToggle scene={sceneKind} onScene={setSceneKind} />}
             {Boolean(vehicle.openings?.length) && <SoundToggle />}
@@ -467,7 +474,7 @@ export function Showroom({
       {ready && tab === 'tech' && demo && <TechDevices vehicle={vehicle} variant={variant} demo={demo} />}
       {ready && tab === 'tech' && demo?.driver === 'boost' && <BoostPopup vehicle={vehicle} variant={variant} />}
       {ready && tab === 'dashboard' && (
-        <DashboardScreen vehicle={vehicle} variant={variant} open={screenOpen} onClose={closeScreen} />
+        <DashboardScreen vehicle={vehicle} variant={variant} open={screenOpen} onClose={closeScreen} top={topPx} />
       )}
       {ready && specsColumn && (
         <aside
@@ -534,7 +541,7 @@ export function Showroom({
       {ready && tab === 'drive' && <DrivePanel vehicle={vehicle} column={dash.wide} />}
 
       <div
-        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 pb-3 sm:pb-5 ${ready ? '' : 'invisible'}`}
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 short:pl-[136px] pb-3 sm:pb-5 ${ready ? '' : 'invisible'}`}
         // on a wide window the devices stand in a column at the right: the dock centres in what is left
         style={rightPad ? { paddingRight: rightPad } : undefined}
       >
@@ -618,7 +625,7 @@ export function Showroom({
           </div>
         )}
         {tab === 'dashboard' && (
-          <DashboardControls screenFits={dash.screenFits} wide={dash.wide} screenOpen={screenOpen} onScreen={setScreenOpen} />
+          <DashboardControls screenFits wide={dash.wide || dash.short} screenOpen={screenOpen} onScreen={setScreenOpen} />
         )}
         {tab === 'drive' && <LaunchTools vehicle={vehicle} inset={false} />}
         {tab === 'tech' && demo && (
