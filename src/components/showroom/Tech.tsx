@@ -84,7 +84,7 @@ export function TechControls({
         </div>
       )}
     <div
-      className={`pointer-events-auto flex w-full items-center gap-2 rounded-full px-2 py-1.5 ${GLASS}`}
+      className={`pointer-events-auto flex w-full items-center gap-2 rounded-full px-2 py-1.5 short:py-1 ${GLASS}`}
       title={disabled}
     >
       <button
@@ -92,7 +92,7 @@ export function TechControls({
         disabled={off}
         aria-label={clock.playing ? 'Pause' : 'Play'}
         onClick={() => (clock.playing ? techClock.pause() : techClock.play())}
-        className={`grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-900 text-white transition-opacity disabled:opacity-35 ${FOCUS}`}
+        className={`grid h-8 w-8 short:h-7 short:w-7 shrink-0 place-items-center rounded-full bg-neutral-900 text-white transition-opacity disabled:opacity-35 ${FOCUS}`}
       >
         <Icon d={clock.playing ? PAUSE : PLAY} label={clock.playing ? 'Pause' : 'Play'} />
       </button>

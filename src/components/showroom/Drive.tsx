@@ -461,7 +461,8 @@ export function DrivePanel({ vehicle, column }: { vehicle: Vehicle; column: bool
     );
   }
   return (
-    <div className={`pointer-events-none absolute inset-x-3 z-20 ${BELOW_TOP}`}>
+    // a phone held sideways: the bar is a corner of the window (the run's cards stand at the other), so that the car has the middle
+    <div className={`pointer-events-none absolute inset-x-3 short:inset-x-auto short:right-3 short:w-[min(300px,40vw)] z-20 ${BELOW_TOP}`}>
       <button
         type="button"
         aria-expanded={open}
@@ -472,7 +473,7 @@ export function DrivePanel({ vehicle, column }: { vehicle: Vehicle; column: bool
         <span className="ml-2 shrink-0 text-neutral-500">{open ? 'Close ▴' : 'Scenario ▾'}</span>
       </button>
       {open && (
-        <div className={`hy-scroll pointer-events-auto mt-2 max-h-[62vh] overflow-y-auto rounded-2xl p-3 ${PANEL}`}>
+        <div className={`hy-scroll pointer-events-auto mt-2 max-h-[62vh] short:max-h-[calc(100vh-var(--top-ui,56px)-72px)] overflow-y-auto rounded-2xl p-3 ${PANEL}`}>
           <PanelBody vehicle={vehicle} />
         </div>
       )}

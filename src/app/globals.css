@@ -6,6 +6,9 @@
   one warm accent borrowed from cabin ambient lighting, and numerals in a
   tabular face so figures line up column to column in the comparison tables.
 */
+/* A phone held sideways: wide enough for columns, but too short for the stacked panels made for a tall window. */
+@custom-variant short (@media (orientation: landscape) and (max-height: 520px));
+
 @theme {
   --color-ink-900: #07080a;
   --color-ink-850: #0b0d10;

@@ -10,6 +10,7 @@ import { runPhase } from '@/lib/tech/phase';
 import { useChargeReadout, useRuntime, type Runtime } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { FOCUS } from './Chrome';
+import { useDashboardLayout } from './Dashboard';
 
 const W = 500;
 const H = 42;
@@ -26,6 +27,29 @@ const mmss = (s: number) => {
 export const CHARGE_COLUMN_W = 510;
 
 /**
+ * A phone held sideways has room for the tablet beside the car, not under it: it stands at the right at this size (px, before
+ * it is scaled down to fit the window's height), and the camera frames the car in what is left.
+ */
+export const CHARGE_SIDE_W = 440;
+/** the tablet's height at that width, measured (its specifications drawer shut), px */
+const CHARGE_SIDE_H = 380;
+
+/**
+ * How far the tablet is scaled down so that all of it fits under the menu (`top` px tall, which wraps to a second row on a
+ * phone) in the height of a short window, with a gap above and below it.
+ */
+export function chargeSideScale(vw: number, vh: number, top: number): number {
+  return Math.max(0.45, Math.min(1, (vh - top - 20) / CHARGE_SIDE_H, (vw * 0.5) / CHARGE_SIDE_W));
+}
+
+/** The width the tablet takes at the right of a short window, px (its scaled width and the gap to the edge). */
+export function chargeSideWidth(vw: number, vh: number, top: number): number {
+  return Math.round(CHARGE_SIDE_W * chargeSideScale(vw, vh, top)) + 16;
+}
+
+export type ChargeLayout = 'column' | 'dock' | 'side';
+
+/**
  * The Charging tab's Moveable Landscape Tablet Surface:
  * - Widescreen automotive tablet design (16:10 landscape aspect ratio).
  * - Reduced by 1/3 in footprint for balanced ergonomics on desktop and mobile.
@@ -36,7 +60,8 @@ export const CHARGE_COLUMN_W = 510;
  * - Flanking telemetry panels (Time, Energy, Power, Range) with technical amber bars.
  * - Wide-aspect Simulated Power Curve oscilloscope and expandable specifications drawer.
  */
-export function ChargePanel({ vehicle, compact }: { vehicle: Vehicle; compact: boolean }) {
+export function ChargePanel({ vehicle, layout, top }: { vehicle: Vehicle; layout: ChargeLayout; top: number }) {
+  const { vw, vh } = useDashboardLayout();
   const facts = React.useMemo(() => chargeFacts(vehicle), [vehicle]);
   const charge = useRuntime()?.charge;
   const r = useChargeReadout();
@@ -197,8 +222,9 @@ export function ChargePanel({ vehicle, compact }: { vehicle: Vehicle; compact: b
       const minY = -rect.top + offset.y + 48;
       const maxY = window.innerHeight - (rect.top - offset.y) - rect.height - 8;
 
-      nextX = Math.max(minX, Math.min(maxX, nextX));
-      nextY = Math.max(minY, Math.min(maxY, nextY));
+      // a tablet bigger than the window leaves no room to move it: the limits then swap rather than pin it in place
+      nextX = Math.max(Math.min(minX, maxX), Math.min(Math.max(minX, maxX), nextX));
+      nextY = Math.max(Math.min(minY, maxY), Math.min(Math.max(minY, maxY), nextY));
     }
 
     setOffset({ x: nextX, y: nextY });
@@ -226,13 +252,17 @@ export function ChargePanel({ vehicle, compact }: { vehicle: Vehicle; compact: b
       role="region"
       aria-label="High-Power EV Charger Tablet Surface"
       style={{
-        transform: `translate3d(${offset.x}px, ${offset.y}px, 0)`,
+        transform: `translate3d(${offset.x}px, ${offset.y}px, 0)${layout === 'side' ? ` scale(${chargeSideScale(vw, vh, top)})` : ''}`,
+        transformOrigin: 'top right',
         transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        ...(layout === 'side' ? { width: CHARGE_SIDE_W } : null),
       }}
       className={`pointer-events-auto absolute ${
-        compact
+        layout === 'dock'
           ? 'bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 w-[calc(100vw-16px)] max-w-[460px]'
-          : 'top-[calc(var(--top-ui,56px)+12px)] right-5 w-[500px] lg:w-[516px] max-w-[calc(100vw-24px)]'
+          : layout === 'side'
+            ? 'top-[calc(var(--top-ui,56px)+8px)] right-2'
+            : 'top-[calc(var(--top-ui,56px)+12px)] right-5 w-[500px] lg:w-[516px] max-w-[calc(100vw-24px)]'
       } select-none`}
     >
       {/* Outer Landscape Tablet Enclosure (Bezel Drag Zone with Hand Cursor) */}
@@ -242,6 +272,8 @@ export function ChargePanel({ vehicle, compact }: { vehicle: Vehicle; compact: b
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={resetPosition}
+        // a finger on the bezel moves the tablet: without this the browser takes the touch for a scroll and cancels the drag
+        style={{ touchAction: 'none' }}
         className={`group relative overflow-hidden rounded-[22px] bg-gradient-to-b from-[#242b38] via-[#161c26] to-[#0d121a] p-1.5 sm:p-2 transition-shadow duration-300 ${
           isDragging
             ? 'cursor-grabbing shadow-[0_30px_70px_-15px_rgba(0,0,0,0.95),0_0_0_1.5px_rgba(6,182,212,0.5)_inset] scale-[1.006]'

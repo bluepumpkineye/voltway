@@ -53,7 +53,8 @@ export function TabBar({
     box.scrollTo({ left: el.offsetLeft - (box.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
   }, [tab]);
   return (
-    <div ref={list} role="tablist" aria-label="Showroom" className={`hy-scroll pointer-events-auto relative flex max-w-full overflow-x-auto rounded-full p-1 ${GLASS}`}>
+    <div ref={list} role="tablist" aria-label="Showroom" // a phone held sideways: the tabs stand in a column under the car picker instead of a row across the picture
+      className={`hy-scroll pointer-events-auto relative flex max-w-full overflow-x-auto rounded-full p-1 short:flex-col short:overflow-x-hidden short:overflow-y-auto short:rounded-2xl short:max-h-[calc(100vh-var(--top-ui,56px)-20px)] ${GLASS}`}>
       {TABS.filter((t) => !hidden.includes(t.id)).map((t) => {
         const off = disabled[t.id];
         const active = tab === t.id;
@@ -66,7 +67,7 @@ export function TabBar({
             disabled={Boolean(off)}
             title={off}
             onClick={() => onTab(t.id)}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 ${FOCUS} ${
+            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 short:px-3 short:py-1 short:text-left short:text-[12px] ${FOCUS} ${
               active ? 'bg-neutral-900 text-white shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
             }`}
           >
@@ -98,7 +99,7 @@ export function SceneToggle({
           type="button"
           aria-pressed={scene === o.id}
           onClick={() => onScene(o.id)}
-          className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors ${FOCUS} ${
+          className={`rounded-full px-3 py-1.5 max-sm:px-2.5 max-[380px]:px-2 text-[12px] font-medium transition-colors ${FOCUS} ${
             scene === o.id ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'
           }`}
         >
@@ -119,7 +120,7 @@ export function SoundToggle() {
       aria-label={on ? 'Sound on: turn the door sounds off' : 'Sound off: turn the door sounds on'}
       title={on ? 'Sound on' : 'Sound off'}
       onClick={() => setSoundOn(!on)}
-      className={`pointer-events-auto grid h-9 w-9 place-items-center rounded-full hover:text-neutral-950 ${GLASS} ${FOCUS} ${
+      className={`pointer-events-auto grid h-9 w-9 max-sm:h-8 max-sm:w-8 max-[380px]:h-[30px] max-[380px]:w-[30px] place-items-center rounded-full hover:text-neutral-950 ${GLASS} ${FOCUS} ${
         on ? 'text-neutral-700' : 'text-neutral-400'
       }`}
     >
@@ -174,7 +175,7 @@ export function CarMenu({
         aria-expanded={open}
         aria-label={`Car: ${label}. Change car`}
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-9 items-center gap-2 rounded-full px-4 text-[14px] font-medium text-neutral-900 ${GLASS} ${FOCUS}`}
+        className={`flex h-9 items-center gap-2 rounded-full px-4 max-[380px]:px-3 max-[380px]:text-[13px] text-[14px] font-medium text-neutral-900 ${GLASS} ${FOCUS}`}
       >
         {label}
         {cars.length > 1 && (
@@ -254,7 +255,7 @@ export function InfoButton({
         aria-expanded={open}
         aria-label="About this view, sources and the showroom"
         onClick={() => setOpen((v) => !v)}
-        className={`grid h-9 w-9 place-items-center rounded-full text-neutral-700 hover:text-neutral-950 ${GLASS} ${FOCUS}`}
+        className={`grid h-9 w-9 max-sm:h-8 max-sm:w-8 max-[380px]:h-[30px] max-[380px]:w-[30px] place-items-center rounded-full text-neutral-700 hover:text-neutral-950 ${GLASS} ${FOCUS}`}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
           <circle cx="8" cy="8" r="6.4" stroke="currentColor" strokeWidth="1.4" />

@@ -354,7 +354,7 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
         </div>
       )}
       {!floating && (
-        <div role="group" aria-label="Live data from the run" className={`pointer-events-none absolute left-3 z-10 ${BELOW_TOP}`} style={{ width: RAIL_W, marginTop: column ? 0 : 44 }}>
+        <div role="group" aria-label="Live data from the run" className={`pointer-events-none absolute left-3 z-10 ${BELOW_TOP} ${column ? '' : 'mt-11 short:left-auto short:right-3'}`} style={{ width: RAIL_W }}>
           {introShown && (
             <div style={{ opacity: 1 - introExit, transform: `translateY(${-introExit * 14}px)` }}>
               <Intro vehicle={vehicle} age={reduced ? 9 : intro} />
