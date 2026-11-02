@@ -53,7 +53,8 @@ export function TabBar({
     box.scrollTo({ left: el.offsetLeft - (box.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
   }, [tab]);
   return (
-    <div ref={list} role="tablist" aria-label="Showroom" className={`hy-scroll pointer-events-auto relative flex max-w-full overflow-x-auto rounded-full p-1 ${GLASS}`}>
+    <div ref={list} role="tablist" aria-label="Showroom" // a phone held sideways: the tabs stand in a column under the car picker instead of a row across the picture
+      className={`hy-scroll pointer-events-auto relative flex max-w-full overflow-x-auto rounded-full p-1 short:flex-col short:overflow-x-hidden short:overflow-y-auto short:rounded-2xl short:max-h-[calc(100vh-var(--top-ui,56px)-20px)] ${GLASS}`}>
       {TABS.filter((t) => !hidden.includes(t.id)).map((t) => {
         const off = disabled[t.id];
         const active = tab === t.id;
@@ -66,7 +67,7 @@ export function TabBar({
             disabled={Boolean(off)}
             title={off}
             onClick={() => onTab(t.id)}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 ${FOCUS} ${
+            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 sm:px-4 short:px-3 short:py-1 short:text-left short:text-[12px] ${FOCUS} ${
               active ? 'bg-neutral-900 text-white shadow-sm' : 'text-neutral-600 hover:text-neutral-900'
             }`}
           >

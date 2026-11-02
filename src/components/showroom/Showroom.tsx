@@ -66,6 +66,8 @@ const Comparison3DShowroom = dynamic(
 
 const TABS: ShowroomTab[] = ['colour', 'interior', 'dashboard', 'wheels', 'dimensions', 'xray', 'charging', 'drive', 'tech'];
 const DIMS: DimensionFocus[] = ['length', 'width', 'height'];
+/** the width the tab column takes at the left of a phone held sideways, px (its width and the gap to the edge) */
+const SHORT_MENU_W = 136;
 /** the menu's height with its one row of tabs, px: the poses are composed for it */
 const ONE_ROW = 56;
 
@@ -343,15 +345,16 @@ export function Showroom({
     } else if (tab === 'charging') {
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
       // a phone held sideways: the tablet stands at the right, and the car has the rest of the width
-      else if (dash.short) setDeviceInset({ right: Math.min(0.6, chargeSideWidth(dash.vw, dash.vh, topPx) / dash.vw), bottom: 0 });
+      else if (dash.short) setDeviceInset({ right: Math.min(0.6, chargeSideWidth(dash.vw, dash.vh, topPx) / dash.vw), bottom: 0, left: SHORT_MENU_W / dash.vw });
       else setDeviceInset({ right: 0, bottom: 0.48 });
     } else if (tab === 'drive') {
       // the card at the right of a wide window and the column of data at the left, the gauges and the playback bar under the car
       setDeviceInset({
-        right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : 0,
-        left: dash.wide ? Math.min(0.3, (RAIL_W + 24) / dash.vw) : 0,
+        // a sideways phone: the scenario bar and the run's card stand at the right, the menu column at the left
+        right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : dash.short ? (RAIL_W + 24) / dash.vw : 0,
+        left: dash.wide ? Math.min(0.3, (RAIL_W + 24) / dash.vw) : dash.short ? SHORT_MENU_W / dash.vw : 0,
         // a sideways phone's gauges and playback bar are a smaller stack than a tall window's
-        bottom: dash.short ? 0.3 : 0.4,
+        bottom: dash.short ? 0.2 : 0.4,
       });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
@@ -425,7 +428,7 @@ export function Showroom({
           <div className="order-1 xl:order-none xl:justify-self-start">
             <CarMenu current={vehicle.slug} cars={cars} tab={tab} />
           </div>
-          <div className="order-3 flex w-full justify-center xl:order-none xl:w-auto">
+          <div className="order-3 flex w-full justify-center xl:order-none xl:w-auto short:absolute short:left-3 short:top-[62px] short:w-auto short:justify-start">
             <TabBar
               tab={tab}
               onTab={setTab}
