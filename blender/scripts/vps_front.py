@@ -9,16 +9,27 @@ Key Passion S front-end features read directly off front_grid.png (3840 x 2880):
     lower grille (with square central mmWave radar) wrapping around continuous body-coloured lower aero fangs
   - Full-width gloss-black chin splitter, front surround camera, circular tow-eye cover, parking sensors,
     and Huawei Qiankun ADS 4.1 896-line roof LiDAR pod
+
+2026-11-03, the owner: "the same unpolished and unfinished design" on the front bumper and headlamps, "the upper headlights
+should form a continuous line with the middle stripe". The upper lamp, the nose channel and the cheek pockets are now read
+off the studio front photograph c1_0002.jpg (vps_lampdata: traced contours and hand readings of 3x crops) and laid on the
+panels along the photo's own rays (carkit.photolay), as for the 06T and the ES8: the lamp is ONE eyelid (a black hood over a
+dark lens with the white DRL line across it) whose inner end IS the nose channel's start (same height, no gap), the channel
+runs on to the emblem with its lit strip, and the cheek is cut along the traced outline of the black recess.
 """
 import math
 
 import bpy
+from mathutils import Vector
 
 import vps_surface as S
 import vps_nose as N
 import vps_panels as PN
 import vps_cam as CAM
+import vps_lampdata as LD
+import vps_ref_match as RM
 from carkit import geom
+from carkit import photolay as PL
 from carkit import mesh as M
 from carkit import cut as C
 from carkit.body import fascia as FA
@@ -63,27 +74,6 @@ def _face(y, z, d=0.0):
     return p, n
 
 
-# Pixel outlines read off front_grid.png (right half u <= 1920, mirrored to both sides)
-DRL_UP_PX = [(1088, 1396), (1150, 1412), (1230, 1438), (1320, 1472), (1402, 1502)]
-DRL_LO_PX = [(1086, 1468), (1120, 1502), (1185, 1515), (1270, 1516), (1350, 1514), (1402, 1514)]
-
-CHANNEL_UP_PX = [(1402, 1502), (1540, 1512), (1700, 1516), (1858, 1516), (1920, 1516)]
-CHANNEL_LO_PX = [(1402, 1516), (1540, 1530), (1700, 1536), (1858, 1538), (1920, 1538)]
-
-POD_UP_PX = [(1102, 1620), (1210, 1620), (1338, 1626)]
-POD_LO_PX = [(1096, 1698), (1210, 1698), (1380, 1700)]
-
-# Connected dark mask cutout preserving the continuous painted lower aero fang (u 1112..1524, v 1836..1998)
-MASK_CUT_SIDE_PX = [
-    (1102, 1620), (1215, 1620), (1338, 1626), (1382, 1700),
-    (1445, 1744), (1525, 1790), (1605, 1808),
-]
-MASK_CUT_LOW_PX = [
-    (1335, 2000), (1425, 1938), (1524, 1846),
-    (1410, 1836), (1305, 1846), (1205, 1886), (1128, 1928),
-    (1108, 1916), (1098, 1855), (1092, 1760), (1094, 1680),
-]
-
 CHIN_PX = [
     (1072, 1996), (1140, 2012), (1260, 2020), (1450, 2022),
     (1680, 2022), (1920, 2022),
@@ -94,9 +84,6 @@ CAMERA_PX = (1920, 1720)
 TOWCAP_PX = (1425, 1796)
 SENSORS_PX = [(1078, 1792), (1362, 1812), (1625, 1872)]
 
-_z_mask_hi = _px_yz(1920, 1810)[1]
-_z_mask_lo = _px_yz(1920, 2002)[1]
-MASK_CUT = _yz_px(MASK_CUT_SIDE_PX) + [(-0.025, _z_mask_hi), (-0.025, _z_mask_lo)] + _yz_px(MASK_CUT_LOW_PX)
 CHIN = _yz_px(CHIN_PX)
 CHIN[-1] = (0.0, CHIN[-1][1])
 PLATE_Z = _px_yz(1920, 0.5 * (PLATE_PX[1] + PLATE_PX[3]))[1]
@@ -134,13 +121,75 @@ def _strip(name, pts_yz, half, depth, collection, mat, n=None, thickness=0.0022)
     return ob
 
 
+# ---------------------------------------------------- the photo's rays onto the model's panels
+# The outlines of vps_lampdata are pixels of c1_0002.jpg; each point goes along the photo's own ray (vps_ref_match "front",
+# mirrored onto the half sheet y >= 0) to the first of the panels that meets it (the uncut fascia, the front fender, the hood),
+# the point being the hit and the normal the panels' own smooth vertex normals (carkit.photolay.Surf).
+SURF_PANELS = ("VPS_Fascia", "VPS_Fender_Front", "VPS_Hood")
+_SURF = []
+
+
+def _surf():
+    if not _SURF:
+        _SURF.append(PL.Surf(SURF_PANELS, inside=(1.2, 0.0, 0.6), x_range=(2.60, 1.70)))
+    return _SURF[0]
+
+
+def _on_surface(u, v, cam="front", inset=0.0):
+    o, d = RM.ray(cam, u, v)
+    o, d = Vector((o.x, -o.y, o.z)), Vector((d.x, -d.y, d.z))
+    h = _surf().hit(o, d, inset)
+    if h is None:
+        raise RuntimeError("vps_front: the photo ray through (%g, %g) misses the nose" % (u, v))
+    return h
+
+
+LAY = PL.Lay(_on_surface, geom.away_from((1.90, 0.45, 0.65)))
+
+
+def _surf_cut(ob):
+    """First cut of the fascia, run on the uncut sheet: take the panels as they stand for the photo's rays."""
+    del _SURF[:]
+    _surf()
+
+
+LIP_PX = 16.0                      # the paint left at the cheek's outer edge (1.8 cm): the corner's own lip
+
+
+def _lip(u, v):
+    """The cut's outer edge moved in by LIP_PX (a smooth ramp over 26 px in u, fading out between v 1880 and 1920 where the
+    cavity's rounded foot meets the fang): the traced edge is the fascia sheet's own, and a cut along a sheet's very edge
+    tore into sawteeth (the owner: "as if someone cuts roughly with a cutter")."""
+    def ss(t):
+        t = min(1.0, max(0.0, t))
+        return t * t * (3.0 - 2.0 * t)
+    if u >= 1130.0:
+        return u
+    return u + LIP_PX * (1.0 - ss((u - 1104.0) / 26.0)) * (1.0 - ss((v - 1880.0) / 40.0))
+
+
+def _mask_cut():
+    """The cheek-and-grille recess the paint is cut along (c1_0002, traced and simplified: LD.CHEEK_PTS, corners sharp, the
+    rest spline-smoothed), as (y, z) of the nose; its edge on the centre line crosses it (y = -0.025) so the two halves meet."""
+    pts = PL.resample_loop(PL.smooth_loop(LD.CHEEK_PTS, LD.CHEEK_CORNERS, 6), 5.0)
+    out = []
+    for (u, v) in pts:
+        if u > LD.CENTRE_U - 3.0:
+            y, z = _px_yz(u, v)
+            out.append((-0.025, z))
+            continue
+        p, _n = _on_surface(_lip(u, v), v, inset=0.004)
+        out.append((p.y, p.z))
+    return out
+
+
 def _cut_openings(ob):
     """Cut the connected cheek/projector/lower-grille mask and trim below the chin line."""
     chin_cut = [(-0.02, CHIN[-1][1])] + [(y, z) for (y, z) in reversed(CHIN)] + [
         (CHIN[0][0] + 0.03, 0.05), (-0.02, 0.05)
     ]
     cutters = [
-        C.prism_x("_cut_mask_" + ob.name, MASK_CUT, S.HALF_L + 0.30, S.HALF_L - 0.65),
+        C.prism_x("_cut_mask_" + ob.name, _mask_cut(), S.HALF_L + 0.30, S.HALF_L - 0.65),
         C.prism_x("_cut_chin_" + ob.name, chin_cut, S.HALF_L + 0.30, S.HALF_L - 0.65),
     ]
     sheet = C.sheet_bvh(ob)
@@ -155,23 +204,20 @@ def build_fascia(collection, lib):
         "VPS_Fascia", NOSE, collection, lib,
         N.NOSE_Z_LO + 0.0008, N.NOSE_Z_HI - 0.0008,
         0.0, 1.0, 48, 52, mat="paint", top_to_centre=True,
-        cuts=(_cut_openings,))
+        cuts=(_surf_cut, _cut_openings))
     made.append(fascia)
 
     # Recessed gloss-black mask behind the cheek pockets & active-shutter lower grille
-    rows, _ = BP.cap_rows(NOSE, N.NOSE_Z_LO + 0.002, 0.800, 0.0, 1.0, 24, 36,
-                          offset=-0.020, top_to_centre=True)
+    # (up to z 0.84, the cut's top at the panel: carried on over the nose's crown to the centre line, as it was, the apron
+    # stood through the paint above the emblem as two black shards)
+    rows, _ = BP.cap_rows(NOSE, N.NOSE_Z_LO + 0.002, 0.840, 0.0, 1.0, 24, 36, offset=-0.020)
     ap = M.mesh_from_rows("VPS_Apron", rows, collection)
     M.orient(ap.data, geom.axial(1.0))
-    ap.data.materials.append(lib["black_gloss"])
+    ap.data.materials.append(lib["grille"])
     M.mirror_y(ap)
     M.finish(ap, thickness=0.0025, bevel=0.0)
     made.append(ap)
 
-    # Cheek horizontal aero strake inside the outer intake pocket (front_grid u 1125..1285, v 1812)
-    strake_yz = _yz_px([(1118, 1812), (1200, 1812), (1285, 1814)])
-    made.append(_strip("VPS_Cheek_Strake", strake_yz, 0.0055, -0.006, collection,
-                       lib["black_gloss"], n=12, thickness=0.003))
     return made
 
 
@@ -181,33 +227,35 @@ def build_grille(collection, lib):
     _, z_top = _px_yz(1700, 1892)
     _, z_lo = _px_yz(1700, 1996)
 
-    # Vertical active-shutter grille dividers either side of the central square mmWave radar
+    # The active-shutter grille as c1_0002 shows it: two rows of dark openings, a thin vertical blade (pale, pointed at both
+    # ends) every 6.2 cm in each (u 1593, 1648, 1705, 1761 and the frame's at 1537; rows v 1862-1912 and 1933-1978), a bar
+    # between the rows (v 1927) running in to the radar
     verts, faces = [], []
-    wid, dep = 0.0040, 0.008
+    wid, dep = 0.0030, 0.007
+    rows_v = ((1862, 1912), (1933, 1978))
     for side in (1.0, -1.0):
-        for y in (0.145, 0.235, 0.325, 0.415, 0.505):
-            zt = z_top - 0.006 if y < 0.44 else z_top - 0.028
-            x_f = min(_face(y, zt)[0][0], _face(y, z_lo)[0][0]) - 0.015
-            x_b = x_f - dep
-            k = len(verts)
-            for (xx, zz) in ((x_b, z_lo), (x_f, z_lo), (x_f, zt), (x_b, zt)):
-                verts.append((xx, side * (y - wid * 0.5), zz))
-                verts.append((xx, side * (y + wid * 0.5), zz))
-            faces += [[k + 0, k + 1, k + 3, k + 2], [k + 2, k + 3, k + 5, k + 4],
-                      [k + 4, k + 5, k + 7, k + 6], [k + 6, k + 7, k + 1, k + 0],
-                      [k + 0, k + 2, k + 4, k + 6], [k + 1, k + 7, k + 5, k + 3]]
-    # Horizontal mid bar across the active grille
-    z_mid = 0.5 * (z_top + z_lo)
+        for (va, vb) in rows_v:
+            zt, zb = _px_yz(1700, va)[1], _px_yz(1700, vb)[1]
+            for u in (1537, 1593, 1648, 1705, 1761):
+                y = (CAM.W / 2.0 - u) * 1.106e-3
+                x_f = min(_face(y, zt)[0][0], _face(y, zb)[0][0]) - 0.016
+                k = len(verts)
+                for (xx, zz) in ((x_f - dep, zb), (x_f, zb), (x_f, zt), (x_f - dep, zt)):
+                    verts.append((xx, side * (y - wid * 0.5), zz))
+                    verts.append((xx, side * (y + wid * 0.5), zz))
+                faces += [[k + 0, k + 1, k + 3, k + 2], [k + 2, k + 3, k + 5, k + 4],
+                          [k + 4, k + 5, k + 7, k + 6], [k + 6, k + 7, k + 1, k + 0],
+                          [k + 0, k + 2, k + 4, k + 6], [k + 1, k + 7, k + 5, k + 3]]
+    z_mid = _px_yz(1700, 1927)[1]
     for side in (1.0, -1.0):
         k = len(verts)
-        for (yy, zz) in ((0.115, z_mid - 0.003), (0.545, z_mid - 0.003),
-                         (0.545, z_mid + 0.003), (0.115, z_mid + 0.003)):
-            xf = _face(yy, zz)[0][0] - 0.014
+        for (yy, zz) in ((0.115, z_mid - 0.0030), (0.510, z_mid - 0.0030), (0.510, z_mid + 0.0030), (0.115, z_mid + 0.0030)):
+            xf = _face(yy, zz)[0][0] - 0.0150
             verts.append((xf - 0.006, side * yy, zz))
             verts.append((xf, side * yy, zz))
         faces += [[k + 0, k + 1, k + 3, k + 2], [k + 2, k + 3, k + 5, k + 4],
                   [k + 4, k + 5, k + 7, k + 6], [k + 6, k + 7, k + 1, k + 0]]
-    made.append(M.obj("VPS_Grille_Slats", verts, faces, collection, lib["black_trim"], smooth=False))
+    made.append(M.obj("VPS_Grille_Slats", verts, faces, collection, lib["lamp_hair"], smooth=False))
 
     # Central square mmWave radar module (front_grid u 1820..2020, v 1898..1988)
     yr, zr_t = _px_yz(1822, 1898)
@@ -227,132 +275,164 @@ def build_grille(collection, lib):
     return made
 
 
-# --------------------------------------------------------- split headlamps & channel
-def _hit(bodies, u, v, fallback):
-    try:
-        import vps_ref_match as RM
-        h = RM.on_mesh("front", u, v, bodies)
-    except Exception:
-        h = None
-    if h is None:
-        return fallback
-    return (h[0], abs(h[1]), h[2])
+# --------------------------------------------------------- the upper lamp, the nose channel, the cheek pockets
+# Depths are metres along the paint's normal (c1_0002: 1 px is about 1.1 mm). The lamp and the channel stand proud of the
+# paint as one applied piece (the hood and the fascia they cross are not cut for them); inside the cheek everything stands
+# in the recess, in front of the apron (-20 mm).
+LAMP_UP, LAMP_T = 0.0016, 0.0020
+LENS_UP, LINE_UP, STRIP_UP = 0.0024, 0.0032, 0.0030
+PANEL_DEPTH, BEZEL_DEPTH, SLAT_DEPTH, FIN_DEPTH, BODY_DEPTH = -0.0120, -0.0085, -0.0080, -0.0150, -0.0100
 
 
-def build_headlamps(collection, lib):
+def _line_v(u):
+    import numpy as np
+    return float(np.interp(u, [p[0] for p in LD.LAMP_LINE], [p[1] for p in LD.LAMP_LINE]))
+
+
+def _lens_poly():
+    """The lens: the lamp's outline below the white line, closed along the line."""
+    out = [(float(p[0]), float(p[1])) for p in LD.LAMP_OUT]
+    below = [p[1] > _line_v(p[0]) + 2.0 for p in out]
+    n = len(out)
+    start = next(i for i in range(n) if not below[i] and below[(i + 1) % n])
+    arc = []
+    i = (start + 1) % n
+    while below[i % n] and len(arc) < n:
+        arc.append(out[i % n])
+        i += 1
+    return arc + [tuple(p) for p in reversed(LD.LAMP_LINE)]
+
+
+def _rrect(box, k=5):
+    u0, v0, u1, v1, r = box
+    pts = []
+    for (cx, cy, a0) in ((u1 - r, v0 + r, -90.0), (u1 - r, v1 - r, 0.0), (u0 + r, v1 - r, 90.0), (u0 + r, v0 + r, 180.0)):
+        for i in range(k + 1):
+            a = math.radians(a0 + 90.0 * i / k)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def _disc(c, r, n=28):
+    return [(c[0] + r * math.cos(2 * math.pi * i / n), c[1] + r * math.sin(2 * math.pi * i / n)) for i in range(n)]
+
+
+def build_lamp(collection, lib):
+    """The upper lamp: a black eyelid over a dark lens, the white DRL line across it. Its inner end is the channel's start."""
     made = []
-    PLACER.reset()
-    bodies = [bpy.data.objects[n] for n in LAMP_BODY if n in bpy.data.objects]
-    try:
-        import vps_ref_match as RM
-        RM.clear_bvh()
-    except Exception:
-        pass
-
-    def pts3(px):
-        out = []
-        for (u, v) in px:
-            y, z = _px_yz(u, v)
-            out.append(_hit(bodies, u, v, (NOSE.x_at(y, max(NOSE.Z_LO + 0.004, min(NOSE.Z_HI - 0.004, z))), y, z)))
-        return out
-
-    NS, NK = 44, 5
-    out = geom.away_from((1.90, 0.45, 0.65))
-
-    def _crown(k, extra=0.0):
-        return 0.0026 + 0.0010 * math.sin(math.pi * max(0.0, min(1.0, k))) + extra
-
-    # 1. Winged upper DRL housing, dual-row white LED blades, and smoked crystal lens
-    up = geom.polyline(pts3(DRL_UP_PX), NS)
-    lo = geom.polyline(pts3(DRL_LO_PX), NS)
-    made.append(lamps.lens("VPS_DRL_Housing", lo, up, _lamp_place, collection, lib["lamp_housing"],
-                           NK, lambda k, nk: 0.0012, out, thickness=0.0025, bevel=0.0))
-    made += lamps.seals("VPS_DRL_Seal", lo, up, _lamp_place, collection, lib["black_gloss"], out,
-                        width=0.0032, d=0.0012)
-    made.append(lamps.lens("VPS_DRL_Lens", lo, up, _lamp_place, collection, lib["lamp_clear"],
-                           NK, lambda k, nk: _crown(k / float(nk), 0.0005), out,
-                           thickness=0.0018, bevel=(0.0008, 2, 30)))
-    made.append(lamps.band_between("VPS_DRL_Bar", lo, up, range(2, int(NS * 0.98)), [0.16, 0.25, 0.34],
-                                   _lamp_place, lambda k: _crown(k, 0.0024), collection, lib["lamp_white_bar"], out))
-    for b_idx in range(5):
-        s0 = 4 + b_idx * 7
-        made.append(lamps.band_between("VPS_DRL_Blade_%d" % b_idx, lo, up, range(s0, min(NS - 2, s0 + 5)),
-                                       [0.52, 0.65, 0.78], _lamp_place, lambda k: _crown(k, 0.0022),
-                                       collection, lib["led_white"], out))
-
-    # 2. Full-width gloss-black nose channel & continuous illuminated white light strip
-    ch_yz = [0.5 * (u_pt[1] + l_pt[1]) for u_pt, l_pt in zip(_yz_px(CHANNEL_UP_PX), _yz_px(CHANNEL_LO_PX))]
-    ch_line = [(u_pt[0], zc) for u_pt, zc in zip(_yz_px(CHANNEL_UP_PX), ch_yz)]
-    ch_line[-1] = (0.0, ch_line[-1][1])
-    made.append(_strip("VPS_Nose_Channel", ch_line, 0.0095, 0.0014, collection,
-                       lib["black_gloss"], n=28, thickness=0.0024))
-    made.append(_strip("VPS_Nose_LightBar", [(y, z - 0.001) for (y, z) in ch_line], 0.0028, 0.0028,
-                       collection, lib["lamp_white_bar"], n=28, thickness=0.0018))
-
-    # 3. Lower horizontal smoked main-beam pod with visible twin LED projectors [o] [o]
-    pu = geom.polyline([(_face(y, z, -0.012)[0]) for (y, z) in _yz_px(POD_UP_PX)], 28)
-    pl = geom.polyline([(_face(y, z, -0.012)[0]) for (y, z) in _yz_px(POD_LO_PX)], 28)
-    made.append(lamps.lens("VPS_MainPod_Housing", pl, pu, lambda p, d=0.0: (p, (1.0, 0.0, 0.0)),
-                           collection, lib["lamp_housing"], 4, lambda k, nk: 0.0, out,
-                           thickness=0.0025, bevel=0.0))
-    made += lamps.seals("VPS_MainPod_Seal", pl, pu,
-                        lambda p, d=0.0: ((p[0] + 0.005, p[1], p[2]), (1.0, 0.0, 0.0)),
-                        collection, lib["black_gloss"], out, width=0.0038, d=0.0008)
-    for i, (u, v) in enumerate(((1166, 1658), (1268, 1660))):
-        y, z = _px_yz(u, v)
-        p, n = _face(y, z, -0.004)
-        # Rectangular satin-chrome bezel framing each crystal projector lens
-        bz = fittings.rounded_panel("VPS_MainProj_Bezel_%d" % i, (p[0] - 0.002, p[1], p[2]),
-                                    0.028, 0.019, 0.007,
-                                    lambda q, d: ((q[0] + d, q[1], q[2]), n),
-                                    p[0] - 0.002, collection, lib["machined"], d=0.0015,
-                                    outward=(1.0, 0.0, 0.0))
-        M.mirror_y(bz)
-        made.append(bz)
-        made += lamps.projector("VPS_MainProj_%d" % i, p, n, 0.0175, collection, lib,
-                                mats=("lamp_bowl", "lamp_smoked"))
+    made.append(LAY.region("VPS_Lamp_Body", PL.grow(LD.LAMP_OUT, 0.8), LAMP_UP, lib["lamp_frame"], collection, step=6.0,
+                           thick=LAMP_T, bevel=0.0006))
+    made.append(LAY.region("VPS_Lamp_Lens", PL.grow(_lens_poly(), -1.6), LENS_UP, lib["lamp_clear"], collection, step=5.0,
+                           thick=0.0004))
+    made.append(LAY.ribbon("VPS_Lamp_Hair", LD.LAMP_LINE, 0.0017, LINE_UP - 0.0004, lib["lamp_hair"], collection, step=6.0,
+                           thick=0.0004))
+    made.append(LAY.ribbon("VPS_Lamp_Line", LD.LAMP_LINE, 0.0009, LINE_UP, lib["led_white"], collection, step=6.0, thick=0.0005))
     return made
 
 
+def build_channel(collection, lib):
+    """The nose channel from the lamp's inner end to the emblem: a black frame and its lit strip (the DRL, continuing)."""
+    made = []
+    up, lo = LD.CH_BOT, LD.CH_TOP                      # (frac 1 = up of the band)
+    made.append(LAY.band("VPS_Nose_Channel", up, lo, 0, 2, LAMP_UP - 0.0002, lib["lamp_frame"], collection, thick=LAMP_T, paired=True))
+    made.append(LAY.band("VPS_Nose_Strip", up, lo, 0, 2, STRIP_UP, lib["led_white"], collection, thick=0.0005, paired=True,
+                         frac=lambda t: (0.5, 0.30)))
+    return made
+
+
+def build_cheek(collection, lib):
+    """The cheek recess (cut along LD.CHEEK_OUT): the smoked lamp panel with its two projector units, the intake's fin,
+    slat and round cover. The black apron behind is VPS_Apron."""
+    made = []
+    made.append(LAY.region("VPS_Cheek_Panel", PL.grow(PL.smooth_loop(LD.PANEL, (), 3), 5.0), PANEL_DEPTH, lib["lamp_smoked"],
+                           collection, step=9.0))
+    for i, bez in enumerate((LD.BEZEL_1, LD.BEZEL_2)):
+        ring = _rrect(bez)
+        made.append(LAY.ribbon("VPS_Proj_Bezel_%d" % i, ring, 0.0017, BEZEL_DEPTH, lib["lamp_hair"], collection, step=5.0,
+                               thick=0.0008, closed=True))
+        made.append(LAY.region("VPS_Proj_Lens_%d" % i, PL.grow(PL.smooth_loop(ring, (), 2), -3.2), BEZEL_DEPTH - 0.0003,
+                               lib["lamp_lens"], collection, step=5.0, thick=0.0006))
+    made.append(LAY.region("VPS_Intake_Body", PL.smooth_loop(LD.BULK, (), 2), BODY_DEPTH, lib["intake_grey"], collection,
+                           step=12.0))
+    made.append(LAY.region("VPS_Intake_Fin", PL.smooth_loop(LD.FIN, (), 3), FIN_DEPTH, lib["intake_grey"], collection,
+                           step=8.0))
+    made.append(LAY.region("VPS_Intake_Slat", PL.smooth_loop(LD.SLAT, (), 2), SLAT_DEPTH, lib["lamp_frame"], collection,
+                           step=6.0, thick=0.0014))
+    made.append(LAY.ribbon("VPS_Intake_Slat_Edge", LD.SLAT[:4], 0.0007, SLAT_DEPTH + 0.0014, lib["lamp_hair"], collection,
+                           step=6.0, thick=0.0004, smooth=False))
+    cu, cv, r = LD.CIRCLE
+    made.append(LAY.ribbon("VPS_Intake_Cover", _disc((cu, cv), r), 0.0008, -0.0160, lib["lamp_frame"], collection, step=8.0,
+                           thick=0.0006, closed=True))
+    return made
+
+
+def build_headlamps(collection, lib):
+    return build_lamp(collection, lib) + build_channel(collection, lib) + build_cheek(collection, lib)
+
+
+def relax_lamp_ao(ob, radius=0.040, ring=0.035):
+    """Undo the baked occlusion's grey halo round the cheek recess's cut (see a06t_front.relax_lamp_ao): every FRONT-SKIN
+    vertex of `ob` (the nose, modifiers applied, both halves) within `radius` of the recess outline takes the average of the
+    front-skin ring `ring` beyond it."""
+    import numpy as np
+    from mathutils.kdtree import KDTree
+    pts = []
+    for (u, v) in PL.resample_loop(LD.CHEEK_OUT, 14.0):
+        if u > LD.CENTRE_U - 3.0:
+            continue
+        p, _n = _on_surface(u, v)
+        pts += [p, Vector((p.x, -p.y, p.z))]
+    tree = KDTree(len(pts))
+    for i, p in enumerate(pts):
+        tree.insert(p, i)
+    tree.balance()
+    me = ob.data
+    at = me.attributes.get("_BAKEDAO")
+    if at is None:
+        return 0
+    ao = np.empty(len(at.data), np.float32)
+    at.data.foreach_get("value", ao)
+    skin_tree = _surf().tree
+    mw = ob.matrix_world
+    d = np.empty(len(me.vertices))
+    skin = np.zeros(len(me.vertices), bool)
+    for i, v in enumerate(me.vertices):
+        w = mw @ v.co
+        d[i] = tree.find(w)[2]
+        if d[i] < radius + ring:
+            hit = skin_tree.find_nearest(Vector((w.x, abs(w.y), w.z)))
+            skin[i] = hit[0] is not None and hit[3] < 0.0014
+    inner = (d < radius) & skin
+    outer = (d >= radius) & (d < radius + ring) & skin
+    if not inner.any() or not outer.any():
+        return 0
+    ref = float(ao[outer].mean())
+    ao[inner] = np.maximum(ao[inner], ref)
+    at.data.foreach_set("value", ao)
+    me.update()
+    print("lamp AO ring %.2f, %d skin vertices lifted" % (ref, int(inner.sum())))
+    return int(inner.sum())
+
+
 # --------------------------------------------------------- Kunpeng V-emblem, plate & lidar
+def _arc_order(poly):
+    """A traced loop that had its top removed starts mid-arc: rotate it to start after its biggest jump."""
+    n = len(poly)
+    jump = max(range(n), key=lambda i: math.hypot(poly[(i + 1) % n][0] - poly[i][0], poly[(i + 1) % n][1] - poly[i][1]))
+    return [poly[(jump + 1 + k) % n] for k in range(n)]
+
+
 def build_emblem(collection, lib):
-    """Illuminated Voyah Kunpeng winged V-emblem centred on the nose channel (u 1858..1982, v 1512..1652)."""
-    _, z_top = _px_yz(1920, 1514)
-    _, z_bot = _px_yz(1920, 1650)
-    y_top, _ = _px_yz(1860, 1518)
-    zc = 0.5 * (z_top + z_bot)
-    hh = 0.5 * (z_top - z_bot)
-    hw = y_top
-    p, n = _face(0.0, zc, 0.0032)
-
-    # Outer gloss-black winged V-shield backing
-    shield = [
-        (0.0, hh * 0.62), (hw, hh), (hw * 0.86, hh * 0.35),
-        (hw * 0.24, -hh * 0.72), (0.0, -hh), (-hw * 0.24, -hh * 0.72),
-        (-hw * 0.86, hh * 0.35), (-hw, hh),
-    ]
-    sv = [(q[0], q[1], 0.0) for q in shield]
-    sf = [[0, 1, 2, 3], [0, 3, 4, 5], [0, 5, 6, 7]]
-    sh = M.obj("VPS_Emblem_Shield", sv, sf, collection, lib["black_gloss"], smooth=False)
-    M.solidify(sh, 0.0030)
-    P.on_surface(sh, p, n)
-
-    # Inner illuminated white Kunpeng wings + centre spine
-    p_lit = tuple(p[i] + n[i] * 0.0022 for i in range(3))
-    wv, wf = [], []
-    for s in (1.0, -1.0):
-        k = len(wv)
-        pts = [
-            (s * 0.006, hh * 0.42), (s * hw * 0.82, hh * 0.86),
-            (s * hw * 0.68, hh * 0.36), (s * 0.006, -hh * 0.82),
-        ]
-        for q in pts:
-            wv.append((q[0], q[1], 0.0))
-        wf.append([k, k + 1, k + 2, k + 3] if s > 0 else [k, k + 3, k + 2, k + 1])
-    lit = M.obj("VPS_Emblem_Lit", wv, wf, collection, lib["lamp_white_bar"], smooth=False)
-    M.solidify(lit, 0.0022)
-    P.on_surface(lit, p_lit, n)
-    return [sh, lit]
+    """The Kunpeng emblem under the channel (c1_0002, traced: LD.EMB_*): a black shield (flush with the channel's frame, its
+    point down) and the white lit blades in it (the upper arm with the stem's outer bar, the centre pill and bar), lit with the
+    DRL line and the channel's strip."""
+    made = [LAY.region("VPS_Emblem_Shield", _arc_order(LD.EMB_SHIELD), 0.0032, lib["lamp_frame"], collection, step=5.0,
+                       thick=0.0030, bevel=0.0008)]
+    made.append(LAY.region("VPS_Emblem_Blade", PL.grow(LD.EMB_BLADE, -0.4), 0.0046, lib["lamp_white_bar"], collection, step=3.6,
+                           thick=0.0006))
+    made.append(LAY.region("VPS_Emblem_Pill", LD.EMB_PILL, 0.0046, lib["lamp_white_bar"], collection, step=2.4, thick=0.0006))
+    made.append(LAY.region("VPS_Emblem_Bar", LD.EMB_BAR, 0.0046, lib["lamp_white_bar"], collection, step=3.0, thick=0.0006))
+    return made
 
 
 def build_plate(collection, lib):

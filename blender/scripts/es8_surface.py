@@ -145,6 +145,31 @@ UNDERCUT = FC([
 ], mode="pchip")
 
 # ------------------------------------------------------------------ the loft
+def _smooth(t):
+    t = min(1.0, max(0.0, t))
+    return t * t * (3.0 - 2.0 * t)
+
+
+def SECTION_AT(x):
+    """Section constants ahead of the cowl (the G9L's fix, g9l_surface.SECTION_AT, 2026-10-26). The recipe's (a step in
+    above the crease, a tumble point well inside both the crease and the rail) is the glass leaning in; on the fender
+    and the nose it folds the section back on itself, a groove under the hood's edge: on the ES8 it ran into the join
+    with the nose as a pleat from the DRL's outer end down to the lamp pod (2026-11-03: dihedral 27-30 degrees at
+    x 2.29, y 0.80, z 0.91 on both the fascia and the fender; the owner's "cavity on the edge and front"). Ahead of the
+    cowl the hood is a flat top that rolls over a quarter ellipse into the fender's top corner: with the roll's centre
+    at (corner y - roll, corner z) the recipe's points are the ellipse at 0, 30 and 60 degrees and its end: tumble
+    (0.732, 0.268, 0.5, 0), rail_in 0.931."""
+    t = _smooth((x - COWL_X) / 0.35)
+    if t <= 0.0:
+        return None
+    lerp = lambda a, b: a + (b - a) * t
+    k0 = (0.50, 0.50, 0.50, 0.38)
+    k1 = (0.732, 0.268, 0.5, 0.0)
+    return dict(step_in=lerp(0.008, 0.003), step_max=lerp(0.015, 0.012),
+                tumble=tuple(lerp(a, b) for a, b in zip(k0, k1)),
+                rail_in=lerp(0.52, 0.931), rail_crest=lerp(0.34, 0.45))
+
+
 BODY = LoftBody(
     name="Nio ES8", length=LENGTH, width=WIDTH, height=HEIGHT,
     front_axle=FRONT_AXLE, rear_axle=REAR_AXLE, wheel_r=WHEEL_R, arch_r=ARCH_R,
@@ -154,6 +179,7 @@ BODY = LoftBody(
     v_shoulder=V_SHOULDER, cowl_x=COWL_X, backlight_x=BACKLIGHT_X,
     sill_height=0.135, core_z=0.75, crease="soft",
     section=Section(step_in=0.008, step_max=0.015, tumble=(0.50, 0.50, 0.50, 0.38)),
+    section_at=SECTION_AT,
 )
 
 z_rocker = BODY.z_rocker

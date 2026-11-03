@@ -4,9 +4,50 @@ Nio ES8 features the signature Shark-Nose X-Bar front fascia peaking at z ~ 0.92
 and an upright architectural SUV tailgate with the Super-Red illumiBlade full-width
 tail lightbar at z ~ 1.065-1.115 m.
 """
+import math
+
 import es8_surface as S
 from carkit.geom import Curve
-from carkit.body import WrapCap, CarBody
+from carkit.body import WrapCap, WrapCapG1, CarBody
+
+
+class _SmoothT:
+    """Mixin for a WrapCap: the height fraction t(v) is smoothed where it reaches its plateau.
+
+    WrapCap takes t(v) as the RUNNING MAXIMUM of the join ring's height, so the nose's tip height climbs with the
+    fender's crown and then holds at the top: a corner in t, which the surface inherits as a concave crease (the ES8's,
+    measured 2026-11-03: radius 4 cm along v 0.53, from the hood's front edge toward the DRL's outer end). A Gaussian
+    over `sigma` of v rounds that corner off; the table stays monotone."""
+
+    sigma = 0.12
+    _tsm = None
+
+    def t_of_v(self, v):
+        if self._tsm is None:
+            super().t_of_v(0.0)                                  # builds the running-maximum table
+            raw = list(self._runmax)
+            n = len(raw)
+            r = int(3.0 * self.sigma * (n - 1)) + 1
+            k = [math.exp(-0.5 * (i / (self.sigma * (n - 1))) ** 2) for i in range(-r, r + 1)]
+            ks = sum(k)
+            pad = [raw[0]] * r + raw + [raw[-1]] * r
+            sm = [sum(pad[i + j] * k[j] for j in range(2 * r + 1)) / ks for i in range(n)]
+            best, out = 0.0, []
+            for x in sm:
+                best = max(best, min(1.0, max(0.0, x)))
+                out.append(best)
+            self._tsm = out
+        tab = self._tsm
+        f = min(1.0, max(0.0, v)) * (len(tab) - 1)
+        i = min(len(tab) - 2, int(f))
+        return tab[i] + (tab[i + 1] - tab[i]) * (f - i)
+
+
+class NoseCap(_SmoothT, WrapCapG1):
+    """The ES8's nose: a G1 cap (it leaves the join along the flank's own direction at every height) with a rounded
+    height plateau. The plain WrapCap blended one plan curve into every v: where the fender's crown runs in another
+    direction than the cap's corner the two surfaces broke by 10-20 degrees, the pinch the owner circled ("a cavity on
+    the edge and front, which the real car does not have")."""
 
 
 def _by_v(pts_zx, top=None):
@@ -76,8 +117,10 @@ TAIL_WRAP = Curve([
     (0.96, 0.420), (0.985, 0.640), (0.996, 0.840), (1.00, 1.000),
 ])
 
-NOSE = WrapCap(S.BODY, front=True, join=JOIN_F, x_of_z=NOSE_X_OF_Z,
-               z_lo=NOSE_Z_LO, z_hi=NOSE_Z_HI, wrap=WRAP)
+import os as _os
+NOSE = NoseCap(S.BODY, front=True, join=JOIN_F, x_of_z=NOSE_X_OF_Z, z_lo=NOSE_Z_LO, z_hi=NOSE_Z_HI,
+               k1=float(_os.environ.get('ES8_K1', '0.78')), k2=float(_os.environ.get('ES8_K2', '0.55')))
+NOSE.sigma = float(_os.environ.get('ES8_SIGMA', '0.12'))
 TAIL = WrapCap(S.BODY, front=False, join=JOIN_R, x_of_z=TAIL_X_OF_Z,
                z_lo=TAIL_Z_LO, z_hi=TAIL_Z_HI, wrap=TAIL_WRAP)
 BODY = CarBody(S.BODY, NOSE, TAIL, flank_x_range=(-2.55, S.fx(2.53)))
