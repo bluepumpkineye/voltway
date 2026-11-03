@@ -37,12 +37,15 @@ def cut_elevation(ob, outlines, x_front, x_back):
 def split_nose(prefix, cap, collection, lib, z_split, w_fence, recess,
                intakes=(), x_cut=None, grid=(34, 40, 36, 10, 36, 44),
                mats=("paint", "paint", "black_gloss"), thickness=(M.SKIN, M.SKIN, 0.0025),
-               names=("_Upper", "_Cheek", "_U"), log=True):
+               names=("_Upper", "_Cheek", "_U"), log=True, up_cuts=()):
     """Upper fascia, cheeks and a recessed mouth with intakes cut through it.
 
     Returns (upper, cheek, mouth, vs_cheek) - vs_cheek are the cheek's row
     parameters, which mouth_walls needs for the fence wall.
     grid = (upper nz, upper nw, lower nz, cheek nw, mouth nz, mouth nw).
+    up_cuts: functions of the upper fascia's half sheet, run before its material
+    goes on (they must reset materials - carkit.cut.difference(reset_materials=True)),
+    as cap_panel's `cuts` (a shut line that runs across the upper fascia).
     """
     zl, zh = cap.Z_LO, cap.Z_HI
     sign = 1.0 if cap.front else -1.0
@@ -52,6 +55,8 @@ def split_nose(prefix, cap, collection, lib, z_split, w_fence, recess,
                        top_to_centre=True)
     up = M.mesh_from_rows(prefix + names[0], rows, collection)
     M.orient(up.data, geom.axial(sign))
+    for fn in up_cuts:
+        fn(up)
     up.data.materials.append(lib[mats[0]])
     M.mirror_y(up)
     M.finish(up, thickness=thickness[0], bevel=0.0)

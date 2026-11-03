@@ -59,8 +59,12 @@ Z_ROOF = Joined(COWL_X, Curve([      # top centreline: screen, roof, deck
     # The first build carried the hood forward at 0.90 and stood the nose up
     # as a tall face, which is what read as a long, heavy snout.
     (COWL_X, 0.9720), (1.10, 0.9450), (1.30, 0.9210), (1.50, 0.9020),
-    (1.70, 0.8760), (1.90, 0.8320), (2.10, 0.7820), (2.25, 0.7520),
-    (2.40, 0.7330), (HALF_L, 0.7220),
+    # Convex all the way down (2026-11-03, the owner: the red-circled hood front read concave and "typical sedan",
+    # the Ultra's is a dome rolling over into the nose like a Taycan's): the last curve flattened onto a 0.74
+    # plateau from x 2.30 to 2.40 and then dropped, an S whose bend is the dish. Now the slope steepens to the
+    # nose (z'' < 0); Z_CREST below keeps the fender crowns where the side photograph has them.
+    (1.70, 0.8740), (1.90, 0.8300), (2.10, 0.7750), (2.25, 0.7275),
+    (2.40, 0.6750), (HALF_L, 0.6500),
 ]))
 
 Z_FLOOR = Curve([                     # underbody, sweeping up into the overhangs
@@ -146,8 +150,8 @@ Z_CREST = Joined(COWL_X, Curve([
     # Twin fender crowns over the front wheels, rolling over to a domed nose
     # ahead of them where the fenders run down into the headlamps.
     (COWL_X, 0.002), (1.10, 0.010), (1.30, 0.016), (1.60, 0.018),
-    (1.80, 0.013), (2.00, 0.002), (2.20, -0.010), (2.40, -0.014),
-    (HALF_L, -0.014),
+    (1.80, 0.013), (2.00, 0.002), (2.20, 0.007), (2.30, 0.025),
+    (2.40, 0.047), (HALF_L, 0.040),
 ]))
 
 V_HOOD_SPLIT = Curve([                # hood/fender shut line, in section parameter

@@ -48,10 +48,12 @@ NOSE_X_OF_Z = Curve([
     # black intake, where the car shows a lip of ~0.15 m.
     (0.150, 2.3800), (0.200, 2.3980), (0.250, 2.4120), (0.300, 2.4250),
     (0.375, 2.4400), (0.450, 2.4520), (0.525, 2.4620), (0.600, 2.4700),
-    (0.650, 2.4670), (0.690, 2.4560), (0.715, 2.4420), (0.735, 2.4180),
-    (0.745, 2.3950),
+    # the top rolls over onto the hood's end (2026-11-03: the hood's end is lower now, see su7_surface.Z_ROOF)
+    # The tip must sit a little BELOW the flank's tangent line at the join (WrapCap's z blend is zj + s.dx.u + (zt - zj
+    # - s.dx).u^2: a positive last term turns the cap's top up into a bump, a dish between hood and nose).
+    (0.630, 2.4640), (0.646, 2.4540), (0.657, 2.4400), (0.664, 2.4140),
 ])
-NOSE_Z_LO, NOSE_Z_HI = 0.118, 0.745
+NOSE_Z_LO, NOSE_Z_HI = 0.118, 0.664
 
 TAIL_X_OF_Z = Curve([
     # The production Ultra is 5070 mm long: the MIIT filing gives overhangs

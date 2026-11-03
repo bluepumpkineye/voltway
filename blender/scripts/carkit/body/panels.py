@@ -132,7 +132,7 @@ def build_panels(specs, loft, collection, lib, cutters=None, core_z=0.70,
     butt_bevel=False: edges that butt a neighbour with no gap (a hood running
     into the nose cap) are not rounded. A rounded rim catches the light as a
     line - a shut line the car does not have. Shut lines and cut openings
-    keep their bevel."""
+    keep their bevel. A spec may set its own `butt_bevel` (the SU7's hood)."""
     cutters = cutters or {}
     outward = geom.radial(core_z)
     made = []
@@ -149,7 +149,7 @@ def build_panels(specs, loft, collection, lib, cutters=None, core_z=0.70,
                               sharp_rows=crease_row(v0, v1, spec["nv"], loft.V_SHOULDER))
         M.orient(ob.data, outward)
         butts = None
-        if not butt_bevel:
+        if not spec.get("butt_bevel", butt_bevel):
             butts = _mark_butts(ob, len(cols), spec["nv"], g)
         for flag, fn in cutters.items():
             if spec.get(flag):

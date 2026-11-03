@@ -1701,6 +1701,51 @@ Side-by-side crops of the photograph and the model at the same pixels found, in 
   reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`). The tail's shoulders, mirrors
   included, still stand ~4 cm wider per side than the rear photograph's at z 1.25 (c1_0006 through its camera).
 
+### The SU7 Ultra's headlamp, hood and nose (2026-11-03)
+
+The owner (the yellow Ultra's photograph beside a viewer screenshot): "the real car has its headlight like an almond shape, while our
+render has something larger that changes the car's front look; the hood of the real car is more curved, like a Porsche Taycan, while
+ours reads like a typical sedan; the area marked in red (the hood's front between the lamps) should be convex instead of concave".
+The maker's head-on press photograph (`reference/xiaomi-su7-ultra/lights/cat53/big_023.jpg`, 1600 x 1200, DRL on) is the source; a
+solved camera `head_on` (`ref_match.py`: f 3860 px, 8.3 m from the nose, 1.16 m up, 2.55 degrees down; dots of the built panels over the
+photo land within 2-3 px at the fender outline and the corner blades) puts it into the model's coordinates. Tools and README:
+`blender/scripts/porting/su7_lamp_trace`.
+
+- **Lamp** (`su7_front.build_headlamps`, data in the generated `su7_lampdata.py`): the first build laid a slanted sliver (~5:1,
+  0.56-0.74 m high, past the fender line) between two measured edge curves. The real lamp is a compact ALMOND (~1.4:1, 33 x 24 cm: a
+  rounded outboard end wrapping the fender corner, a straight top edge falling to a pointed tip toward the plate, a full curve below).
+  Now: the TRACED outline (`LAMP_OUT`; R - B < 0.22 against the yellow paint) is laid by the photo's own rays
+  (`carkit.photolay` `Lay`/`Surf`, as the ES8 and the Voyah) as a black frame (`M_Lamp_Frame`), the grey reflector above the bar
+  (`M_Lamp_Silver`), ONE diagonal DRL bar (`M_LED_White`, the Lights tab lights it) and three projector modules (`lamps.projector`, they
+  light with the low beam). The old `lamp_smoked` lens and seal bands are gone; the lamp stands 2-3.4 mm over the paint.
+- **Hood** (`su7_surface.Z_ROOF/Z_CREST`, `su7_nose.NOSE_X_OF_Z/NOSE_Z_HI`): the hood's centre line was an S: it levelled off 8 cm short of
+  the nose and then rolled over a raised, bolster-like cap. It now falls steadily (z 0.804 at x 2.0, 0.716 at 2.3, 0.684 at 2.39, 0.653 at
+  2.45: monotone convex), the fender crowns keep the old silhouette (the side overlay still lies on the photograph's hood line), and the nose
+  cap's top is lowered to 0.676 so the profile keeps descending into the face. Probe with a ray-cast height field over the Hood, Fascia
+  and Fender panels (`scratchpad su7_sections3.py`: z at fixed y over x, and at fixed x over y).
+- **The hood is a SHIELD**: its front edge, read off the photo, draws in from the fender crowns (y 0.78 at x 1.42), turns the nose's corner
+  (y 0.60 at x 2.24, y 0.55 at x 2.32) and runs flat across the nose's top at z 0.641 (x 2.46), 14 cm ahead of and 7 cm below where the model had
+  its shut line (the loft's join, a V). `su7_panels.Y_HOOD` is the arc's side part; its front part (`HOOD_ARC_PX`, photo pixels) is cut
+  as a 4.2 mm slot through the upper fascia (`_cut_hood_arc`, new `up_cuts` argument of `carkit.body.fascia.split_nose`), laid by the
+  photo's rays onto the sheet's own BVH, and the hood's gap at the join is closed (`gap x1=False`).
+- **The soft "V" ridge across the hood** (a crease where hood and nose met) had two causes: the hood's centre line was still slightly concave
+  just before the join (slope -0.30 flattening to -0.26 over 20 cm; `Z_ROOF` now steepens monotonically, -0.29 to -0.42) and the nose cap's
+  tip stood above the flank's tangent line, so WrapCap's z blend (`zj + s.dx.u + (zt - zj - s.dx).u^2`) turned the top up into a bump
+  (`NOSE_Z_HI` 0.664, below the tangent); then the hood's bevelled rim made a groove beside the unbevelled fascia (`butt_bevel=False` on
+  the Hood spec, a per-spec override in `carkit.body.panels.build_panels`). Probe: slope of z(x) in 1 cm steps at y 0.05 / 0.2 / 0.35
+  (`su7_kink.py`): it must grow steadily through the join.
+- **Plate and stripes**: the plaque spans z 0.37-0.515 and 0.49 m across in the photograph; it sat 0.117 m too high and 5 cm too
+  narrow (`build_plate`). The stripes start at its top edge (`Z_STRIPE_0` 0.525; they began at 0.636) and every row of their grid is now a ray onto the BUILT panels (`_stripe_rows`: the analytic `proud` left a 4.5 cm gap over the cap's top and put the hood's rows 0.5-1 mm under the paint, ragged edges).
+- **Lessons**: (1) `WrapCap.wv_at(y, z)` is not reliable on the nose's top: above the join ring's crown z is not monotone in v, so the
+  arc's points beyond y 0.42 all clamped to w = 1 and only the middle of the slot was cut; lay a line there by rays onto the sheet's BVH.
+  (2) Judge a convexity change in side sections AND in a head-on render through the photo's own camera (`render_ref.py` with `CAM=head_on
+  PAIR=1`): the clay render's "bolster" was the shut line and the lighting, not the profile. (3) Reading a lit lamp: the DRL bar's edges are
+  the bright core, the glow is ~3 px wider each side.
+- **Not done** (the same photograph shows them): the lower bumper's mouth, intakes and yellow blades are a different design from the
+  model's boxy U + two intakes (the real mouth's top edge sits ~9 cm lower under the plate; the corner intake is a hexagon with a grey mesh
+  upper part; the yellow blades curve); the Fender|bumper seam over the lamp is a longer line than the real one's short stub; the lamp's
+  inner detail (louvres, LED stacks) is a flat grey reflector and three dark discs.
+
 ### The X-ray anatomy (`carkit.anatomy`, SU7 first)
 
 The X-ray tab's exploded view is built from a small parts library of its own, not from the exterior's mesh: a battery pack with twelve cell
