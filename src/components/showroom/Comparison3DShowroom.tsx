@@ -10,6 +10,7 @@ import { chargeMinutes10to80 } from '@/lib/performance';
 import { showroomCars } from '@/lib/showroom/cars';
 import { CarModel, CabinModel } from '@/components/viewer/CarModel';
 import { GroundShadow, StudioShowroom, STUDIO_WHITE } from '@/components/viewer/StudioShowroom';
+import { useVehicleStore } from '@/store/vehicle-store';
 import { FOCUS, GLASS } from './Chrome';
 
 type BottomTab = 'specs' | 'dimensions' | 'space' | 'color';
@@ -234,7 +235,18 @@ export function Comparison3DShowroom({
   const [specsMinimized, setSpecsMinimized] = React.useState(false);
 
   // Paints state for real-time 3D customization
-  const [paintA, setPaintA] = React.useState<string>(vehicleA.configurator?.paints[0]?.id ?? '');
+  // The first car keeps the paint chosen in the showroom (the store's), as long as it is one of the car's own; the store holds ''
+  // until a paint has been picked. Picking another here is the same choice, so leaving the comparison keeps it.
+  const storePaint = useVehicleStore((s) => s.paintId);
+  const setStorePaint = useVehicleStore((s) => s.setPaint);
+  const [paintA, setPaintA] = React.useState<string>(() => {
+    const paints = vehicleA.configurator?.paints ?? [];
+    return paints.find((p) => p.id === storePaint)?.id ?? paints[0]?.id ?? '';
+  });
+  const choosePaintA = (id: string) => {
+    setPaintA(id);
+    setStorePaint(id);
+  };
   const [paintB, setPaintB] = React.useState<string>(vehicleB.configurator?.paints[0]?.id ?? '');
 
   // Reset paint when vehicle changes
@@ -647,7 +659,7 @@ export function Comparison3DShowroom({
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setPaintA(p.id)}
+                    onClick={() => choosePaintA(p.id)}
                     title={p.name}
                     className={`h-7 w-7 rounded-full shadow-xs transition-transform hover:scale-110 ${FOCUS} ${
                       paintA === p.id ? 'ring-2 ring-neutral-900 ring-offset-2 scale-105' : 'ring-1 ring-black/10'
