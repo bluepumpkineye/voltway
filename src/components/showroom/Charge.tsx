@@ -32,7 +32,7 @@ export const CHARGE_COLUMN_W = 510;
  */
 export const CHARGE_SIDE_W = 440;
 /** the tablet's height at that width, measured (its specifications drawer shut), px */
-const CHARGE_SIDE_H = 380;
+const CHARGE_SIDE_H = 390;
 
 /**
  * How far the tablet is scaled down so that all of it fits under the menu (`top` px tall, which wraps to a second row on a
@@ -333,9 +333,9 @@ export function ChargePanel({ vehicle, layout, top }: { vehicle: Vehicle; layout
             }}
           />
 
-          {/* 1. Header Bar: Authoritative Precision Top Bar (Drag Zone) */}
-          <header className="relative z-10 flex cursor-grab active:cursor-grabbing items-center justify-between border-b border-white/[0.07] bg-[#080e18]/90 px-3 py-1.5 sm:px-4">
-            <div className="flex items-center gap-2">
+          {/* 1. Header Bar: Authoritative Precision Top Bar (Drag Zone). Each part stays on one line; the title shortens, and the car's name goes, as the tablet narrows. */}
+          <header className="@container relative z-10 flex cursor-grab active:cursor-grabbing items-center justify-between gap-2 border-b border-white/[0.07] bg-[#080e18]/90 px-3 py-1.5 sm:px-4">
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
               <span className="font-mono text-[11px] font-medium tracking-wider text-cyan-300/90">{timeStr}</span>
               <span className="h-1 w-1 rounded-full bg-white/20" />
               <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-neutral-400">
@@ -343,17 +343,18 @@ export function ChargePanel({ vehicle, layout, top }: { vehicle: Vehicle; layout
               </span>
             </div>
 
-            <div className="flex items-center gap-1">
-              <span className="text-amber-400 text-[10px]">⚡</span>
-              <span className="text-[10px] sm:text-[11px] font-medium tracking-[0.16em] uppercase text-white truncate max-w-[170px] sm:max-w-none">
-                HIGH-POWER DC CHARGER
+            <div className="flex min-w-0 items-center gap-1 whitespace-nowrap">
+              <span className="shrink-0 text-amber-400 text-[10px]">⚡</span>
+              <span className="truncate text-[10px] sm:text-[11px] font-medium tracking-[0.16em] uppercase text-white">
+                <span className="@[400px]:hidden">DC CHARGER</span>
+                <span className="hidden @[400px]:inline">HIGH-POWER DC CHARGER</span>
               </span>
-              <span className="hidden sm:inline text-[9px] font-normal tracking-[0.08em] uppercase text-neutral-400 ml-0.5">
+              <span className="hidden truncate text-[9px] font-normal tracking-[0.08em] uppercase text-neutral-400 ml-0.5 @[600px]:inline">
                 · {vehicle.brand} {vehicle.model}
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
               <span className="relative flex h-1.5 w-1.5">
                 {isCharging && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
                 <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${isCharging ? 'bg-emerald-400' : isCharged ? 'bg-cyan-400' : isConnecting ? 'bg-amber-400' : 'bg-neutral-500'}`} />
@@ -491,25 +492,26 @@ export function ChargePanel({ vehicle, layout, top }: { vehicle: Vehicle; layout
 
                   {/* Inside Center Readouts: Refined, Light, Authoritative */}
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                    {/* Status Pill */}
-                    <div className={`mb-0.5 flex items-center gap-1 rounded-full px-2 py-0.2 border text-[8px] sm:text-[8.5px] font-medium tracking-[0.14em] uppercase ${phaseBadge.color} ${phaseBadge.bg}`}>
-                      {isCharging && <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />}
-                      <span>{phaseBadge.text}</span>
-                    </div>
-
                     {/* Giant Numeric Percentage: Elegant Light-Medium Weight */}
                     <div className="flex items-baseline justify-center leading-none mt-0.5">
-                      <span className="font-light text-[36px] sm:text-[42px] tracking-tight text-white tnum drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                      <span className="font-light text-[34px] sm:text-[40px] tracking-tight text-white tnum drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                         {shown}
                       </span>
                       <span className="text-[13px] sm:text-[14px] font-light text-cyan-400/80 ml-0.5">%</span>
                     </div>
 
-                    {/* Technical Subtitle */}
-                    <div className="text-[7.5px] sm:text-[8px] font-medium tracking-[0.2em] text-cyan-200/60 uppercase mt-0.5">
-                      STATE OF CHARGE
+                    {/* Technical Subtitle: two short lines, so that it stays inside the ring's clear middle (the ring's arc and glow cross anything wider) */}
+                    <div className="mt-1 text-[7.5px] sm:text-[8px] font-medium leading-[1.25] tracking-[0.12em] text-cyan-200/60 uppercase">
+                      <div>State of</div>
+                      <div>charge</div>
                     </div>
                   </div>
+                </div>
+
+                {/* Status Pill: under the ring, where it has the room */}
+                <div className={`mt-1.5 flex max-w-full items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[8px] sm:text-[8.5px] font-medium tracking-[0.1em] uppercase ${phaseBadge.color} ${phaseBadge.bg}`}>
+                  {isCharging && <span className="h-1 w-1 shrink-0 rounded-full bg-emerald-400 animate-pulse" />}
+                  <span>{phaseBadge.text}</span>
                 </div>
               </div>
 
