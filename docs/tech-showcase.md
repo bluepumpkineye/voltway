@@ -1028,3 +1028,35 @@ connection), so those two claims rest on the data file's own reading. The maker 
 the 0-200 chip is estimated from the 0-100 (starred), the stop, if the visitor asks for one, uses the generic 36 m (ours), and there is no
 drag card. It opens on the flagship trim, as every car does (`flagshipVariant`): the 680 AWD Ultra+. A single-motor trim lights its rear wheels only: the front
 wheels are not driven, so neither the rings nor the tags light them.
+
+## 21. The Drive tab's X-ray lens and a longer run (2026-11-02)
+
+The owner's note, after the X-ray tab's exploded view (docs/xray.md): in the Drive tab the car stays the full solid car, and the X-ray is
+there to illustrate the performance cards with the components they are about; and the SU7's run should last 20 s, not 8, so that each card
+has time to show.
+
+- **A run given a length** (`DriveSpec.runS`, `DriveInput.runS`, `drive-run.ts` `segmentsOf`): after the pull the car coasts (or, before a
+  stop the visitor asked for, holds the speed it reached; the lift, the brake and the car stood take the last six seconds) until `runS`.
+  The pull itself is the maker's time and does not change. The SU7 Ultra has `runS: 20` on every run (0-100, 0-200, 100-200: 20.0 s each;
+  with the stop, 19.6 s). No other car sets it; their runs are as they were (`drive-cars.mjs` prints every car's duration).
+- **Every card its turn** (`beatPlan(..., spread)`, `drive-beats.ts`): on a run given a length, the last chapter of eight seconds or more
+  gives its second place to each of the car's cards in turn (not the brakes and the steering, which wait for their own moment). The SU7
+  shows the power card the whole run, the motors' card from the launch to 11.3 s and the energy card from 11.3 s on.
+- **The lens** (`LENS_SYSTEM`, `lensAt`, pure, in `drive-beats.ts`; the viewer's side in `viewer/XrayDirector.tsx`): each card that is about
+  hardware (power and motors: the drive; energy: the pack; suspension; steering) reveals it for seven seconds from the moment it opens:
+  the paint goes to a ghost that keeps the car's own colour (`GHOST.mix`, 0.55 against the X-ray tab's 0.85, to a level of 0.88), the
+  cabin steps aside, the system's parts light (`AnatomyFx.live`: rotors spin with the car's speed and glow with their load, the windings
+  with the current; `liveBattery`: the cells in a wave, faster and brighter with the power, green under regen) and the rest of the hardware
+  falls to a faint ghost; the camera lifts to at least 24 degrees of elevation (from the side the motors are behind the wheels) and goes
+  back. Then the car is solid again until the next card's reveal: on the SU7's 20 s the drive from 0.6 s to 7.4 s (the launch), the pack
+  from 11.5 s to 18.3 s. The brakes and the drag have no hardware to show and leave the car solid.
+- **One plan:** `DriveMotion.tsx` publishes the plan it draws the cards from (`driveLensPlan`, `lib/tech/drive-lens.ts`), and the lens
+  follows it, so a reveal and its card never disagree (a narrow window with one card at a time reveals only that card's system). Like the
+  cards, the reveal is a pure function of the playhead: scrub the run and it follows, play it twice and it is the same picture.
+- **Which cameras:** every one but the driver's seat. The camera chip "X-ray" is kept, as the always see-through view of the same hardware
+  (with the tags beside the motors).
+- **Cost.** The first version halved the frame rate (the hardware is about 350 draws, and the floor's mirror draws the scene a second
+  time): the hardware sits on its own layer (3) in the Drive tab, which the camera draws and the mirror does not, and the anatomy's
+  materials are shared (86 instead of about 350) except where a part glows on its own. It is not drawn at all while the car is solid.
+- **Checked** by driving the playhead (`window.__tech.clock.seek`) at the launch, in the gap and at the energy card; the Drive and motion
+  tests pass. Frame rates were measured on a laptop's integrated graphics (a reveal costs about a fifth over the solid car).

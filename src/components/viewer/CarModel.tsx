@@ -6,13 +6,15 @@ import { useGLTF, Html } from '@react-three/drei';
 import { addAfterEffect, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { OpeningId, Vehicle, Variant } from '@/data/vehicles/schema';
-import { isXrayView, useVehicleStore } from '@/store/vehicle-store';
+import { useVehicleStore } from '@/store/vehicle-store';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
 import { cullBehindClearGlass, useCabinStencil, useGlassStencil } from './clearGlass';
-import { useBodyGhost, useXray, useXrayCabin } from './Xray';
+import { useBodyGhost, useXray, useXrayCabin, useXrayCabinPlan, useXrayShell } from './Xray';
+import { ghostable } from './xrayGhost';
+import { xrayOf } from '@/lib/xray/rig';
 import { hingesOf } from '@/lib/openings';
 import { prepareRig } from '@/lib/tech/rig';
 import { CarLights } from './Lights';
@@ -33,7 +35,7 @@ const BAKE_STORE_SCALE = 0.25;
  * Object.clone() shares materials with the cached glTF, so mutating emissive
  * would leak across mounts and persist in useGLTF's cache. Clone them too.
  */
-function useClonedScene(scene: THREE.Object3D, prepare?: (root: THREE.Object3D) => unknown) {
+export function useClonedScene(scene: THREE.Object3D, prepare?: (root: THREE.Object3D) => unknown) {
   return React.useMemo(() => {
     const root = scene.clone(true);
     const seen = new Map<THREE.Material, THREE.Material>();
@@ -207,9 +209,11 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   useHingedNodes(model, vehicle, 'node');
   useHingedNodes(model, vehicle, 'frameNode');
   // the X-ray tab (the greenhouse and the doors go; needs the car's X-ray spec) and the Drive tab's X-ray camera (the whole body goes)
-  const xrayTab = useVehicleStore((s) => s.tab === 'xray') && Boolean(vehicle.xray) && hasCabin;
+  const xrayRig = xrayOf(vehicle);
+  // the X-ray tab's level is above zero (the body is going to a ghost; src/lib/xray/rig.ts), or the Drive tab's X-ray camera is on
+  const xrayOn = React.useSyncExternalStore(xrayRig.subscribe, () => xrayRig.active, () => false) && Boolean(vehicle.xray) && hasCabin;
   const driveXray = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray') && hasCabin;
-  const xray = xrayTab || driveXray;
+  const xray = xrayOn || driveXray;
   // the cabin is mounted behind the exterior (ShowroomViewer): the windscreen and the front windows are clear glass once it is
   const cabinReady = useVehicleStore((s) => s.cabinReady);
   const isCabinReady = forceClearGlass !== undefined ? forceClearGlass : cabinReady;
@@ -218,8 +222,13 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   const shut = useVehicleStore((s) => s.shut);
   useGlass(model, vehicle, inside, hasCabin, xray, isCabinReady && clearTab);
   useGlassStencil(model, hasCabin && isCabinReady && clearTab && !inside && !xray && shut);
-  useXray(model, vehicle, xray);
-  useBodyGhost(model, driveXray);
+  // a car without an exploded view keeps the X-ray it always had (the greenhouse a ghost, the doors gone); one with it ghosts the whole shell
+  // through the rig (xrayGhost.ts), in the X-ray tab and in the Drive tab's X-ray camera alike
+  const anatomy = Boolean(vehicle.xray?.anatomy);
+  useXray(model, vehicle, anatomy ? false : xrayOn || driveXray);
+  useBodyGhost(model, driveXray && !anatomy);
+  // the exploded view: the shell, the doors, the wheels go where the plan says
+  useXrayShell(model, vehicle);
   useStruts(model, vehicle);
   const picks = useOpeningPicks(model, vehicle, 'node');
 
@@ -234,6 +243,7 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
     const blackout: THREE.Object3D[] = [];
     const shadow: THREE.Object3D[] = [];
     const shell: THREE.Object3D[] = [];
+    const ghosts = new Set<THREE.Material>();
     // a car whose exterior was baked with occlusion (the others render as
     // before). The geometry is shared with useGLTF's cache, so a second mount
     // finds the attribute already renamed.
@@ -253,15 +263,27 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
       o.castShadow = true;
       o.receiveShadow = true;
       if (baked) bindOcclusion(o.geometry);
+      // the wheels stay solid in an X-ray; every other surface can go to the ghost (xrayGhost.ts)
+      let onWheel = false;
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) if (/wheels/i.test(p.name)) onWheel = true;
       for (const m of pushBehindPaint(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
         if (baked && takesOcclusion(m)) bakedOcclusion(m);
+        if (vehicle.xray?.anatomy && !onWheel && ghostable(m)) ghosts.add(m);
         // the dark backing of a pane that is not in the blackout node (the tailgate's)
         if (m.name.toLowerCase() === 'm_shadow') shadow.push(o);
       }
     });
-    return { blackout, shadow, shell };
-  }, [model]);
+    return { blackout, shadow, shell, ghosts };
+  }, [model, vehicle]);
+
+  // the materials the ghost patch took, for the rig to switch to blended (viewer/XrayDirector.tsx)
+  React.useEffect(() => {
+    for (const m of refs.ghosts) xrayRig.ghostMats.add(m);
+    return () => {
+      for (const m of refs.ghosts) xrayRig.ghostMats.delete(m);
+    };
+  }, [refs, xrayRig]);
 
   // the car is on screen: the cabin may come in behind it
   const setExteriorUp = useVehicleStore((s) => s.setExteriorUp);
@@ -290,10 +312,15 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
     model.traverse((o) => {
       if (o instanceof THREE.Mesh && materialsOf(o).some((m) => m.name.toLowerCase().startsWith('m_glass'))) {
         o.castShadow = !inside;
+      } else if (o instanceof THREE.Mesh && xrayOn) {
+        // a see-through body throws no shadow
+        o.castShadow = false;
+      } else if (o instanceof THREE.Mesh) {
+        o.castShadow = true;
       }
     });
     invalidate();
-  }, [refs, inside, xray, hasCabin, model, invalidate]);
+  }, [refs, inside, xray, xrayOn, hasCabin, model, invalidate]);
 
   return (
     <group>
@@ -408,13 +435,17 @@ function Cabin({
 
   // From outside, with every part shut, the cabin is drawn only where clear glass is in front of it: nothing of it can show
   // through the bodywork, and the windscreen and front windows are windows (clearGlass.ts)
-  const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && !isXrayView(s) && s.tab !== 'tech' && s.shut);
+  const xrayRig = xrayOf(vehicle);
+  const xrayOn = React.useSyncExternalStore(xrayRig.subscribe, () => xrayRig.active, () => false);
+  const driveXray = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray');
+  const xrayActive = xrayOn || driveXray;
+  const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && s.tab !== 'tech' && s.shut) && !xrayActive;
   useCabinStencil(model, masked);
 
   // The boot's carpet, trim and plate (INT_Boot_*) are the open hatch's to show. Shut, nothing of them is seen through the
   // glass; but with a door open the cabin is no longer stencilled to the glass, and the shut line beside the hatch showed
   // them as a black blade down each tail corner.
-  const bootShown = useVehicleStore((s) => s.openings.boot || isXrayView(s));
+  const bootShown = useVehicleStore((s) => s.openings.boot) || xrayActive;
   React.useEffect(() => {
     model.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -426,7 +457,9 @@ function Cabin({
   // the door cards turn about the same hinges as the exterior doors
   useHingedNodes(model, vehicle, 'cardNode');
   useHiddenWhileOpen(model, vehicle, useVehicleStore((s) => s.cameraMode !== 'exterior'));
-  useXrayCabin(model, vehicle, useVehicleStore(isXrayView));
+  useXrayCabin(model, vehicle, xrayActive);
+  // the exploded view: the whole cabin rises, its door cards go with their doors
+  useXrayCabinPlan(model, vehicle);
   const picks = useOpeningPicks(model, vehicle, 'cardNode');
 
   const refs = React.useMemo(() => {

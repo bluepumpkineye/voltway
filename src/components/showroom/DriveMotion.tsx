@@ -5,6 +5,7 @@ import type { DriveOverlay, Vehicle } from '@/data/vehicles/schema';
 import { techClock } from '@/lib/tech/clock';
 import { beatPlan, captionsOf, launchActs, openAt, runShape, type Caption, type CaptionTone } from '@/lib/tech/drive-beats';
 import { driveAnchors, targetsOf } from '@/lib/tech/drive-anchors';
+import { driveLensPlan } from '@/lib/tech/drive-lens';
 import { layoutCards, type Placed, type Slot } from '@/lib/tech/drive-layout';
 import { clamp, countTo, Easing, fmt, progress, spring, SPRINGS } from '@/lib/tech/motion';
 import { useRuntime } from '@/lib/tech/session';
@@ -257,7 +258,15 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
   const acts = React.useMemo(() => (facts && shape ? launchActs(facts, shape.launch) : []), [facts, shape]);
   // two cards open at once where the window is tall enough for them above the gauges
   const max = column && vh >= 800 ? 2 : 1;
-  const plan = React.useMemo(() => (facts && shape ? beatPlan(overlays, facts, shape, max) : []), [overlays, facts, shape, max]);
+  // a run given a length (`DriveSpec.runS`) gives every card its turn, and the car's hardware is revealed beside each (driveLensPlan)
+  const spread = setup.spec.runS !== undefined;
+  const plan = React.useMemo(() => (facts && shape ? beatPlan(overlays, facts, shape, max, spread) : []), [overlays, facts, shape, max, spread]);
+  React.useEffect(() => {
+    driveLensPlan.plan = plan;
+    return () => {
+      driveLensPlan.plan = [];
+    };
+  }, [plan]);
   const caps = React.useMemo(() => (facts && shape ? captionsOf(facts, shape, acts) : []), [facts, shape, acts]);
   const intro = useRealAge(facts, 3);
 

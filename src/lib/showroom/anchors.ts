@@ -104,7 +104,7 @@ interface Shot {
 // lies on the floor: a little elevation opens it up, and the front view lifts
 // the car further so the rulers ahead of the nose clear the dock.
 const SHOTS: Record<
-  | 'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'frunk' | 'trunk' | 'techWide'
+  | 'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'xrayWide' | 'frunk' | 'trunk' | 'techWide'
   | 'dashFront' | 'dashRear',
   Shot
 > = {
@@ -125,6 +125,8 @@ const SHOTS: Record<
   trunk: { az: 150, el: 22, fov: 28, margin: 1.15, lift: 1 },
   // higher, so the cabin shows through the ghosted roof
   xray: { az: 40, el: 24, fov: 30, margin: 1.3, lift: 1 },
+  // the exploded view: the body lifts a metre or more above the pack and the parts spread fore and aft and out to the sides
+  xrayWide: { az: 34, el: 17, fov: 30, margin: 1.0, lift: 1 },
   side: { az: 90, el: 8, fov: 20, margin: 1.4, lift: 1.15 },
   front: { az: 0, el: 9, fov: 26, margin: 1.85, lift: 1.5 },
   rear: { az: 180, el: 9, fov: 26, margin: 1.85, lift: 1.5 },
@@ -299,7 +301,9 @@ export function resolveAnchor(
   }
 
   const s = SHOTS[id];
-  const near = exteriorFit(s, L, W, H);
+  // the exploded view is a taller, longer and wider thing than the car: fit the assembly, and look at its middle
+  const grow = id === 'xrayWide' ? { l: 1.5, w: 2.0, h: 2.2, mid: 0.98 } : { l: 1, w: 1, h: 1, mid: 0.4 };
+  const near = exteriorFit(s, L * grow.l, W * grow.w, H * grow.h);
   // a narrow window leaves the car less to stand in: stand further back; a device beside the car leaves it
   // less of the window still. Zooming in is limited by the first, not the second: the visitor may come as
   // close to the lamps as on a tab with no device.
@@ -310,14 +314,15 @@ export function resolveAnchor(
   const d = dirFrom(s.az, s.el);
   // the camera looks at the middle of the car, so a drag turns the car in place; with a device beside it the
   // picture is slid into the free part of the window (shiftFrac) instead of the target being moved off the car
-  const target: V3 = [cx, H * 0.4, 0];
+  const target: V3 = [cx, H * grow.mid, 0];
   return {
     id,
     mode: 'exterior',
     pos: [target[0] + d[0] * dist, target[1] + d[1] * dist, target[2] + d[2] * dist],
     target,
     fov: s.fov,
-    minDistance: open * 0.62,
+    // the X-ray's poses let the visitor (and a picked part) come close to the hardware
+    minDistance: id === 'xray' || id === 'xrayWide' ? Math.min(open * 0.62, 1.8) : open * 0.62,
     maxDistance: dist * 1.45,
     minPolar: POLAR_MIN,
     maxPolar: POLAR_MAX,

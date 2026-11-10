@@ -20,7 +20,8 @@ import { CarFollower } from './techRig';
  * place of each part come from the wheelbase and the track measured off the model, nothing else.
  */
 export function TechPowertrain({ vehicle }: { vehicle: Vehicle }) {
-  const on = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray');
+  // a car with an anatomy (viewer/XrayDirector.tsx) draws its real parts, alive, in the X-ray camera; the schematic is for the others
+  const on = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray') && !vehicle.xray?.anatomy;
   if (!on) return null;
   return (
     <CarFollower vehicle={vehicle}>

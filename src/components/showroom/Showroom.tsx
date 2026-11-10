@@ -31,6 +31,8 @@ import { SensorsTools } from './Sensors';
 import { SwivelTools } from './Swivel';
 import { RideTools } from './Ride';
 import { TechChips, TechControls } from './Tech';
+import { XRAY_COLUMN_W, XrayBlueprintSheet, XrayCard, XrayTools } from './Xray';
+import { XrayLabelLayer } from './XrayLabels';
 import { TechDevices, activeDevice, useDeviceColumn } from '@/components/tech/TechDevices';
 import { useWebGl } from './useWebGl';
 import { isChassisDriver } from '@/lib/tech/chassis';
@@ -92,7 +94,7 @@ const NOTES: Record<ShowroomTab, string> = {
     "The car's own screen, live beside the car. Its headlamp controls switch the lamps; the glow, the beam on the floor and the dusk are our rendering of them, not the maker's footage.",
   dimensions:
     "Dimensions, performance, battery and range are the manufacturer's published figures, each range on its own test cycle; a figure marked estimated is derived, and one the maker has not published says so.",
-  xray: "The upper body is shown as a see-through shell, with the doors removed, so the cabin reads through it. A modelled view, not the maker's.",
+  xray: "The body goes see-through and, on the slider, the whole car comes apart: the pack, the motors, the frames and the suspension. The exploded view's parts are our own models, placed from the car's dimensions and the maker's published layout. Not the maker's drawing.",
   charging:
     "The charging window and its minutes are the maker's where it publishes them. The curve between, a peak it does not publish, the charger and the gun are ours; the minutes play in fourteen seconds.",
   drive:
@@ -138,6 +140,7 @@ export function Showroom({
     setTechAvailable, setTechDevice, setLightMode, setHighBeam, setLightsView, setVariant, setDeviceInset, setUiTop,
     setCompareSlug, setCompareVariantId, setDrive,
   } = useVehicleStore.getState();
+  const xrayPicked = useVehicleStore((s) => s.xrayPart !== null);
   const techDevice = useVehicleStore((s) => s.techDevice);
   const demo = demos.find((d) => d.id === techDemoId) ?? demos[0];
   const lightMode = useVehicleStore((s) => s.lightMode);
@@ -333,6 +336,8 @@ export function Showroom({
   const chargeCol = Math.min(CHARGE_COLUMN_W, Math.round(dash.vw * 0.4));
   const specsColumn = tab === 'dimensions' && dash.wide;
   const chargeColumn = tab === 'charging' && dash.wide;
+  // the X-ray tab's parts: a column at the right of a wide window
+  const xrayColumn = tab === 'xray' && Boolean(vehicle.xray?.anatomy) && dash.wide;
   React.useEffect(() => {
     if (tab === 'dimensions') {
       if (dash.wide && !compareMaximized) setDeviceInset({ right: Math.min(0.62, (currentSpecsCol + 28) / dash.vw), bottom: 0 });
@@ -340,6 +345,11 @@ export function Showroom({
     } else if (tab === 'charging') {
       if (dash.wide) setDeviceInset({ right: Math.min(0.5, (chargeCol + 28) / dash.vw), bottom: 0.04 });
       else setDeviceInset({ right: 0, bottom: 0.48 });
+    } else if (tab === 'xray') {
+      // the dock (the level slider and the system chips) covers the foot of the window; the parts' column stands at the right
+      // (on a narrow one the picked part's card is a sheet over the lower half, and the car is framed above it)
+      if (xrayColumn) setDeviceInset({ right: Math.min(0.5, (XRAY_COLUMN_W + 28) / dash.vw), bottom: 0.1 });
+      else setDeviceInset({ right: 0, bottom: xrayPicked && vehicle.xray?.anatomy ? 0.5 : 0.2 });
     } else if (tab === 'drive') {
       // the card at the right of a wide window and the column of data at the left, the gauges and the playback bar under the car
       setDeviceInset({
@@ -349,7 +359,7 @@ export function Showroom({
       });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
-  }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, setDeviceInset]);
+  }, [tab, dash.wide, dash.vw, currentSpecsCol, chargeCol, compareMaximized, xrayColumn, xrayPicked, vehicle.xray?.anatomy, setDeviceInset]);
   // the sheet gives way to the column when the window grows wide, and shuts when the tab is left
   React.useEffect(() => {
     if (dash.wide || tab !== 'dimensions') setSpecsOpen(false);
@@ -369,7 +379,9 @@ export function Showroom({
             ? currentSpecsCol + 40
             : chargeColumn
               ? chargeCol + 40
-              : 0;
+              : xrayColumn
+                ? XRAY_COLUMN_W + 40
+                : 0;
 
   const sources = [...vehicle.sources, ...(vehicle.configurator?.sources ?? [])].filter(
     (s, i, all) => all.findIndex((o) => o.url === s.url) === i,
@@ -405,6 +417,8 @@ export function Showroom({
   return (
     <div ref={root} className="fixed inset-0 select-none overflow-hidden bg-[#f1f2f4] text-neutral-900">
       {ready && webgl && <ShowroomViewer vehicle={vehicle} variant={variant} className="absolute inset-0" />}
+      {ready && webgl && tab === 'xray' && vehicle.xray?.anatomy && (dash.wide || !xrayPicked) && <XrayLabelLayer vehicle={vehicle} />}
+      {ready && webgl && tab === 'xray' && vehicle.xray && <XrayBlueprintSheet vehicle={vehicle} />}
       {webgl === false && (
         <div className="absolute inset-0 grid place-items-center px-6 text-center">
           <p className="max-w-sm text-[13px] leading-relaxed text-neutral-600">
@@ -492,6 +506,14 @@ export function Showroom({
             />
           </div>
         </aside>
+      )}
+      {ready && tab === 'xray' && vehicle.xray?.anatomy && (
+        <div
+          className={`pointer-events-none absolute z-10 flex ${dash.wide ? 'items-stretch justify-end' : 'inset-x-2 bottom-[132px] items-end justify-center'}`}
+          style={dash.wide ? { top: 'calc(var(--top-ui, 56px) + 8px)', bottom: 12, right: 16 } : undefined}
+        >
+          <XrayCard vehicle={vehicle} wide={dash.wide} />
+        </div>
       )}
       {ready && tab === 'dimensions' && !dash.wide && specsOpen && (
         <aside className={`pointer-events-none absolute inset-x-2 bottom-[84px] z-10 flex ${BELOW_TOP}`} aria-label={isComparing ? 'Vehicle Comparison' : 'Specifications'}>
@@ -608,6 +630,7 @@ export function Showroom({
             </button>
           </div>
         )}
+        {tab === 'xray' && vehicle.xray && <XrayTools vehicle={vehicle} />}
         {tab === 'dashboard' && (
           <DashboardControls screenFits={dash.screenFits} wide={dash.wide} screenOpen={screenOpen} onScreen={setScreenOpen} />
         )}

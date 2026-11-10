@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import type { DriveMode } from '@/lib/performance';
-import type { AnchorId, DriveCamera, TechDevice } from '@/data/vehicles/schema';
+import type { AnchorId, DriveCamera, TechDevice, XraySystem } from '@/data/vehicles/schema';
 import { isLowBeam, type LightMode } from '@/lib/lights';
 import type { ParkSpeed, ParkStage } from '@/lib/tech/park';
 import type { Pivot, StreetStage } from '@/lib/tech/street';
@@ -259,6 +259,16 @@ export interface VehicleUiState {
   boostStep: number;
   /** the car's screen enlarged beside the cabin (the BOOST demo opens it with the press, the visitor can close it) */
   boostPopup: boolean;
+  /**
+   * The X-ray tab's level: 0 solid, 1 see-through, 2 exploded (the viewer eases to it: src/lib/xray/rig.ts). `xrayScrub` is a slider
+   * being dragged, which the viewer follows without easing. `xraySystem` is the system the visitor is looking at, `xrayPart` the part
+   * whose card is open, `xrayBlueprint` the engineering-drawing look (viewer/Blueprint.tsx).
+   */
+  xrayLevel: number;
+  xrayScrub: boolean;
+  xraySystem: XraySystem | null;
+  xrayPart: string | null;
+  xrayBlueprint: boolean;
   /** the parking lot (or other staged floor) of the running demo, which the viewer draws round the car */
   techScene: ParkStage | null;
   /** the street of a chassis demo (the crab walk, the compass turn, the U-turn), which the viewer draws round the car */
@@ -356,6 +366,10 @@ export interface VehicleUiState {
   setScreenDialog: (open: boolean) => void;
   setBoost: (on: boolean, step: number) => void;
   setBoostPopup: (open: boolean) => void;
+  setXrayLevel: (level: number, scrub?: boolean) => void;
+  setXraySystem: (system: XraySystem | null) => void;
+  setXrayPart: (id: string | null) => void;
+  setXrayBlueprint: (on: boolean) => void;
   setRpaEnabled: (v: boolean) => void;
   setParkSpeed: (v: ParkSpeed) => void;
   /**
@@ -473,6 +487,11 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   boostOn: false,
   boostStep: 0,
   boostPopup: false,
+  xrayLevel: 1,
+  xrayScrub: false,
+  xraySystem: null,
+  xrayPart: null,
+  xrayBlueprint: false,
   techScene: null,
   techStreet: null,
   compassPivot: 'FL',
@@ -563,6 +582,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       ...anchorState(tab === 'dashboard' && s.lightsView === 'rear' ? 'dashRear' : TAB_ANCHOR[tab]),
       // the tech demos stage a shut car in the studio: nothing hangs open, the city's sun is not on its floor
       ...(isStageTab(tab) ? techTab : {}),
+      // the X-ray tab opens see-through, with nothing picked, and the exploded view's camera only once the slider goes there
+      ...(tab === 'xray' ? { xrayLevel: 1, xrayScrub: false, xraySystem: null, xrayPart: null } : {}),
       // the Dashboard tab opens on the car's home screen, whatever page the last tab left it on
       ...(tab === 'dashboard' ? { hmiScreen: 'home' as const, climateOpen: false, appCentreOpen: false } : {}),
     })),
@@ -603,6 +624,16 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       s.boostOn === boostOn && s.boostStep === boostStep ? s : { boostOn, boostStep, ...(boostOn && !s.boostOn ? { boostPopup: true } : {}) },
     ),
   setBoostPopup: (boostPopup) => set((s) => (s.boostPopup === boostPopup ? s : { boostPopup })),
+  // the exploded view wants the camera pulled back: past the middle of the slider the pose is the wide one
+  setXrayLevel: (xrayLevel, xrayScrub = false) =>
+    set((s) => {
+      const want: AnchorId = xrayLevel >= 1.5 ? 'xrayWide' : 'xray';
+      const move = s.tab === 'xray' && s.anchorId !== want ? anchorState(want) : {};
+      return { xrayLevel, xrayScrub, ...move };
+    }),
+  setXraySystem: (xraySystem) => set((s) => (s.xraySystem === xraySystem ? s : { xraySystem, xrayPart: null })),
+  setXrayPart: (xrayPart) => set((s) => (s.xrayPart === xrayPart ? s : { xrayPart })),
+  setXrayBlueprint: (xrayBlueprint) => set({ xrayBlueprint }),
   setRpaEnabled: (rpaEnabled) => set({ rpaEnabled }),
   setParkSpeed: (parkSpeed) => set({ parkSpeed }),
   startTech: (techDemoId, techDevice) =>
@@ -653,6 +684,11 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       boostOn: false,
       boostStep: 0,
       boostPopup: false,
+      xrayLevel: 1,
+      xrayScrub: false,
+      xraySystem: null,
+      xrayPart: null,
+      xrayBlueprint: false,
       headlightsOn: false,
       locked: true,
       adasActive: false,

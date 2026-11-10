@@ -195,6 +195,7 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
     finish: spec.finish,
     cruiseKmh: spec.cruiseKmh,
     brake100M: spec.brake100M,
+    runS: spec.runS,
     manoeuvres,
     runs: spec.runs,
     env,

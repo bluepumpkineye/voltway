@@ -26,6 +26,8 @@ export const HOLD = 0.6;
 const BUILD = 0.15;
 const EASE = 0.5;
 const COAST = 5.9;
+/** what a stop after a held speed takes: the lift, the brake and the car stood, s (a run given a length leaves this much for it) */
+const STOP_TAIL = 6;
 /** a pull to 200 km/h goes on a little past it before the car eases off (launch.ts), s */
 const CARRY = 1.2;
 export const V100 = 100 / 3.6;
@@ -143,6 +145,8 @@ export interface DriveInput {
   /** the 100-0 distance the stop is calibrated to, m */
   brake100M?: number;
   manoeuvres?: ('sweep' | 'slalom' | 'crab')[];
+  /** the least the run lasts, s: after the pull the car coasts (or holds its speed before the stop) until then, so that every card has its time */
+  runS?: number;
   /** the extra runs the chips offer, with the time the maker publishes for 0-100 and 0-200 marked */
   runs?: { from: number; to: number }[];
   /** the road: wet or dry, and the hill in per cent (negative: downhill) */
@@ -396,8 +400,8 @@ type Seg =
   | { kind: 'pull' }
   | { kind: 'carry'; dur: number }
   | { kind: 'ease'; dur: number }
-  | { kind: 'coast'; dur: number }
-  | { kind: 'cruise'; vTo: number; dur: number }
+  | { kind: 'coast'; dur: number; until?: number }
+  | { kind: 'cruise'; vTo: number; dur: number; until?: number }
   | { kind: 'lift'; dur: number }
   | { kind: 'brake' }
   | { kind: 'gentle' }
@@ -432,11 +436,13 @@ function segmentsOf(inp: DriveInput, brakeNow: boolean): Seg[] {
     if (last === 'sweep') segs.push({ kind: 'coast', dur: 2 });
     else segs.push({ kind: 'gentle' }, { kind: 'stop', dur: 1.4 });
   } else if (brakeNow) {
+    // a run given a length holds the speed it reached until the stop (a second to lift, about three to brake, two stood) fits the rest
+    if (inp.runS) segs.push({ kind: 'cruise', vTo: inp.to / 3.6, dur: 0, until: inp.runS - STOP_TAIL });
     segs.push({ kind: 'lift', dur: 1 }, { kind: 'brake' }, { kind: 'stop', dur: 2 });
   } else if (inp.finish === 'cruise') {
-    segs.push({ kind: 'cruise', vTo: (inp.cruiseKmh ?? 120) / 3.6, dur: 4.5 });
+    segs.push({ kind: 'cruise', vTo: (inp.cruiseKmh ?? 120) / 3.6, dur: 4.5, until: inp.runS });
   } else {
-    segs.push({ kind: 'coast', dur: COAST });
+    segs.push({ kind: 'coast', dur: COAST, until: inp.runS });
   }
   return segs;
 }
@@ -633,7 +639,7 @@ export function planDrive(
       case 'coast':
         phase = 'coast';
         aCmd = 0;
-        advance = segT >= sg.dur;
+        advance = segT >= sg.dur && (sg.until === undefined || t >= sg.until);
         break;
       case 'cruise': {
         phase = 'ease';
@@ -645,7 +651,8 @@ export function planDrive(
           note('cruise', `${Math.round(sg.vTo * 3.6)} km/h`);
         }
         if (segAux > 0) phase = 'cruise';
-        advance = (segAux > 0 && segT - segAux >= sg.dur) || segT > 14;
+        // held for `dur`, and on to the run's own length where it has one (a run that never reaches the speed gives up after 14 s)
+        advance = (segAux > 0 && segT - segAux >= sg.dur && (sg.until === undefined || t >= sg.until)) || segT > (sg.until === undefined ? 14 : 40);
         break;
       }
       case 'lift':

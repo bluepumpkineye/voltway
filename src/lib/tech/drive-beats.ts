@@ -9,7 +9,7 @@
  * (`DriveSpec.overlays`): each is a line of live figures that opens into its own animation when the run gets to its moment
  * (the launch for the power, the stop for the brakes, the S-curve for the steering) and closes when the next one opens.
  */
-import type { DriveOverlay } from '../../data/vehicles/schema';
+import type { DriveOverlay, XraySystem } from '../../data/vehicles/schema';
 import type { DriveFacts, DriveMotor, DrivePhase, DriveTelemetry } from './drive-run';
 import { clamp, Easing, flash, progress } from './motion';
 
@@ -391,9 +391,9 @@ const ABOUT: Record<Chapter, DriveOverlay[]> = {
  * energy), each curve (the steering, the motors), the stop (the brakes). A chapter runs until the next begins, so the picture
  * is always on something. Of the tiles a chapter is about that the car's scenario lists, the scenario's first stays open for the
  * chapter and, with room for a second (`max` 2), the others take turns in that place. What the run does not have (no stop, no
- * curve) is no chapter.
+ * curve) is no chapter. A run given a length (`spread`) gives a long chapter's second place to every card the car has in turn.
  */
-export function beatPlan(overlays: DriveOverlay[], facts: DriveFacts, shape: RunShape, max = 2): Beat[] {
+export function beatPlan(overlays: DriveOverlay[], facts: DriveFacts, shape: RunShape, max = 2, spread = false): Beat[] {
   const L = shape.launch;
   const acts = launchActs(facts, L);
   const actsEnd = acts.length ? acts[acts.length - 1].to : L + 2;
@@ -431,9 +431,13 @@ export function beatPlan(overlays: DriveOverlay[], facts: DriveFacts, shape: Run
     const about = overlays.filter((o) => ABOUT[c.kind].includes(o));
     if (!about.length) continue;
     push(about[0], c.from, c.to);
-    const rest = about.slice(1);
+    // on a run given a length (`DriveSpec.runS`, `spread`) a chapter of eight seconds or more has time for every card the car has, not
+    // only the ones it is about (but not the brakes or the steering, which wait for their own moment)
+    const left = Number.isFinite(c.to) ? c.to - c.from : Math.max(shape.duration - c.from, 1);
+    const roomy = spread && left >= 8 && c.kind !== 'stop' && c.kind !== 'curve';
+    const span = Number.isFinite(c.to) || roomy ? left : 9;
+    const rest = (roomy ? overlays.filter((o) => o !== 'brake' && o !== 'steering') : about).filter((o) => o !== about[0]);
     if (max < 2 || !rest.length) continue;
-    const span = Number.isFinite(c.to) ? c.to - c.from : 9;
     const n = Math.min(rest.length, Math.max(1, Math.floor(span / 1.8)));
     rest.slice(0, n).forEach((o, k) => push(o, c.from + (k * span) / n, k === n - 1 ? c.to : c.from + ((k + 1) * span) / n));
   }
@@ -450,4 +454,37 @@ export function openAt(plan: Beat[], overlays: DriveOverlay[], t: number, inDur 
     open[b.overlay] = Math.max(open[b.overlay] ?? 0, a * z);
   }
   return open;
+}
+
+// ------------------------------------------------------------------------------------------- the X-ray lens
+
+/**
+ * What the car's anatomy (the X-ray tab's hardware, src/lib/xray) shows for each instrument: the system the lens reveals while that card
+ * is on stage. The car stays a solid car; as a card opens its paint goes to a ghost and the matching parts light, and it solidifies
+ * again before long. The drag has no hardware to show, and the brakes of the anatomy are the wheels', which are solid already.
+ */
+export const LENS_SYSTEM: Partial<Record<DriveOverlay, XraySystem>> = { power: 'drive', motors: 'drive', energy: 'battery', suspension: 'suspension', steering: 'steering' };
+
+/** How long a card's reveal lasts after the card opens, s: then the car is solid again until the next card's reveal. */
+export const LENS_HOLD = 7;
+
+export interface Lens {
+  /** the system revealed, null when the car is solid */
+  system: XraySystem | null;
+  /** how far the reveal is, 0 solid to 1 fully revealed */
+  k: number;
+}
+
+/** The reveal at `t`: a pure function of the playhead and the cards' plan, so a scrubbed run shows the same picture as a played one. */
+export function lensAt(plan: Beat[], t: number): Lens {
+  let best: Lens = { system: null, k: 0 };
+  for (const b of plan) {
+    const system = LENS_SYSTEM[b.overlay];
+    if (!system) continue;
+    const end = Math.min(b.to, b.from + LENS_HOLD);
+    const w = Easing.inOutQuad(progress(t, b.from + 0.2, 0.7)) * (1 - Easing.inOutQuad(progress(t, end, 0.7)));
+    // of cards revealing at once the later one leads
+    if (w > 0 && w >= best.k) best = { system, k: w };
+  }
+  return best;
 }

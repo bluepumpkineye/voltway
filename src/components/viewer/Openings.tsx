@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import type { OpeningId, Vehicle } from '@/data/vehicles/schema';
 import { hingesOf } from '@/lib/openings';
+import { xrayOf } from '@/lib/xray/rig';
 import { PART_OF, playCue } from '@/lib/sound/engine';
 import { useVehicleStore } from '@/store/vehicle-store';
 
@@ -162,6 +163,8 @@ const PANE = {
   privacy: { open: 0.55, inside: 0.5 },
 };
 
+const _ghostColor = new THREE.Color();
+
 /** The glass of a car with no X-ray of its own: the same pale ghost the X-ray tab draws. */
 const GHOST_GLASS = { color: '#98a4b3', opacity: 0.34 };
 
@@ -249,6 +252,7 @@ export function useGlass(
   clearOutside = false,
 ) {
   const hinges = hingesOf(vehicle);
+  const xrayRig = xrayOf(vehicle);
   const invalidate = useThree((s) => s.invalidate);
   const live = React.useRef({ inside, xray, clearOutside, repaint: () => {} });
 
@@ -297,24 +301,26 @@ export function useGlass(
     const paint = (pane: Pane) => {
       const kind = pane.privacy ? PANE.privacy : PANE.clear;
       const p = pane.door ? (swing.get(pane.door) ?? 0) : 0;
-      const ghost = lv.xray ? vehicle.xray : undefined;
+      // How far the pane has gone to the X-ray's ghost: the tab's level eases it in, the Drive tab's camera has it all at once
+      const kx = lv.xray ? (xrayRig.active ? xrayRig.ghost : 1) : 0;
+      const ghost = kx > 0 ? vehicle.xray : undefined;
       // Seen from outside with the cabin behind them, the windscreen and the front windows are the X-ray's ghost, and the
       // privacy glass (the rear windows, the backlight, a glass roof) is tinted: the same dark pane an open door shows. The
       // frit, the black ceramic band round the backlight, stays black.
       const seeThrough = lv.clearOutside && !lv.inside && !lv.xray && !pane.frit;
       const g = vehicle.glass ?? vehicle.xray ?? GHOST_GLASS;
-      pane.m.color.set(ghost ? ghost.color : seeThrough && !pane.privacy ? g.color : pane.color);
+      pane.m.color.set(seeThrough && !pane.privacy ? g.color : pane.color);
+      if (ghost) pane.m.color.lerp(_ghostColor.set(ghost.color), kx);
       const swing01 = Math.min(1, p * 1.6);
       const shut = pane.privacy ? (vehicle.glass?.privacy ?? kind.open) : g.opacity;
-      const op = ghost
-        ? ghost.opacity
-        : pane.frit
-          ? 1
-          : lv.inside
-            ? kind.inside
-            : seeThrough
-              ? shut - (shut - kind.open) * swing01
-              : 1 - (1 - kind.open) * swing01;
+      const base = pane.frit
+        ? 1
+        : lv.inside
+          ? kind.inside
+          : seeThrough
+            ? shut - (shut - kind.open) * swing01
+            : 1 - (1 - kind.open) * swing01;
+      const op = ghost ? base + (ghost.opacity - base) * kx : base;
       const transparent = op < 0.999;
       if (pane.m.transparent !== transparent) {
         pane.m.transparent = transparent;
@@ -331,6 +337,8 @@ export function useGlass(
     };
     lv.repaint = () => panes.forEach(paint);
     const undo: (() => void)[] = [];
+    // the X-ray tab's level moves the panes toward the ghost as it rises
+    undo.push(xrayRig.followLevel(() => lv.repaint()));
     for (const id of new Set(panes.map((x) => x.door).filter(Boolean) as OpeningId[])) {
       undo.push(
         hinges!.follow(id, (p) => {
@@ -350,7 +358,7 @@ export function useGlass(
       }
       lv.repaint = () => {};
     };
-  }, [root, hinges, enabled, invalidate, vehicle.xray, vehicle.glass]);
+  }, [root, hinges, xrayRig, enabled, invalidate, vehicle.xray, vehicle.glass]);
 
   React.useEffect(() => {
     live.current.inside = inside;

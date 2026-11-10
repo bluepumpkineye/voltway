@@ -309,6 +309,8 @@ export type AnchorId =
   | 'rear34'
   | 'wheel'
   | 'xray'
+  // the X-ray tab pulled back to take in the exploded view
+  | 'xrayWide'
   | 'frunk'
   | 'trunk'
   | 'techWide'
@@ -386,6 +388,53 @@ export interface XraySpec {
   opacity: number;
   /** Cabin nodes that go while it is on (the headliner shuts the view from above). */
   hideCabin?: string[];
+  /** The exploded view's parts and their labels; left out, the tab goes from solid to see-through and no further. */
+  anatomy?: XrayAnatomy;
+}
+
+/** The systems the exploded view takes apart (and the chips that pick one). */
+export type XraySystem = 'battery' | 'drive' | 'chassis' | 'suspension' | 'steering' | 'brakes';
+
+/** How far a part's drawing can be trusted: its figures come from the maker, from a report, or are ours. */
+export type XrayBasis = 'published' | 'reported' | 'illustrative';
+
+/** One labelled part of the exploded view. */
+export interface XrayPart {
+  id: string;
+  system: XraySystem;
+  title: string;
+  /** The nodes the label points at (the middle of their box): anatomy nodes, or the exterior's when `scene` says so. */
+  nodes: string[];
+  scene?: 'anatomy' | 'exterior';
+  /** What it does, in a sentence or two. */
+  text: string;
+  /** Figures, as the maker or a report gives them. */
+  facts?: { label: string; value: string }[];
+  source?: Source;
+  /** Whether the figures are published, reported, or the drawing is ours (the shape always is: see XrayAnatomy.note). */
+  basis: XrayBasis;
+  /** The short clip it plays (src/lib/xray/clips.ts). */
+  clip?: string;
+  /** A rendering of the part from the Blender model (blender/scripts/su7_anatomy_renders.py), a 3:2 WebP with a clear background. */
+  image?: string;
+  /** The level at which its label comes up: 1 is the see-through view, 2 the exploded one (default 1.5). */
+  minLevel?: number;
+  /** Which side of the car its label stands on, when the screen's side is not the right one. */
+  side?: 'left' | 'right';
+}
+
+/**
+ * The anatomy GLB (blender/scripts/carkit/anatomy: pack, motors, frames, suspension, built from the car's own dimensions), the
+ * labels of its parts, and what the viewer says about it. Every node of the GLB carries its explode offset (`xr` extra), so a
+ * car needs only this list.
+ */
+export interface XrayAnatomy {
+  url: string;
+  parts: XrayPart[];
+  /** The line under the panel: what is the maker's and what is ours. */
+  note: string;
+  /** How far the body lifts in the exploded view, m (default scales with the car's height). */
+  lift?: { shell?: number; cabin?: number; assembly?: number };
 }
 
 /** A published fact a tech demo shows, with where it comes from. */
@@ -477,6 +526,8 @@ export interface DriveSpec {
   cruiseKmh?: number;
   /** the maker's 100-0 km/h braking distance, m, which the stop is calibrated to (else 36 m, ours) */
   brake100M?: number;
+  /** the least the run lasts, s (ours): after the pull the car coasts, or holds its speed before the stop, so that each instrument card has time to show */
+  runS?: number;
   /** after the pull, in this order, on runs that end at 150 km/h or less */
   manoeuvres?: DriveManoeuvre[];
   /**

@@ -21,6 +21,9 @@ import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
 import { TechParkAssist } from './TechParkAssist';
 import { TechPowertrain } from './TechPowertrain';
+import { XrayAnatomy, XrayDirector } from './XrayDirector';
+import { Blueprint } from './Blueprint';
+import { XrayLabelDriver } from './XrayLabelDriver';
 import { TechAnchors } from './TechAnchors';
 import { TechWheelFx } from './TechWheelFx';
 import { TechRival } from './TechRival';
@@ -89,6 +92,9 @@ export function ShowroomViewer({
         <ScreenDriver vehicle={vehicle} />
         <BoostKnob vehicle={vehicle} />
         <TechDirector vehicle={vehicle} />
+        <XrayDirector vehicle={vehicle} />
+        <XrayLabelDriver vehicle={vehicle} />
+        <Blueprint vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <React.Suspense fallback={<Loading />}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />
@@ -157,6 +163,7 @@ function Stage({
       {!inside && <TechParkAssist vehicle={vehicle} />}
       {/* the Drive tab's X-ray camera: the motors and the battery, schematic, riding with the body */}
       <TechPowertrain vehicle={vehicle} />
+      <XrayAnatomy vehicle={vehicle} />
       {/* the Drive tab's lights on the wheels: what each motor and brake is doing */}
       <TechWheelFx vehicle={vehicle} />
       {/* where the car's arch, disc, hubs, pack and roof are on the screen, for the cards that point at them */}
