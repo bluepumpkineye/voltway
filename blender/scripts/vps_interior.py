@@ -165,8 +165,13 @@ def build_library():
 
 
 # ------------------------------------------------------------------- dash
+# The top pad is a low shelf from the windscreen's base (the cowl at x 1.04-1.15, z 1.11-1.13) back to the screens' face (x 0.66,
+# z 1.196). It used to hug the glass from x 0.84 (z 1.25) up to x 0.685 (z 1.34) and drop 14 cm to the face: from outside it
+# filled the windscreen as a tall grey slab and, from above, left a hole between the cowl and its front edge (the owner,
+# 2026-11-03; the Avatr 06T had the same, see docs: "never let the dash top hug the windscreen"). Now only the first four
+# points differ: x 1.10 / 0.96 / 0.82 / 0.685 on a gentle ramp, always below the glass by GLASS_GAP.
 DASH_SECTION = [
-    (0.840, None), (0.770, None), (0.715, None), (0.685, None),
+    (1.100, None), (0.960, None), (0.820, None), (0.685, None),
     (0.658, 1.196), (0.636, 1.174), (0.622, 1.160),
     (0.612, 1.116), (0.602, 1.072),
     (0.594, 1.048), (0.584, 1.022), (0.576, 1.004),
@@ -180,14 +185,18 @@ DASH_PANELS = [("TopPad", 0, 6, "dash_top"), ("Band", 6, 8, "band_glass"),
 GLASS_GAP = (0.016, 0.014, 0.014, 0.020)
 
 
+def _pad_ramp(x):
+    """The top pad's height: flat at the cowl's z 1.116, rising on a smooth ramp to the face's top (1.198) at x 0.685."""
+    t = _smooth((1.05 - x) / 0.365)
+    return 1.116 + 0.082 * t
+
+
 def dash_section(i, s):
     y = DASH_HALF * (1.0 - 2.0 * s)
     out = []
     for k, (x, z) in enumerate(DASH_SECTION):
         if z is None:
-            z = z_glass(x, y) - GLASS_GAP[k]
-            if k == 3:
-                z = max(z, 1.188)
+            z = min(_pad_ramp(x), z_glass(x, y) - GLASS_GAP[k])
         out.append((x, z))
     return out
 

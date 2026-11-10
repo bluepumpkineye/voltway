@@ -1060,3 +1060,68 @@ has time to show.
   materials are shared (86 instead of about 350) except where a part glows on its own. It is not drawn at all while the car is solid.
 - **Checked** by driving the playhead (`window.__tech.clock.seek`) at the launch, in the gap and at the energy card; the Drive and motion
   tests pass. Frame rates were measured on a laptop's integrated graphics (a reveal costs about a fifth over the solid car).
+
+## 22. The scenery kit: trees, roads, buildings and street life (2026-11-11)
+
+The owner's request: "In our drive and parking scenes I would like to improve the graphics/visual render for the trees, roads and buildings ...
+add more texture and more detail ... build other elements to make the scenes more realistic ... a middle ground" between photoreal assets
+(heavy files) and the old pale, flat look. Nothing is downloaded: **no new binary asset was added**. Every texture is painted on a canvas the
+first time a scene asks for it (a few hundred ms, kept for the page's life), every mesh is built by a seeded generator and merged, and what
+repeats is instanced. The code is `src/components/viewer/scenery/`; the four scenes that used to draw their own flat copies now use it.
+
+| file | what it holds |
+|---|---|
+| `kit.ts` | seeded random numbers, canvas and noise helpers (tileable value noise), `Builder` (quads, boxes, primitives into one geometry with a colour per vertex: tint and baked occlusion), and `withHaze` (below) |
+| `textures.ts` | tileable asphalt aggregate, paving slabs, tactile strip, grass, render/tile/brick/concrete walls, the window and shop-sign atlas (16 signs), the leaf clusters (camphor, plane, ginkgo, cypress, shrub), bark, canopy shadow, tree pit, gantry sign, and the road-wear painters (tyre tracks, patches, cracks, oil, manholes, drains, chipped paint, zebra bars, arrows) |
+| `trees.ts` | a tree = trunk and limbs (tapered cylinders) + a canopy of 120-170 leaf-cluster cards on an ellipsoid, normals out of the ball and up, vertex colours darkening the inside and underside; clipped hedges and shrubs are a green core box under cards |
+| `buildings.ts` | `buildRow`: real volumes, not a painted wall: window bays in 20 cm reveals, balconies, glassed-in balconies, air-conditioners on brackets, shopfronts with signboards, awnings and shutters, curtain-wall towers, malls with a roof hoarding, cornices, parapets, rooftop plant; six geometries per row (render, tile, brick, trim, atlas, lit windows) |
+| `props.ts` | lamp, bench, recycling bin, bollard, bus shelter, speed sign, street-name sign, hydrant, planter, six shared bikes, a scooter, three standing people, crash barrier, concrete median barrier, delineator, kilometre post, cone, and the overhead gantry |
+| `Scenery.tsx` | `Trees`, `BuildingRow`, `Props` (instanced, each with its soft shadow decal), `useHaze`; `LampGlow` (the lens and a warm pool of light at night) |
+| `Ground.tsx` | the asphalt painters and material (unlit, with the tiled aggregate multiplied over the painted map at three scales), `fadeEdges`, `paintWearStrip`, and `FootwayStrip` (paved top, kerb stone, kerb face, tactile strip, building-foot shade, all fading at the ends) |
+| `Roadside.tsx` | `Verge` (grass that fades into the white), `expresswaySpots` and `ExpresswayRoadside` (crash barrier, median barrier and planting, delineators, trees, gantry), `Gantries` |
+
+**Where it is used.** `TechStreet.tsx` (the Z9's and the G9L's streets, and the lot's planted strip and buildings: `TechLotDressing`),
+`TechStage.tsx` (the parking lot's asphalt), `TechCity.tsx` (Autonomous Drive's city scenes: the G9L's and the Seal's traffic light),
+`TechHighway.tsx` (new file: Autonomous Drive's expressway, moved out of TechRoad), `TechRoad.tsx` (the strip the Drive tab, the SU7's launch
+and the 7X's Magic Carpet run on, which now has verges, barriers and trees too). The planners (`street.ts`) list the furniture:
+`streetProps(road, footways, seed)` replaces the four hand-written lamp and tree lines, so a street gets lamps, camphor/plane/ginkgo street
+trees, hedges, benches, bins, hydrants, a bus shelter, bikes, a scooter, signs and a few people; the lot's dressing the same.
+
+**Rules the pieces follow.**
+- **Everything is on the stage layer** (`STAGE_LAYER`, as the floor paint always was): the studio's camera sees it, the floor's mirror and the
+  contact-shadow passes do not, and the City (HDRI) world, which does not enable that layer, does not show it. No light was added to the scene
+  (a light lights every layer): shading is the studio's image-based light on the standard materials, and baked occlusion in the vertex
+  colours, canopy shadows, foot shade and soft contact decals.
+- **Haze.** `withHaze` patches a material so the far scenery goes into the studio's white: a height term (buildings fade from 9 m to
+  full white at 46 m) and a distance term (density 0.0042), mixed on the output colour after tone mapping, the same white as the room
+  (the colour follows the dusk). There is no scene fog (it would fog the car).
+- **Dusk.** Every material is tinted by `useDusk` as before. At night the buildings' windows and shop signs light up (additive quads drawn over
+  the dimmed walls, opacity from the room's `night`), the street lamps get a lens and a warm pool of light on the ground, and the foliage is
+  lifted toward grey-green so it does not go black.
+- **Rolling scenes** (a still car on a road that scrolls under it): what repeats is instanced along the strip and rolled by the rig as far as its
+  period (`rig.attachRoad(group, x, period)`): the city's buildings, trees, furniture and wear repeat every three of the scene's periods
+  (72 m, so the same shop front does not come round every 24 m); the expressway's roadside repeats every 120 m (eight dash periods) with the
+  dashes and tar joints on their own periods. Worn patches, cracks, oil, manholes and drains are painted in the *rolled* strip: a feature
+  painted into the still asphalt would stand still under a moving car. The Drive tab's strip rolls as one piece, so its marks are in the canvas.
+- **Camera side.** A row of buildings is hidden while the camera is behind its facade (as the old wall was); the expressway's two sides are
+  hidden while the camera stands out beyond them (the Drive tab's low side-on cameras otherwise look through a hedge at the car); the
+  street planner puts no lamp on the near footway, and the city scene has a tree every 24 m there instead of every 12.
+- **Idle frames stay 0**: nothing animates, the new useFrame callbacks only run when a frame is drawn.
+
+**Cost** (G9L city scene, the heaviest, in the Browser pane): the scenery is about 76 draw calls and 116 k triangles of a frame's 462 and
+1.15 M (the cars and traffic are the rest); a frame took 13.5 ms with it and 13.0 ms without. Textures are small canvases: 512 px asphalt,
+paving and walls, a 1024 x 512 window atlas, 256 px leaf clusters.
+
+**What is ours, not a source's.** Everything is stylised and generic. The shop signs are common shop words (tea, pharmacy, supermarket,
+noodles ...) with no brand, the gantry reads "G15 沈海高速 / Ningbo 86 km / Wenzhou 290 km" as a typical sign would, the people and the
+scooter are still figures. None of it claims a place; the tactile yellow strip, the shared bikes and the camphor and plane trees are what a
+Chinese street looks like.
+
+**Not done, on purpose.** A sky or a distant skyline (the studio's white room is kept behind the haze); animated trees and people (the canvas
+draws on demand, and idle frames must stay 0); pedestrians in the Autonomous Drive city scene (the sensors track the scripted actors, and static
+extras the sensors ignore would look like a miss); real-time shadows (a sun would light the car too).
+
+**Known and unchanged.** The Seal's Tech tab threw `Maximum update depth exceeded` in the working tree when it was checked on 2026-11-11,
+on its CTB demo as well as God's Eye. The CTB demo draws none of this scenery, so it is not from this work (the Seal's cabin and rebuild
+are another session's uncommitted changes); the Seal's traffic-light scene itself could not be looked at for that reason and uses the same
+`CityStreet` path as the G9L's, with the signals unchanged.

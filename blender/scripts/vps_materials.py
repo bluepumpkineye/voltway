@@ -56,6 +56,30 @@ def build_library():
                   coat=1.0, coat_rough=0.02, ior=1.52)
     lib["lamp_clear"] = m
 
+    # The headlamps as photographed (c1_0002, c12_0016): a near-black eyelid and bezel with a satin gloss, silver hairlines
+    # (the DRL line's housing, the projector bezels), and the pod's lens plates (dark glass in a dark panel; the Lights tab
+    # lights these with the low beam)
+    m, nt, b = _M.mat("M_Lamp_Frame")
+    _M.set_inputs(b, base=(0.002, 0.002, 0.003), metallic=0.0, roughness=0.30, specular=0.08)
+    lib["lamp_frame"] = m
+    m, nt, b = _M.mat("M_Lamp_Hairline")
+    _M.set_inputs(b, base=(0.78, 0.80, 0.83), metallic=1.0, roughness=0.22)
+    lib["lamp_hair"] = m
+    m, nt, b = _M.mat("M_Lamp_Lens")
+    _M.set_inputs(b, base=(0.022, 0.024, 0.028), metallic=0.0, roughness=0.18, coat=1.0, coat_rough=0.03, ior=1.5)
+    lib["lamp_lens"] = m
+
+    # The DRL line and the nose channel's strip are this car's M_LED_White: unlit they are dark translucent plastic (c1_0002,
+    # c12_0011: a grey strip in a black frame), not the pale milky strip the library gives; lit, the Lights tab drives them
+    # (a silver hairline beside the line carries the unlit look, see vps_front.build_lamp)
+    _M.set_inputs(next(n for n in lib["led_white"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED'),
+                  base=(0.075, 0.080, 0.088), roughness=0.20)
+
+    # the cheek intake's body: satin dark-grey plastic, lighter than the black cavity beside it (c1_0002, c12_0016)
+    m, nt, b = _M.mat("M_Intake_Grey")
+    _M.set_inputs(b, base=(0.042, 0.044, 0.048), metallic=0.0, roughness=0.46, specular=0.28)
+    lib["intake_grey"] = m
+
     # Full-width smoked taillight acrylic lens over horizontal red LED bar & VOYAH script
     m, nt, b = _M.mat("M_Lamp_RedLens")
     _M.set_inputs(b, base=(0.024, 0.004, 0.005), metallic=0.0, roughness=0.07,

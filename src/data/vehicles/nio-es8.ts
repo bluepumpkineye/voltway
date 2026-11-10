@@ -243,7 +243,8 @@ export const nioEs8: Vehicle = {
     },
   ],
   xray: { node: 'NioES8_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
-  lights: { projector: {} },
+  // the pod's two lens units and its projector lens (M_Lamp_Lens) light with the low beam; the DRL's two bars are the usual M_LED_White
+  lights: { projector: { material: 'M_Lamp_Lens' } },
   sensors: {
     lidar: [0.55, 0.0, 1.76],
     sideLidar: [1.18, 0.94, 0.92],

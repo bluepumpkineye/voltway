@@ -24,4 +24,13 @@ def build_library():
     m, nt, b = _M.mat("M_Rim_Forged")
     _M.set_inputs(b, base=(0.078, 0.104, 0.150), metallic=0.85, roughness=0.42)
     lib["forged"] = m
+    # The headlamp (big_023.jpg, the maker's head-on photograph): a near-black glass frame round the whole almond, and the
+    # grey satin reflector that shows through the upper half above the DRL bar. Satin, not a mirror: a gloss black took
+    # the white studio and read as grey plastic.
+    m, nt, b = _M.mat("M_Lamp_Frame")
+    _M.set_inputs(b, base=(0.002, 0.002, 0.003), metallic=0.0, roughness=0.34, specular=0.06)
+    lib["lamp_frame"] = m
+    m, nt, b = _M.mat("M_Lamp_Silver")
+    _M.set_inputs(b, base=(0.300, 0.310, 0.330), metallic=0.15, roughness=0.50, specular=0.20)
+    lib["lamp_silver"] = m
     return lib

@@ -145,16 +145,30 @@ def rear_yz(u, v, x=-2.40):
 # The car's RIGHT half (the left of the picture) is read and mirrored.
 # bonnet's leading edge across the nose, outer corner to the centre
 HOOD_EDGE_PX = [(1467, 1583), (1573, 1603), (1700, 1612), (1933, 1617)]
-# upper "eyebrow" lamp: a tapered wedge from the outer end to the inner tip (outline, clockwise)
-EYEBROW_PX = [(1143, 1566), (1200, 1561), (1280, 1580), (1360, 1603), (1417, 1632), (1405, 1634),
-              (1350, 1623), (1290, 1608), (1240, 1597), (1200, 1591), (1160, 1598), (1148, 1582)]
-# the main lamp blade (DRL): rounded outer end, pointed inner tip
-DRL_PX = [(1172, 1656), (1182, 1648), (1260, 1661), (1350, 1678), (1420, 1692), (1478, 1707),
-          (1483, 1714), (1440, 1714), (1350, 1703), (1250, 1688), (1190, 1675), (1172, 1666)]
-# the dark lamp pocket: a tall kite hugging the corner, widest at the inner apex (1258, 1838)
-KITE_PX = [(1128, 1598), (1152, 1606), (1153, 1660), (1160, 1692), (1190, 1720), (1220, 1765),
-           (1248, 1810), (1258, 1838), (1248, 1880), (1222, 1925), (1190, 1962), (1165, 1985),
-           (1140, 1962), (1124, 1920), (1118, 1850), (1118, 1750), (1122, 1650)]
+# (the headlamp's outlines now come from the close-up c12_0011: a06t_lampdata.py)
+# The pocket's insides, read by hand off brightened crops of c12_0011 (pixels of that photo, camera "lamp11"): the
+# silver hairlines (separators between the housings, the fan of lines under them), two projector units - a dark housing,
+# a bezel and the pale lens plate - the slats along the upper diagonal, the vertical LED line and its dots.
+POCKET_HAIR = {
+    "upper_a": [(1267, 1287), (1400, 1321), (1547, 1348)],
+    "upper_b": [(1280, 1340), (1380, 1352), (1480, 1366), (1580, 1387)],
+    "sep_1": [(1295, 1587), (1500, 1599), (1686, 1610)],
+    "sep_2": [(1310, 1615), (1520, 1625), (1739, 1635)],
+    "fan_1": [(1300, 1842), (1380, 1872), (1470, 1908), (1560, 1930), (1625, 1938)],
+    "led": [(1352, 1991), (1356, 2150), (1362, 2317)],
+}
+# rounded rectangles (u0, v0, u1, v1, radius): housing, bezel, lens plate
+POCKET_MODULES = [
+    dict(housing=(1287, 1375, 1687, 1569, 45), bezel=(1337, 1431, 1637, 1550, 40), lens=(1419, 1456, 1519, 1531, 30), dots=()),
+    dict(housing=(1312, 1619, 1750, 1831, 45), bezel=(1362, 1681, 1644, 1781, 35), lens=(1431, 1694, 1531, 1769, 28),
+         dots=((1452, 1746), (1506, 1750))),
+]
+POCKET_LED_DOTS = [(1383, 1993), (1384, 2046), (1385, 2096), (1386, 2146), (1387, 2200), (1388, 2250), (1389, 2300)]
+# the slats along the upper diagonal: six hairlines sloping down to the right, from this start, pitch in v
+POCKET_SLAT_DIR = (0.93, 0.37)
+POCKET_SLAT_START = (1325.0, 1045.0)
+POCKET_SLAT_PITCH = 38.0
+POCKET_SLAT_N = 6
 # painted bumper's lower edge: outer corner, along the winglet, up the grille opening's diagonal, across
 PAINT_EDGE_PX = [(1068, 2052), (1100, 2058), (1200, 2064), (1300, 2068), (1328, 2068), (1360, 2055),
                  (1400, 2030), (1440, 2000), (1480, 1965), (1520, 1935), (1560, 1912), (1600, 1905),
@@ -166,13 +180,6 @@ EMBLEM_PX = (1923, 1655)                    # the prism badge's centre (33 x 37 
 CAMERA_PX = (1924, 1741)
 TOWCAP_PX = (1536, 1800, 1600, 1857)
 SENSORS_PX = [(1267, 1929), (1600, 1888)]
-
-# the same two lamps as (upper edge, lower edge) polylines, outer end to inner tip
-EYEBROW_UP_PX = [(1143, 1566), (1200, 1561), (1280, 1580), (1360, 1603), (1417, 1632)]
-EYEBROW_LO_PX = [(1148, 1582), (1160, 1598), (1200, 1591), (1240, 1597), (1290, 1608), (1350, 1623),
-                 (1405, 1634), (1417, 1632)]
-DRL_UP_PX = [(1182, 1648), (1260, 1661), (1350, 1678), (1420, 1692), (1478, 1707)]
-DRL_LO_PX = [(1172, 1666), (1190, 1675), (1250, 1688), (1350, 1703), (1440, 1714), (1483, 1714)]
 
 # the black "AVATR" blade on the fender and the door's front corner, front tip first (left of the picture)
 BLADE_PX = [(1096, 1787), (1146, 1779), (1217, 1773), (1329, 1766), (1317, 1787), (1167, 1800), (1117, 1800)]

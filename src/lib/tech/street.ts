@@ -16,7 +16,27 @@ import { corners, footprint, gap, type BodyBox, type ParkStage, type Pose, type 
 
 const DEG = Math.PI / 180;
 
-export type StreetPropKind = 'lamp' | 'tree' | 'bollard';
+export type StreetPropKind =
+  | 'lamp'
+  | 'tree'
+  | 'plane'
+  | 'ginkgo'
+  | 'hedge'
+  | 'shrub'
+  | 'bollard'
+  | 'bench'
+  | 'bin'
+  | 'shelter'
+  | 'sign'
+  | 'streetsign'
+  | 'hydrant'
+  | 'planter'
+  | 'bikes'
+  | 'cone'
+  | 'personA'
+  | 'personB'
+  | 'personC'
+  | 'scooter';
 
 export interface StreetProp {
   kind: StreetPropKind;
@@ -24,6 +44,7 @@ export interface StreetProp {
   y: number;
   /** a lamp's arm reaches this way, rad (floor frame: toward the road) */
   yaw?: number;
+  scale?: number;
 }
 
 export interface StreetCar {
@@ -168,6 +189,60 @@ function along(kind: StreetPropKind, x0: number, x1: number, every: number, y: n
   return out;
 }
 
+/**
+ * What stands on the footways of a street, seeded so it is the same every time: lamps, street trees (camphor, plane and ginkgo in
+ * turn) and hedges on the far footway, benches, bins, hydrants, a bus shelter, shared bikes parked in a row, signposts and planters.
+ * `south` is the car's kerb side (the buildings' side, the camera looks across the road at it), `north` the near footway, which
+ * keeps low things only so that nothing stands between the camera and the car. Heights and the rest are the scene's (TechStreet).
+ */
+export function streetProps(road: { x0: number; x1: number; y0: number; y1: number }, foot: { south: number; north: number }, seed = 1, opts: { wallX?: number } = {}): StreetProp[] {
+  const out: StreetProp[] = [];
+  let a = seed * 2654435761;
+  const rnd = () => ((a = (a * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const x0 = road.x0 + 3;
+  const x1 = Math.min(road.x1 - 3, opts.wallX ?? Infinity);
+  const species: StreetPropKind[] = ['tree', 'tree', 'plane', 'tree', 'ginkgo', 'tree'];
+  if (foot.south > 0) {
+    const ky = road.y0;
+    out.push(...along('lamp', x0 + 1, x1, 13, ky - 0.55, Math.PI / 2, 0));
+    // trees between the lamps, every 9.5 m
+    let i = 0;
+    for (let x = x0 + 5; x <= x1; x += 9.5 + rnd() * 1.5) out.push({ kind: species[i++ % species.length], x, y: ky - 1.9, scale: 0.9 + rnd() * 0.25 });
+    // hedge along the building line, in breaks
+    for (let x = x0; x <= x1 - 3; x += 7 + rnd() * 6) if (rnd() > 0.35) out.push({ kind: 'hedge', x, y: ky - foot.south + 0.55, scale: 1, yaw: 0 });
+    // benches, bins and the like in the lee of the lamps
+    for (let x = x0 + 8; x <= x1 - 2; x += 13) {
+      const r = rnd();
+      if (r < 0.34) out.push({ kind: 'bench', x: x + 2.2, y: ky - 2.6, yaw: Math.PI });
+      else if (r < 0.62) out.push({ kind: 'bin', x: x + 1, y: ky - 0.95, yaw: Math.PI });
+      else if (r < 0.82) out.push({ kind: 'bikes', x: x + 1.5, y: ky - 1.15, yaw: Math.PI / 2 });
+      else out.push({ kind: 'planter', x: x + 1.5, y: ky - 1.0, yaw: 0 });
+    }
+    // people: standing in twos and threes by the shopfronts, one or two walking, a scooter by the bikes
+    const folk: StreetPropKind[] = ['personA', 'personB', 'personC'];
+    for (let x = x0 + 4; x <= x1 - 4; x += 10 + rnd() * 9) {
+      const n = 1 + Math.floor(rnd() * 3);
+      for (let i = 0; i < n; i++) out.push({ kind: folk[Math.floor(rnd() * 3)], x: x + i * 0.65 + rnd() * 0.3, y: ky - foot.south * (0.3 + rnd() * 0.45), yaw: Math.PI * (rnd() > 0.5 ? 1 : 0.5 + rnd() * 1.4), scale: 0.97 + rnd() * 0.08 });
+    }
+    for (let x = x0 + 12; x <= x1 - 6; x += 24 + rnd() * 12) out.push({ kind: 'scooter', x, y: ky - 1.45, yaw: Math.PI / 2 + (rnd() - 0.5) * 0.3 });
+    out.push({ kind: 'hydrant', x: x0 + 9.5 + rnd() * 6, y: ky - 0.35, yaw: 0 });
+    if (x1 - x0 > 40) out.push({ kind: 'shelter', x: x0 + (x1 - x0) * (0.2 + rnd() * 0.1), y: ky - 1.7, yaw: Math.PI });
+    out.push({ kind: 'sign', x: x0 + (x1 - x0) * 0.62, y: ky - 0.4, yaw: Math.PI / 2 });
+    out.push({ kind: 'streetsign', x: x0 + (x1 - x0) * 0.4, y: ky - 0.4, yaw: 0 });
+  }
+  if (foot.north > 0) {
+    const ky = road.y1;
+    // no lamps here: a tall post on the near footway would stand across the picture
+    for (let x = x0 + 4; x <= x1 - 2; x += 11 + rnd() * 5) {
+      const r = rnd();
+      if (r < 0.4) out.push({ kind: 'bin', x, y: ky + 0.95, yaw: 0 });
+      else if (r < 0.7) out.push({ kind: 'bikes', x, y: ky + 1.2, yaw: Math.PI / 2 });
+      else out.push({ kind: 'hedge', x, y: ky + foot.north - 0.6, yaw: 0 });
+    }
+  }
+  return out;
+}
+
 /** Cars placed end to end along a kerb from x going toward `dir` (+1 east, -1 west), `gapM` apart, their right side `off` from the kerb line. */
 function row(
   cars: StreetNeighbour[],
@@ -206,8 +281,17 @@ export function dressLot(lot: ParkStage): StreetStage {
   const pitch = target.rect.width;
   const props: StreetProp[] = [
     ...along('lamp', x0 + 3, x1 - 3, 11, backY - 0.7, Math.PI / 2, 0),
-    // a tree on the line between two bays, every second one
-    ...along('tree', x0 + 2, x1 - 2, pitch * 2, backY - 1.8, undefined, (((target.rect.x - pitch / 2 - (x0 + 2)) % (pitch * 2)) + pitch * 2) % (pitch * 2)),
+    // a tree on the line between two bays, every second one: camphor and plane in turn, a hedge between them under the wall
+    ...along('tree', x0 + 2, x1 - 2, pitch * 2, backY - 1.8, undefined, (((target.rect.x - pitch / 2 - (x0 + 2)) % (pitch * 2)) + pitch * 2) % (pitch * 2)).map((p, i) => ({
+      ...p,
+      kind: (i % 3 === 1 ? 'plane' : 'tree') as StreetPropKind,
+    })),
+    ...along('hedge', x0 + 4, x1 - 4, 6.2, backY - foot + 0.6, 0, 0),
+    ...along('bin', x0 + 8, x1 - 4, 22, backY - 1.2, Math.PI, 3),
+    ...along('bikes', x0 + 14, x1 - 6, 31, backY - 1.3, Math.PI / 2, 0),
+    ...along('personA', x0 + 9, x1 - 6, 23, backY - 1.55, Math.PI * 1.1, 0),
+    ...along('personB', x0 + 18, x1 - 6, 29, backY - 1.45, Math.PI * 0.9, 0),
+    ...along('scooter', x0 + 22, x1 - 6, 37, backY - 1.2, Math.PI / 2, 0),
   ];
   return {
     kind: 'street',
@@ -311,11 +395,7 @@ export function planCrab(layout: Layout, body: BodyBox, start: Pose, opts: CrabO
     // the stretch of kerb the car goes to is marked as a bay of its own
     bays: [rectOf(start.x + dx - body.rear - 0.35, start.x + dx + body.front + 0.35, kerbY, kerbY + bayW)],
     cars: [...cars, ...decor],
-    props: [
-      // the trees stand on the far footway, behind the car as the camera sees it; the near one has lamps only
-      ...along('lamp', x0 + 4, x1 - 3, 13, kerbY - 0.55, Math.PI / 2, 0),
-      ...along('tree', x0 + 8, x1 - 3, 9.5, kerbY - 1.9),
-    ],
+    props: streetProps({ x0, x1, y0: kerbY, y1: northY }, { south: foot, north: foot }, 11),
     wall: null,
     start,
     frame: frameOf(
@@ -399,8 +479,7 @@ export function planCompass(layout: Layout, body: BodyBox, start: Pose, opts: Co
     bays: [],
     cars,
     props: [
-      ...along('lamp', x0 + 4, wallX - 2, 12, y0 - 0.55, Math.PI / 2),
-      ...along('tree', x0 + 8, wallX - 3, 9, y0 - 1.9),
+      ...streetProps({ x0, x1, y0, y1 }, { south: foot, north: foot }, 21, { wallX: wallX - 2 }),
       // bollards across the dead end
       ...[0.18, 0.5, 0.82].map((k) => ({ kind: 'bollard' as const, x: wallX - 0.45, y: y0 + k * (y1 - y0) })),
     ],
@@ -485,10 +564,7 @@ export function planPivotPark(layout: Layout, body: BodyBox, start: Pose, opts: 
     ],
     bays: [rectOf(gapX0 + 0.15, gapX1 - 0.15, kerbY, kerbY + bayW)],
     cars: [...cars, ...decor],
-    props: [
-      ...along('lamp', x0 + 4, x1 - 3, 13, kerbY - 0.55, Math.PI / 2, 0),
-      ...along('tree', x0 + 8, x1 - 3, 9.5, kerbY - 1.9),
-    ],
+    props: streetProps({ x0, x1, y0: kerbY, y1: northY }, { south: foot, north: foot }, 31),
     wall: null,
     start,
     frame: frameOf({ x0: gapX0 - 2.5, x1: gapX1 + 2.5, y0: kerbY - 0.4, y1: Math.max(swept.max.y, start.y + hw) + 0.6 }, { az: 62, el: 36 }),
@@ -583,10 +659,7 @@ export function planUTurn(layout: Layout, body: BodyBox, start: Pose, opts: UTur
     lines: [{ y: (y0 + y1) / 2, x0: x0 + 1.5, x1: x1 - 1.5, dash: true }],
     bays: [],
     cars,
-    props: [
-      ...along('lamp', x0 + 3, x1 - 3, 13, y0 - 0.55, Math.PI / 2),
-      ...along('tree', x0 + 7, x1 - 3, 9.5, y0 - 1.9),
-    ],
+    props: streetProps({ x0, x1, y0, y1 }, { south: foot, north: foot }, 41),
     wall: null,
     start,
     frame: frameOf({ x0: swept.min.x - 0.4, x1: swept.max.x + 0.4, y0: y0 - 0.3, y1: y1 + 0.3 }, { az: 64, el: 40 }),

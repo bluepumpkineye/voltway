@@ -88,7 +88,8 @@ export const avatr06t: Vehicle = {
     accentColor: '#7A5CFF',
     ambientLighting: true,
     ambientHue: 275,
-    defaultTheme: 'dark',
+    // the car's pages in the photographs are the light UI (blender/reference/avatr-06t/hmi); the home keeps its dark wallpaper
+    defaultTheme: 'light',
     driveModes: [
       { id: 'comfort', label: 'Comfort', native: '舒适', group: 'street', model: 'comfort' },
       { id: 'eco', label: 'Eco', native: '经济', group: 'street', model: 'eco' },
@@ -268,7 +269,13 @@ export const avatr06t: Vehicle = {
   // through the backlight and the roof as grey shapes the owner read as bumps and body mixed into the glass (2026-10-28). The
   // photographed pane is dark with only the headrests' silhouettes in it (c1_0005, c1_0007), and it mirrors a dark ceiling.
   glass: { color: '#98a4b3', opacity: 0.34, privacy: 0.84, privacyReflect: 0.55 },
-  lights: { projector: {} },
+  // The slit lamp's lit bar is Avatr's cyan signature (c1_0009..0012: the grey car with its lamps awake), glowing a little
+  // even with the lamps off; the projector units are the two pale lens plates (the parking sensors no longer light).
+  lights: {
+    // the halo and the white-hot core are two materials driven together (the core's own baked strength would clip to white)
+    front: { material: 'M_LED_Cyan', aliases: ['M_LED_Cyan_Core'], color: '#b4f4ff', halo: '#2bb6ff', off: 0.7, on: 2.6 },
+    projector: { material: 'M_Lamp_Lens' },
+  },
   sensors: {
     lidar: [0.18, 1.45, 0],
     sideLidar: [0.72, 0.65, 0.95],

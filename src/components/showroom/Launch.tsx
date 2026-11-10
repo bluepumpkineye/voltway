@@ -394,7 +394,8 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
       <svg
         width="100%"
         viewBox="0 0 840 236"
-        className="w-full max-w-[840px] overflow-visible drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
+        // a phone held sideways: the cluster is a quarter of the window's height (the picture is 840 by 236), not the whole of it
+        className="w-full max-w-[840px] short:max-w-[calc(24vh*3.56)] overflow-visible drop-shadow-[0_8px_24px_rgba(0,0,0,0.85)]"
         aria-label="Gran Turismo 7 Racing Cockpit"
       >
         <defs>
@@ -1439,12 +1440,12 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
       </svg>
 
       {/* Floating Action Controls & Threshold Selectors */}
-      <div className="mt-2 flex w-full max-w-[620px] items-center justify-between gap-3 px-2">
+      <div className="mt-2 short:mt-1 flex w-full max-w-[620px] short:max-w-[480px] items-center justify-between gap-3 short:gap-2 px-2">
         <button
           type="button"
           onClick={action.run}
           disabled={!launch}
-          className={`flex shrink-0 items-center gap-2 rounded-full bg-neutral-900/80 px-4 py-2 text-[12px] font-semibold text-white backdrop-blur-md ring-1 ring-white/15 shadow-lg transition-all hover:bg-neutral-800 hover:ring-cyan-400 active:scale-95 disabled:opacity-40 cursor-pointer ${FOCUS}`}
+          className={`flex shrink-0 items-center gap-2 rounded-full bg-neutral-900/80 px-4 py-2 short:px-3 short:py-1 short:text-[11px] text-[12px] font-semibold text-white backdrop-blur-md ring-1 ring-white/15 shadow-lg transition-all hover:bg-neutral-800 hover:ring-cyan-400 active:scale-95 disabled:opacity-40 cursor-pointer ${FOCUS}`}
         >
           <span
             className={`inline-block h-2 w-2 rounded-full transition-colors ${
@@ -1461,7 +1462,7 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
                 key={chip.key}
                 type="button"
                 onClick={chip.select}
-                className={`group flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] backdrop-blur-md transition-all cursor-pointer font-['Chakra_Petch',sans-serif] ${FOCUS} ${
+                className={`group flex items-center gap-1.5 rounded-full px-3 py-1.5 short:px-2 short:py-0.5 short:text-[10px] text-[11px] backdrop-blur-md transition-all cursor-pointer font-['Chakra_Petch',sans-serif] ${FOCUS} ${
                   chip.selected
                     ? 'bg-cyan-500/20 text-cyan-200 ring-1 ring-cyan-400 font-bold shadow-[0_0_14px_rgba(0,229,255,0.3)]'
                     : 'bg-neutral-900/60 text-neutral-300 ring-1 ring-white/10 hover:bg-neutral-800/80 hover:text-white'
@@ -1485,7 +1486,7 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
               <div
                 key={chip.key}
                 title={chip.title}
-                className="flex items-center gap-1.5 rounded-full bg-neutral-900/60 px-3 py-1.5 text-[11px] text-neutral-300 ring-1 ring-white/10 backdrop-blur-md font-['Chakra_Petch',sans-serif]"
+                className="flex items-center gap-1.5 rounded-full bg-neutral-900/60 px-3 py-1.5 short:px-2 short:py-0.5 short:text-[10px] text-[11px] text-neutral-300 ring-1 ring-white/10 backdrop-blur-md font-['Chakra_Petch',sans-serif]"
               >
                 <span
                   ref={(el) => {

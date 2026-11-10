@@ -50,6 +50,27 @@ def build_library():
                   coat=1.0, coat_rough=0.02, ior=1.52)
     lib["lamp_clear"] = m
 
+    # The headlamp (ext_front.jpg, the black car): the DRL's lens and the pod's frame are near-black glass with a satin
+    # gloss, not a mirror (a mirror finish took the white studio's colour and read as grey plastic)
+    m, nt, b = _M.mat("M_Lamp_Frame")
+    _M.set_inputs(b, base=(0.002, 0.002, 0.003), metallic=0.0, roughness=0.36, specular=0.06)
+    lib["lamp_frame"] = m
+
+    # the two frosted dashes of the DRL: the prismatic crystal, pale and matte, over the lit bar's lower edge
+    m, nt, b = _M.mat("M_Lamp_Frost")
+    _M.set_inputs(b, base=(0.085, 0.09, 0.10), metallic=0.0, roughness=0.50, specular=0.30)
+    lib["lamp_frost"] = m
+
+    # the pod's silver hairlines (the bezels round its two lens units)
+    m, nt, b = _M.mat("M_Lamp_Hairline")
+    _M.set_inputs(b, base=(0.78, 0.80, 0.83), metallic=1.0, roughness=0.22)
+    lib["lamp_hair"] = m
+
+    # the pod's lens plates and projector lens: dark glass in a dark housing (the Lights tab lights these with the low beam)
+    m, nt, b = _M.mat("M_Lamp_Lens")
+    _M.set_inputs(b, base=(0.022, 0.024, 0.028), metallic=0.0, roughness=0.18, coat=1.0, coat_rough=0.03, ior=1.5)
+    lib["lamp_lens"] = m
+
     # Super-Red illumiBlade taillamp smoked acrylic lens
     m, nt, b = _M.mat("M_Lamp_RedLens")
     _M.set_inputs(b, base=(0.090, 0.004, 0.006), metallic=0.0, roughness=0.06,

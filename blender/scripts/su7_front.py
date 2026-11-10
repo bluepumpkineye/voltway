@@ -9,20 +9,22 @@ radiator grille.
 
 Headlamps
 ---------
-The SU7 lamp is a slanted sliver ("water-drop", ~5.4:1) whose inboard tip sits
-on the nose and whose outboard end wraps round the fender corner - so it spans
-BOTH the nose cap and the flank. It is built between two measured 3D edge
-curves, placed by radial ray casts from inside the corner onto the built body
-meshes and pushed ~4 mm proud, which is where the reference puts the lens.
-On the Ultra the lens is smoked: only the DRL blade and four projector modules
-in the outboard third light up.
+The SU7 lamp is a compact almond (see the section below) whose rounded outboard
+end wraps round the fender corner and whose pointed inboard tip sits on the nose
+- so it spans BOTH the nose cap and the flank. It is laid by the maker's head-on
+photograph's own rays onto the built body panels (carkit.photolay), a few mm
+proud. Only the DRL bar and the three projector modules light up.
 """
 import math
 
 import su7_surface as S
 import su7_nose as N
 import su7_panels as PN
+import ref_match as RM
+import su7_lampdata as LD
+from mathutils import Vector
 from carkit import geom
+from carkit import photolay as PL
 from carkit import mesh as M
 from carkit import place as P
 from carkit.body import fascia as FA
@@ -67,66 +69,64 @@ def body_side_point(x, z):
 
 
 # --------------------------------------------------------------- headlamps
-# Measured edges, left lamp (+Y). Both start at the inboard tip; the upper
-# edge is 6 mm higher there so the tip is a sliver rather than a point.
-# Heights re-measured through the matched side camera: the lens spans
-# z 0.56-0.74 and its upper rear tip sits at (1.985, 0.738). The first cut
-# had every point 182 mm higher, above the fender line of the real car.
-# The outboard end wraps onto the side of the fender (y ~0.94 at this height).
-LAMP_UPPER = [(2.405, 0.400, 0.598), (2.360, 0.600, 0.648), (2.245, 0.740, 0.676),
-              (2.090, 0.870, 0.718), (1.975, 0.938, 0.742)]
-# The lower edge sags to z 0.56 under the outboard half: from the side the
-# lens spans 0.56-0.74 and reads as a fat teardrop, not a sliver.
-LAMP_LOWER = [(2.405, 0.400, 0.590), (2.340, 0.600, 0.575), (2.235, 0.745, 0.563),
-              (2.110, 0.860, 0.562), (2.040, 0.910, 0.592), (1.995, 0.940, 0.652)]
-LAMP_PROUD = 0.0040
-NS, NK = 56, 8
-LAMP_CENTRE = (1.90, 0.45, 0.62)
-LAMP_BODY = ("SU7Ultra_Fascia_Upper", "SU7Ultra_Fascia_Cheek",
-             "SU7Ultra_Fender_Front", "SU7Ultra_Hood")
-# projector modules crammed into the outboard third, as (y, z)
-LAMP_MODULES = [(0.715, 0.678), (0.775, 0.680), (0.812, 0.698), (0.848, 0.700),
-                (0.868, 0.670)]
+# The SU7's lamp is a compact ALMOND (~1.4:1, 33 x 24 cm): a rounded outboard end wrapping the fender corner, a straight top
+# edge falling to a pointed inboard tip that points at the plate, a full curve along the bottom; a black frame, a grey
+# reflector in the upper half, ONE diagonal DRL bar from the outer end to the tip, three projector modules (the Ultra's
+# lens is clear: the maker's head-on photograph shows right into it). 2026-11-03, the owner: "the real car has its
+# headlight like an almond shape, while our render has something larger that changes the car's front look". The first
+# build laid a slanted sliver between two measured edge curves (~5:1, 0.56-0.74 m high, past the fender line): too
+# large and the wrong shape.
+#
+# The outline is read from big_023.jpg through ref_match's "head_on" camera (su7_lampdata, porting/su7_lamp_trace): each
+# outline point is sent along the photo's own ray onto the nose, fender and hood panels (carkit.photolay), so it lands
+# where the real car has it - on the fender corner as well as on the nose.
+SURF_PANELS = ("SU7Ultra_Fascia_Upper", "SU7Ultra_Fascia_Cheek", "SU7Ultra_Fender_Front", "SU7Ultra_Hood")
+_SURF = []
 
 
-def _lamp_place(p, d):
-    return surf_radial(p, LAMP_CENTRE, LAMP_BODY, d)
+def _surf():
+    if not _SURF:
+        _SURF.append(PL.Surf(SURF_PANELS, x_range=(2.50, 1.80)))
+    return _SURF[0]
 
 
-def _crown(k, extra=0.0):
-    """How proud the lens sits at edge fraction k: 4 mm plus a 1.6 mm crown."""
-    crown = 0.0016 * math.sin(math.pi * max(0.0, min(1.0, k)))
-    return LAMP_PROUD + crown + extra
+def _on_surface(u, v, cam="head_on", inset=0.0):
+    """(point, outward normal) of the panels under pixel (u, v) of the photo's left half, on the half sheet."""
+    o, d = RM.ray(cam, u, v)
+    o, d = Vector((o.x, -o.y, o.z)), Vector((d.x, -d.y, d.z))
+    h = _surf().hit(o, d, inset)
+    if h is None:
+        raise RuntimeError("su7_front: the photo ray through (%g, %g) misses the nose" % (u, v))
+    return h
+
+
+LAY = PL.Lay(_on_surface, geom.away_from((1.90, 0.45, 0.60)))
+
+# how far each layer stands off the paint (m): frame, reflector, DRL bar, projector base
+FRAME_UP, SILVER_UP, DRL_UP_D, MODULE_UP = 0.0020, 0.0027, 0.0034, 0.0034
+
+
+def reset_lamp_surf():
+    del _SURF[:]
 
 
 def build_headlamps(collection, lib):
     made = []
-    lo = _polyline(LAMP_LOWER, NS)
-    up = _polyline(LAMP_UPPER, NS)
-    out = _away_from((2.15, 0.60, 0.70))
-
-    # lens: smoked, opaque gloss black with a faint crown
-    made.append(lamps.lens("SU7Ultra_Lamp_Lens", lo, up, _lamp_place, collection,
-                           lib["lamp_smoked"], NK, lambda k, nk: _crown(k / float(nk)),
-                           out, thickness=0.0035, bevel=(0.0012, 2, 30)))
-    # seal bands just outside both edges: set into the body, not a sticker
-    made += lamps.seals("SU7Ultra_Lamp_Seal", lo, up, _lamp_place, collection,
-                        lib["grille"], out, width=0.0055, d=0.0010)
-    # DRL: one light guide in the lower third, running most of the lamp - the
-    # only emissive geometry in the assembly
-    k0, k1 = 0.16, 0.30
-    made.append(lamps.band_between("SU7Ultra_Lamp_DRL0", lo, up, range(1, int(NS * 0.86)),
-                                   [k0 + (k1 - k0) * c / 2.0 for c in range(3)],
-                                   _lamp_place, lambda k: _crown(k, 0.0006), collection,
-                                   lib["led_white"], out))
-    # projector modules, crammed into the outboard third
-    for m_i, (yy, zz) in enumerate(LAMP_MODULES):
-        best = lamps.station_nearest_y(lo, up, yy)
-        zl, zu = lo[best][2], up[best][2]
-        k = max(0.25, min(0.85, (zz - zl) / max(1e-4, zu - zl)))
-        c, n = surf_radial(_lerp(lo[best], up[best], k), LAMP_CENTRE, LAMP_BODY,
-                           LAMP_PROUD + 0.0022)
-        made += lamps.projector("SU7Ultra_Lamp_Proj%d" % m_i, c, n, 0.0135, collection, lib)
+    reset_lamp_surf()
+    # the frame: the whole almond, black glass, with a hair's grow so the paint never shows round it
+    made.append(LAY.region("SU7Ultra_Lamp_Frame", PL.grow(LD.LAMP_OUT, 0.8), FRAME_UP, lib["lamp_frame"], collection,
+                           step=6.5, thick=0.0016, bevel=0.0008))
+    # the reflector that shows through the upper half
+    made.append(LAY.region("SU7Ultra_Lamp_Silver", LD.SILVER, SILVER_UP, lib["lamp_silver"], collection,
+                           step=5.5, thick=0.0006))
+    # one DRL bar from the outer end to the tip: the only emissive geometry in the assembly (the Lights tab lights it)
+    made.append(LAY.band("SU7Ultra_Lamp_DRL0", LD.DRL_UP, LD.DRL_LO, 40, 2, DRL_UP_D, lib["led_white"], collection,
+                         thick=0.0004))
+    # projector modules: a dark bowl with a lens, ahead of the reflector (they light with the low beam)
+    for k, (u, v, r_px) in enumerate(LD.MODULES):
+        p, n = _on_surface(u, v)
+        r = r_px * 0.0022
+        made += lamps.projector("SU7Ultra_Lamp_Proj%d" % k, tuple(p + n * MODULE_UP), tuple(n), r, collection, lib)
     return made
 
 
@@ -167,34 +167,61 @@ def build_intake_mesh(collection, lib):
 # --------------------------------------------------------- plate + lettering
 def build_plate(collection, lib):
     """The 'SU7 Ultra' show plaque in the plate plinth."""
-    p, n = proud((2.46, 0.0, 0.560), 0.0015)
-    return fittings.plate("SU7Ultra_Plate", p, n, collection, lib, w=0.440, h=0.140,
+    # 2026-11-03: re-read from the head-on photograph (big_023.jpg through ref_match's "head_on" camera): the plaque spans
+    # z 0.37-0.515 (centre 0.443) and 0.49 m across; it sat 0.117 m too high and 5 cm too narrow
+    p, n = proud((2.46, 0.0, 0.443), 0.0015)
+    return fittings.plate("SU7Ultra_Plate", p, n, collection, lib, w=0.488, h=0.145,
                           texts=(("SU7", -0.080, 0.070, False, True),
                                  ("Ultra", 0.080, 0.070, True, False)))
 
 
 # ------------------------------------------------------------------ stripes
 STRIPE_Y = (0.0075, 0.1075)       # each stripe 100 mm, 15 mm gap on centre
+Z_STRIPE_0 = 0.525                # the stripes start at the plaque's top edge (big_023.jpg: z 0.52)
 
 
 def _centre_path():
-    """(x, z) along the car's top centreline, from the plate up over the nose
-    and back along the hood to the cowl."""
-    path = []
+    """(x, z) along the car's top centreline: the nose's face from the plate up to its top, then the hood back to the
+    cowl. The stretch over the cap's top, between the two, is laid by rays down onto the panels (_stripe_rows)."""
+    face, hood = [], []
     for i in range(18):
-        z = 0.636 + (N.NOSE_Z_HI - 0.004 - 0.636) * i / 17.0
-        path.append((N.NOSE_X_OF_Z(z), z))
+        z = Z_STRIPE_0 + (N.NOSE_Z_HI - 0.004 - Z_STRIPE_0) * i / 17.0
+        face.append((N.NOSE_X_OF_Z(z), z))
     xj = N.JOIN_F(1.0)
     for i in range(1, 60):
         x = xj - (xj - PN.X_COWL - 0.01) * i / 59.0
-        path.append((x, S.Z_ROOF(x)))
-    return path
+        hood.append((x, S.Z_ROOF(x)))
+    return face, hood
+
+
+def _stripe_rows(cols=4, d=0.0006):
+    """Rows of the two stripes' grid (left half), every point a ray onto the BUILT panels (45 degrees down over the
+    nose's face, vertical over the cap's top and the hood). The analytic surface (`proud`) put the stripes 0.5-1 mm
+    under the paint in places on the new hood (ragged edges) and cannot place the cap's top at all (`WrapCap.wv_at` is not
+    monotone above the join ring's crown): the stripes had a 4.5 cm gap there."""
+    face, hood = _centre_path()
+    ys = [STRIPE_Y[0] + (STRIPE_Y[1] - STRIPE_Y[0]) * c / float(cols - 1) for c in range(cols)]
+    diag = Vector((-1.0, 0.0, -1.0)).normalized()
+    down = Vector((0.0, 0.0, -1.0))
+
+    def row(x, z, vertical):
+        out = []
+        for y in ys:
+            o, dr = (Vector((x, y, 1.6)), down) if vertical else (Vector((x + 0.3, y, z + 0.3)), diag)
+            p, n = _surf().hit(o, dr)
+            out.append(tuple(p + n * d))
+        return out
+    rows = [row(x, z, False) for (x, z) in face]
+    x0, x1 = face[-1][0], N.JOIN_F(1.0)
+    rows += [row(x0 + (x1 - x0) * i / 8.0, 0.0, True) for i in range(1, 9)]
+    rows += [row(x, z, True) for (x, z) in hood]
+    return rows
 
 
 def build_stripes(collection, lib):
-    return [fittings.centre_stripes("SU7Ultra_Stripes_Hood", _centre_path(),
-                                    STRIPE_Y[0], STRIPE_Y[1], proud, collection,
-                                    lib["stripe"])]
+    ob = M.grid("SU7Ultra_Stripes_Hood", _stripe_rows(), collection, lib["stripe"], geom.const((0.0, 0.0, 1.0)))
+    M.mirror_y(ob)
+    return [ob]
 
 
 # --------------------------------------------------------------- corner fin

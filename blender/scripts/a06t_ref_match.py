@@ -29,3 +29,8 @@ _R.register("front", "avatr-06t/exterior/c1_0002.jpg", SIZE, C.FRONT_CAM["loc"],
             C.FRONT_CAM["f"], pp=C.FRONT_CAM["pp"])
 _R.register("rear", "avatr-06t/exterior/c1_0006.jpg", SIZE, C.REAR_CAM["loc"], (90.0, 0.0, 270.0),
             C.REAR_CAM["f"], pp=C.REAR_CAM["pp"])
+
+# the close-up of the right headlamp (details/c12_0011.jpg): its camera was solved by fitting the lamp outlines of
+# c1_0002 onto its own contours (a06t_lampdata.py); the headlamp's outlines are read in its pixels
+import a06t_lampdata as _LD
+_R.register("lamp11", "avatr-06t/details/c12_0011.jpg", _LD.SIZE, _LD.CAM["loc"], _LD.CAM["rot"], _LD.CAM["f_px"])

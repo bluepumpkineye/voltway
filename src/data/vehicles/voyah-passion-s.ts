@@ -244,7 +244,8 @@ export const voyahPassionS: Vehicle = {
   ],
   xray: { node: 'VoyahPassionS_Greenhouse', color: '#98a4b3', opacity: 0.34, hideCabin: ['int_headliner'] },
   glass: { color: '#98a4b3', opacity: 0.34, privacy: 0.84, privacyReflect: 0.55 },
-  lights: { projector: {} },
+  // the cheek's two projector units (M_Lamp_Lens) light with the low beam; the DRL line and the nose channel's strip are the usual M_LED_White
+  lights: { projector: { material: 'M_Lamp_Lens' } },
   sensors: {
     lidar: [0.37, 1.62, 0],
     sideLidar: [1.0, 0.9, 0.96],

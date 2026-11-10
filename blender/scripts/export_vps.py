@@ -225,8 +225,13 @@ def bake_exterior_ao(samples=256):
 
     # open: the jambs and bays are enclosed shut; shut: the skins beside an open door are not shaded by it (carkit.bake)
     try:
-        return BK.ambient_occlusion_poses(objs + [o for _, ms in extra for o in ms],
-                                          [lambda: open_all(True), lambda: open_all(False)], bake)
+        stats = BK.ambient_occlusion_poses(objs + [o for _, ms in extra for o in ms],
+                                           [lambda: open_all(True), lambda: open_all(False)], bake)
+        import vps_front as FR
+        nose = bpy.data.objects.get("VPS_Fascia")
+        if nose is not None:
+            print("lamp AO relaxed on %d vertices" % FR.relax_lamp_ao(nose))
+        return stats
     finally:
         open_all(False)
 

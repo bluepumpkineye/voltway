@@ -1226,6 +1226,31 @@ Art from the build: `z9_cabin.hmi_art()` / `g9l_cabin.hmi_art()` (the car at 3/4
 pages, `cabin-climate|seats-light|dark.webp`); `hmi_cabin` prints `HMI_SEATS`, the fractions where each seat's button goes
 (the `SEATS` arrays in `SeatsPage`/`SeatsTab`). Check a skin without the car: `/capture/hmi/<slug>?screen=<id>`.
 
+**2026-11-02: each car wears its own OS** (owner: "replicate the respective OS/UX"). Before, the 06T's `skin: 'avatr'` had no
+route and drew the generic placeholder, and the Seal wore the Z9's DiLink 150. Now:
+- `'avatr'` (06T, `components/hmi/avatr/`): the Huawei HarmonyOS 4 cockpit in Avatr's layer, read off Autohome series 8538 cat 10
+  (#15-46, #75-96, in `blender/reference/avatr-06t/hmi`). A wallpaper home with a row of glass cards (frequent apps, the air-quality
+  suggestion, HUAWEI ADS, music, range), a status bar and a bottom bar of its own (one temperature pager, 360, the car, demisters,
+  heated wheel, volume), pale blue-grey pages (light is its default, `defaultTheme: 'light'`; the dark theme works), the vehicle
+  control panel (drive-mode card + switch grid), climate with the cabin full-bleed, seats (heat, ventilation, massage, zero gravity),
+  Huawei Music, the Settings app (12 pages: Vehicle control, Driving, Sound, Lights, Energy, Assisted driving, Smart scenes, Display,
+  Connections, Smart assistant, Vehicle status, System) and the App Centre (three tabs). It reuses the RX's HarmonyOS blocks (icons,
+  `AppIcon`, `NavPage`, `CameraPage`, `HaProvider`) and writes the same store.
+- `'byd'` (Seal, `components/hmi/byd/`): the real Seal's DiLink (series 6394, `blender/reference/byd-seal-ev/hmi`, cat 10 #23-40 night
+  and #90-101 day; the Seal 07 photos in `blender/reference/byd-seal` are another car). Wallpaper home (moon and dolphins, drawn)
+  with four glass capsules, the tall system bar (back, home, settings, fan, driver temperature, seat heat, passenger temperature,
+  demister, apps, split, windows), the air-conditioning page, the vehicle page, phone, music, 360, the app panel and Settings
+  (DiLink / DiPilot / New energy / Vehicle settings / Vehicle health with their top tabs). Night is the default, day is a theme.
+  Not built: the 15.6" screen's portrait rotation (s_0040) and the cluster.
+- `'xos'` (G9L, `components/hmi/xos/`) was rebuilt on the car's two-panel layout (`Split.tsx`: the car panel at the left is a third of
+  the width, the right panel is the map, a settings sheet or the app centre) and its Settings is `Settings.tsx`: the nine-item icon
+  menu, the tile grid, and the deeper pages (Driving mode, Unlock & welcome, Ambient light, Lights, Doors & windows, Seats & steering
+  wheel, Maintenance, Map, Driver assist with its VLA 2.0 banner, Smart voice, Sound, Charging, Smart camera, Display, Device connection).
+- `'dilink'` (Z9): the seat page got the photographed top tab row, back key and centred All off / All on; the climate cabin is tinted
+  to the photo's cold blue.
+Check any skin without the car: `/capture/hmi/<slug>?screen=<id>&page=<settings page>&theme=light|dark&apps=1`. The photos are
+Chinese: labels are English translations of them, and every wallpaper, cover and mascot is drawn (the cars' own are artwork we do not ship).
+
 **Two viewer fixes that apply to every cabin (`CarModel.tsx`, `bakeSmooth.ts`).**
 
 - **The screen was drawn over the steering wheel.** The HMI is a web page above the canvas, so it covered anything between
@@ -1477,6 +1502,95 @@ Not done: the published 5280 mm still stands in `nio-es8.ts` (the maker's figure
 (`public/landing/nio-es8.webp`, `scripts/landing-shots.mjs` needs Playwright) still shows the old shape; the nose's plan is rounder than the
 real car's squarer corners; the face band is a plain trapezoid (the real one has a shallow point under the emblem).
 
+### The Nio ES8's headlamps and nose corner (2026-11-03)
+
+The owner: "our headlight is cut in the middle" and "a cavity on the edge and front of our model, which does not exist on the real car".
+
+**The cavity** was a V-shaped pleat from the DRL's outer end down to the lamp pod, where the nose cap, the fender and the hood meet
+(dihedral 27-30 degrees at x 2.29, y 0.80, z 0.91 on both the fascia and the fender). Three causes, three fixes: (1) the loft's
+section recipe (a step in above the crease, a tumble point well inside the crease and rail) folds the section back on itself ahead of
+the cowl: `es8_surface.SECTION_AT` (the G9L's fix) makes the hood a flat top rolling over a quarter ellipse into the fender's corner;
+(2) the cap's running-max height table `t_of_v` has a kink where the loft's crease drops steeply: `es8_nose.NoseCap` (a `WrapCapG1`
+with the table Gaussian-smoothed, sigma 0.12); (3) what is left is smoothed as ONE vertex cloud over the three sheets
+(`es8_front.smooth_corner`, run as the first cut of the fascia: each vertex moves toward the mean of its neighbours within 2 cm, by a
+weight that fades to nothing at 9.5 cm from the corner (2.285, 0.80, 0.90), 16 passes; the seam's two sides take nearly the same
+shift, so no gap opens: 60 fascia and 5 fender vertices moved, at most 25 mm). Smoothing each sheet alone would open gaps.
+
+**The headlamps** are read off the official front photograph `ext_front.jpg` (2560 x 1280, `blender/reference/nio-es8/official`)
+through its solved camera and laid on the panels along the photo's own rays, as for the 06T. The first build had been placed by eye:
+four short strips with gaps between them, 0.14 m too far inboard and 0.1 m too high. What the car has: ONE dark lens, two frosted
+(crystal) dashes on it with a thin divider between, each dash with a bar lit along its lower edge, running right round the hood's
+corner; under it, in the bumper's corner, a tall "D" pod with a chrome sill, two lens units with silver bezels (the upper one round
+inside) and a small intake below with a lighter slab inset.
+- `es8_ref_match.py`: camera "front" (f 7805 px, 16 m, 1.61 m up, 2.4 degrees down). A head-on photograph does not fix the lens'
+  distance, only the scale at the nose: it was taken from the body's widest section (0.996 m a side) and the nose landmarks on the centre
+  line (emblem z 0.90, face panel z 0.715-0.836, plate z 0.415-0.555, chin blade z 0.29), the height from the windscreen's base. Check by
+  projecting the model's vertices onto the photo as coloured dots over a gridded crop: they land within 10 px = 2 cm.
+- `es8_lampdata.py` (generated by `porting/es8_lamp_trace/gen_es8_lampdata.py`, README there): the DRL's lens, dashes and bars are
+  TRACED (threshold, closing, boundary chains, smoothed); the pod, bezels, sill and vent are hand readings of 7x gridded crops (the dark
+  glass has no edge a threshold finds).
+- `carkit/photolay.py`: the generic part of the 06T method (smooth, fill, grow, `Lay.region/ribbon/band` over any `hit(u, v)`), so a
+  car supplies only its surface and its outlines. `es8_front._Surf`: BVH of the uncut fascia + fender + hood AS SMOOTHED, vertex
+  normals interpolated (the analytic cap would float over the smoothed paint).
+- Rays that fail: through a shut line's gap, or past the sheets' edge (the model's corner is 3-5 cm narrower than the real car's at the
+  DRL's height: the plan is still rounder than the real car's squarer corner), they take the surface's closest approach along the ray
+  (not a fixed x: a ray skimming a wall that is a few cm too narrow was pinned at one x and the lamp shredded), pulled 4 mm inboard
+  for the outlines a boolean cuts along. The DRL's outer end is edge-on in a front photograph (rays at 60-80 degrees, then none): past
+  `DRL_WRAP` it is carried back along the wall to x 2.04 (the side and top photographs put the real tip 0.36 m behind the inner one)
+  with its height still the photo's.
+- Parts inside the pod stand in the opening (bezels 14 mm back, lens plates 12.5), the DRL stands 2-3.4 mm proud of the paint as an
+  applied lens (the three sheets it crosses are not cut for it). Materials `M_Lamp_Frame / Frost / Hairline / Lens` in
+  `es8_materials`; the DRL bars are `M_LED_White` (the Lights tab's front lamp), the pod's lenses `M_Lamp_Lens`
+  (`lights.projector` in `nio-es8.ts`).
+- `relax_lamp_ao` (es8_front, called from `export_es8.bake_exterior_ao`): the same grey halo round the pod's and the vent's cuts as the
+  06T's.
+- Loop that worked: `build_es8.main(parts=("es8_front",), wheels=False, scene=False)` (2.3 min, saved as a blend), then render it
+  through the photo camera next to the photo crop (`pair`), the owner's 3/4 camera and a close-up; to try only the DRL, open the saved
+  blend, delete `ES8_Lamp_Glass / Frost / DRL`, call `es8_front.build_drl` (seconds). Full run: `export_es8.exterior()` to a scratch
+  folder (5.4 min), copy only the GLB, `scripts/make-proxy.mjs nio-es8`.
+
+Not done: the nose's plan is still rounder than the real car's (a 3-5 cm squarer corner would let the DRL's outer end sit where the photo
+has it); the flare cladding's front end (`ES8_Clad_F`, x 2.06) shows as a black slab beside the pod from dead ahead; the dark "wing"
+under the DRL (the real lamp sits on a swept black lip) is not modelled; the show plate is 0.44 m wide (the photo says about 0.50).
+
+### The Voyah Passion S's front end (2026-11-03): lamp, nose channel, emblem, cheek
+
+The owner (with the Autohome photo next to a viewer screenshot): "the same unpolished and unfinished design on the front bumper and
+headlights; the upper headlights should form a continuous line with the middle stripe". The first build had hand-read pixel outlines
+(`DRL_UP_PX`...), a "winged" lamp of five white blades with a gap before the channel, a chrome-looking stripe, a plain grey apron and
+a cheek cut from a hand polygon. Same method as the 06T and the ES8, with the camera the build already had (`vps_cam.FRONT_CAM`,
+24.5 m, f 19974 px: 1.1 mm per pixel on the studio front photograph `c1_0002.jpg`, 3840 x 2880):
+- `vps_lampdata.py` (generated by `porting/vps_lamp_trace/gen_vps_lampdata.py`, README there; the pale paint against the black parts is
+  the best threshold contrast of any car so far): TRACED are the lamp's outline, the channel's frame (top and bottom edge per column),
+  the outline of the black cheek-and-grille recess the paint is cut along, the emblem (its dark loop is the shield, its holes the three
+  white blades) and the intake body (the grey right of a hand-read curve); HAND readings of 3x crops are the DRL line (a per-column
+  brightest ridge wandered onto the LED rows), the smoked panel, the two projector bezels, the slat, the fin, the round cover.
+- `vps_front.py`: `build_lamp` (black eyelid body + dark lens + a silver hairline with the DRL line on it: ONE piece), `build_channel`
+  (black frame + strip, from the lamp's inner end, same height, no gap, to the emblem), `build_emblem` (shield + blades),
+  `build_cheek` (smoked panel, bezelled projector units, body, fin, slat, cover), `_mask_cut` (the cheek cut = the traced outline),
+  the grille blades re-spaced from the photo (5 per row at 6.2 cm, rows at v 1862-1912 and 1933-1978). Parts are laid by
+  `carkit.photolay` (`Lay`, and `Surf`, shared with the ES8) on the uncut fascia + fender + hood.
+- The lamp's outer end is edge-on in a front photograph as the ES8's is; here the model's corner is as wide as the real car's, so the
+  rays land and no `DRL_WRAP` was needed.
+- Two old defects found on the way: (1) the apron (`VPS_Apron`, built with `top_to_centre`) stood through the paint above the emblem
+  as two black shards (found by hiding objects in a render through the photo camera): it now stops at z 0.84; (2) black gloss
+  mirrors the white studio and reads mid-grey, so the apron is `grille` (satin black) and the intake body a dark satin
+  (`M_Intake_Grey`).
+- Lights: the DRL line and the channel's strip are this car's `M_LED_White` (made dark translucent unlit in `vps_materials`; the Lights
+  tab lights them together; the emblem's blades are `M_Lamp_SoftWhite`); the cheek's projector units are `M_Lamp_Lens`
+  (`lights.projector` in `voyah-passion-s.ts`). `relax_lamp_ao` (vps_front, called from `export_vps.bake_exterior_ao`) lifts the baked
+  grey halo round the cheek cut.
+- Loop: `build_vps.main(parts=("vps_front",), wheels=False, scene=False)` (3 min) saved as a blend and rendered through
+  `vps_ref_match` "front" next to the photo crop; full run `export_vps.exterior()` to a scratch folder (6.5 min), copy only the GLB,
+  `scripts/make-proxy.mjs voyah-passion-s`.
+
+Cheek cut, second pass (the owner: "as if someone cuts roughly with a cutter"): a raw traced contour, however smooth it looks over the photo, is a stair-step chain, and a boolean cut along it on a curved sheet shows every step; and a cut along the fascia sheet's own edge (the cheek's outer edge) tears into sawteeth. What works: `gen_vps_lampdata.py` closes thin light slits (`closing r=5`), simplifies the loop (Douglas-Peucker 2.2 px: `CHEEK_PTS`, 40-odd vertices), marks the corners (turning angle over 50 degrees, `CHEEK_CORNERS`), drops a 15 px hook at the cavity's foot and puts the panel's round corner back; `vps_front._mask_cut` spline-smooths between the corners (`photolay.smooth_loop`), leaves a 1.8 cm paint lip at the outer edge (`_lip`, faded out where the cavity meets the fang) and takes each point along the photo's ray, 4 mm inboard of a sheet's edge. Parts inside the recess are single sheets without a rim (a solidified sheet's rim blends its normals into a "pillow"), and the smoked panel is grown 5 px so its edge tucks under the paint.
+
+Dash through the windscreen (the owner, 2026-11-03: a hole from above, "the dash way too high" from the front): the Voyah's top pad (`vps_interior.DASH_SECTION`) hugged the glass from x 0.84 (z 1.25) up to x 0.685 (z 1.34) and dropped 14 cm to the screens' face, while the cowl is at x 1.04-1.15, z 1.11-1.13: from outside a tall grey slab, from above a gap between the cowl and the pad's front edge. The 06T had the same ("never let the dash top hug the windscreen"). Now the pad is a low shelf from x 1.10 (z 1.115) to the face's top (x 0.685, z 1.198) on a smooth ramp, always 14-20 mm under the glass (`_pad_ramp`, only the first four section points changed, so the HMI-fitted screens, cluster and wheel are untouched). Re-exported with `export_vps.web_cabin(look='hall')` (7.4 min, scratch folder then copy of the GLB). Check any dash change from above and from dead ahead through the glass.
+
+Not done: the lamp's inside (two rows of LED chips, the lens' rainbow sheen), the mesh patches in the cavity, the grille's angled frame
+and its two small grey windows, the hood's side shut line (visible across the bonnet from the lamp; the photographs show none).
+
 ### The BYD Seal (`seal_*`): rebuilt from camera-matched photographs (2026-10-22)
 
 The first Seal was a Z9-derived guess; this is the real 2022-24 sedan (4800 x 1875 x 1460 mm, wheelbase 2920, 235/45 R19).
@@ -1586,6 +1700,61 @@ Side-by-side crops of the photograph and the model at the same pixels found, in 
 - **Not fixed:** a tiny kink where the sail's wedge ends over the lamp shelf (visible only in a 25 cm close-up), and the flank's long
   reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`). The tail's shoulders, mirrors
   included, still stand ~4 cm wider per side than the rear photograph's at z 1.25 (c1_0006 through its camera).
+
+### The SU7 Ultra's headlamp, hood and nose (2026-11-03)
+
+The owner (the yellow Ultra's photograph beside a viewer screenshot): "the real car has its headlight like an almond shape, while our
+render has something larger that changes the car's front look; the hood of the real car is more curved, like a Porsche Taycan, while
+ours reads like a typical sedan; the area marked in red (the hood's front between the lamps) should be convex instead of concave".
+The maker's head-on press photograph (`reference/xiaomi-su7-ultra/lights/cat53/big_023.jpg`, 1600 x 1200, DRL on) is the source; a
+solved camera `head_on` (`ref_match.py`: f 3860 px, 8.3 m from the nose, 1.16 m up, 2.55 degrees down; dots of the built panels over the
+photo land within 2-3 px at the fender outline and the corner blades) puts it into the model's coordinates. Tools and README:
+`blender/scripts/porting/su7_lamp_trace`.
+
+- **Lamp** (`su7_front.build_headlamps`, data in the generated `su7_lampdata.py`): the first build laid a slanted sliver (~5:1,
+  0.56-0.74 m high, past the fender line) between two measured edge curves. The real lamp is a compact ALMOND (~1.4:1, 33 x 24 cm: a
+  rounded outboard end wrapping the fender corner, a straight top edge falling to a pointed tip toward the plate, a full curve below).
+  Now: the TRACED outline (`LAMP_OUT`; R - B < 0.22 against the yellow paint) is laid by the photo's own rays
+  (`carkit.photolay` `Lay`/`Surf`, as the ES8 and the Voyah) as a black frame (`M_Lamp_Frame`), the grey reflector above the bar
+  (`M_Lamp_Silver`), ONE diagonal DRL bar (`M_LED_White`, the Lights tab lights it) and three projector modules (`lamps.projector`, they
+  light with the low beam). The old `lamp_smoked` lens and seal bands are gone; the lamp stands 2-3.4 mm over the paint.
+- **Hood** (`su7_surface.Z_ROOF/Z_CREST`, `su7_nose.NOSE_X_OF_Z/NOSE_Z_HI`): the hood's centre line was an S: it levelled off 8 cm short of
+  the nose and then rolled over a raised, bolster-like cap. It now falls steadily (z 0.804 at x 2.0, 0.716 at 2.3, 0.684 at 2.39, 0.653 at
+  2.45: monotone convex), the fender crowns keep the old silhouette (the side overlay still lies on the photograph's hood line), and the nose
+  cap's top is lowered to 0.676 so the profile keeps descending into the face. Probe with a ray-cast height field over the Hood, Fascia
+  and Fender panels (`scratchpad su7_sections3.py`: z at fixed y over x, and at fixed x over y).
+- **The hood is a SHIELD**: its front edge, read off the photo, draws in from the fender crowns (y 0.78 at x 1.42), turns the nose's corner
+  (y 0.60 at x 2.24, y 0.55 at x 2.32) and runs flat across the nose's top at z 0.641 (x 2.46), 14 cm ahead of and 7 cm below where the model had
+  its shut line (the loft's join, a V). `su7_panels.Y_HOOD` is the arc's side part; its front part (`HOOD_ARC_PX`, photo pixels) is cut
+  as a 4.2 mm slot through the upper fascia (`_cut_hood_arc`, new `up_cuts` argument of `carkit.body.fascia.split_nose`), laid by the
+  photo's rays onto the sheet's own BVH, and the hood's gap at the join is closed (`gap x1=False`).
+- **The soft "V" ridge across the hood** (a crease where hood and nose met) had two causes: the hood's centre line was still slightly concave
+  just before the join (slope -0.30 flattening to -0.26 over 20 cm; `Z_ROOF` now steepens monotonically, -0.29 to -0.42) and the nose cap's
+  tip stood above the flank's tangent line, so WrapCap's z blend (`zj + s.dx.u + (zt - zj - s.dx).u^2`) turned the top up into a bump
+  (`NOSE_Z_HI` 0.664, below the tangent); then the hood's bevelled rim made a groove beside the unbevelled fascia (`butt_bevel=False` on
+  the Hood spec, a per-spec override in `carkit.body.panels.build_panels`). Probe: slope of z(x) in 1 cm steps at y 0.05 / 0.2 / 0.35
+  (`su7_kink.py`): it must grow steadily through the join.
+- **Plate and stripes**: the plaque spans z 0.37-0.515 and 0.49 m across in the photograph; it sat 0.117 m too high and 5 cm too
+  narrow (`build_plate`). The stripes start at its top edge (`Z_STRIPE_0` 0.525; they began at 0.636) and every row of their grid is now a ray onto the BUILT panels (`_stripe_rows`: the analytic `proud` left a 4.5 cm gap over the cap's top and put the hood's rows 0.5-1 mm under the paint, ragged edges).
+- **Lessons**: (1) `WrapCap.wv_at(y, z)` is not reliable on the nose's top: above the join ring's crown z is not monotone in v, so the
+  arc's points beyond y 0.42 all clamped to w = 1 and only the middle of the slot was cut; lay a line there by rays onto the sheet's BVH.
+  (2) Judge a convexity change in side sections AND in a head-on render through the photo's own camera (`render_ref.py` with `CAM=head_on
+  PAIR=1`): the clay render's "bolster" was the shut line and the lighting, not the profile. (3) Reading a lit lamp: the DRL bar's edges are
+  the bright core, the glow is ~3 px wider each side.
+- **Not done** (the same photograph shows them): the lower bumper's mouth, intakes and yellow blades are a different design from the
+  model's boxy U + two intakes (the real mouth's top edge sits ~9 cm lower under the plate; the corner intake is a hexagon with a grey mesh
+  upper part; the yellow blades curve); the Fender|bumper seam over the lamp is a longer line than the real one's short stub; the lamp's
+  inner detail (louvres, LED stacks) is a flat grey reflector and three dark discs.
+
+### The X-ray anatomy (`carkit.anatomy`, SU7 first)
+
+The X-ray tab's exploded view is built from a small parts library of its own, not from the exterior's mesh: a battery pack with twelve cell
+blocks, motors (casing, stator, rotor, reducer, inverter), subframes and a rear casting, double-wishbone and multi-link corners, a steering
+rack. A car is one `CarSpec.from_dims(...)` (its measured hubs, tyre, size, pack and motors) and the parts take its size; the explode
+plan scales with the wheelbase. The result is a Draco GLB with the plan in each node's extras (`public/models/su7-ultra-xray.glb`), read by
+`src/lib/xray/` and `src/components/viewer/XrayDirector.tsx`. The shapes are ours, labelled as such. The whole story, how to add a car
+and the checks are in [docs/xray.md](xray.md); the SU7 is the only car wired, the Zeekr 7X's anatomy was built in Blender as proof that
+the parts rescale.
 
 ### Judging the web result against the photo
 
@@ -1708,6 +1877,8 @@ Interior and web:
   - **Privacy glass is a per-car opacity** (`Vehicle.glass.privacy`; the default 0.55 is for a car whose glass is photographed clear). With the cabin visible through the roof and the backlight at 55 %, the cargo trim, shelf and the headliner's lamps read as grey bumps in the glass; the A06T's is 0.84 with `privacyReflect` 0.55, the clear panes keep the X-ray ghost.
   - **Dark stains and folds on the paint (2026-11-02): four different causes, told apart by switching things off in the viewer.** `window.__ao.strength.value = 0` (occlusion off) and `window.__ao.view.value = 1` (occlusion shown) separate baked smears from geometry; hiding the `*_Blackout` node separates the underlay; a false-colour id pass names the mesh. (1) *Occlusion baked with the doors open* smeared the fender beside each door, the bonnet's rear corners and the fender vents (see "The studio look"; fixed by baking both poses; SU7, Voyah, 06T and ES8 re-exported). (2) *A one-grid jump in a panel's top limit* folded the sheet: the Voyah's and 06T's `*_Quarter` ran to `V_Q_TOP`, which jumps 25 cm within 3 mm at the quarter window's tip (a `fixed_x` pair), so the grid made 17-27 cm sheared quads with 177 degree dihedrals along the whole tip station: a vertical crease down the C-pillar and a dark pucker over the arch's top corner. The ES8 and the 7X had already fixed it the same way: the quarter runs to a smooth `V_QBASE` (belt to the tip, then a ramp up to the roof edge) and a separate `*_Quarter_Pillar` fills the wedge above. A normal-smoothing pass did NOT help (the surface itself was folded); the check that found it is a Blender probe over the base meshes (dihedral over 100 degrees, longest edges per panel: `scratchpad probe_fold.py` pattern, ~3 min). The 06T's rear glass wedge had the same kind of fold from its own `fixed_x=(X_BLADE,)` (dropped, as in the 7X, with the strip over the backlight cut from 14 mm to 3 mm). Any new panel whose top or side limit jumps must be split, never left to `fixed_x`. (3) *The clear-glass cut-away* (`cullBehindClearGlass`) took out every underlay triangle within 5 cm of a pane VERTEX, which ate the pillars between panes a triangle at a time: a staircase of holes the bright studio showed through (SU7's B-pillar). The glossy underlay is now cut only where all three corners of a triangle lie on a pane's surface (within 6 mm of its outline). (4) *Coplanar sheets z-fight*: the glass's edge under the roof rail (a yellow speckle along the SU7's rear window) and the greenhouse's black trim on the cowl's paint (dashes at the 06T's windscreen foot). `pushBehindPaint()` in `CarModel.tsx` pushes the glass and the greenhouse's/blackout's black gloss back (polygon offset 2 + 2). It must NOT touch the black gloss of the doors: the flush handles and vents are let into the paint and vanished under it (the car's one `M_Black_Gloss` is shared, so the greenhouse's is cloned first). A constant offset (factor 0) leaves the handles alone but is too small for the glass: the slope term is needed there.
   - **Draco normals: ship 14 bits on a clear-coated body** (`export(draco_normal_bits=14)`, now passed by the Voyah, 06T, ES8 and SU7 exporters as the G9L already did): at the default 10 the studio softbox's reflection steps along the panel.
+  - **The 06T's headlamp is ONE "7" (2026-11-03, owner: "from the edge it goes down and draws a 7").** The old build cut a black kite into the nose and stuck a chrome-looking "eyebrow" and a "DRL blade" on the paint, so the pocket's top ended in a spike that touched nothing. The close-ups (`details/c12_0011/0012`, sharper than `c1_0002`, different camera: read STRUCTURE from them, positions from `c1_0002`) show one dark glass frame: an upper arm (translucent lens in a black frame, thick at the corner, tapering to a point aimed at the badge) that turns the fender's corner into a stem running down the nose's edge and widening into the triangular pocket, with a light-guide down the stem's inner edge, two projector modules and ribbed fins; paint fills the angle of the 7; under the arm a separate slit lamp (the DRL, cyan on the grey car) with a silver rim. `a06t_cam.LAMP7_PX` is the whole outline, cut from `A06T_Fascia` as one prism (`a06t_front._cut_openings`; the slit is a second prism), and `a06t_front.build_lamps` lays everything in it. Generic lessons: (1) **lay lamp parts on the paint through the PHOTO's own rays**, not through a clamped height: `NOSE.wv_at(y, z)` cannot reach above the cap's crown (z 0.756 here; the arm's top is z 0.81), so every reading there had been clamped. `_on_paint(u, v)` casts the solved camera's ray (the car's right half mirrored onto the half sheet) onto a BVH of the UNCUT sheet (rebuilt from the same `cap_rows`, so it needs no hook), finds the grid cell, and returns the cap's ANALYTIC point and normal at the cell's (w, v). (2) **Offset glossy parts along the analytic normal, from the analytic point**: offsetting along the paint facets' normals, or from the ray's hit on the chords, showed every grid cell as a stair-step in the glass's reflections. (3) **A thin sliver (the arm's lens, 8-20 px) is a quad band between its two edges (`_band`), not a CDT fill**: the fill made skinny triangles that shaded in a zigzag on glossy glass. Broad shapes use `mathutils.geometry.delaunay_2d_cdt` (`_fill`, output_type 1) on a hex lattice, projected by ray (`_region`). (4) Everything inside the opening must stand IN FRONT of its opaque dark glass (glass 3 mm behind the paint, 8 mm in the pocket, modules 1.6 mm and fins 0.9 mm ahead of it): the web export has no transparent glass. (5) The Lights tab finds the lit parts by MATERIAL name: the DRL stays `M_LED_White` (a thin strip low in the slit) and the module bowls `M_Lamp_Reflector` (`lights: { projector: {} }`). The fast loop is a scratch script that builds only `build_fascia` + `build_lamps` (7 s) and renders crops through the `front` match camera next to the photo crop (`pair` images), then one full build for the studio rig.
+  - **Second pass, the same day: "unfinished, drawn by hand" (owner, with the official grey car's lit lamp next to the render).** The first pass took its outlines from `c1_0002` by eye (3-5 px out, ±5 mm) and invented the insides. The rework traces everything from the 4.6x close-up `details/c12_0011.jpg` (`blender/scripts/porting/a06t_lamp_trace/README.md`): dark-glass contours (thresholded, opened, pixel-exact boundary chains), the close-up's camera solved by fitting the model's own lamp outlines onto its contours (ICP, median 3 px = 0.7 mm; it is the 16 m turntable camera zoomed 4.6x), and `a06t_lampdata.py` (silhouette, slit, the light-guide strip) read in ITS pixels, laid on the nose by ray (`_on_paint(u, v, cam)` mirrors the ray onto the half sheet, so any camera of the car's right side works). What the real lamp has that the first pass lacked: a black bezel band 40 px (9 mm) wide round the whole 7; ONE prismatic light-guide that is the arm's lens, turns the corner and runs down the stem as a fluted strip (`A06T_Lamp_Guide`, the arm's lens and the stem's band are one piece); the pocket's two projector units each in a housing with a bezel line and a pale lens plate, silver hairline separators, parallel slats along the top diagonal, a vertical LED line and its dots; and the slit lamp's **cyan bar**: a white-hot core about 30 % of the slot's height inside a cyan halo about 47 %, both with elliptical ends (`c1_0010`, the grey car with its lamps awake). The bar is `M_LED_Cyan` (halo) and `M_LED_Cyan_Core`; `lights.front` in avatr-06t.ts names `M_LED_Cyan` with `off: 1.0` so it glows a little with the lamps off, as in the owner's photograph, and the projector is now the lens plates (`M_Lamp_Lens`), no longer the parking sensors. Generic lessons: (1) **never hand-read a contour you can threshold**: the dark glass against paint is a clean boundary; trace it, open it by a few pixels, cut dead-end spurs where the chain returns within 3.5 px of itself. (2) **Solve a close-up's camera from contours, not from points** (7 hand-picked points: rms 17 px; ICP on the outlines: median 3 px). (3) **The grey smudge round every cut was the baked AO, and my first `relax_lamp_ao` made it worse by averaging the ring over BACK-skin vertices too** (ring 0.5 instead of 0.99): only front-skin vertices (within 1.4 mm of the analytic nose) count, and the cut's rim edges are marked sharp (`_mark_rims_sharp`) so the Weighted Normal pass does not blend the rim wall's normal into the skin; the grille opening got the sharp rim too. (4) An offset of a path by more than its corner radius loops: round the path before offsetting. (5) Dark glass under a white studio reads grey: base 0.002, roughness 0.36, specular 0.06 keeps the bezel black. (6) Budget: the lamp is 62k triangles with its nose panel (the first draft was 100k: quad bands for slivers, no solidify on single-sided glass, 26-px fills for flat glass, ribbons every 14 px).
 
 ---
 

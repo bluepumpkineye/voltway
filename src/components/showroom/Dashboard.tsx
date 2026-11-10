@@ -26,17 +26,33 @@ export function dashColumnWidth(windowWidth: number): number {
   return Math.min(700, Math.round(windowWidth * 0.46));
 }
 
+/**
+ * How wide the screen's tablet is at the right of a phone held sideways, px: as wide as lets all of it stand under the menu
+ * (`top` px tall) in the window's height, and never more than half the window's width.
+ */
+export function dashSideWidth(windowWidth: number, windowHeight: number, top: number): number {
+  // the tablet's bezel and its guidance bar take about 64 px beside the screen; its bezel 16 px across
+  const screenH = Math.max(120, windowHeight - top - 16 - 64);
+  return Math.round(Math.min(windowWidth * 0.5, (screenH * CAR_SCREEN_W) / CAR_SCREEN_H + 16));
+}
+
 /** Where the dashboard stands in the window: whether the screen has a column, how wide it is, whether it fits at all. */
 export function useDashboardLayout() {
   const wide = useWide();
   const [vw, setVw] = React.useState(1280);
+  const [vh, setVh] = React.useState(900);
   React.useEffect(() => {
-    const f = () => setVw(window.innerWidth);
+    const f = () => {
+      setVw(window.innerWidth);
+      setVh(window.innerHeight);
+    };
     f();
     window.addEventListener('resize', f);
     return () => window.removeEventListener('resize', f);
   }, []);
-  return { wide, vw, colW: dashColumnWidth(vw), screenFits: wide || vw >= 700 };
+  // a phone held sideways: the same test as the `short` variant in globals.css
+  const short = vw > vh && vh <= 520;
+  return { wide, vw, vh, short, colW: dashColumnWidth(vw), screenFits: wide || vw >= 700 };
 }
 
 const MODE_LABEL: Record<LightMode, string> = { off: 'Off', position: 'Position', low: 'Low beam', auto: 'Auto' };
@@ -47,6 +63,8 @@ const WHERE: Partial<Record<HmiSkin, string>> = {
   hyperos: 'Tap the headlight on the car at the centre of its screen, or open Settings, then Lights.',
   zeekros: 'Tap Lights on the car’s home screen.',
   banyan: 'Tap Lights on the vehicle stage or open Controls on the Banyan display.',
+  byd: 'Open Settings (the hexagon on the system bar), then Vehicle settings and Lights.',
+  avatr: 'Tap the car on the bottom bar of the car’s screen and press Headlamp control, or open Settings, then Lights.',
 };
 
 function coachText(vehicle: Vehicle, mode: LightMode, high: boolean, braking: boolean): string {
@@ -69,14 +87,21 @@ export function DashboardScreen({
   variant,
   open,
   onClose,
+  top,
 }: {
   vehicle: Vehicle;
   variant: Variant;
   /** the sheet of a narrower window is open */
   open: boolean;
   onClose: () => void;
+  /** the menu's height, px: the tablet of a phone held sideways stands under it */
+  top: number;
 }) {
-  const { wide, vw, colW, screenFits } = useDashboardLayout();
+  const { wide, vw, vh, short, colW } = useDashboardLayout();
+  // a phone held sideways has room for the screen beside the car, as a wide window does; a phone held upright, a sheet under it
+  const side = !wide && short;
+  const inline = wide || side;
+  const sideW = dashSideWidth(vw, vh, top);
   const setInset = useVehicleStore((s) => s.setDeviceInset);
   const mode = useVehicleStore((s) => s.lightMode);
   const high = useVehicleStore((s) => s.highBeam);
@@ -96,22 +121,24 @@ export function DashboardScreen({
   // Reset offset if vehicle or breakpoint changes
   React.useEffect(() => {
     setOffset({ x: 0, y: 0 });
-  }, [vehicle.slug, wide]);
+  }, [vehicle.slug, inline]);
 
   // the camera frames the car clear of the screen
   React.useEffect(() => {
     if (wide) setInset({ right: Math.min(0.6, (colW + 28) / vw), bottom: 0 });
-    else setInset({ right: 0, bottom: 0.1 });
+    // (the lamp controls stand under the car on the left)
+    else if (side) setInset({ right: Math.min(0.6, (sideW + 12) / vw), bottom: 0.2 });
+    // the sheet over the foot of the window: the car is framed in the part of it above
+    else setInset({ right: 0, bottom: open ? 0.46 : 0.1 });
     return () => setInset({ right: 0, bottom: 0 });
-  }, [wide, colW, vw, setInset]);
+  }, [wide, side, sideW, colW, vw, open, setInset]);
 
   // the sheet gives way to the column when the window grows wide
   React.useEffect(() => {
     if (wide && open) onClose();
   }, [wide, open, onClose]);
 
-  if (!screenFits) return null;
-  if (!wide && !open) return null;
+  if (!inline && !open) return null;
 
   // Drag Event Handlers with Viewport Bounding
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -152,8 +179,9 @@ export function DashboardScreen({
       const minY = -rect.top + offset.y + 48;
       const maxY = window.innerHeight - (rect.top - offset.y) - rect.height - 8;
 
-      nextX = Math.max(minX, Math.min(maxX, nextX));
-      nextY = Math.max(minY, Math.min(maxY, nextY));
+      // a tablet bigger than the window leaves no room to move it: the limits then swap rather than pin it in place
+      nextX = Math.max(Math.min(minX, maxX), Math.min(Math.max(minX, maxX), nextX));
+      nextY = Math.max(Math.min(minY, maxY), Math.min(Math.max(minY, maxY), nextY));
     }
 
     setOffset({ x: nextX, y: nextY });
@@ -182,14 +210,16 @@ export function DashboardScreen({
         role="region"
         aria-label="Interactive Car Central Display Tablet"
         style={{
-          width: wide ? colW : undefined,
+          width: wide ? colW : side ? sideW : undefined,
           transform: `translate3d(${offset.x}px, ${offset.y}px, 0)`,
           transition: isDragging ? 'none' : 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         className={`pointer-events-auto absolute ${
           wide
             ? 'top-[calc(var(--top-ui,56px)+16px)] right-6 max-w-[calc(100vw-32px)]'
-            : 'bottom-20 inset-x-2 mx-auto w-[calc(100vw-16px)] max-w-[560px]'
+            : side
+              ? 'top-[calc(var(--top-ui,56px)+8px)] right-2'
+              : 'bottom-20 inset-x-2 mx-auto w-[calc(100vw-16px)] max-w-[560px]'
         } select-none`}
       >
         {/* Outer Floating Tablet Enclosure */}
@@ -199,6 +229,8 @@ export function DashboardScreen({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           onDoubleClick={resetPosition}
+          // a finger on the bezel moves the tablet: without this the browser takes the touch for a scroll and cancels the drag
+          style={{ touchAction: 'none' }}
           className={`group relative overflow-hidden rounded-[22px] bg-gradient-to-b from-[#242b38] via-[#161c26] to-[#0d121a] p-1.5 sm:p-2 transition-shadow duration-300 ${
             isDragging
               ? 'cursor-grabbing shadow-[0_40px_100px_-20px_rgba(0,0,0,0.95),0_0_0_1.5px_rgba(6,182,212,0.5)_inset] scale-[1.006]'
@@ -239,7 +271,7 @@ export function DashboardScreen({
                   <span>Reset</span>
                 </button>
               )}
-              {!wide && (
+              {!inline && (
                 <button
                   type="button"
                   onClick={onClose}

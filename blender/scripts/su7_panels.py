@@ -88,10 +88,24 @@ def V_SILL(x):
 # as on the car's clamshell hood. As a fixed section parameter it put the
 # shut line 0.41 m from the centreline once the hood came down - halfway
 # across the hood.
+#
+# 2026-11-03: re-read from the maker's head-on photograph (reference/xiaomi-su7-ultra/lights/cat53/big_023.jpg,
+# front camera of ref_match, the hood's shut line cast onto the body): the hood is a SHIELD whose edge draws in
+# from the fender crowns (y 0.78 at x 1.4) and turns the nose's corner at y 0.55 / x 2.3, then runs flat across
+# the nose's top at z 0.64 (HOOD_ARC_PX below). The old line stayed 0.81 wide to x 1.85 and stopped on the loft's
+# join 14 cm behind the real edge.
 Y_HOOD = Curve([
-    (S.COWL_X, 0.745), (1.20, 0.798), (1.60, 0.808), (1.85, 0.810),
-    (2.10, 0.775), (2.40, 0.700), (S.HALF_L, 0.650),
+    (S.COWL_X, 0.745), (1.20, 0.790), (1.45, 0.790), (1.75, 0.762),
+    (1.90, 0.727), (2.03, 0.690), (2.14, 0.654), (2.24, 0.606),
+    (2.32, 0.548), (2.40, 0.470), (S.HALF_L, 0.350),
 ])
+
+# The hood's front edge across the nose, read off the same photograph in its pixels (left half of the photo = the car's
+# right; ref_match "head_on"), from the fender crown to the centre line: _cut_hood_arc lays it on the upper fascia by the
+# photo's own rays. Where it runs over the loft instead (above the join) the hood's side shut line, Y_HOOD, is the edge.
+HOOD_ARC_PX = [(473.8, 525.0), (476.0, 547.5), (483.8, 567.5), (495.0, 587.5), (507.5, 605.0), (525.0, 625.0),
+               (550.0, 645.0), (575.0, 657.5), (605.0, 663.8), (630.0, 665.8), (680.0, 668.0), (750.0, 670.5),
+               (800.0, 671.0)]
 
 
 def V_HOOD(x):
@@ -296,8 +310,9 @@ PANELS = [
     dict(name="SU7Ultra_Quarter", x=(N.JOIN_R, X_DOOR_R), v=(V_SILL, V_LID_EDGE),
          nx=50, nv=44, arch=True, gap=dict(v0=False, x0=False), mat="paint",
          quarter_light=True, rear_vent=True),
+    # no gap at the join: the hood's front edge is HOOD_ARC_PX, cut across the upper fascia (_cut_hood_arc)
     dict(name="SU7Ultra_Hood", x=(X_COWL, N.JOIN_F), v=(V_HOOD, 1.0),
-         nx=60, nv=34, gap=dict(v1=False), mat="paint"),
+         nx=60, nv=34, gap=dict(v1=False, x1=False), mat="paint", butt_bevel=False),
     # the lid's deck: one pressing with the lid on the tail, no line across
     dict(name="SU7Ultra_Decklid", x=(N.JOIN_R, X_BACKLIGHT), v=(V_LID_EDGE, 1.0),
          nx=16, nv=30, gap=dict(v1=False, x0=False), mat="paint"),
@@ -450,13 +465,49 @@ def cap_rows(front, z_lo, z_hi, w_lo, w_hi, nz, nw, offset=0.0,
                        offset=offset, top_to_centre=top_to_centre)
 
 
+def hood_arc_path(sheet):
+    """The hood's front edge on the upper fascia as (points, normals): HOOD_ARC_PX sent along the photo's own rays onto
+    the half sheet's BVH, from where the arc comes onto the sheet (the hood's side shut line arrives there) to the
+    centre line and a little past it. A ray that misses the sheet (the arc's part over the loft) is skipped."""
+    from mathutils import Vector
+    from carkit import photolay as PL
+    import ref_match as RM
+    pts, nrm = [], []
+    for (u, v) in PL.smooth_open(HOOD_ARC_PX, 8):
+        o, d = RM.ray("head_on", u, v)
+        o, d = Vector((o.x, -o.y, o.z)), Vector((d.x, -d.y, d.z))
+        h = sheet.ray_cast(o, d)
+        if h[0] is None:
+            continue
+        n = Vector(h[1])
+        if n.dot(d) > 0.0:
+            n = -n
+        pts.append(tuple(h[0]))
+        nrm.append(tuple(n))
+    if len(pts) < 4:
+        raise RuntimeError("su7_panels: the hood arc meets the upper fascia in %d points" % len(pts))
+    # across the centre line, so the half sheet's edge is cut clean
+    pts.append((pts[-1][0], -0.020, pts[-1][2]))
+    nrm.append(nrm[-1])
+    return pts, nrm
+
+
+def _cut_hood_arc(ob):
+    sheet = C.sheet_bvh(ob)
+    path, nrm = hood_arc_path(sheet)
+    c = C.slot("_arc_" + ob.name, path, nrm, GAP, out=0.03, inside=0.03)
+    C.difference(ob, [c], "arc_", reset_materials=True)
+    C.prune_off_sheet(ob, sheet)
+
+
 def build_front(collection, lib):
     """Painted upper fascia, painted cheeks, recessed black U, walls, intakes."""
     made = []
     zl = N.NOSE_Z_LO
     up, ch, u, vs_lo = FA.split_nose(
         "SU7Ultra_Fascia", N.NOSE, collection, lib, Z_FASCIA_SPLIT_F, W_FENCE,
-        U_DEPTH, intakes=(INTAKE_MAIN, INTAKE_CORNER), x_cut=(2.95, 1.70))
+        U_DEPTH, intakes=(INTAKE_MAIN, INTAKE_CORNER), x_cut=(2.95, 1.70),
+        up_cuts=(_cut_hood_arc,))
     made += [up, ch, u]
 
     # Yellow lower blade: a painted lip standing proud of the black U under

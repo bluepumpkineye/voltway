@@ -53,6 +53,44 @@ def build_library():
                   coat=1.0, coat_rough=0.02, ior=1.52)
     lib["lamp_clear"] = m
 
+    # The headlamp's light-guide strip (c12_0011/0012): the arm's translucent lens that turns the corner into the stem's
+    # fluted band. Pale satin glass, lighter than the black frame round it, picking the studio up as a soft sheen.
+    m, nt, b = _M.mat("M_Lamp_Arm")
+    _M.set_inputs(b, base=(0.032, 0.034, 0.040), metallic=0.0, roughness=0.42, specular=0.22)
+    lib["lamp_arm"] = m
+
+    # The projector modules' housings (the sensors' rings use M_Lamp_Reflector too): near black and matte
+    _M.set_inputs(next(n for n in lib["lamp_bowl"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED'),
+                  base=(0.010, 0.010, 0.012), metallic=0.0, roughness=0.55)
+    _M.set_inputs(next(n for n in lib["lamp_housing"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED'),
+                  base=(0.030, 0.030, 0.034), metallic=0.0, roughness=0.34)
+
+    # The headlamp's dark frame and glass (c12_0011/0012: near black with a satin gloss, not a mirror)
+    m, nt, b = _M.mat("M_Lamp_Frame")
+    _M.set_inputs(b, base=(0.002, 0.002, 0.003), metallic=0.0, roughness=0.36, specular=0.06)
+    lib["lamp_frame"] = m
+
+    # Silver hairlines: the separators, the units' bezels and the slit's rim, a few tenths of a millimetre wide
+    m, nt, b = _M.mat("M_Lamp_Hairline")
+    _M.set_inputs(b, base=(0.78, 0.80, 0.83), metallic=1.0, roughness=0.22)
+    lib["lamp_hair"] = m
+
+    # The projector units' lens plates: pale glass in a dark housing (the Lights tab lights these with the low beam)
+    m, nt, b = _M.mat("M_Lamp_Lens")
+    _M.set_inputs(b, base=(0.022, 0.024, 0.028), metallic=0.0, roughness=0.18, coat=1.0, coat_rough=0.03, ior=1.5)
+    lib["lamp_lens"] = m
+
+    # Avatr's cyan light signature (c1_0009..0012: the slit lamp lit on the grey car): a cyan halo and a white-hot core.
+    # The halo is the part the Lights tab drives (lights.front in avatr-06t.ts), glowing a little even with the lamps off.
+    m, nt, b = _M.mat("M_LED_Cyan")
+    _M.set_inputs(b, base=(0.0, 0.12, 0.17), metallic=0.0, roughness=0.25,
+                  emission=(0.0, 0.50, 1.0), emission_strength=1.6)
+    lib["led_cyan"] = m
+    m, nt, b = _M.mat("M_LED_Cyan_Core")
+    _M.set_inputs(b, base=(0.45, 0.75, 0.85), metallic=0.0, roughness=0.25,
+                  emission=(0.42, 0.90, 1.0), emission_strength=2.6)
+    lib["led_cyan_core"] = m
+
     # Star-ring taillamp lens: deep wine-red smoked acrylic over dual LED blades
     m, nt, b = _M.mat("M_Lamp_RedLens")
     _M.set_inputs(b, base=(0.030, 0.003, 0.004), metallic=0.0, roughness=0.06,

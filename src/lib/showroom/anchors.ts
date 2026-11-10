@@ -143,6 +143,16 @@ const POLAR_MAX = 0.495 * Math.PI;
 /** the Tech tab may look almost straight down */
 const TOP_DOWN = 0.04 * Math.PI;
 
+/**
+ * How close the visitor may come to the car, m: a fixed share of the distance that fits the whole car at the reference aspect,
+ * and never so close that the camera is inside the nose or the tail when it is turned end-on. It does not grow on a narrow
+ * (portrait) window: the car fills a phone's width long before the lens is near it, so a pinch can still come in to a lamp, a
+ * wheel or a door.
+ */
+function closestLook(fit: number, L: number): number {
+  return Math.max(fit * 0.36, L * 0.5 + 0.4);
+}
+
 /** How far a shot stands from the car so that the whole car fits at the reference aspect, m. */
 function exteriorFit(s: Shot, L: number, W: number, H: number): number {
   const az = s.az * D2R;
@@ -255,7 +265,7 @@ export function resolveAnchor(
       rotateSpeed: 0.55,
       liftPx: LIFT_PX * 0.6,
       liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
-      shiftFrac: inset.right / 2 - 0.1,
+      shiftFrac: (inset.right - (inset.left ?? 0)) / 2 - 0.1,
     };
   }
 
@@ -282,7 +292,7 @@ export function resolveAnchor(
     // The visitor is free to leave the wide shot: as close to the car as on any tab (the same limit the other poses
     // use, so a lamp or a wheel can be read), as far as the whole stage and some floor around it, and from
     // straight above (a road that scrolls under a still car reads best from there) down to the floor.
-    const closest = exteriorFit(SHOTS.hero, L, W, H) * Math.max(1, REF_ASPECT / Math.max(aspect, 0.2)) * 0.62;
+    const closest = closestLook(exteriorFit(SHOTS.hero, L, W, H), L);
     return {
       id,
       mode: 'exterior',
@@ -308,8 +318,9 @@ export function resolveAnchor(
   // less of the window still. Zooming in is limited by the first, not the second: the visitor may come as
   // close to the lamps as on a tab with no device.
   const inset = frame.inset ?? { right: 0, bottom: 0 };
-  const open = near * Math.max(1, REF_ASPECT / Math.max(aspect, 0.2));
-  const dist = near * Math.max(1, REF_ASPECT / Math.max(aspect * (1 - inset.right), 0.2));
+  // (a column of controls at the left of a phone held sideways leaves it less still)
+  const leftIn = inset.left ?? 0;
+  const dist = near * Math.max(1, REF_ASPECT / Math.max(aspect * (1 - inset.right - leftIn), 0.2));
 
   const d = dirFrom(s.az, s.el);
   // the camera looks at the middle of the car, so a drag turns the car in place; with a device beside it the
@@ -322,13 +333,13 @@ export function resolveAnchor(
     target,
     fov: s.fov,
     // the X-ray's poses let the visitor (and a picked part) come close to the hardware
-    minDistance: id === 'xray' || id === 'xrayWide' ? Math.min(open * 0.62, 1.8) : open * 0.62,
+    minDistance: id === 'xray' || id === 'xrayWide' ? Math.min(closestLook(near, L), 1.8) : closestLook(near, L),
     maxDistance: dist * 1.45,
     minPolar: POLAR_MIN,
     maxPolar: POLAR_MAX,
     rotateSpeed: 0.55,
     liftPx: LIFT_PX * s.lift,
     liftFrac: (inset.bottom - (inset.top ?? 0)) / 2,
-    shiftFrac: inset.right / 2,
+    shiftFrac: (inset.right - leftIn) / 2,
   };
 }
