@@ -269,7 +269,8 @@ export function setHaze(room: THREE.Color, studioWhite: THREE.Color) {
   hazeUniforms.uHazeColor.value.set(rgb.r, rgb.g, rgb.b);
 }
 
-type HazeOpts = { height?: boolean; distance?: boolean; detail?: { map: THREE.Texture; repeat: THREE.Vector2; strength: number } };
+/** `shift` slides the detail map (in tiles, along the map's u and v): a road that rolls under a car moves its grain with it. */
+type HazeOpts = { height?: boolean; distance?: boolean; detail?: { map: THREE.Texture; repeat: THREE.Vector2; strength: number; shift?: THREE.Vector2 } };
 
 /** Lets a material go into haze (and, if given, multiplies a tiled detail texture over its map). */
 export function withHaze<T extends THREE.Material>(mat: T, opts: HazeOpts = {}): T {
@@ -281,6 +282,7 @@ export function withHaze<T extends THREE.Material>(mat: T, opts: HazeOpts = {}):
     if (detail) {
       shader.uniforms.uDetail = { value: detail.map };
       shader.uniforms.uDetailRepeat = { value: detail.repeat };
+      shader.uniforms.uDetailShift = { value: detail.shift ?? new THREE.Vector2() };
       shader.uniforms.uDetailStrength = { value: detail.strength };
     }
     shader.vertexShader = shader.vertexShader
@@ -301,13 +303,13 @@ export function withHaze<T extends THREE.Material>(mat: T, opts: HazeOpts = {}):
       uniform vec3 uHazeColor;
       uniform vec2 uHazeY;
       uniform float uHazeAmount;
-      uniform float uHazeDensity;${detail ? '\nuniform sampler2D uDetail;\nuniform vec2 uDetailRepeat;\nuniform float uDetailStrength;' : ''}`,
+      uniform float uHazeDensity;${detail ? '\nuniform sampler2D uDetail;\nuniform vec2 uDetailRepeat;\nuniform vec2 uDetailShift;\nuniform float uDetailStrength;' : ''}`,
     );
     if (detail) {
       frag = frag.replace(
         '#include <map_fragment>',
         `#include <map_fragment>
-        vec2 dUv = vMapUv * uDetailRepeat;
+        vec2 dUv = vMapUv * uDetailRepeat + uDetailShift;
         vec3 dtl = texture2D( uDetail, dUv ).rgb * texture2D( uDetail, dUv * 0.23 + vec2( 0.37, 0.61 ) ).rgb * 2.0 * texture2D( uDetail, dUv * 3.1 + vec2( 0.13, 0.29 ) ).rgb * 2.0;
         diffuseColor.rgb *= mix( vec3( 1.0 ), dtl * 2.0, uDetailStrength );`,
       );

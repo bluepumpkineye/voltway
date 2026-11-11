@@ -2,6 +2,7 @@
 
 import React from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import type { Vehicle } from '@/data/vehicles/schema';
 import type { RoadStage } from '@/lib/tech/carpet';
 import { rigOf } from '@/lib/tech/rig';
@@ -11,7 +12,7 @@ import { asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
 import { ExpresswayRoadside, Verge, expresswaySpots } from './scenery/Roadside';
 import { onStage, useHaze } from './scenery/Scenery';
 import { WetRoad } from './scenery/WetRoad';
-import { ASPHALT, PAINT, paintStripTexture, paintTyreTracks } from './scenery/textures';
+import { ASPHALT, PAINT, TILE, edgeLineTexture, paintStripTexture, paintTyreTracks } from './scenery/textures';
 
 /**
  * The expressway of Autonomous Drive: worn asphalt with the tyres' tracks in each of its lanes, worn white edge lines and lane
@@ -19,15 +20,19 @@ import { ASPHALT, PAINT, paintStripTexture, paintTyreTracks } from './scenery/te
  * posts, a kilometre post, a speed sign, an overhead gantry with its green sign, clumps of roadside trees, and grass verges that fade
  * into the studio's white.
  *
- * The asphalt with its two edge lines stands still under the car. What streams past (the dashes, the joints, the barriers, the
- * trees, the gantry and the patches worn into the road) is laid out over a short repeat and rolled by the rig as far as its period
- * and no further, so a strip of a few hundred metres is endless whatever the run's length. Road coordinates: x along, z across (the
- * viewer's), the road's middle on z = 0.
+ * The asphalt with its two edge lines and the grass verges stands still under the car (a long plane tilts with a hill; it does not
+ * roll). What streams past (the dashes, the joints, the barriers, the trees, the gantry and the patches worn into the road) is laid
+ * out over a short repeat and rolled by the rig as far as its period and no further, so a strip of a few hundred metres is endless
+ * whatever the run's length. The surface of what stands still moves too: the worn edge lines, the grass and the asphalt's grain
+ * slide their textures by the rig's scroll, or the car would drive over a road that looks glued to the ground. Road coordinates: x
+ * along, z across (the viewer's), the road's middle on z = 0.
  */
 
 /** the dashed lane line (Chinese expressways: 6 m of paint and 9 m of gap), the edge line, and the spacing of the tar joints, m */
 const DASH = { length: 6, period: 15, width: 0.15 };
 const EDGE_WIDTH = 0.2;
+/** one repeat of the worn edge line's paint, m (long enough that its marks do not read as a pattern) */
+const EDGE_PERIOD = 24;
 const JOINT_PERIOD = 12.5;
 /** the roadside (barriers, trees, gantry, worn marks) repeats every this many metres: eight dash periods */
 const SIDE_PERIOD = 120;
@@ -72,6 +77,9 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
   const half = (lanes.count * lanes.width) / 2;
   const edge = road.width / 2;
   useHaze([9, 46], 1);
+  // how far the road has rolled under the car, for the textures of what stands still
+  const scroll = React.useCallback(() => rig.state.scroll, [rig]);
+  const grain = React.useMemo(() => new THREE.Vector2(), []);
 
   // ---- the asphalt, painted once for the whole strip (stretched along it: tracks and shoulders run its length)
   const baseMap = React.useMemo(() => {
@@ -104,7 +112,7 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
     tex.anisotropy = 8;
     return tex;
   }, [road.width, lanes.count, lanes.width, half, edge, length]);
-  const baseMat = React.useMemo(() => asphaltMaterial(baseMap, length, road.width), [baseMap, length, road.width]);
+  const baseMat = React.useMemo(() => asphaltMaterial(baseMap, length, road.width, grain), [baseMap, length, road.width, grain]);
 
   // ---- what is worn into the road, one repeat of it (rolled with the roadside)
   const wearMap = React.useMemo(() => {
@@ -126,8 +134,8 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
 
   // ---- the paint
   const paints = React.useMemo(() => {
-    const edgeTex = paintStripTexture(PAINT, 2, EDGE_WIDTH, 33, 0.35).clone();
-    edgeTex.repeat.set((length * 0.8) / 2, 1);
+    const edgeTex = edgeLineTexture(PAINT, EDGE_PERIOD, EDGE_WIDTH, 33).clone();
+    edgeTex.repeat.set((length * 0.8) / EDGE_PERIOD, 1);
     return { edge: edgeTex, dash: paintStripTexture(PAINT, DASH.length, DASH.width, 34, 0.5) };
   }, [length]);
   const markMat = React.useMemo(() => {
@@ -135,7 +143,8 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
     return {
       edge: m(paints.edge),
       dash: m(paints.dash),
-      joint: new THREE.MeshBasicMaterial({ color: '#141518', transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }),
+      // the tar joints are drawn over the paint, so they cross the edge lines and the dashes
+      joint: new THREE.MeshBasicMaterial({ color: '#141518', transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -7, polygonOffsetUnits: -7 }),
     };
   }, [paints]);
   React.useEffect(
@@ -157,6 +166,14 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
     wearMat.color.copy(d.room).multiplyScalar(wetK);
     markMat.edge.color.copy(d.room).multiplyScalar(paintK);
     markMat.dash.color.copy(d.room).multiplyScalar(paintK);
+  });
+
+  // the surface slides with the road: the edge line's wear (one repeat is EDGE_PERIOD m), and the asphalt's grain (TILE.asphalt m a tile).
+  // The road moves toward -x as the scroll grows, so the texture is sampled farther along: the offsets grow with it
+  useFrame(() => {
+    const s = rig.state.scroll;
+    paints.edge.offset.x = (s / EDGE_PERIOD) % 1;
+    grain.x = s / TILE.asphalt;
   });
 
   // ---- one dash plane and one joint plane, laid out on instances
@@ -216,8 +233,8 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
         <mesh position={[rig.rac.x, 0.002, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStage} material={baseMat}>
           <planeGeometry args={[length, road.width]} />
         </mesh>
-        <Verge x0={x0} x1={x1} z0={edge + 0.3} z1={edge + 0.3 + VERGE} fadeEnd={HIGHWAY_FADE_END} />
-        <Verge x0={x0} x1={x1} z0={-(edge + 0.3)} z1={-(edge + 0.3 + VERGE)} fadeEnd={HIGHWAY_FADE_END} />
+        <Verge x0={x0} x1={x1} z0={edge + 0.3} z1={edge + 0.3 + VERGE} fadeEnd={HIGHWAY_FADE_END} scroll={scroll} />
+        <Verge x0={x0} x1={x1} z0={-(edge + 0.3)} z1={-(edge + 0.3 + VERGE)} fadeEnd={HIGHWAY_FADE_END} scroll={scroll} />
         {/* the solid edge lines */}
         {[-half, half].map((z) => (
           <mesh key={z} position={[rig.rac.x, 0.003, z]} rotation-x={-Math.PI / 2} renderOrder={-0.4} ref={onStage} material={markMat.edge}>
@@ -227,10 +244,10 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
         {/* rain: the road is a mirror (a second picture of the scene from under it, drawn only while it rains) */}
         {(wet || wetShown) && <WetRoad rig={rig} x={rig.rac.x} length={length} width={road.width} lanes={lanes} fadeEnd={HIGHWAY_FADE_END} />}
       </group>
-      {/* tar joints across the lanes, and the dashes between them: the rig rolls these */}
+      {/* tar joints across the whole road, shoulders and edge lines too, and the dashes between them: the rig rolls these */}
       <group ref={joints}>
-        <instancedMesh ref={jointMesh} args={[undefined, undefined, jointSlots.length]} rotation-x={-Math.PI / 2} position-y={0.0025} renderOrder={-0.42} frustumCulled={false} onUpdate={onStage} material={markMat.joint}>
-          <planeGeometry args={[0.05, half * 2]} />
+        <instancedMesh ref={jointMesh} args={[undefined, undefined, jointSlots.length]} rotation-x={-Math.PI / 2} position-y={0.0034} renderOrder={-0.38} frustumCulled={false} onUpdate={onStage} material={markMat.joint}>
+          <planeGeometry args={[0.05, road.width]} />
         </instancedMesh>
       </group>
       <group ref={dashes}>

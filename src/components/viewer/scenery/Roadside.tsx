@@ -48,7 +48,7 @@ function vergeAlpha(endFrac: number, nearAtTop: boolean): THREE.CanvasTexture {
 }
 
 /** A grass verge beside the road from z0 (at the road) to z1, over x0..x1, fading out at its far edge and its ends. */
-export function Verge({ x0, x1, z0, z1, fadeEnd }: { x0: number; x1: number; z0: number; z1: number; fadeEnd: number }) {
+export function Verge({ x0, x1, z0, z1, fadeEnd, scroll }: { x0: number; x1: number; z0: number; z1: number; fadeEnd: number; scroll?: () => number }) {
   const L = x1 - x0;
   const W = Math.abs(z1 - z0);
   const nearTop = z0 > z1 ? false : true;
@@ -79,6 +79,10 @@ export function Verge({ x0, x1, z0, z1, fadeEnd }: { x0: number; x1: number; z0:
   );
   useDusk((d) => mat.color.copy(d.room).multiplyScalar(0.92 * (1 - 0.3 * weather.level)));
   useHaze();
+  // a verge that stands still under a rolling car (the expressway's) slides its grass with the road
+  useFrame(() => {
+    if (scroll && mat.map) mat.map.offset.x = (scroll() / TILE.grass) % 1;
+  });
   return (
     <mesh position={[(x0 + x1) / 2, 0.001, (z0 + z1) / 2]} rotation-x={-Math.PI / 2} renderOrder={-0.55} ref={onStage} material={mat}>
       <planeGeometry args={[L, W]} />

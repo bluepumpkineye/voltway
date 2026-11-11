@@ -1190,3 +1190,54 @@ Two notes from the owner on the Drive tab: on a +6 % hill the car tilted but the
   behind it and stronger with speed). The frames keep coming while it rains, even with the run paused (a viewer with reduced motion sees it still).
 - **At night** (headlamps on) the street lamps' reflections are long streaks down the road and the tail lamps' glow lies under the car. Checked in the Browser pane: the RX on its Drive
   tab dry, wet, wet at night and wet on a hill. Not done: rain on the car's paint and glass, wipers, the sound of rain, wet verge and barrier surfaces beyond a darker grass.
+
+## 23. The Drive tab's sound: a motor that follows the car (2026-11-11)
+
+The owner's report: since every Drive run lasts 20 s or more, the car's sound "starts to bug from 9 s" (stops, clicks). The cause was in `lib/sound/launch.ts`: it laid one 9.3 s
+recording of an SU7 launch (`xiaomi-su7-launch-100.mp3`) against the run's clock, looped a piece of it (5.5-9.0 s) by seeking from a `timeupdate` handler (which fires about every
+250 ms), and Launch.tsx re-seeked the audio whenever it drifted more than 0.35 s from the clock. Past 9 s the loop and the correction fought each other: a seek every few frames, the
+clicks and the gaps. It also played the SU7's recording on every car, timed to the SU7's 1.98 s pull. The Tech tab's ES8 launch demo (about 11 s) had the same fault.
+
+- **The sound is made from what the car does, not from the clock** (`lib/sound/drive-voice.ts`, `drive-engine.ts`). Three steady loops play through Web Audio (looping buffer sources: a
+  sample-exact wrap, no seek, no `timeupdate`) and every frame `LaunchTools` hands the engine the car's speed, its pull (g) and the run phase (`player.frame(speed, g, phase)`):
+  - **whine**, the motor's tone (the SU7 clip: a fundamental near 410 Hz and its partials): playback rate `pitch * (0.55 + v / 180)`, so the pitch climbs with the speed; its level rises
+    out of silence over the first 40 km/h, is full under power, thins on the lift and comes back a little on regeneration; the low-pass opens with the pull;
+  - **bed**, the cabin and road drone (the long electric-car recording): grows as `(v / 110)^1.25`, duller at low speed;
+  - **hiss**, wind and tyres (noise in the Leaf's colour, twice, 3.7 % apart in pitch and panned a little): `1.4 * (v / 200)^2.2`;
+  - a stopped car is silent; a slalom at 16 km/h hums quietly; a run at 100 km/h sounds the same at 5 s and at 25 s. A slow drift (0.5 % in pitch, 4-8 % in level, slow sines of
+    unrelated periods) keeps a steady speed from sounding dead still.
+- **Every car has its own voice** (`VOICES` in drive-voice.ts, from the three files): pitch, level of the three layers, how open the tone is, and for the three-motor and some two-motor
+  cars a second tone (a fifth or an octave up). The SU7 Ultra is the brightest and highest, the ES8 and G9L low and soft with more road, the Z9 an octave part.
+- **The loops** are cut by `scripts/tech-tools/cut-drive-loops.mjs` from the three files supplied on 2026-11-11 (`EV-drive-SU7-2.mp3`, `freesound_community-005109_electric-car-51375.mp3`,
+  `freesound_community-nissan-leaf-106184.mp3`) into `public/sounds/drive/{whine,bed,hiss}.wav` (24 kHz mono, about 1 MB in all): the whine and the bed are the steadiest stretch of
+  their recording (the bed's is picked by scanning 100-190 s), levelled so the loop does not pulse, closed by a constant-power cross-fade whose length is picked where the two ends
+  best correlate. The hiss is noise made to the Leaf's spectral envelope (see the revision below). WAV, not MP3, on purpose (an MP3's
+  encoder delay opens a gap in a loop). `scripts/tech-tools/audio-analyse.mjs` prints level, band energy and the strongest tones of any file per time slice; the check was the wrap
+  step against the loop's own 99th-percentile step (0.25-0.67x: no click).
+- **Behaviour**: every value eases (50-100 ms) so a frame is never a step; pause, run end, mute and a stall of the frames (the page hidden) fade the motor out (180 ms) and release its
+  sources; scrubbing while paused makes no sound and playing from any point starts at that point's speed; the master level matches the old clip's loop section (about -16 dB mean). The
+  sound switch (Chrome.tsx) is now "car sounds" and silences the motor too. One shared audio context (`sharedAudio()` in engine.ts).
+- **Checks**: `node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/drive-sound-test.mjs` plans all 23 selectable runs of the nine cars and tests the mix at
+  60 frames a second (nothing missing past 9 s, no non-finite value, no jump, pitch follows speed, silent at a standstill; `table <slug>` prints one car's mix per second). In the
+  Browser pane (dev builds expose `window.__driveSound`): each car's whole run was rendered offline through the real engine (an `OfflineAudioContext` with `update(speed, g, phase, t)`):
+  no NaN, peak under 0.77, no click (the second difference against its local level never above 9x; the worst 7.7x), level following speed through 20-30 s runs (the RX: -15 dB through
+  the cruise, -32 dB at 11 km/h in the brake, silence at the stop). Live: one graph of 5 sources for a whole run, 5 stopped on a pause, a new set on a resume, the bus at 0 when muted.
+- Not done / owner's ear: the levels, the voices' pitch and the mix were set by measurement, not by listening (the three clips are the only reference), so they may want a nudge;
+  no tyre squeal, brake or regeneration whine of its own, no cabin (inside) filtering of the motor when the camera is inside the car; `xiaomi-su7-launch-100.mp3` and `-200.mp3` are no
+  longer used by anything (left in `public/sounds`).
+
+### Revision: the metallic loop (2026-11-11, the owner's second listen)
+
+The owner liked the sound but heard "a weird metallic noise in the background, looping consistently" that the spectrograms had not shown. A tone or a repeat does not show in a
+click test or a spectrogram of the sources, so the mix itself was measured: the real engine's output for the SU7's cruise (offline render), the envelope of four bands every 5 ms,
+and its autocorrelation out to 11 s (`window.__driveSound` in the Browser pane; the helpers are in the 2026-11-11 session notes). **The 1.8-5 kHz band repeated itself every 1.26 s
+with a correlation of 0.76** (and 0.73 at 2.52 s): the 1.28 s hiss loop (cut from the Leaf at 6.6-7.9 s) at its playback rate. That stretch also holds a steady whistle at 2.62 kHz
+(+10 dB over its neighbourhood: `loop-peaks`, a Welch-averaged 8192-point spectrum), the "metallic" part, and the two copies of it (3.7 % apart) made it the more obvious. The whine's
+own loop (1.95 s at that rate) did not show in the 100-700 Hz band, the bed's (10 s) is long.
+- **Fix:** the hiss is no longer a stretch of the recording. `cut-drive-loops.mjs` takes the Leaf's average spectrum over 6.4-8.3 s, takes the narrow peaks out (a median over about a
+  tenth of an octave) and smooths it, shapes seeded white noise to that envelope by short-time filtering, and closes 8 s of it into a loop (constant-power cross-fade, equal power
+  because noise is uncorrelated). It keeps the Leaf's colour (band levels from the lows to above 3 kHz match) with no tone, no tick and no short repeat (`loop-peaks`: no narrow peak
+  at all; level steady within 0.4 dB over the 8 s).
+- **After:** the 1.26 s peak is gone in every band, and nothing repeats under 7 s. The remaining peaks are the long loops' own: the noise's at 7.9 s (envelope correlation 0.54 in
+  1.8-5 kHz, a swing of 1.3 dB) and the bed's at 10 s (0.61 in 60-300 Hz): neither carries a feature a listener could pick out. Not by ear: if a repeat is still heard, the
+  next steps are a second, longer noise (a different seed and length) for the right-hand copy, and a second bed stretch from another part of the long recording.

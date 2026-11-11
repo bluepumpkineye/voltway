@@ -19,3 +19,8 @@ export function stepWeather(dt: number): boolean {
   weather.level += d * (1 - Math.exp(-dt * 2.2));
   return true;
 }
+
+// dev only: window.__weather, to read where the rain is (the viewer draws continuously while it is not at rest)
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  (window as unknown as { __weather?: unknown }).__weather = weather;
+}

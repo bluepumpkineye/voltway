@@ -104,8 +104,12 @@ export function paintWearStrip(ctx: CanvasRenderingContext2D, periodM: number, w
   }
 }
 
-/** The painted road as an unlit material: the map over a plane of L x W metres, the aggregate detail tiled over it. */
-export function asphaltMaterial(map: THREE.Texture, L: number, W: number): THREE.MeshBasicMaterial {
+/**
+ * The painted road as an unlit material: the map over a plane of L x W metres, the aggregate detail tiled over it. `shift` slides
+ * the aggregate along the road (in tiles of TILE.asphalt: x is the road's length), for a road that stands still under a rolling
+ * car's wheels but whose surface must still stream past.
+ */
+export function asphaltMaterial(map: THREE.Texture, L: number, W: number, shift?: THREE.Vector2): THREE.MeshBasicMaterial {
   return withHaze(
     new THREE.MeshBasicMaterial({
       map,
@@ -116,7 +120,7 @@ export function asphaltMaterial(map: THREE.Texture, L: number, W: number): THREE
       polygonOffsetFactor: -4,
       polygonOffsetUnits: -4,
     }),
-    { height: false, distance: true, detail: { map: asphaltDetail(), repeat: new THREE.Vector2(L / TILE.asphalt, W / TILE.asphalt), strength: 0.9 } },
+    { height: false, distance: true, detail: { map: asphaltDetail(), repeat: new THREE.Vector2(L / TILE.asphalt, W / TILE.asphalt), strength: 0.9, shift } },
   );
 }
 

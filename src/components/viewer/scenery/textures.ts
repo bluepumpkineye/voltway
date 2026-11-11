@@ -386,6 +386,124 @@ export function paintStripTexture(color: string, w: number, h: number, seed: num
   });
 }
 
+/**
+ * One repeat of a solid edge line of `period` x `width` metres, worn the way a motorway's is: the paint thinned in long stretches
+ * (a slow noise along it), chipped, eroded in a few patches, scuffed by tyres, and crossed by tar cracks. A perfectly even line looks
+ * as if it stood still under a moving car; this one has marks to show the road streaming past. Seamless along its length (a mark
+ * that crosses an end is drawn at both ends), so the rolling scenes scroll it by shifting the texture.
+ */
+export function edgeLineTexture(color: string, period: number, width: number, seed: number): THREE.CanvasTexture {
+  return cached(`edge-${color}-${period}-${width}-${seed}`, () => {
+    const ppm = Math.min(100, 2048 / period);
+    const W = Math.round(period * ppm);
+    const H = Math.max(16, Math.round(width * 120));
+    const { canvas, ctx } = makeCanvas(W, H);
+    const r = rng(seed);
+    const wrap = (draw: (dx: number) => void) => {
+      draw(0);
+      draw(W);
+      draw(-W);
+    };
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, W, H);
+
+    // thin paint: two octaves of noise along the line, each on a lattice that wraps
+    const cellsA = Math.max(6, Math.round(period / 1.8));
+    const cellsB = cellsA * 3;
+    const latA = Array.from({ length: cellsA }, () => r());
+    const latB = Array.from({ length: cellsB }, () => r());
+    const lattice = (lat: number[], x: number) => {
+      const u = (x / W) * lat.length;
+      const i = Math.floor(u);
+      const f = u - i;
+      const s = f * f * (3 - 2 * f);
+      return lat[i % lat.length] * (1 - s) + lat[(i + 1) % lat.length] * s;
+    };
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let x = 0; x < W; x += 2) {
+      const n = lattice(latA, x) * 0.72 + lattice(latB, x) * 0.28;
+      const thin = clamp01((n - 0.46) * 1.7);
+      if (thin > 0) {
+        ctx.fillStyle = `rgba(0,0,0,${thin * 0.62})`;
+        ctx.fillRect(x, 0, 2, H);
+      }
+    }
+    // chips everywhere, and a few stretches eroded to speckle where the tyres ride the line
+    const chips = Math.round(W * H * 0.0042);
+    for (let i = 0; i < chips; i++) {
+      const s = 0.8 + r() * 2.2;
+      const x = r() * W;
+      const y = r() * H;
+      const a = 0.4 + r() * 0.6;
+      const w = s * (1 + r() * 3.5);
+      wrap((dx) => {
+        ctx.fillStyle = `rgba(0,0,0,${a})`;
+        ctx.fillRect(x + dx, y, w, s);
+      });
+    }
+    for (let k = 0; k < Math.round(period / 4.5); k++) {
+      const x0 = r() * W;
+      const len = (0.5 + r() * 1.7) * ppm;
+      const y0 = r() * H * 0.4;
+      const hh = H * (0.5 + r() * 0.5);
+      for (let i = 0; i < len * hh * 0.28; i++) {
+        const x = x0 + r() * len;
+        const y = y0 + r() * hh;
+        const s = 0.8 + r() * 2;
+        const a = 0.35 + r() * 0.65;
+        wrap((dx) => {
+          ctx.fillStyle = `rgba(0,0,0,${a})`;
+          ctx.fillRect(x + dx, y, s * (1 + r() * 2), s);
+        });
+      }
+    }
+    // a ragged edge, top and bottom
+    for (let i = 0; i < W / 2.5; i++) {
+      const x = r() * W;
+      const top = r() < 0.5;
+      const w = 2 + r() * 6;
+      const h = 1 + r() * 1.8;
+      wrap((dx) => {
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        ctx.fillRect(x + dx, top ? 0 : H - h, w, h);
+      });
+    }
+
+    // what lies on the paint: tyre scuffs and tar cracks (drawn only where paint is left)
+    ctx.globalCompositeOperation = 'source-atop';
+    for (let k = 0; k < Math.round(period / 5); k++) {
+      const x = r() * W;
+      const y = H * (0.25 + 0.5 * r());
+      const rx = (0.35 + r() * 1.3) * ppm;
+      const ry = H * (0.28 + 0.3 * r());
+      const a = 0.16 + r() * 0.22;
+      wrap((dx) => {
+        ctx.fillStyle = `rgba(34,34,38,${a})`;
+        ctx.beginPath();
+        ctx.ellipse(x + dx, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    ctx.lineCap = 'round';
+    for (let k = 0; k < Math.round(period / 6); k++) {
+      const x = r() * W;
+      const slant = (r() - 0.5) * H * 1.6;
+      wrap((dx) => {
+        ctx.strokeStyle = `rgba(22,22,26,${0.7 + r() * 0.25})`;
+        ctx.lineWidth = 1.4 + r() * 1.6;
+        ctx.beginPath();
+        ctx.moveTo(x + dx, -2);
+        ctx.lineTo(x + dx + slant * 0.4 + (r() - 0.5) * 4, H * 0.35);
+        ctx.lineTo(x + dx + slant * 0.75 + (r() - 0.5) * 4, H * 0.7);
+        ctx.lineTo(x + dx + slant, H + 2);
+        ctx.stroke();
+      });
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    return toTexture(canvas, { repeat: true });
+  });
+}
+
 // ------------------------------------------------------------------------------------------------ walls
 
 function wallBase(S: number, seed: number, base: [number, number, number], mottle: number): Canvas2D & { noise: Float32Array } {
