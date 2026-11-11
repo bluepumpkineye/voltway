@@ -11,6 +11,12 @@ import { rigOf } from '@/lib/tech/rig';
 import { DRACO_PATH } from './CarModel';
 import { motionOk } from './configurator';
 
+// scratch for the seat camera's ride with the car
+const _seat = new THREE.Vector3();
+const _carNow = new THREE.Matrix4();
+const _carDelta = new THREE.Matrix4();
+const _carBack = new THREE.Matrix4();
+
 /**
  * What the showroom needs from the loaded exterior: how far along the car it
  * extends and where the front-left wheel is (the origin of the `*_Wheels` node of a
@@ -94,10 +100,9 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const inCar = React.useCallback(
     (p: V3, mode: string): V3 => {
       if (mode !== 'interior' || useVehicleStore.getState().tab !== 'drive') return p;
-      const { x, z, yaw } = rigOf(vehicle).state;
-      const cs = Math.cos(yaw);
-      const sn = Math.sin(yaw);
-      return [x + p[0] * cs + p[2] * sn, p[1], z - p[0] * sn + p[2] * cs];
+      // the car's own transform: where it is, its heading and the tilt of a hill
+      const v = _seat.set(p[0], p[1], p[2]).applyMatrix4(rigOf(vehicle).carMatrix(_carNow));
+      return [v.x, v.y, v.z];
     },
     [vehicle],
   );
@@ -115,6 +120,8 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const lastId = React.useRef(pose.id);
   const lastTick = React.useRef(tick);
   const lastFloor = React.useRef('');
+  // the car's transform at the last frame, which the Drive tab's seat camera is carried by (below)
+  const carAt = React.useRef<THREE.Matrix4 | null>(null);
 
   // buttons: drag orbits, wheel and pinch zoom, nothing pans the car off-centre
   React.useEffect(() => {
@@ -183,6 +190,9 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     // the Drive tab's seat: the pose is the car's own, and the car may be away from where it started
     const pos = inCar(pose.pos, pose.mode);
     const target = inCar(pose.target, pose.mode);
+    // the pose has been put where the car is now: the seat is carried by the car's moves from this transform on (a hill that comes or goes
+    // at the same moment as a pose would otherwise be counted twice)
+    carAt.current = pose.mode === 'interior' && useVehicleStore.getState().tab === 'drive' ? rigOf(vehicle).carMatrix(new THREE.Matrix4()) : null;
     if (first.current) {
       first.current = false;
       const cam = camera as THREE.PerspectiveCamera;
@@ -208,10 +218,9 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       lock();
     });
     invalidate();
-  }, [pose, tick, stage, camera, invalidate, inCar]);
+  }, [pose, tick, stage, camera, invalidate, inCar, vehicle]);
 
-  // The Drive tab's seat rides with the car: what it does sideways and in heading, the camera does with it (a drag still looks about)
-  const carAt = React.useRef<{ x: number; z: number; yaw: number } | null>(null);
+  // The Drive tab's seat rides with the car: what it does along the road and sideways, in heading and up a hill, the camera does with it (a drag still looks about)
   useFrame(() => {
     const c = controls.current;
     const st = useVehicleStore.getState();
@@ -219,20 +228,18 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       carAt.current = null;
       return;
     }
-    const now = rigOf(vehicle).state;
+    const now = rigOf(vehicle).carMatrix(_carNow);
     const was = carAt.current;
-    carAt.current = { x: now.x, z: now.z, yaw: now.yaw };
-    if (!was || (was.x === now.x && was.z === now.z && was.yaw === now.yaw)) return;
-    const turn = now.yaw - was.yaw;
-    const cs = Math.cos(turn);
-    const sn = Math.sin(turn);
-    const move = (v: THREE.Vector3) => {
-      const rx = v.x - was.x;
-      const rz = v.z - was.z;
-      return new THREE.Vector3(now.x + rx * cs + rz * sn, v.y, now.z - rx * sn + rz * cs);
-    };
-    const p = move(c.getPosition(new THREE.Vector3()));
-    const t = move(c.getTarget(new THREE.Vector3()));
+    if (!was) {
+      carAt.current = now.clone();
+      return;
+    }
+    if (was.equals(now)) return;
+    // the car's move since the last frame is one transform of the camera and of what it looks at
+    const delta = _carDelta.copy(now).multiply(_carBack.copy(was).invert());
+    const p = c.getPosition(new THREE.Vector3()).applyMatrix4(delta);
+    const t = c.getTarget(new THREE.Vector3()).applyMatrix4(delta);
+    was.copy(now);
     void c.setLookAt(p.x, p.y, p.z, t.x, t.y, t.z, false);
     c.update(0);
   });

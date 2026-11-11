@@ -1262,3 +1262,52 @@ whatever the car does, and the grass and the asphalt's grain were frozen the sam
 - Seen on the side: the viewer draws continuously while a run is paused part-way through a pull. `XrayDirector` (the cable pulses of the Drive tab's X-ray lens) asks for a frame
   while `fx.flow.level > 0.01`, and the Drive tab's live lights leave that level where the car's power was when the clock stopped; it is back to 0 idle on a fresh page. Not touched
   (X-ray code); `window.__weather` (dev) shows the rain's state when hunting for idle frames.
+
+## 25. The Drive cockpit: the controls built into the instruments (2026-11-11)
+
+The owner asked for the Drive tab's control panel to be more attractive, modern and compelling, in the look of the speedometers (same typography and colours), and for **Rival car,
+Voice and the Speed-against-time chart to go**. A first pass was a restyled column at the right; the owner then said it was not what they meant: **no panel layout at all, a digital
+dashboard / HUD where the visitor presses the buttons (the ones already designed) directly, and the text (the run notes and the like) can go so the layout is optimal.** So the panel
+is gone (`DrivePanel`, `DRIVE_COLUMN_W`, the scenario title and blurb, the run notes, the "in real life" paragraph) and `showroom/Drive.tsx` is now the **cockpit**: `DriveCockpit` renders
+the gauges (`LaunchTools`) with the buttons that set the run built in around them. Nothing is explained in words: a button is an icon and a name.
+- **Three forms** (`cockpitForm(vw, short)`): **banks** from 1200 px wide: a bank of buttons on each side of the speedometer and the tachometer, like a cockpit's switchgear (a grid of
+  `248px | gauges (up to 840) | 248px`, the banks stretching to the height of the gauges and their button row; the gauges shrink a little in a window under 1440). **Left bank = the car**:
+  the trims (a row each: the `MiniGauge` dial of the power against the strongest trim, the name in up to two lines, kW and N·m, the 0-100 as the big figure; a lone trim is the car's
+  identity card, not a button) and the drive modes (2x2 tiles, or three in a row). **Right bank = the conditions**: Road (Dry, Wet) and Hill (-6, Level, +6) side by side, the Camera
+  row (all six icons), Load (Driver or +kg) and After the run (Coast or Cruise, Stop). **strip** under 1200 px (and on a phone): every group in one row above the gauges, in the
+  order mode, road, hill, camera, load / stop, trim (a row that is too long scrolls, and what is cut off is the trim, chosen once), with a fade at the end that can be scrolled to
+  (`useScrollFade`). **mini** on a phone held sideways (`short`): the same row with the icons alone (names stay as `aria-label` and `title`), 32 px tall.
+- **Look**: the gauges' own backing (`#10141b` at 70 %, a white ring at 12 %, backdrop blur), Chakra Petch, slate labels with a short tick, **cyan for what is chosen** (the HUD's run
+  chips: tint, ring, glow), the HUD's red `#ff1a2a` for the fast modes and Stop (and a short red bar on the top edge of each bank), emerald for the thrifty modes, amber for Wet and
+  the loose surfaces. `toneOfMode` reads id and label; `ModeIcon` picks a leaf, a bolt, a flag, a peak or a dial the same way. Camera icons are what the camera sees (a car three
+  quarters with an orbit, from behind, from the side, from above, a steering wheel, a wireframe cube). Everything keeps `aria-pressed`.
+- **Run complete** is one slim bar above the instruments (`RunSummary`, absolutely above the cockpit so that it never moves the car's frame): the time (published or modelled), top
+  speed, peak pull, energy, and the stop distance or the sideways pull where the run has them; Run again, Next car, close. The stage caption is not drawn once a run has ended
+  (`ended` in `DriveMotion`), so that it does not sit behind the bar.
+- **Framing**: the car has the whole width now (`right: 0`; the left keeps a small inset for the column of cards), the data cards float on both sides of it (`rightPad` is 0), and the
+  bottom inset follows the form (0.4 banks, 0.43 strip, 0.3 sideways); `cockpitLift` raises the stage caption over the strip. The old `mt-11` that cleared the scenario bar is gone.
+- **Removed**: the Rival car row, the Voice row, the speed chart with its rival picker, and `useVoice` / `spokenForm`. Left alone, now unreachable from the UI: the store's `drive.rival`,
+  `drive.voice` and `drive.ghost`, `TechDirector`'s rival stand-in and `lib/tech/drive-rival.ts`.
+- **Checked** in the Browser pane: all nine cars at 1440x900 (banks 278 px, none overflowing, trim names wrap to two lines instead of being cut), G9L at 1280 and 1100, a 390 px phone
+  and an 844x390 sideways phone; Road, Hill, Mode, Camera and Stop move the store and the URL; a run, and its end (summary with the ES8's stop distance); the cabin camera. tsc and
+  eslint clean. Not seen by the owner yet.
+
+## 26. Hill fixes: the white wedge and the seat (2026-11-11)
+
+The owner (screenshot of the Z9 at -6 %): "when -6% or +6% is selected we get a white background replacing the road; the white surface is at the front when it is -6% and at the
+back when it is +6%." Two faults of the hill (section 22, "a hill that tilts the road"), both mine:
+- **The white wedge was the studio's floor.** A hill rotates the road about a point 7 m from the car (`CarRig.pivotX`: behind it for a climb, ahead for a descent), so half of the road
+  sinks below y = 0, and `StudioShowroom`'s floor disc (radius 22 m, `FLOOR`, depth-tested, at y = 0) hid it. Seen with the floor hidden (`o.visible = false` on the one
+  `CircleGeometry` in `__viewer.scene`) the road runs on to the horizon. Fix: `StudioShowroom` takes `hill` (the Drive tab with a grade, already computed in `ShowroomViewer`'s `Stage`)
+  and leaves the floor out then (no mirror either: `reflections && !hill` was already so); the road is seen against the room's own white (`scene.background`, dusk-multiplied, so night
+  stays dark). The two turntable rings are on the floor, so on a hill they are tilted with the road: `Rings` has an outer group that `rig.attachStage` (new optional `rig` prop;
+  the Comparison view passes none).
+- **The seat camera was inside the dash on a hill** (found while checking this): `ShowroomCameraRig` carried the Drive tab's seat by the car's x, z and heading only, but a hill also lifts
+  the cabin 0.42 m and pitches it by 3.4 degrees. Now `CarRig.carMatrix(out)` gives the car's whole transform (what `place` does, with the tilt), `inCar` puts the pose through it,
+  and the follow loop applies the car's move since the last frame (`now * was^-1`) to the camera and its target. A pose that lands (the hill button re-frames the stage) sets that
+  baseline in the same effect, or a hill that arrives with it would be counted twice (the camera ended 0.42 m too low). Measured on the SU7: level, +6 %, -6 %, level again: the
+  camera returns to the same position and direction to three decimals; +6 % looks 3.4 degrees up, -6 % down.
+- **Checked** in the Browser pane: Z9 at -6 % and +6 % (hero, chase, top; dry, wet, night), the -6 % hero run with the X-ray lens (the owner's scene), SU7 in the cabin at both
+  slopes and flat, mid-run; no errors; tsc and eslint clean. Not done: the Tech tab has no hills; `ContactShadows` (cars without a baked studio shadow) would not tilt, but all nine
+  have one.
+

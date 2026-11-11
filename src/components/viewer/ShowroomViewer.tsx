@@ -6,6 +6,7 @@ import { Canvas, useLoader, useThree } from '@react-three/fiber';
 import { ContactShadows, Html, Preload, useGLTF } from '@react-three/drei';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
+import { rigOf } from '@/lib/tech/rig';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
 import { BoostKnob } from './BoostKnob';
@@ -151,7 +152,7 @@ function Stage({
       {city && outside ? (
         <OutsideWorld world={outside} inside={inside} eye={eye} />
       ) : (
-        <StudioShowroom reflections={reflections && !hill} inside={inside} />
+        <StudioShowroom reflections={reflections && !hill} inside={inside} hill={hill} rig={rigOf(vehicle)} />
       )}
       {/* the lot a tech demo drives in, when it has one */}
       {!inside && <TechStage />}

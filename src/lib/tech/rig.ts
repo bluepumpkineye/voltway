@@ -179,6 +179,7 @@ const _qBody = new THREE.Quaternion();
 const _qPitch = new THREE.Quaternion();
 const _qRoll = new THREE.Quaternion();
 const _off = new THREE.Vector3();
+const _scratch = new THREE.Object3D();
 
 /** One car's rig, shared by everything that draws it (the exterior, the shadow). */
 export class CarRig {
@@ -363,6 +364,17 @@ export class CarRig {
     // the rotation about +z (nose up) after the yaw about +y
     g.rotation.set(0, yaw, st.slope, 'ZYX');
     g.position.set(px + (x - px) * c, (x - px) * n, z);
+  }
+
+  /**
+   * Where the car's own origin stands now, as a matrix: what `place` gives a car at (x, z, yaw), tilted with the hill. The Drive tab's seat
+   * camera is carried by it (a hill lifts and tilts the cabin, and a camera left behind would be inside the dash).
+   */
+  carMatrix(out: THREE.Matrix4): THREE.Matrix4 {
+    const st = this.state;
+    this.place(_scratch, st.x, st.z, st.yaw);
+    _scratch.updateMatrix();
+    return out.copy(_scratch.matrix);
   }
 
   /** Write the state to the scene. */

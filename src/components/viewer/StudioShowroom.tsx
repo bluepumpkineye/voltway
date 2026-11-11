@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Environment, Lightformer, MeshReflectorMaterial, useTexture } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { STUDIO_GAIN, STUDIO_RIG, STUDIO_VOID } from '@/data/studio/rig';
+import type { CarRig } from '@/lib/tech/rig';
 import type { VehicleAssets } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { useDusk } from './Lights';
@@ -34,7 +35,13 @@ const FLOOR_RADIUS = 22;
 /** How much of the floor colour the reflection replaces. */
 const MIRROR = 0.4;
 
-export function StudioShowroom({ reflections, inside }: { reflections: boolean; inside: boolean }) {
+/**
+ * `hill`: the Drive tab's road is tilted about a point near the car (`CarRig.attachStage`), and the studio's flat floor would hide the half of
+ * it that sinks below the floor's level (a white wedge where the road should be, in front of the car on a descent and behind it on a
+ * climb). On a hill the floor is left out and the road is seen against the room's own white; the rings that mark the floor go with the road
+ * (`rig` is the car's rig that tilts them).
+ */
+export function StudioShowroom({ reflections, inside, hill = false, rig }: { reflections: boolean; inside: boolean; hill?: boolean; rig?: CarRig }) {
   const camera = useThree((s) => s.camera);
   const scene = useThree((s) => s.scene);
   const background = React.useRef<THREE.Color>(null);
@@ -60,8 +67,8 @@ export function StudioShowroom({ reflections, inside }: { reflections: boolean; 
       <color ref={background} attach="background" args={[STUDIO_WHITE]} />
       <RigLight />
       <Cove />
-      <Rings />
-      {reflections && !inside ? <MirrorFloor /> : <PlainFloor />}
+      <Rings rig={rig} />
+      {!hill && (reflections && !inside ? <MirrorFloor /> : <PlainFloor />)}
     </>
   );
 }
@@ -217,32 +224,40 @@ function Cove() {
 }
 
 /** Two faint concentric lines on the floor, as on a turntable. */
-function Rings() {
+function Rings({ rig }: { rig?: CarRig }) {
   const rings: [number, number][] = [
     [4.3, 4.34],
     [7.6, 7.64],
   ];
   const mats = React.useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  // an outer group the rig may tilt with a hill (it sets that group's own position and rotation): the rings lie on the road, not under it
+  const stage = React.useRef<THREE.Group>(null);
+  React.useEffect(() => {
+    const g = stage.current;
+    return g && rig ? rig.attachStage(g, 0) : undefined;
+  }, [rig]);
   useDusk((d) => {
     for (const m of mats.current) m?.color.set('#c3c6cc').multiply(d.room);
   });
   return (
-    <group rotation-x={-Math.PI / 2} position-y={0.004}>
-      {rings.map(([a, b], i) => (
-        <mesh key={a} ref={onStage}>
-          <ringGeometry args={[a, b, 192]} />
-          <meshBasicMaterial
-            ref={(m: THREE.MeshBasicMaterial | null) => {
-              mats.current[i] = m;
-            }}
-            color="#c3c6cc"
-            transparent
-            opacity={0.75}
-            toneMapped={false}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
+    <group ref={stage}>
+      <group rotation-x={-Math.PI / 2} position-y={0.004}>
+        {rings.map(([a, b], i) => (
+          <mesh key={a} ref={onStage}>
+            <ringGeometry args={[a, b, 192]} />
+            <meshBasicMaterial
+              ref={(m: THREE.MeshBasicMaterial | null) => {
+                mats.current[i] = m;
+              }}
+              color="#c3c6cc"
+              transparent
+              opacity={0.75}
+              toneMapped={false}
+              depthWrite={false}
+            />
+          </mesh>
+        ))}
+      </group>
     </group>
   );
 }
