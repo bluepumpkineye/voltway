@@ -78,36 +78,22 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
     return () => setInset({ right: 0, bottom: 0 });
   }, [setInset, inset]);
 
-  // Set vehicle and active threshold target sound
+  // the car's voice (its motor is made from its speed and pull, so a run of any length sounds right: see lib/sound/launch.ts)
   React.useEffect(() => {
     if (vehicle?.slug) {
-      player.setVehicleAndTarget(vehicle.slug, activeTarget);
+      player.setVehicle(vehicle.slug);
     }
-  }, [player, vehicle?.slug, activeTarget]);
+  }, [player, vehicle?.slug]);
 
   // Handle play / pause / finish transitions
   React.useEffect(() => {
     if (!vehicle) return;
     if (playing) {
-      player.play(techClock.t, techSpeed);
+      player.play(techSpeed);
     } else {
-      if (run === 'done') {
-        player.pause();
-        player.seek(0);
-      } else {
-        player.pause();
-      }
+      player.pause();
     }
-  }, [playing, run, vehicle, techSpeed, player]);
-
-  // Follow scrubber seek while paused
-  React.useEffect(() => {
-    return techClock.subscribe(() => {
-      if (!techClock.playing) {
-        player.seek(techClock.t);
-      }
-    });
-  }, [player]);
+  }, [playing, vehicle, techSpeed, player]);
 
   // Follow techSpeed changes
   React.useEffect(() => {
@@ -320,17 +306,9 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
         });
       }
 
-      // 10. The motor's sound follows the car: it fades once the car is braking or crawling through a manoeuvre
-      const quiet = r.phase === 'brake' || r.phase === 'decel' || r.phase === 'stop' || r.phase === 'slalom' || r.phase === 'crab';
-      player.setGain(quiet ? Math.min(1, r.speed / 120) ** 2 : 1);
-
-      // 11. Audio drift correction
-      if (playing) {
-        const audioTime = player.currentTime;
-        if (Math.abs(audioTime - techClock.t) > 0.35) {
-          player.seek(techClock.t);
-        }
-      }
+      // 10. The sound: the motor is made from what the car is doing now (its speed, its pull, the phase of the run), so it
+      // fades with the speed through a brake and a slalom and is the same at any second of a run of any length
+      player.frame(r.speed, r.g, r.phase);
     };
 
     paint();

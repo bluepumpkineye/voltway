@@ -110,14 +110,14 @@ export function SceneToggle({
   );
 }
 
-/** Sound on or off: the doors, the bonnet, the tailgate and the charge flap make a noise as they move (src/lib/sound). */
+/** Sound on or off: the doors, the bonnet and the tailgate make a noise as they move, and the Drive tab's car has a motor (src/lib/sound). */
 export function SoundToggle() {
   const on = React.useSyncExternalStore(subscribeSound, soundOn, () => true);
   return (
     <button
       type="button"
       aria-pressed={on}
-      aria-label={on ? 'Sound on: turn the door sounds off' : 'Sound off: turn the door sounds on'}
+      aria-label={on ? 'Sound on: turn the car sounds off' : 'Sound off: turn the car sounds on'}
       title={on ? 'Sound on' : 'Sound off'}
       onClick={() => setSoundOn(!on)}
       className={`pointer-events-auto grid h-9 w-9 max-sm:h-8 max-sm:w-8 max-[380px]:h-[30px] max-[380px]:w-[30px] place-items-center rounded-full hover:text-neutral-950 ${GLASS} ${FOCUS} ${

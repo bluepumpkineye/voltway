@@ -1,144 +1,62 @@
 'use client';
 
-import { soundOn, subscribeSound } from './engine';
-
-const DEFAULT_SOUNDS: Record<number, string> = {
-  100: '/sounds/xiaomi-su7-launch-100.mp3',
-  200: '/sounds/xiaomi-su7-launch-200.mp3',
-};
-
-/** Sound files for launch demos by vehicle slug and target threshold (km/h) */
-const LAUNCH_SOUNDS: Record<string, Record<number, string>> = {
-  'xiaomi-su7-ultra': {
-    100: '/sounds/xiaomi-su7-launch-100.mp3',
-    200: '/sounds/xiaomi-su7-launch-200.mp3',
-  },
-};
+import { DriveEngine, prefetchDriveLoops } from './drive-engine';
 
 /**
- * Loop section boundaries for high-speed cruising.
- * Avoids looping back to 0 s (standing start), which sounds like a broken record.
- * Loops seamlessly across the steady-state top-speed motor whine.
+ * The sound of a run on the Drive tab, and of the Tech tab's launch demo, behind one small controller (Launch.tsx).
+ *
+ * The motor is made frame by frame from what the car is doing (its speed, its pull, the phase of the run: drive-engine.ts and
+ * drive-voice.ts), so nothing depends on how long a run lasts or on where the clock is. It used to lay one 9 s recording of an
+ * SU7 against the clock and loop a piece of it with a seek: past 9 s the seek and the clock's drift correction fought each other,
+ * and the sound stopped and clicked, on every car and on the 20 s runs especially (and the recording was the SU7's own, timed to
+ * its 1.98 s pull, whichever car was driving).
  */
-const LOOP_SECTIONS: Record<number, { loopStart: number; loopEnd: number }> = {
-  100: { loopStart: 5.5, loopEnd: 9.0 },
-  200: { loopStart: 10.2, loopEnd: 13.8 },
-};
-
 export class LaunchAudioController {
-  private audio: HTMLAudioElement | null = null;
+  private engine: DriveEngine | null = null;
   private slug: string | null = null;
-  private target: number | null = null;
-  private unsub: (() => void) | null = null;
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      this.unsub = subscribeSound(() => {
-        if (this.audio) {
-          this.audio.muted = !soundOn();
-        }
-      });
-    }
-  }
-
-  setVehicleAndTarget(slug: string, target: number) {
-    if (this.slug === slug && this.target === target && this.audio) {
-      return;
-    }
+  /** Choose the car whose voice it is (a different car makes a new motor). */
+  setVehicle(slug: string) {
+    if (this.slug === slug && this.engine) return;
     this.stop();
     this.slug = slug;
-    this.target = target;
-    const url = LAUNCH_SOUNDS[slug]?.[target] ?? DEFAULT_SOUNDS[target] ?? DEFAULT_SOUNDS[100];
-    if (url && typeof window !== 'undefined') {
-      const el = new Audio(url);
-      el.preload = 'auto';
-      el.muted = !soundOn();
-
-      // Clean continuous loop at cruising tone
-      el.addEventListener('timeupdate', () => {
-        const loop = LOOP_SECTIONS[this.target ?? 100];
-        if (loop && el.currentTime >= loop.loopEnd) {
-          el.currentTime = loop.loopStart;
-        }
-      });
-
-      el.addEventListener('ended', () => {
-        const loop = LOOP_SECTIONS[this.target ?? 100];
-        if (loop) {
-          el.currentTime = loop.loopStart;
-          el.play().catch(() => {});
-        }
-      });
-
-      this.audio = el;
-    }
+    if (typeof window === 'undefined') return;
+    prefetchDriveLoops();
+    const engine = new DriveEngine();
+    engine.setVoice(slug);
+    this.engine = engine;
   }
 
-  play(time = 0, speed = 1) {
-    if (!this.audio) return;
-    this.audio.muted = !soundOn();
-    this.audio.playbackRate = speed;
-    if (Math.abs(this.audio.currentTime - time) > 0.15) {
-      try {
-        this.audio.currentTime = time;
-      } catch {
-        // ignore seek error before metadata loaded
-      }
-    }
-    this.audio.play().catch(() => {
-      // autoplay block fallback
-    });
+  /** The run is playing, at `speed` times real time (slow motion slows the sound with it). */
+  play(speed = 1) {
+    if (!this.engine) return;
+    this.engine.setTimeScale(speed);
+    this.engine.start();
   }
 
+  /** The run is paused or over: the motor fades out. */
   pause() {
-    if (this.audio && !this.audio.paused) {
-      this.audio.pause();
-    }
+    this.engine?.stop();
   }
 
-  seek(time: number) {
-    if (!this.audio) return;
-    try {
-      this.audio.currentTime = time;
-    } catch {
-      // ignore
-    }
-  }
-
-  get currentTime(): number {
-    return this.audio?.currentTime ?? 0;
-  }
-
-  /** the motor's loudness, 0 to 1: it fades while the car brakes or crawls (the Drive tab's scenarios) */
-  setGain(gain: number) {
-    if (this.audio) this.audio.volume = Math.min(1, Math.max(0, gain));
+  /** The car, each frame: its speed (km/h), its pull (g) and what the run is doing. */
+  frame(speed: number, g: number, phase?: string) {
+    this.engine?.update(speed, g, phase);
   }
 
   setSpeed(speed: number) {
-    if (this.audio) {
-      this.audio.playbackRate = speed;
-    }
+    this.engine?.setTimeScale(speed);
   }
 
   stop() {
-    if (this.audio) {
-      this.audio.pause();
-      try {
-        this.audio.currentTime = 0;
-      } catch {
-        // ignore
-      }
-      this.audio = null;
+    if (this.engine) {
+      this.engine.dispose();
+      this.engine = null;
     }
     this.slug = null;
-    this.target = null;
   }
 
   dispose() {
     this.stop();
-    if (this.unsub) {
-      this.unsub();
-      this.unsub = null;
-    }
   }
 }

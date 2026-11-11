@@ -151,6 +151,18 @@ function wake() {
   if (a && a.ctx.state === 'suspended') void a.ctx.resume().catch(() => {});
 }
 
+/**
+ * The page's one audio context and its master gain, for the sounds that run for a while (the Drive tab's motor). Null where the
+ * browser has no Web Audio. The context is woken here too, which a browser allows once the page has been touched.
+ */
+export function sharedAudio(): { ctx: AudioContext; master: GainNode } | null {
+  if (typeof window === 'undefined') return null;
+  load();
+  const a = make();
+  if (a && a.ctx.state === 'suspended') void a.ctx.resume().catch(() => {});
+  return a;
+}
+
 if (typeof window !== 'undefined') {
   prefetch();
   const first = () => {
