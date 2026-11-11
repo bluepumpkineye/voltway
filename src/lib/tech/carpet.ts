@@ -24,6 +24,19 @@ const RUN_LENGTH = 30;
 
 const MOTION: Motion = { vmax: RUN_SPEED, accel: 1.6, steerRate: 1, dwell: 0, steerMin: 0.4 };
 
+/** A lane of a Chinese expressway, m, and the shoulders a road of lanes has beyond them (both together), m. */
+export const LANE_WIDTH = 3.75;
+export const SHOULDERS = 3.2;
+
+/**
+ * An expressway of `count` lanes for a car that stays on the spot: a strip that stands still under it (the lanes' dashes, the
+ * joints and the roadside roll by as far as their period, TechHighway.tsx), so its length is only how far the eye can see. The
+ * car's own lane is the middle one (the middle of the strip is the car's centre line).
+ */
+export function expressRoad(count: number, half = 140): RoadStage {
+  return { humps: [], from: -half, to: half, width: LANE_WIDTH * count + SHOULDERS, lanes: { count, width: LANE_WIDTH } };
+}
+
 /** The road of the run, in distances from the rear axle's start. */
 export interface RoadStage {
   humps: Hump[];

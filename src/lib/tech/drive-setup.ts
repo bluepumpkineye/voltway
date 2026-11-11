@@ -11,6 +11,12 @@ import { driveTimes, runList, type DriveInput, type DriveMotor, type DriveRunInf
  * standing start, its 0-100 and 0-200 and a coast.
  */
 
+/**
+ * The least a run lasts, s (ours): after the pull the car coasts, or holds its speed before the stop, so that there is a road to
+ * watch and every instrument card has its time (the SU7's own scenario asks for the same, `DriveSpec.runS`; a scenario may ask for more).
+ */
+export const MIN_RUN_S = 20;
+
 /** the driver alone, kg: the load the maker's times are taken to be for (ours) */
 export const DRIVER_KG = 75;
 /** a kerb weight for the cars whose data has none; used only as a ratio, never shown */
@@ -195,7 +201,7 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
     finish: spec.finish,
     cruiseKmh: spec.cruiseKmh,
     brake100M: spec.brake100M,
-    runS: spec.runS,
+    runS: Math.max(spec.runS ?? 0, MIN_RUN_S),
     manoeuvres,
     runs: spec.runs,
     env,

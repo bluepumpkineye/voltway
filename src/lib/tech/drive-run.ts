@@ -1,5 +1,5 @@
 import type { Layout, PlannedRun, Sample } from './kinematics';
-import type { RoadStage } from './carpet';
+import { expressRoad, type RoadStage } from './carpet';
 import type { Chassis } from './ride';
 import type { LaunchMark, LaunchReadout } from './launch';
 
@@ -26,8 +26,8 @@ export const HOLD = 0.6;
 const BUILD = 0.15;
 const EASE = 0.5;
 const COAST = 5.9;
-/** what a stop after a held speed takes: the lift, the brake and the car stood, s (a run given a length leaves this much for it) */
-const STOP_TAIL = 6;
+/** what a stop after a held speed takes, at most: the lift, the brake and the car stood, s (a run given a length leaves this much for it; from 100 km/h it takes 5.3) */
+const STOP_TAIL = 5;
 /** a pull to 200 km/h goes on a little past it before the car eases off (launch.ts), s */
 const CARRY = 1.2;
 export const V100 = 100 / 3.6;
@@ -421,12 +421,14 @@ const SWEEP_STEER_MAX = 6 * DEG;
 const SLALOM = { amp: 1.4, lambda: 24, periods: 2 };
 const CRAB = { shift: 1.8 };
 
-function segmentsOf(inp: DriveInput, brakeNow: boolean): Seg[] {
+function segmentsOf(inp: DriveInput, brakeNow: boolean, lead = 0): Seg[] {
   const segs: Seg[] = [{ kind: 'hold', dur: HOLD }, { kind: 'pull' }];
   if (inp.to >= 200) segs.push({ kind: 'carry', dur: CARRY });
   segs.push({ kind: 'ease', dur: EASE });
   const moves = inp.to <= 150 ? (inp.manoeuvres ?? []) : [];
   if (moves.length) {
+    // a run given a length that its manoeuvres do not fill holds the speed it reached for the rest of it, before they begin
+    if (lead > 0) segs.push({ kind: 'cruise', vTo: inp.to / 3.6, dur: lead });
     for (const m of moves) {
       if (m === 'sweep') segs.push({ kind: 'sweep', vCap: 130 / 3.6 });
       if (m === 'slalom') segs.push({ kind: 'decel', vTo: 16 / 3.6 }, { kind: 'slalom', v: 16 / 3.6 });
@@ -454,8 +456,24 @@ export function planDrive(
   inp: DriveInput,
   opts: { brake?: boolean; rival?: boolean } = {},
 ): DriveRun {
+  const run = planOnce(layout, body, start, inp, opts, 0);
+  // every other run is given its length where it is planned (the coast, the cruise or the hold before the stop lasts until `runS`); a run
+  // that ends with its manoeuvres ends where they do, so one that falls short is planned again with the time it lacks held before them
+  const short = (inp.runS ?? 0) - run.track.duration;
+  if (short > 0.05 && inp.manoeuvres?.length && inp.to <= 150) return planOnce(layout, body, start, inp, opts, short);
+  return run;
+}
+
+function planOnce(
+  layout: Layout,
+  body: { rear: number; front: number; halfWidth: number },
+  start: { x: number; y: number; yaw: number },
+  inp: DriveInput,
+  opts: { brake?: boolean; rival?: boolean },
+  lead: number,
+): DriveRun {
   const brakeNow = inp.finish === 'brake' || opts.brake === true;
-  const segs = segmentsOf(inp, brakeNow && !(inp.manoeuvres?.length && inp.to <= 150));
+  const segs = segmentsOf(inp, brakeNow && !(inp.manoeuvres?.length && inp.to <= 150), lead);
   const lateral = segs.some((s) => s.kind === 'sweep' || s.kind === 'slalom' || s.kind === 'crab');
   const L = layout.wheelbase;
   const radius = [layout.radius.FL, layout.radius.FR, layout.radius.RL, layout.radius.RR];
@@ -1042,8 +1060,9 @@ export function planDrive(
 
   return {
     track,
-    // the strip is a long one, with broad dashes: what streams past is the speed; a manoeuvre needs room to move sideways
-    road: { humps: [], from: -10, to: length + 30, width: opts.rival ? 9.6 : lateral ? 7.6 : 5.2, markings: { period: 9, length: 3.2, joint: 12.5 } },
+    // an expressway of three lanes, the car in the middle one (a rival has the next, a manoeuvre room to move sideways): the strip stands
+    // still and what streams past is the speed
+    road: expressRoad(3),
     scroll: (time) => at(C.S, time),
     chassis: (time) => ({ heave: 0, pitch: at(C.P, time), roll: at(C.R, time), lift: [0, 0, 0, 0] }),
     launch: {

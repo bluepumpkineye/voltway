@@ -799,19 +799,30 @@ export function gantrySign(): THREE.CanvasTexture {
     ctx.fillStyle = '#f4f6f4';
     ctx.textBaseline = 'middle';
     const cjk = '"Microsoft YaHei","PingFang SC","Noto Sans CJK SC","Hiragino Sans GB",sans-serif';
+    // every line is fitted to the room it has (a bold CJK fallback is wider than the font the sizes were drawn for)
+    const fit = (text: string, weight: number, size: number, room: number) => {
+      let px = size;
+      for (; px > 18; px -= 2) {
+        ctx.font = `${weight} ${px}px ${cjk}`;
+        if (ctx.measureText(text).width <= room) break;
+      }
+    };
     ctx.textAlign = 'left';
-    ctx.font = `700 54px ${cjk}`;
+    fit('G15 沈海高速', 700, 54, 360);
     ctx.fillText('G15 沈海高速', 48, 64);
-    ctx.font = `600 34px ${cjk}`;
+    fit('Shenhai Expressway', 600, 34, 360);
     ctx.fillText('Shenhai Expressway', 50, 128);
     ctx.fillRect(498, 26, 4, H - 52);
-    ctx.font = `700 50px ${cjk}`;
-    ctx.fillText('宁波 Ningbo', 540, 62);
-    ctx.fillText('温州 Wenzhou', 540, 134);
+    // the two places and their distances: names on the left of the column, distances right-aligned in their own room
+    fit('温州 Wenzhou', 700, 46, 300);
+    const nameSize = parseInt(ctx.font.match(/(\d+)px/)![1], 10);
+    ctx.font = `700 ${nameSize}px ${cjk}`;
+    ctx.fillText('宁波 Ningbo', 530, 62);
+    ctx.fillText('温州 Wenzhou', 530, 134);
     ctx.textAlign = 'right';
-    ctx.font = `700 44px ${cjk}`;
-    ctx.fillText('86 km', W - 46, 62);
-    ctx.fillText('290 km', W - 46, 134);
+    fit('290 km', 700, 42, 150);
+    ctx.fillText('86 km', W - 40, 62);
+    ctx.fillText('290 km', W - 40, 134);
     // a down arrow over the lane
     ctx.textAlign = 'left';
     ctx.beginPath();
@@ -907,7 +918,9 @@ export function leafCluster(kind: 'camphor' | 'plane' | 'ginkgo' | 'shrub' | 'cy
         const d = Math.sqrt(r()) * reach * S;
         const x = Math.min(S - 10, Math.max(10, S / 2 + Math.cos(a) * d + bias * S));
         const y = Math.min(S - 10, Math.max(10, S / 2 + Math.sin(a) * d + bias * S));
-        leaf(x, y, a + Math.PI / 2 + (r() - 0.5) * 1.5, 0.85 + r() * 0.5, shade(col, 0.88 + r() * 0.24));
+        // a tree's leaves fan out of the cluster's middle; a shrub's lie every way (a fan of them would read as a pom-pom)
+        const turn = kind === 'shrub' ? r() * Math.PI * 2 : a + Math.PI / 2 + (r() - 0.5) * 1.5;
+        leaf(x, y, turn, 0.85 + r() * 0.5, shade(col, 0.88 + r() * 0.24));
       }
     });
     // one soft light from the upper left over the painted part only, and a shade on the lower right
@@ -924,6 +937,65 @@ export function leafCluster(kind: 'camphor' | 'plane' | 'ginkgo' | 'shrub' | 'cy
     ctx.fillRect(0, 0, S, S);
     ctx.globalCompositeOperation = 'source-over';
     return toTexture(canvas, { aniso: 4 });
+  });
+}
+
+/**
+ * The body of a hedge or a shrub: a tile of small leaves lying every way, in four greens, over a dark ground, with slow patches of
+ * light and shade. Opaque and tileable (a tile is about 0.9 m on the shrub, so a leaf is 4 to 6 cm), laid on the rounded mass
+ * under the fringe of leaf cards.
+ */
+export function foliageMass(): THREE.CanvasTexture {
+  return cached('foliage-mass', () => {
+    const S = 256;
+    const { canvas, ctx } = makeCanvas(S, S);
+    const r = rng(4242);
+    ctx.fillStyle = '#15321d';
+    ctx.fillRect(0, 0, S, S);
+    // drawn again a tile over wherever it crosses an edge, so the tile repeats without a seam
+    const wrapped = (x: number, y: number, reach: number, draw: (px: number, py: number) => void) => {
+      for (const dx of [-S, 0, S]) {
+        for (const dy of [-S, 0, S]) {
+          const px = x + dx;
+          const py = y + dy;
+          if (px < -reach || px > S + reach || py < -reach || py > S + reach) continue;
+          draw(px, py);
+        }
+      }
+    };
+    // slow patches: a few lighter and darker clumps
+    for (let i = 0; i < 30; i++) {
+      const light = r() > 0.5;
+      const rad = (0.08 + r() * 0.12) * S;
+      wrapped(r() * S, r() * S, rad, (px, py) => {
+        const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+        g.addColorStop(0, light ? 'rgba(96,150,70,0.32)' : 'rgba(6,20,10,0.4)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+      });
+    }
+    const leaf = (col: string, len: number, wid: number) => {
+      const x = r() * S;
+      const y = r() * S;
+      const a = r() * Math.PI * 2;
+      const k = 0.85 + r() * 0.35;
+      wrapped(x, y, len, (px, py) => {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(a);
+        ctx.fillStyle = shade(col, 0.86 + r() * 0.28);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, (len * k) / 2, (wid * k) / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    };
+    for (let i = 0; i < 620; i++) leaf('#1f4a28', 21, 10);
+    for (let i = 0; i < 560; i++) leaf('#2e6a30', 19, 9);
+    for (let i = 0; i < 360; i++) leaf('#4c8c3c', 17, 8);
+    for (let i = 0; i < 120; i++) leaf('#7db853', 15, 7);
+    return toTexture(canvas, { repeat: true, aniso: 8 });
   });
 }
 

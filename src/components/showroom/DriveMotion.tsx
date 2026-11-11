@@ -258,8 +258,8 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
   const acts = React.useMemo(() => (facts && shape ? launchActs(facts, shape.launch) : []), [facts, shape]);
   // two cards open at once where the window is tall enough for them above the gauges
   const max = column && vh >= 800 ? 2 : 1;
-  // a run given a length (`DriveSpec.runS`) gives every card its turn, and the car's hardware is revealed beside each (driveLensPlan)
-  const spread = setup.spec.runS !== undefined;
+  // every run is given a length (`MIN_RUN_S`, drive-setup.ts): a long chapter gives every card its turn, and the car's hardware is revealed beside each (driveLensPlan)
+  const spread = setup.input.runS !== undefined;
   const plan = React.useMemo(() => (facts && shape ? beatPlan(overlays, facts, shape, max, spread) : []), [overlays, facts, shape, max, spread]);
   React.useEffect(() => {
     driveLensPlan.plan = plan;

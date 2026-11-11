@@ -526,7 +526,7 @@ export interface DriveSpec {
   cruiseKmh?: number;
   /** the maker's 100-0 km/h braking distance, m, which the stop is calibrated to (else 36 m, ours) */
   brake100M?: number;
-  /** the least the run lasts, s (ours): after the pull the car coasts, or holds its speed before the stop, so that each instrument card has time to show */
+  /** more than the least the run lasts (`MIN_RUN_S`, 20 s; ours): after the pull the car coasts, or holds its speed before the stop, so that each instrument card has time to show */
   runS?: number;
   /** after the pull, in this order, on runs that end at 150 km/h or less */
   manoeuvres?: DriveManoeuvre[];

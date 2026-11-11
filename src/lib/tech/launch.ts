@@ -1,5 +1,5 @@
 import type { Layout, PlannedRun, Sample } from './kinematics';
-import type { RoadStage } from './carpet';
+import { expressRoad, type RoadStage } from './carpet';
 import type { Chassis } from './ride';
 import type { DriveFacts } from './drive-run';
 
@@ -214,8 +214,8 @@ export function planLaunch(
   if (t200) marks.push({ speed: 200, time: t200 });
   return {
     track,
-    // the strip is a long one, with broad dashes: what streams past is the speed
-    road: { humps: [], from: -10, to: length + 30, width: 5.2, markings: { period: 9, length: 3.2, joint: 12.5 } },
+    // an expressway of three lanes, the car in the middle one: the strip stands still and what streams past is the speed
+    road: expressRoad(3),
     scroll: (t) => at(S, t),
     chassis: (t) => ({ heave: 0, pitch: at(P, t), lift: [0, 0, 0, 0] }),
     launch: {

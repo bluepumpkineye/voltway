@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { Vehicle } from '@/data/vehicles/schema';
 import type { CityRoad, RoadStage } from '@/lib/tech/carpet';
 import { rigOf } from '@/lib/tech/rig';
+import { HEDGE_STEP } from '@/lib/tech/street';
 import { useDusk } from './Lights';
 import { Signal } from './TechSignal';
 import { FootwayStrip, asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
@@ -287,8 +288,12 @@ function citySpots(city: CityRoad, PM: number, n: number): Record<Kinds, Spot[]>
       for (let i = 0; i < 3; i++) at(6 + off + 24 * i, 0.5, 'lamp', lampYaw);
       // the near side (the camera's) has a tree every 24 m so that they do not stand in front of the car; the far side every 12
       for (let i = 0; i < 6; i++) if (side > 0 || i % 2 === 0) at(((side < 0 ? 3 : 9) + 12 * i) % PM, 1.55, SPECIES[(i + (side < 0 ? 0 : 3) + k + n) % SPECIES.length], 0, (side < 0 ? 0.85 : 0.95) + r() * 0.2);
-      // hedges along the building line, in breaks
-      for (let x = 1.5; x < PM - 3; x += 7 + r() * 6) if (r() > 0.3) at(x, foot - 0.55, 'hedge');
+      // hedges along the building line, in runs of two to four lengths that meet
+      for (let x = 1.5; x < PM - 3; x += 3 + r() * 7) {
+        const n = 2 + Math.floor(r() * 3);
+        for (let q = 0; q < n && x + q * HEDGE_STEP < PM - 3; q++) at(x + q * HEDGE_STEP, foot - 0.55, 'hedge');
+        x += n * HEDGE_STEP;
+      }
       // benches, bins, bikes, a planter, a hydrant, signs and a shelter
       at(side < 0 ? 14 : 38, 2.25, 'bench', faceRoad);
       at(side < 0 ? 50 : 62, 2.25, 'bench', faceRoad);
@@ -315,7 +320,7 @@ function CityScenery({ spots, copies, nearBuildings, farBuildings, PM, nearZ, fa
       {(['tree', 'plane', 'ginkgo', 'hedge'] as const).map((k) => {
         const s = spots[k];
         if (!s?.length) return null;
-        return <Trees key={k} kind={k === 'tree' ? 'camphor' : k} spots={s} shadows={k !== 'hedge'} />;
+        return <Trees key={k} kind={k === 'tree' ? 'camphor' : k} spots={s} />;
       })}
       <Pits spots={trees} />
       {(['lamp', 'bench', 'bin', 'bikes', 'planter', 'hydrant', 'shelter', 'sign', 'streetsign'] as const).map((k) => {

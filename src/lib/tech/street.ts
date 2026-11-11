@@ -183,6 +183,9 @@ function sweep(track: Track, body: BodyBox, others: Rect[]) {
 }
 
 /** A lamp or a tree every `every` metres from x0 to x1 along y. */
+/** the spacing of the clipped hedge's lengths, m: a little under a hedge's length, so that neighbours meet */
+export const HEDGE_STEP = 2.3;
+
 function along(kind: StreetPropKind, x0: number, x1: number, every: number, y: number, yaw?: number, phase = 0): StreetProp[] {
   const out: StreetProp[] = [];
   for (let x = x0 + phase; x <= x1; x += every) out.push({ kind, x, y, yaw });
@@ -208,8 +211,12 @@ export function streetProps(road: { x0: number; x1: number; y0: number; y1: numb
     // trees between the lamps, every 9.5 m
     let i = 0;
     for (let x = x0 + 5; x <= x1; x += 9.5 + rnd() * 1.5) out.push({ kind: species[i++ % species.length], x, y: ky - 1.9, scale: 0.9 + rnd() * 0.25 });
-    // hedge along the building line, in breaks
-    for (let x = x0; x <= x1 - 3; x += 7 + rnd() * 6) if (rnd() > 0.35) out.push({ kind: 'hedge', x, y: ky - foot.south + 0.55, scale: 1, yaw: 0 });
+    // hedge along the building line, in runs of two to four lengths that meet (a hedge is clipped in lengths, and one on its own is a loaf)
+    for (let x = x0; x <= x1 - 3; x += 3 + rnd() * 7) {
+      const n = 2 + Math.floor(rnd() * 3);
+      for (let q = 0; q < n && x + q * HEDGE_STEP <= x1 - 3; q++) out.push({ kind: 'hedge', x: x + q * HEDGE_STEP, y: ky - foot.south + 0.55, scale: 1, yaw: 0 });
+      x += n * HEDGE_STEP;
+    }
     // benches, bins and the like in the lee of the lamps
     for (let x = x0 + 8; x <= x1 - 2; x += 13) {
       const r = rnd();
@@ -237,7 +244,7 @@ export function streetProps(road: { x0: number; x1: number; y0: number; y1: numb
       const r = rnd();
       if (r < 0.4) out.push({ kind: 'bin', x, y: ky + 0.95, yaw: 0 });
       else if (r < 0.7) out.push({ kind: 'bikes', x, y: ky + 1.2, yaw: Math.PI / 2 });
-      else out.push({ kind: 'hedge', x, y: ky + foot.north - 0.6, yaw: 0 });
+      else for (let q = 0; q < 2; q++) out.push({ kind: 'hedge', x: x + q * HEDGE_STEP, y: ky + foot.north - 0.6, yaw: 0 });
     }
   }
   return out;
@@ -286,7 +293,8 @@ export function dressLot(lot: ParkStage): StreetStage {
       ...p,
       kind: (i % 3 === 1 ? 'plane' : 'tree') as StreetPropKind,
     })),
-    ...along('hedge', x0 + 4, x1 - 4, 6.2, backY - foot + 0.6, 0, 0),
+    // a hedge under the wall: lengths that meet, five and a gap of two
+    ...along('hedge', x0 + 4, x1 - 4, HEDGE_STEP, backY - foot + 0.6, 0, 0).filter((_, i) => i % 7 < 5),
     ...along('bin', x0 + 8, x1 - 4, 22, backY - 1.2, Math.PI, 3),
     ...along('bikes', x0 + 14, x1 - 6, 31, backY - 1.3, Math.PI / 2, 0),
     ...along('personA', x0 + 9, x1 - 6, 23, backY - 1.55, Math.PI * 1.1, 0),

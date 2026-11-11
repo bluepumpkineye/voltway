@@ -32,9 +32,10 @@ export function TechRoad({ vehicle }: { vehicle: Vehicle }) {
   const road = rt?.road;
   if (!road) return null;
   if (road.city) return <CityStreet road={road} city={road.city} vehicle={vehicle} />;
-  // the Drive tab's wet road: the same asphalt under a dark gloss that mirrors the studio
+  // the Drive tab's wet road: the same asphalt under a dark gloss that mirrors the studio; and no gantry over it (it would pass between the
+  // camera and the car), where Autonomous Drive's expressway has one
   const wet = Boolean(rt?.launch?.drive?.env.wet);
-  return road.lanes ? <Highway road={road} lanes={road.lanes} vehicle={vehicle} /> : <Road road={road} vehicle={vehicle} wet={wet} />;
+  return road.lanes ? <Highway road={road} lanes={road.lanes} vehicle={vehicle} wet={wet} gantry={!rt?.launch} /> : <Road road={road} vehicle={vehicle} />;
 }
 
 /** pixels per metre of the asphalt's texture (less on a very long strip, to keep the canvas small) */
@@ -42,14 +43,8 @@ const PPM_MAX = 36;
 const CANVAS_MAX = 4096;
 /** the fade at the strip's ends and sides, m */
 const FADE_END = 3.5;
-const FADE_SIDE = 0.9;
 
-const smooth = (a: number, b: number, x: number) => {
-  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-};
-
-function Road({ road, vehicle, wet = false }: { road: RoadStage; vehicle: Vehicle; wet?: boolean }) {
+function Road({ road, vehicle }: { road: RoadStage; vehicle: Vehicle }) {
   const rig = rigOf(vehicle);
   const group = React.useRef<THREE.Group>(null);
   React.useEffect(() => {
@@ -64,7 +59,6 @@ function Road({ road, vehicle, wet = false }: { road: RoadStage; vehicle: Vehicl
       <group ref={group}>
         <Asphalt road={road} />
         <TrackSides road={road} />
-        {wet && <WetSheen road={road} />}
         {road.humps.map((h, i) => (
           <HumpMesh key={i} hump={h} width={road.width - 1.6} />
         ))}
@@ -202,8 +196,9 @@ function TrackSides({ road }: { road: RoadStage }) {
   const n = Math.ceil(length / 2 / P);
   const spots = React.useMemo(() => {
     const s = expresswaySpots(edge, P, n, 9);
-    // a test road has no gantry
+    // a test road has no gantry and no street lamps
     delete (s as Record<string, unknown>).gantry;
+    delete (s as Record<string, unknown>).lamp;
     return s;
   }, [edge, n]);
   const x0 = road.from;
@@ -216,54 +211,6 @@ function TrackSides({ road }: { road: RoadStage }) {
         <ExpresswayRoadside spots={spots} span={0} edge={edge} />
       </group>
     </>
-  );
-}
-
-/**
- * A wet road: a dark gloss over the asphalt, faded at the edges as it is, lit by the studio's environment so that it mirrors the
- * rig's lamps and the car. Drawn the same size as the asphalt, a hair above it.
- */
-function WetSheen({ road }: { road: RoadStage }) {
-  const length = road.to - road.from;
-  const alpha = React.useMemo(() => {
-    const W = 1024;
-    const H = 128;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d')!;
-    const img = ctx.createImageData(W, H);
-    for (let y = 0; y < H; y++) {
-      const dy = (Math.min(y, H - 1 - y) / H) * road.width;
-      for (let x = 0; x < W; x++) {
-        const dx = (Math.min(x, W - 1 - x) / W) * length;
-        const i = (y * W + x) * 4;
-        const v = Math.round(255 * smooth(0, FADE_SIDE, dy) * smooth(0, FADE_END, dx));
-        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-        img.data[i + 3] = 255;
-      }
-    }
-    ctx.putImageData(img, 0, 0);
-    return new THREE.CanvasTexture(canvas);
-  }, [road.width, length]);
-  React.useEffect(() => () => alpha.dispose(), [alpha]);
-  return (
-    <mesh position={[road.from + length / 2, 0.0035, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.4} ref={onStageLayer}>
-      <planeGeometry args={[length, road.width]} />
-      <meshStandardMaterial
-        color="#161a22"
-        roughness={0.08}
-        metalness={0}
-        envMapIntensity={2.6}
-        transparent
-        opacity={0.8}
-        alphaMap={alpha}
-        depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-6}
-        polygonOffsetUnits={-6}
-      />
-    </mesh>
   );
 }
 

@@ -1038,7 +1038,7 @@ has time to show.
 - **A run given a length** (`DriveSpec.runS`, `DriveInput.runS`, `drive-run.ts` `segmentsOf`): after the pull the car coasts (or, before a
   stop the visitor asked for, holds the speed it reached; the lift, the brake and the car stood take the last six seconds) until `runS`.
   The pull itself is the maker's time and does not change. The SU7 Ultra has `runS: 20` on every run (0-100, 0-200, 100-200: 20.0 s each;
-  with the stop, 19.6 s). No other car sets it; their runs are as they were (`drive-cars.mjs` prints every car's duration).
+  with the stop, 19.6 s). No other car sets it, but every run now lasts at least 20 s (section 22's revision, `MIN_RUN_S`); `drive-cars.mjs` prints every car's duration.
 - **Every card its turn** (`beatPlan(..., spread)`, `drive-beats.ts`): on a run given a length, the last chapter of eight seconds or more
   gives its second place to each of the car's cards in turn (not the brakes and the steering, which wait for their own moment). The SU7
   shows the power card the whole run, the motors' card from the launch to 11.3 s and the energy card from 11.3 s on.
@@ -1125,3 +1125,47 @@ extras the sensors ignore would look like a miss); real-time shadows (a sun woul
 on its CTB demo as well as God's Eye. The CTB demo draws none of this scenery, so it is not from this work (the Seal's cabin and rebuild
 are another session's uncommitted changes); the Seal's traffic-light scene itself could not be looked at for that reason and uses the same
 `CityStreet` path as the G9L's, with the signals unchanged.
+
+### Revision, the same day: the hedges, a road of lanes, and every Drive run at least 20 s
+
+The owner's note on the Drive tab: the bushes looked wrongly made (a flat green box with large leaf rosettes stuck to it), the road was a single lane
+lined by a continuous row of them, and the 20 s run of section 21 was the SU7's alone.
+
+- **Hedges and shrubs** (`trees.ts` `clipped`, `textures.ts` `foliageMass`): the body is now a rounded mass, a superellipsoid (a hedge is the softly
+  squared shape of shears with rounded ends, a shrub a lumpy mound), carrying an opaque tileable texture of small leaves lying every way, shaded
+  darker toward the ground and mottled; 56 to 72 small leaf cards lie on its skin, their far edges lifted, to break the outline. The shrub
+  cluster no longer fans its leaves out of the middle (that read as a pom-pom). A hedge's soft shadow is long, a shrub's round (`TreeParts.shadow`).
+  Along the expressway the median is one clipped run (`expresswaySpots`: lengths of 2.3 m that meet) with a small ginkgo, camphor or cypress
+  standing in it every 17 to 26 m, and the bank has shrubs grouped at the foot of each tree and groups of their own. In the streets and the city a hedge is
+  a run of two to four lengths (`HEDGE_STEP`, street.ts), not a loaf on its own.
+- **A road of lanes** (`carpet.ts` `expressRoad`, `LANE_WIDTH`): the Drive tab and the SU7's launch demo now run on three lanes of 3.75 m and 3.2 m of
+  shoulders, the car in the middle one, the rival in the next (`RIVAL_LANE` = one lane). It is drawn by `Highway` (TechHighway.tsx), as Autonomous Drive's
+  expressway is: the asphalt and the two edge lines stand still under the car, and the dashes, joints, barriers and trees roll as far as their period, so
+  the road no longer depends on how far the run goes (the old strip was as long as the run and its canvas grew blurrier with it). The Drive tab has no
+  gantry (it would pass between the camera and the car); `Highway` takes `wet` (`WetSheen`, now in `Ground.tsx`, a little less glossy) and `gantry`.
+  The Magic Carpet's strip (`TechRoad`'s `Road`) is as it was.
+- **Every Drive run lasts at least 20 s** (`MIN_RUN_S`, drive-setup.ts: `runS = max(spec.runS, 20)`). Section 21 had given the SU7 alone a length. After
+  the pull the car coasts, holds its cruise or holds its speed before the stop until then (the stop's tail is 5 s: `STOP_TAIL`); a run that ends in its
+  manoeuvres (the 06T's sweep) is planned a second time with the time it lacks held before them (`planDrive`, `planOnce`). Durations (`drive-cars.mjs`):
+  SU7 20.0, RX 20.3, 7X 20.0, 06T 22.0, ES8 20.4, Seal 20.0, Voyah 20.0; the G9L's and the Z9's manoeuvres already took 27.5 and 29.5 s. Every car's cards are
+  now spread through the run (`beatPlan(..., spread)`) and the X-ray lens reveals each card's hardware in turn, as the SU7's did.
+- **Not changed:** Autonomous Drive's own scenes last 16.5 s (debris), 19 s (overtake), 22 s (G9L city) and 27 s (the Seal's traffic light): they are scripted
+  around their events, and none is held to 20 s.
+- **Cost** (RX Drive tab, in the Browser pane): 242 draw calls, 0.87 M triangles, 12 ms a frame; the car and its hardware are most of it.
+
+### Revision, night: street lamps and lit signs on Autonomous Drive's expressway (2026-11-11)
+
+The owner's note on the night scenes: the road had no lighting from street lamps, and the road signs were dark (the gantry's sign was all but invisible).
+
+- **Street lamps** (`expresswaySpots`, `Roadside.tsx`): twelve-metre poles (the street lamp at 1.8 times) every 40 m, on the median behind its barrier (the arm reaches over the
+  fast lane) and, staggered by 20 m, behind the crash barrier (over the slow lane); a median tree is left out within 4.5 m of a pole. They use the street's lamp prop and its
+  night pool of light on the road, and the Drive tab's road has them too (the Magic Carpet's strip does not).
+- **Halos** (`Halos` in `Scenery.tsx`, used by `LampGlow`): the lantern is a flat slit that is nothing seen from the side, so each lamp now has a glow that always faces the camera
+  (one instanced quad per glow, a patched `MeshBasicMaterial` whose vertex shader places the quad at the instance and turns it to the camera, so there is no point-size limit).
+  It ramps in with the room's night and is invisible by day. The city's and the lot's lamps have it as well.
+- **Lit signs**: the gantry's green sign takes the room's dusk only as far as daylight (`Gantries`: the face colour goes back toward white as the room darkens) and has three
+  fixtures under its lower edge, drawn as small glows. The speed sign and the street-name plate (`signFaces` in `props.ts`) light their faces: the same faces, a hair thicker, drawn
+  additively over the dimmed ones. The kilometre post and the delineators are not lit.
+- **The gantry's text** (`gantrySign`): in a bold CJK fallback font "Ningbo" ran into "86 km" and "Wenzhou" into "290 km"; each line is now measured and shrunk to the room it has.
+- Nothing added to the scene's lights; idle frames stay 0 (the glows are drawn on the frames that are drawn).
+- Checked in the Browser pane with the headlamps on (`lights=low`): the RX's expressway from behind the car, the G9L's city street and the Drive tab. Not checked: the 06T's debris scene (same road and lamps).

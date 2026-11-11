@@ -29,8 +29,9 @@ export const SHAPES: Record<TreeKind, Shape> = {
   plane: { trunkH: 2.9, trunkR: 0.15, cy: 4.6, rx: 2.5, ry: 2.0, rz: 2.5, cards: 140, size: [1.5, 2.3], leaf: 'plane', bark: '#a79a86', forks: 5 },
   ginkgo: { trunkH: 2.2, trunkR: 0.1, cy: 4.0, rx: 1.25, ry: 2.4, rz: 1.25, cards: 120, size: [1.0, 1.5], leaf: 'ginkgo', bark: '#7a6d58', forks: 3 },
   cypress: { trunkH: 0.8, trunkR: 0.08, cy: 3.4, rx: 0.95, ry: 3.1, rz: 0.95, cards: 110, size: [0.9, 1.4], leaf: 'cypress', bark: '#5e5240', forks: 0 },
-  hedge: { trunkH: 0, trunkR: 0, cy: 0.5, rx: 1.15, ry: 0.48, rz: 0.5, cards: 46, size: [0.5, 0.8], leaf: 'shrub', bark: '#5a4a38', forks: 0 },
-  shrub: { trunkH: 0, trunkR: 0, cy: 0.55, rx: 0.7, ry: 0.5, rz: 0.7, cards: 30, size: [0.5, 0.8], leaf: 'shrub', bark: '#5a4a38', forks: 0 },
+  // clipped hedge (rx: half length, ry: half height, rz: half depth) and a rounded shrub: a leafy mass with a fringe of small cards
+  hedge: { trunkH: 0, trunkR: 0, cy: 0.5, rx: 1.25, ry: 0.55, rz: 0.5, cards: 72, size: [0.2, 0.36], leaf: 'shrub', bark: '#5a4a38', forks: 0 },
+  shrub: { trunkH: 0, trunkR: 0, cy: 0.55, rx: 0.75, ry: 0.5, rz: 0.75, cards: 56, size: [0.22, 0.42], leaf: 'shrub', bark: '#5a4a38', forks: 0 },
 };
 
 export interface TreeParts {
@@ -39,8 +40,10 @@ export interface TreeParts {
   /** the canopy's reach on the ground, m: where its shadow falls */
   radius: number;
   leaf: Shape['leaf'];
-  /** the trunk geometry is a solid green core (hedges, shrubs), not bark */
+  /** the trunk geometry is a solid leafy mass (hedges, shrubs), not bark */
   solid?: boolean;
+  /** the soft shadow on the ground, m across and along: a hedge's is long, a canopy's round (left out: the canopy's) */
+  shadow?: [number, number];
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -58,56 +61,116 @@ function limb(b: Builder, from: THREE.Vector3, to: THREE.Vector3, r0: number, r1
   g.dispose();
 }
 
+/** signed power: the superellipse's way round a corner (exponent 1 is a circle, small is a rounded box) */
+const sgnPow = (x: number, e: number) => Math.sign(x) * Math.pow(Math.abs(x), e);
+
 /**
- * A clipped hedge or a shrub: a dark core box that fills it (so nothing shows through) and leaf cards laid over its top and sides,
- * facing out. Half sizes rx, ry (height / 2, on the ground) and rz.
+ * A clipped hedge or a shrub. The body is a rounded mass (a superellipsoid: a hedge's top, sides and ends are the softly squared
+ * shape of shears, a shrub is a mound with a little lumpiness) carrying the dense small-leaf texture of `foliageMass`, shaded
+ * darker toward the ground and mottled; a fringe of small leaf cards lies on its skin, tilted out at the edges, to break the
+ * outline. The cards are small, many and in the same greens, so nothing reads as a pom-pom or as a box with stickers.
  */
 function clipped(kind: TreeKind, s: Shape, r: () => number): TreeParts {
-  const hx = s.rx;
-  const hy = s.ry;
-  const hz = s.rz;
-  const core = new Builder();
-  const g = hex('#1f4326');
-  core.box(-hx * 0.97, 0, -hz * 0.97, hx * 1.94, hy * 2 * 0.94, hz * 1.94, g, 0, ['-y']);
-  const cb = new Builder();
-  for (let i = 0; i < s.cards; i++) {
-    const face = r();
-    let p: V3;
-    let n: V3;
-    if (face < 0.5) {
-      p = [(r() * 2 - 1) * hx, hy * 2 * 0.97, (r() * 2 - 1) * hz];
-      n = [0, 1, 0];
-    } else if (face < 0.8) {
-      const side = r() < 0.5 ? -1 : 1;
-      p = [(r() * 2 - 1) * hx, r() * hy * 2, side * hz];
-      n = [0, 0.25, side];
-    } else {
-      const side = r() < 0.5 ? -1 : 1;
-      p = [side * hx, r() * hy * 2, (r() * 2 - 1) * hz];
-      n = [side, 0.25, 0];
+  const hedge = kind === 'hedge';
+  const e = hedge ? 0.42 : 0.82;
+  const H = s.ry * 2;
+  const lump = hedge ? 0.02 : 0.1;
+  const ph = [r() * 6.28, r() * 6.28, r() * 6.28, r() * 6.28];
+  // the skin at azimuth u (0..2 pi) and elevation v (0 at the ground, pi/2 at the top)
+  const skin = (u: number, v: number): V3 => {
+    const cv = Math.pow(Math.cos(v), e);
+    const sv = Math.pow(Math.sin(v), e);
+    const k = 1 + lump * (Math.sin(3 * u + ph[0]) * Math.cos(2.2 * v + ph[1]) + 0.6 * Math.sin(5 * u + ph[2] + v * 2));
+    const kh = 1 + lump * 0.5 * Math.sin(4 * u + ph[3]);
+    return [s.rx * cv * sgnPow(Math.cos(u), e) * k, H * sv * kh, s.rz * cv * sgnPow(Math.sin(u), e) * k];
+  };
+
+  // ---- the body
+  const nu = 28;
+  const nv = 8;
+  const pos: number[] = [];
+  for (let j = 0; j <= nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      const p = skin((i / nu) * Math.PI * 2, (j / nv) * (Math.PI / 2));
+      pos.push(p[0], p[1], p[2]);
     }
-    const size = s.size[0] + r() * (s.size[1] - s.size[0]);
-    const hw = size / 2;
-    // the card lies roughly in the surface, tilted a little at random so the surface is rough
-    const tilt = (r() - 0.5) * 0.9;
+  }
+  const idx: number[] = [];
+  for (let j = 0; j < nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      const a = j * nu + i;
+      const b = j * nu + ((i + 1) % nu);
+      const c = (j + 1) * nu + ((i + 1) % nu);
+      const d = (j + 1) * nu + i;
+      idx.push(a, d, b, b, d, c);
+    }
+  }
+  const body = new THREE.BufferGeometry();
+  body.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  body.setIndex(idx);
+  body.computeVertexNormals();
+  // the leaf texture is laid in metres on whichever plane the surface faces most (tops from above, sides from the side)
+  const TILE = 0.9;
+  const nrm = body.getAttribute('normal');
+  const uv: number[] = [];
+  for (let i = 0; i < nrm.count; i++) {
+    const x = pos[i * 3];
+    const y = pos[i * 3 + 1];
+    const z = pos[i * 3 + 2];
+    const ax = Math.abs(nrm.getX(i));
+    const ay = Math.abs(nrm.getY(i));
+    const az = Math.abs(nrm.getZ(i));
+    if (ay >= ax && ay >= az) uv.push(x / TILE, z / TILE);
+    else if (ax >= az) uv.push(z / TILE + 0.37, y / TILE);
+    else uv.push(x / TILE, y / TILE + 0.61);
+  }
+  body.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  // darker toward the ground, mottled in patches the size of a hand
+  const core = new Builder();
+  core.add(body, new THREE.Matrix4(), [1, 1, 1], (x, y, z) => {
+    const patch = 0.5 + 0.5 * Math.sin(x * 6.1 + z * 3.7 + ph[0]) * Math.sin(z * 5.3 - y * 4.1 + ph[1]);
+    return (0.5 + 0.5 * smooth(0, H * 0.7, y)) * (0.86 + 0.2 * patch);
+  });
+  body.dispose();
+
+  // ---- the fringe of small cards on the skin
+  const cb = new Builder();
+  const n = new THREE.Vector3();
+  const du = new THREE.Vector3();
+  const dv = new THREE.Vector3();
+  for (let i = 0; i < s.cards; i++) {
+    const top = r() < (hedge ? 0.42 : 0.34);
+    const u = r() * Math.PI * 2;
+    const v = (top ? 0.6 + r() * 0.38 : r() * 0.62) * (Math.PI / 2);
+    const p = new THREE.Vector3(...skin(u, v));
+    du.set(...skin(u + 0.01, v)).sub(p);
+    dv.set(...skin(u, v + 0.01)).sub(p);
+    n.crossVectors(dv, du).normalize();
+    const a = du.clone().normalize();
+    const b = new THREE.Vector3().crossVectors(n, a).normalize();
     const roll = r() * Math.PI * 2;
-    const nn = new THREE.Vector3(...n).normalize();
-    const a = new THREE.Vector3().crossVectors(nn, Math.abs(nn.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : UP).normalize();
-    const b = new THREE.Vector3().crossVectors(nn, a).normalize();
     const cr = a.clone().multiplyScalar(Math.cos(roll)).add(b.clone().multiplyScalar(Math.sin(roll)));
     const cu = b.clone().multiplyScalar(Math.cos(roll)).sub(a.clone().multiplyScalar(Math.sin(roll)));
-    const lift = nn.clone().multiplyScalar(0.05 + r() * 0.07);
-    const c = new THREE.Vector3(...p).add(lift);
-    const pt = (sx: number, sy: number): V3 => [
-      c.x + cr.x * hw * sx + cu.x * hw * sy + nn.x * tilt * sy * 0.3,
-      c.y + cr.y * hw * sx + cu.y * hw * sy + nn.y * tilt * sy * 0.3,
-      c.z + cr.z * hw * sx + cu.z * hw * sy + nn.z * tilt * sy * 0.3,
-    ];
-    const k = 0.78 + 0.22 * clamp01(p[1] / (hy * 2)) + (r() - 0.5) * 0.1;
-    const sh = new THREE.Vector3(n[0] * 0.5, 0.9, n[2] * 0.5).normalize();
+    const size = s.size[0] + r() * (s.size[1] - s.size[0]);
+    const hw = size / 2;
+    // the card lies in the skin, its far edge lifted a little so it fringes the outline instead of lying flat on it
+    const tilt = 0.25 + r() * 0.55;
+    const c = p.clone().addScaledVector(n, 0.015 + r() * 0.03);
+    const pt = (sx: number, sy: number): V3 => {
+      const out = tilt * Math.max(0, sy) * hw;
+      return [
+        c.x + cr.x * hw * sx + cu.x * hw * sy + n.x * out,
+        c.y + cr.y * hw * sx + cu.y * hw * sy + n.y * out,
+        c.z + cr.z * hw * sx + cu.z * hw * sy + n.z * out,
+      ];
+    };
+    const k = (0.62 + 0.38 * smooth(0, H, p.y)) * (0.92 + r() * 0.16);
+    const sh = n.clone().multiplyScalar(0.6).add(new THREE.Vector3(0, 0.7, 0)).normalize();
     cb.quad(pt(-1, -1), pt(1, -1), pt(1, 1), pt(-1, 1), [k, k, k], [0, 0, 1, 1], false, [sh.x, sh.y, sh.z]);
   }
-  return { trunk: core.build(), canopy: cb.build(), radius: Math.max(hx, hz) * 0.9, leaf: 'shrub', solid: true };
+  // the soft shadow it throws on the ground: a hedge's is long (a little more than the hedge, and wider across), a shrub's round
+  const shadow: [number, number] = hedge ? [s.rx * 2 * 1.2, s.rz * 2 * 2.3] : [s.rx * 2 * 1.9, s.rz * 2 * 1.9];
+  return { trunk: core.build(), canopy: cb.build(), radius: Math.max(s.rx, s.rz) * 0.9, leaf: 'shrub', solid: true, shadow };
 }
 
 export function treeParts(kind: TreeKind, seed = 1): TreeParts {

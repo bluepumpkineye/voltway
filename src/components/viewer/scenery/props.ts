@@ -261,6 +261,27 @@ function kmpost(): THREE.BufferGeometry {
   });
 }
 
+/**
+ * What lights on a sign at night: its faces only, a hair thicker than the sign's own, drawn additively over them (Scenery's `Props`), so the
+ * dimmed board and ring come back to something near their daytime colours, as a reflective sign does in a street lamp's or a headlamp's light.
+ */
+export function signFaces(kind: 'sign' | 'streetsign'): THREE.BufferGeometry {
+  return cached(`faces-${kind}`, () =>
+    mk((b) => {
+      if (kind === 'sign') {
+        const R = new THREE.Matrix4().makeRotationX(Math.PI / 2);
+        b.add(cyl(0.3, 0.3, 0.04, 20), placement(0, 2.65, 0.05).multiply(R), hex('#d1352b', 0.8));
+        b.add(cyl(0.23, 0.23, 0.044, 20), placement(0, 2.65, 0.055).multiply(R), hex('#f4f3ee', 0.85));
+        b.add(box(0, 2.2, 0.05, 0.5, 0.22, 0.03), placement(0, 0, 0), hex('#2f6aa8', 0.85));
+      } else {
+        b.add(box(0, 3.0, 0.04, 1.3, 0.3, 0.036), placement(0, 0, 0), hex('#1f5fa8', 0.85));
+        b.add(box(0, 3.0, 0.062, 1.2, 0.04, 0.014), placement(0, 0, 0), hex('#f1f3f4', 0.85));
+        b.add(box(0, 2.62, 0.04, 0.9, 0.24, 0.036), placement(0, 0, 0), hex('#2c7d4f', 0.85));
+      }
+    }),
+  );
+}
+
 /** the radius of the soft contact shadow under a prop, m */
 export const PROP_DOT: Partial<Record<PropKind, number>> = { lamp: 0.28, bollard: 0.18, bench: 0.9, bin: 0.55, shelter: 2.3, sign: 0.2, streetsign: 0.2, hydrant: 0.25, planter: 1.3, bikes: 1.9, personA: 0.32, personB: 0.32, personC: 0.34, scooter: 0.8 };
 

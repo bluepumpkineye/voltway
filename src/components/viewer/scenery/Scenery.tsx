@@ -7,8 +7,8 @@ import { useDusk } from '../Lights';
 import { STAGE_LAYER, STUDIO_WHITE } from '../StudioShowroom';
 import { buildRow, type RowSpec } from './buildings';
 import { hazeUniforms, rng, setHaze, withHaze } from './kit';
-import { propGeometry, type PropKind } from './props';
-import { barkTexture, brickTexture, canopyShadow, leafCluster, softDot, stuccoTexture, tileTexture, windowAtlas } from './textures';
+import { propGeometry, signFaces, type PropKind } from './props';
+import { barkTexture, brickTexture, canopyShadow, foliageMass, leafCluster, softDot, stuccoTexture, tileTexture, windowAtlas } from './textures';
 import { treeParts, type TreeKind } from './trees';
 
 /**
@@ -85,7 +85,7 @@ function TreeSet({ kind, seed, spots, shadows }: { kind: TreeKind; seed: number;
     );
     const bark = withHaze(
       parts.solid
-        ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 })
+        ? new THREE.MeshStandardMaterial({ map: foliageMass(), vertexColors: true, roughness: 0.88, envMapIntensity: 0.85 })
         : new THREE.MeshStandardMaterial({ map: barkTexture(), vertexColors: true, roughness: 0.95, side: THREE.DoubleSide }),
     );
     const shade = new THREE.MeshBasicMaterial({ map: canopyShadow(), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
@@ -103,6 +103,7 @@ function TreeSet({ kind, seed, spots, shadows }: { kind: TreeKind; seed: number;
     // the street's own lamps light the leaves from below at night: keep them from going black
     mats.leaf.color.copy(d.room).lerp(WARM_LIFT, 0.4 * d.night);
     mats.bark.color.copy(d.room);
+    if (parts.solid) mats.bark.color.lerp(WARM_LIFT, 0.4 * d.night);
     mats.shade.opacity = 1 - 0.7 * d.night;
   });
 
@@ -125,11 +126,17 @@ function TreeSet({ kind, seed, spots, shadows }: { kind: TreeKind; seed: number;
       tmpCol.set(s.tint ?? '#ffffff').multiplyScalar(k);
       if (!s.tint) tmpCol.offsetHSL((r() - 0.5) * 0.03, 0, 0);
       canopy.current?.setColorAt(i, tmpCol);
+      // a hedge or a shrub's body takes the same tint as its fringe
+      if (parts.solid) trunk.current?.setColorAt(i, tmpCol);
       if (shade.current) {
         const rad = parts.radius * sc * 2.45;
-        tmpObj.position.set(s.x + 0.35 * sc, (s.y ?? 0) + 0.012, s.z - 0.25 * sc);
+        // a tree's shadow falls a little to the side; a hedge's lies about its foot, long as the hedge is
+        const sw = parts.shadow ? parts.shadow[0] * sc : rad;
+        const sd = parts.shadow ? parts.shadow[1] * sc : rad;
+        const off = parts.shadow ? 0 : 1;
+        tmpObj.position.set(s.x + 0.35 * sc * off, (s.y ?? 0) + 0.012, s.z - 0.25 * sc * off);
         tmpObj.rotation.set(-Math.PI / 2, 0, yaw);
-        tmpObj.scale.set(rad, rad, 1);
+        tmpObj.scale.set(sw, sd, 1);
         tmpObj.updateMatrix();
         shade.current.setMatrixAt(i, tmpObj.matrix);
       }
@@ -140,7 +147,7 @@ function TreeSet({ kind, seed, spots, shadows }: { kind: TreeKind; seed: number;
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
-  }, [spots, parts.radius, seed]);
+  }, [spots, parts.radius, parts.solid, parts.shadow, seed]);
 
   const n = Math.max(1, spots.length);
   return (
@@ -297,6 +304,18 @@ export function Props({ kind, spots, dot = 0, light = false }: { kind: PropKind;
   });
   const mesh = React.useRef<THREE.InstancedMesh>(null);
   const dots = React.useRef<THREE.InstancedMesh>(null);
+  const lit = React.useRef<THREE.InstancedMesh>(null);
+  // a sign's face lights at night: the same faces, additive, over the dimmed ones
+  const faces = kind === 'sign' || kind === 'streetsign' ? kind : null;
+  const faceGeo = React.useMemo(() => (faces ? signFaces(faces) : null), [faces]);
+  const faceMat = React.useMemo(
+    () => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    [],
+  );
+  React.useEffect(() => () => faceMat.dispose(), [faceMat]);
+  useDusk((d) => {
+    faceMat.opacity = Math.min(1, d.night * 1.6) * 0.85;
+  });
   React.useLayoutEffect(() => {
     spots.forEach((s, i) => {
       tmpObj.position.set(s.x, s.y ?? 0, s.z);
@@ -305,6 +324,7 @@ export function Props({ kind, spots, dot = 0, light = false }: { kind: PropKind;
       tmpObj.scale.set(sc, sc, sc);
       tmpObj.updateMatrix();
       mesh.current?.setMatrixAt(i, tmpObj.matrix);
+      lit.current?.setMatrixAt(i, tmpObj.matrix);
       if (dots.current) {
         tmpObj.position.set(s.x, (s.y ?? 0) + 0.01, s.z);
         tmpObj.rotation.set(-Math.PI / 2, 0, 0);
@@ -313,7 +333,7 @@ export function Props({ kind, spots, dot = 0, light = false }: { kind: PropKind;
         dots.current.setMatrixAt(i, tmpObj.matrix);
       }
     });
-    for (const m of [mesh.current, dots.current]) {
+    for (const m of [mesh.current, dots.current, lit.current]) {
       if (!m) continue;
       m.count = spots.length;
       m.instanceMatrix.needsUpdate = true;
@@ -331,6 +351,7 @@ export function Props({ kind, spots, dot = 0, light = false }: { kind: PropKind;
         </instancedMesh>
       )}
       <instancedMesh ref={mesh} args={[geo, mat, n]} frustumCulled={false} onUpdate={onStage} />
+      {faceGeo && <instancedMesh ref={lit} args={[faceGeo, faceMat, n]} frustumCulled={false} renderOrder={2} onUpdate={onStage} />}
     </>
   );
 }
@@ -373,6 +394,16 @@ function LampGlow({ spots }: { spots: Spot[] }) {
     [],
   );
   const lensGeo = React.useMemo(() => new THREE.BoxGeometry(0.8, 0.05, 0.26).translate(1.5, 6.0, 0), []);
+  // the lantern seen from the side is a thin slit: a halo that always faces the camera makes it a lamp
+  const halos = React.useMemo(
+    () =>
+      spots.map((s) => {
+        const yaw = s.yaw ?? 0;
+        const sc = s.scale ?? 1;
+        return { x: s.x + Math.cos(yaw) * 1.5 * sc, y: (s.y ?? 0) + 5.98 * sc, z: s.z - Math.sin(yaw) * 1.5 * sc, size: 3.4 * sc };
+      }),
+    [spots],
+  );
   React.useEffect(
     () => () => {
       mats.pool.dispose();
@@ -416,6 +447,80 @@ function LampGlow({ spots }: { spots: Spot[] }) {
         <primitive object={mats.pool} attach="material" />
       </instancedMesh>
       <instancedMesh ref={lenses} args={[lensGeo, mats.lens, n]} frustumCulled={false} renderOrder={2} onUpdate={onStage} />
+      <Halos spots={halos} />
     </>
   );
 }
+
+// ----------------------------------------------------------------------------------------------- halos
+
+let haloTexture: THREE.CanvasTexture | null = null;
+/** A soft glow: white-hot at the middle, warm round it, nothing at the rim. */
+function lampHalo(): THREE.CanvasTexture {
+  if (haloTexture) return haloTexture;
+  const S = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(255,248,226,1)');
+  g.addColorStop(0.1, 'rgba(255,238,190,0.85)');
+  g.addColorStop(0.28, 'rgba(255,214,150,0.32)');
+  g.addColorStop(0.55, 'rgba(255,196,120,0.09)');
+  g.addColorStop(1, 'rgba(255,190,120,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  haloTexture = new THREE.CanvasTexture(c);
+  haloTexture.colorSpace = THREE.SRGBColorSpace;
+  return haloTexture;
+}
+
+/** A material for quads that always face the camera: the instance matrix gives a quad's middle and its size (a glow round a lamp). */
+function billboardMaterial(map: THREE.Texture, color: string): THREE.MeshBasicMaterial {
+  const m = new THREE.MeshBasicMaterial({ map, color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      `vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+       float bbSize = length(instanceMatrix[0].xyz);
+       mvPosition.xy += position.xy * bbSize;
+       gl_Position = projectionMatrix * mvPosition;`,
+    );
+  };
+  m.customProgramCacheKey = () => 'billboard-halo';
+  return m;
+}
+
+/**
+ * Glows at points, drawn additively and always facing the camera, that ramp in with the room's dusk (invisible by day): the street
+ * lamps' lanterns and the fixtures that light a gantry's sign. `size` is the glow's diameter in metres.
+ */
+export function Halos({ spots, tint = '#fff0c8', gain = 1 }: { spots: { x: number; y: number; z: number; size: number }[]; tint?: string; gain?: number }) {
+  const mat = React.useMemo(() => billboardMaterial(lampHalo(), tint), [tint]);
+  const mesh = React.useRef<THREE.InstancedMesh>(null);
+  React.useEffect(() => () => mat.dispose(), [mat]);
+  useDusk((d) => {
+    mat.opacity = Math.min(1, d.night * 2) * gain;
+    if (mesh.current) mesh.current.visible = mat.opacity > 0.01;
+  });
+  React.useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    spots.forEach((s, i) => {
+      tmpObj.position.set(s.x, s.y, s.z);
+      tmpObj.rotation.set(0, 0, 0);
+      tmpObj.scale.set(s.size, s.size, 1);
+      tmpObj.updateMatrix();
+      m.setMatrixAt(i, tmpObj.matrix);
+    });
+    m.count = spots.length;
+    m.instanceMatrix.needsUpdate = true;
+  }, [spots]);
+  return (
+    <instancedMesh ref={mesh} args={[undefined, undefined, Math.max(1, spots.length)]} frustumCulled={false} renderOrder={3} onUpdate={onStage}>
+      <planeGeometry args={[1, 1]} />
+      <primitive object={mat} attach="material" />
+    </instancedMesh>
+  );
+}
+

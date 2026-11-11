@@ -6,7 +6,7 @@ import type { Vehicle } from '@/data/vehicles/schema';
 import type { RoadStage } from '@/lib/tech/carpet';
 import { rigOf } from '@/lib/tech/rig';
 import { useDusk } from './Lights';
-import { asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
+import { WetSheen, asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
 import { ExpresswayRoadside, Verge, expresswaySpots } from './scenery/Roadside';
 import { onStage, useHaze } from './scenery/Scenery';
 import { ASPHALT, PAINT, paintStripTexture, paintTyreTracks } from './scenery/textures';
@@ -34,7 +34,7 @@ const HIGHWAY_FADE_END = 70;
 /** how wide the grass verges are, m */
 const VERGE = 15;
 
-export function Highway({ road, lanes, vehicle }: { road: RoadStage; lanes: NonNullable<RoadStage['lanes']>; vehicle: Vehicle }) {
+export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { road: RoadStage; lanes: NonNullable<RoadStage['lanes']>; vehicle: Vehicle; wet?: boolean; gantry?: boolean }) {
   const rig = rigOf(vehicle);
   const dashes = React.useRef<THREE.Group>(null);
   const joints = React.useRef<THREE.Group>(null);
@@ -192,6 +192,7 @@ export function Highway({ road, lanes, vehicle }: { road: RoadStage; lanes: NonN
       <mesh position={[rig.rac.x, 0.002, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStage} material={baseMat}>
         <planeGeometry args={[length, road.width]} />
       </mesh>
+      {wet && <WetSheen x={rig.rac.x} length={length} width={road.width} fadeEnd={HIGHWAY_FADE_END} fadeSide={0.9} />}
       <Verge x0={x0} x1={x1} z0={edge + 0.3} z1={edge + 0.3 + VERGE} fadeEnd={HIGHWAY_FADE_END} />
       <Verge x0={x0} x1={x1} z0={-(edge + 0.3)} z1={-(edge + 0.3 + VERGE)} fadeEnd={HIGHWAY_FADE_END} />
       {/* the solid edge lines */}
@@ -216,7 +217,7 @@ export function Highway({ road, lanes, vehicle }: { road: RoadStage; lanes: NonN
         <instancedMesh ref={wearMesh} args={[undefined, undefined, 2 * n + 1]} position={[SIDE_PERIOD / 2, 0.0025, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.45} frustumCulled={false} onUpdate={onStage} material={wearMat}>
           <planeGeometry args={[SIDE_PERIOD, road.width]} />
         </instancedMesh>
-        <ExpresswayRoadside spots={spots} span={(edge + 1.3) * 2} edge={edge} />
+        <ExpresswayRoadside spots={spots} span={gantry ? (edge + 1.3) * 2 : 0} edge={edge} />
       </group>
     </group>
   );

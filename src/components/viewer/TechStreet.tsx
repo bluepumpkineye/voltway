@@ -276,7 +276,7 @@ function StreetProps({ street }: { street: StreetStage }) {
         const spots = byKind.get(k);
         if (!spots?.length) return null;
         const tint = k === 'ginkgo' ? undefined : undefined;
-        return <Trees key={k} kind={TREE_KIND[k]!} spots={spots.map((s) => ({ ...s, tint }))} shadows={k !== 'hedge' && k !== 'shrub'} />;
+        return <Trees key={k} kind={TREE_KIND[k]!} spots={spots.map((s) => ({ ...s, tint }))} />;
       })}
       <TreePits spots={trees} />
       {(Object.keys(PROP_KIND) as StreetPropKind[]).map((k) => {

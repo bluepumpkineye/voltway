@@ -1,7 +1,7 @@
 import type { TechDemoSpec, Vehicle } from '@/data/vehicles/schema';
 import { vehicles } from '@/data/vehicles';
 import { arc, MOTION, Track, type Layout, type PlannedRun, type Segment } from './kinematics';
-import { planCarpet, stiffnessOf, type CarpetRun, type RoadStage } from './carpet';
+import { LANE_WIDTH, planCarpet, stiffnessOf, type CarpetRun, type RoadStage } from './carpet';
 import { planCharge, type ChargeRun } from './charge';
 import { chargeFacts, portOf } from './charging';
 import { planLaunch, type LaunchRun } from './launch';
@@ -259,7 +259,7 @@ const launch: Driver = {
 };
 
 /** the rival's lane: one lane (m) to the right of the car's, the passenger's side, so the car stands between it and the hero camera */
-const RIVAL_LANE = 3.4;
+const RIVAL_LANE = LANE_WIDTH;
 
 /**
  * The Drive tab's run: the car's own scenario (`Vehicle.drive`) on its variant's published figures, in the mode and with the

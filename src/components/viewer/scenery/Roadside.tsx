@@ -6,7 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import { useDusk } from '../Lights';
 import { makeCanvas, rng, smooth, withHaze } from './kit';
 import { gantry, PROP_DOT, type PropKind } from './props';
-import { Props, Trees, onStage, useHaze, type Spot } from './Scenery';
+import { Halos, Props, Trees, onStage, useHaze, type Spot } from './Scenery';
 import { TILE, gantrySign, grassTexture } from './textures';
 
 /**
@@ -87,8 +87,26 @@ export function Verge({ x0, x1, z0, z1, fadeEnd }: { x0: number; x1: number; z0:
 
 // ------------------------------------------------------------------------------------------------ the gantry
 
+const SIGN_LIT = new THREE.Color(0.92, 0.96, 0.92);
+
+/**
+ * The gantries over the road, each with its green sign. At night the sign is lit (as one is, by fixtures along its lower edge, whose
+ * glow is drawn too): its face takes the room's dusk only as far as the daylight and no further.
+ */
 export function Gantries({ spots, span }: { spots: Spot[]; span: number }) {
   const g = React.useMemo(() => gantry(span), [span]);
+  // three fixtures under the board's lower edge, a little in front of it; the gantry stands turned to face back down the road
+  const fixtures = React.useMemo(() => {
+    const yaw = -Math.PI / 2;
+    const out: { x: number; y: number; z: number; size: number }[] = [];
+    for (const s of spots) {
+      for (const lx of [-g.faceW / 3, 0, g.faceW / 3]) {
+        const lz = 0.6;
+        out.push({ x: s.x + lx * Math.cos(yaw) + lz * Math.sin(yaw), y: 6.2 - g.faceH - 0.45, z: s.z - lx * Math.sin(yaw) + lz * Math.cos(yaw), size: 1.5 });
+      }
+    }
+    return out;
+  }, [spots, g]);
   const mats = React.useMemo(() => {
     const std = (o: THREE.MeshStandardMaterialParameters) => withHaze(new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.15, ...o }));
     const face = withHaze(new THREE.MeshBasicMaterial({ map: gantrySign(), toneMapped: false }), { height: false, distance: true });
@@ -103,7 +121,7 @@ export function Gantries({ spots, span }: { spots: Spot[]; span: number }) {
   useDusk((d) => {
     mats.frame.color.copy(d.room);
     mats.board.color.copy(d.room);
-    mats.face.color.copy(d.room);
+    mats.face.color.copy(d.room).lerp(SIGN_LIT, Math.min(1, d.night * 1.1));
   });
   const refs = [React.useRef<THREE.InstancedMesh>(null), React.useRef<THREE.InstancedMesh>(null), React.useRef<THREE.InstancedMesh>(null)];
   React.useLayoutEffect(() => {
@@ -128,6 +146,7 @@ export function Gantries({ spots, span }: { spots: Spot[]; span: number }) {
       <instancedMesh ref={refs[0]} args={[g.frame, mats.frame, n]} frustumCulled={false} onUpdate={onStage} />
       <instancedMesh ref={refs[1]} args={[g.board, mats.board, n]} frustumCulled={false} onUpdate={onStage} />
       <instancedMesh ref={refs[2]} args={[g.face, mats.face, n]} frustumCulled={false} onUpdate={onStage} />
+      <Halos spots={fixtures} tint="#e8fff0" gain={0.8} />
     </>
   );
 }
@@ -141,6 +160,9 @@ type ExpressKinds = 'guardrail' | 'barrierPost' | 'delineator' | 'kmpost' | 'sig
  * barrier on the right, the median's concrete barrier with its planting on the left, trees in clumps on both banks. `edge` is the
  * half-width of the paving. Seeded, so every repeat is the same.
  */
+/** the street lamps' size: 1.8 times the street lamp's 6 m pole and 1.5 m arm */
+const LAMP = 1.8;
+
 export function expresswaySpots(edge: number, P: number, n: number, seed = 5): Record<ExpressKinds, Spot[]> {
   const out = {} as Record<ExpressKinds, Spot[]>;
   const push = (k: ExpressKinds, s: Spot) => (out[k] ??= []).push(s);
@@ -159,15 +181,34 @@ export function expresswaySpots(edge: number, P: number, n: number, seed = 5): R
     push('sign', { x: base + P * 0.78, z: right + 1.6, yaw: -Math.PI / 2 });
     // the gantry's span: posts clear of the barriers on both sides
     push('gantry', { x: base + P * 0.52, z: 0 });
-    // the median's planting: a shrub every 2.4 m behind its barrier, a few trees among them
-    for (let x = 1.2; x < P; x += 2.4) push('hedge', { x: base + x, z: left - 1.4, yaw: 0, scale: 0.9 + r() * 0.3 });
+    // street lamps, twelve-metre poles, every 40 m: on the median behind its barrier (the arm reaches over the fast lane) and, staggered by
+    // 20 m, behind the crash barrier (the arm reaches over the slow lane)
+    const medianLamps: number[] = [];
+    for (let x = 12; x < P; x += 40) {
+      push('lamp', { x: base + x, z: left - 0.62, yaw: -Math.PI / 2, scale: LAMP });
+      medianLamps.push(x);
+    }
+    for (let x = 32; x < P; x += 40) push('lamp', { x: base + x, z: right + 0.95, yaw: Math.PI / 2, scale: LAMP });
+    // the median's planting: a clipped hedge in one run behind its barrier (its ends meet), a small tree standing in it every so often
+    for (let x = 1.2; x < P; x += 2.3) push('hedge', { x: base + x, z: left - 1.35, yaw: 0 });
+    const small: ExpressKinds[] = ['ginkgo', 'camphor', 'cypress', 'camphor'];
+    for (let x = 9 + r() * 4, j = 0; x < P - 6; x += 17 + r() * 9, j++) {
+      const sc = 0.5 + r() * 0.15;
+      if (!medianLamps.some((l) => Math.abs(l - x) < 4.5)) push(small[j % small.length], { x: base + x, z: left - 1.35, scale: sc });
+    }
     // banks: clumps of trees and shrubs back from the barriers
     const species: ExpressKinds[] = ['camphor', 'camphor', 'cypress', 'plane', 'camphor', 'cypress', 'ginkgo'];
     let i = 0;
     for (let x = 3 + r() * 4; x < P - 3; x += 7 + r() * 9) {
       const kind = species[i++ % species.length];
       push(kind, { x: base + x, z: right + 4.2 + r() * 6, scale: 0.9 + r() * 0.5 });
-      if (r() > 0.4) push('shrub', { x: base + x + 2 + r() * 3, z: right + 2.4 + r() * 2, scale: 0.9 + r() * 0.5 });
+      // shrubs grouped at its foot: the near ones low, the rest higher behind them
+      const m = 2 + Math.floor(r() * 2);
+      for (let q = 0; q < m; q++) push('shrub', { x: base + x - 2.2 + q * 1.5 + r() * 0.8, z: right + 2.3 + q * 0.5 + r() * 1.2, scale: 0.75 + r() * 0.5 });
+    }
+    // and groups of shrubs of their own between the trees
+    for (let x = 10 + r() * 6; x < P - 6; x += 20 + r() * 10) {
+      for (let q = 0; q < 3; q++) push('shrub', { x: base + x + q * 1.4 + r() * 0.6, z: right + 2.4 + (q % 2) * 0.9 + r() * 0.8, scale: 0.8 + r() * 0.6 });
     }
     i = 2;
     for (let x = 5 + r() * 4; x < P - 3; x += 8 + r() * 10) {
@@ -218,7 +259,7 @@ export function ExpresswayRoadside({ spots, span, edge }: { spots: Record<Expres
     <>
       {(Object.keys(TREE_OF) as ExpressKinds[]).map((k) => {
         const s = sp[k];
-        return s?.length ? <Trees key={k} kind={TREE_OF[k]!} spots={s} shadows={k !== 'hedge' && k !== 'shrub'} /> : null;
+        return s?.length ? <Trees key={k} kind={TREE_OF[k]!} spots={s} /> : null;
       })}
       {PROPS_OF.map((k) => {
         const s = sp[k];
