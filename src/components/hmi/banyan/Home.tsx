@@ -3,7 +3,7 @@
 import React from 'react';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type HmiScreen } from '@/store/vehicle-store';
-import { effectiveRange, type DriveMode } from '@/lib/performance';
+import { effectiveRange } from '@/lib/performance';
 import { useChargeReadout } from '@/lib/tech/session';
 import { tapChargeFlap } from '@/lib/tech/actions';
 import { cx, Card, PlayIcon, PauseIcon, NextIcon, PrevIcon } from '../ui';
@@ -36,7 +36,8 @@ export function HomeScene({
   const {
     soc,
     driveMode,
-    setDriveMode,
+    modeId,
+    setCarMode,
     climate,
     openings,
     toggleOpening,
@@ -56,10 +57,14 @@ export function HomeScene({
   const RIDE_NAMES = ['Very High', 'High', 'Standard', 'Low', 'Very Low'];
   const rideName = RIDE_NAMES[rideLevel] ?? 'Standard';
 
+  // the car's own mode (its id), and the modelled mode behind it for the power and range figures
+  const modes = vehicle.cockpit.driveModes ?? [];
+  const activeModeId = modeId ?? modes.find((d) => d.model === driveMode)?.id;
   const onSelectMode = (mId: string) => {
-    setDriveMode(mId as DriveMode);
-    const m = vehicle.cockpit.driveModes?.find((d) => d.id === mId);
-    speakNomi(`Switched to ${m?.label ?? mId} mode!`, mId.includes('sport') ? 'sport' : 'happy');
+    const m = modes.find((d) => d.id === mId);
+    if (!m) return;
+    setCarMode(m.id, m.model);
+    speakNomi(`Switched to ${m.label} mode!`, mId.includes('sport') ? 'sport' : 'happy');
   };
 
   return (
@@ -226,8 +231,8 @@ export function HomeScene({
           <div className="flex items-center gap-4">
             <span className="text-[13px] text-white/45">Quick Drive Modes:</span>
             <div className="flex gap-2">
-              {(vehicle.cockpit.driveModes ?? []).slice(0, 4).map((m) => {
-                const active = driveMode === m.id;
+              {modes.slice(0, 4).map((m) => {
+                const active = activeModeId === m.id;
                 return (
                   <button
                     key={m.id}

@@ -3,7 +3,6 @@
 import React from 'react';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type Opening } from '@/store/vehicle-store';
-import type { DriveMode } from '@/lib/performance';
 import { LIGHT_MODES } from '@/lib/lights';
 import {
   cx,
@@ -432,7 +431,7 @@ export function ControlsPage({
 /* -------------------------------------------------------------- ChassisPage */
 
 export function ChassisPage({ vehicle, variant }: { vehicle: Vehicle; variant: Variant }) {
-  const { driveMode, setDriveMode, rideLevel, setRideLevel } = useVehicleStore();
+  const { driveMode, modeId, setCarMode, rideLevel, setRideLevel } = useVehicleStore();
   const { speakNomi } = useBanyanLocal();
 
   const LEVELS = [
@@ -524,14 +523,14 @@ export function ChassisPage({ vehicle, variant }: { vehicle: Vehicle; variant: V
         <Card className="p-6">
           <CardTitle className="p-0 mb-3">Drive Modes (驾驶模式)</CardTitle>
           <div className="grid grid-cols-2 gap-2.5">
-            {(vehicle.cockpit.driveModes ?? []).map((m) => {
-              const active = driveMode === m.id;
+            {(vehicle.cockpit.driveModes ?? []).map((m, _i, all) => {
+              const active = (modeId ?? all.find((d) => d.model === driveMode)?.id) === m.id;
               return (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => {
-                    setDriveMode(m.id as DriveMode);
+                    setCarMode(m.id, m.model);
                     speakNomi(`Switched to ${m.label} mode!`);
                   }}
                   className={cx(

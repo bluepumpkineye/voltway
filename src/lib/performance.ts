@@ -24,6 +24,11 @@ const MODE_FACTORS: Record<DriveMode, { power: number; range: number }> = {
   track: { power: 1.0, range: 0.78 },
 };
 
+/** The factors of a mode; a value that is not one of the four (a stale car-mode id) reads as Comfort instead of crashing the HMI. */
+function factorsOf(mode: DriveMode): { power: number; range: number } {
+  return MODE_FACTORS[mode] ?? MODE_FACTORS.comfort;
+}
+
 export interface ClimateLoad {
   acOn: boolean;
   fanSpeed: number; // 0-5
@@ -41,7 +46,7 @@ export function climateRangeFactor({ acOn, fanSpeed }: ClimateLoad): number {
  */
 export function effectivePowerKw(variant: Variant, mode: DriveMode, publishedKw?: number): number {
   if (publishedKw) return Math.min(publishedKw, variant.performance.powerKw);
-  return Math.round(variant.performance.powerKw * MODE_FACTORS[mode].power);
+  return Math.round(variant.performance.powerKw * factorsOf(mode).power);
 }
 
 /** 0-100 scales roughly with the inverse cube root of the power ratio. */
@@ -54,7 +59,7 @@ export function effectiveZeroTo100(
   if (base === undefined) return undefined;
   const ratio = publishedKw
     ? Math.min(1, publishedKw / variant.performance.powerKw)
-    : MODE_FACTORS[mode].power;
+    : factorsOf(mode).power;
   return Math.round((base / Math.cbrt(ratio)) * 100) / 100;
 }
 
@@ -73,7 +78,7 @@ export function effectiveRange(
 ): RangeEstimate | undefined {
   const published = variant.range[0];
   if (!published) return undefined;
-  const factor = MODE_FACTORS[mode].range * climateRangeFactor(climate);
+  const factor = factorsOf(mode).range * climateRangeFactor(climate);
   return {
     km: Math.round(published.km * factor * soc),
     cycle: published.cycle,
@@ -89,7 +94,7 @@ export function efficiencyKwhPer100km(
 ): number | undefined {
   const published = variant.range[0];
   if (!published) return undefined;
-  const factor = MODE_FACTORS[mode].range * climateRangeFactor(climate);
+  const factor = factorsOf(mode).range * climateRangeFactor(climate);
   const km = published.km * factor;
   if (km <= 0) return undefined;
   return Math.round((variant.battery.capacityKwh / km) * 100 * 10) / 10;
