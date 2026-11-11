@@ -3,6 +3,7 @@
 import React from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { weather } from '@/lib/tech/weather';
 import { useDusk } from '../Lights';
 import { makeCanvas, rng, smooth, withHaze } from './kit';
 import { gantry, PROP_DOT, type PropKind } from './props';
@@ -76,7 +77,7 @@ export function Verge({ x0, x1, z0, z1, fadeEnd }: { x0: number; x1: number; z0:
     },
     [mat],
   );
-  useDusk((d) => mat.color.copy(d.room).multiplyScalar(0.92));
+  useDusk((d) => mat.color.copy(d.room).multiplyScalar(0.92 * (1 - 0.3 * weather.level)));
   useHaze();
   return (
     <mesh position={[(x0 + x1) / 2, 0.001, (z0 + z1) / 2]} rotation-x={-Math.PI / 2} renderOrder={-0.55} ref={onStage} material={mat}>

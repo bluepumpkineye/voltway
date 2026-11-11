@@ -5,10 +5,12 @@ import * as THREE from 'three';
 import type { Vehicle } from '@/data/vehicles/schema';
 import type { RoadStage } from '@/lib/tech/carpet';
 import { rigOf } from '@/lib/tech/rig';
+import { weather } from '@/lib/tech/weather';
 import { useDusk } from './Lights';
-import { WetSheen, asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
+import { asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
 import { ExpresswayRoadside, Verge, expresswaySpots } from './scenery/Roadside';
 import { onStage, useHaze } from './scenery/Scenery';
+import { WetRoad } from './scenery/WetRoad';
 import { ASPHALT, PAINT, paintStripTexture, paintTyreTracks } from './scenery/textures';
 
 /**
@@ -39,12 +41,30 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
   const dashes = React.useRef<THREE.Group>(null);
   const joints = React.useRef<THREE.Group>(null);
   const side = React.useRef<THREE.Group>(null);
+  const still = React.useRef<THREE.Group>(null);
+  // the wet sheet stays while the rain clears (the weather eases out over a second or so), then goes
+  const [wetShown, setWetShown] = React.useState(wet);
+  React.useEffect(() => {
+    if (wet) {
+      setWetShown(true);
+      return;
+    }
+    const t = setTimeout(() => setWetShown(false), 2200);
+    return () => clearTimeout(t);
+  }, [wet]);
   React.useEffect(() => {
     const a = dashes.current;
     const b = joints.current;
     const c = side.current;
-    if (!a || !b || !c) return;
-    const offs = [rig.attachRoad(a, rig.rac.x, DASH.period), rig.attachRoad(b, rig.rac.x, JOINT_PERIOD), rig.attachRoad(c, rig.rac.x, SIDE_PERIOD)];
+    const d = still.current;
+    if (!a || !b || !c || !d) return;
+    // what stands still under the car (the asphalt, the verges, the edge lines, the wet sheet) tilts with a hill: it is staged, not rolled
+    const offs = [
+      rig.attachRoad(a, rig.rac.x, DASH.period),
+      rig.attachRoad(b, rig.rac.x, JOINT_PERIOD),
+      rig.attachRoad(c, rig.rac.x, SIDE_PERIOD),
+      rig.attachStage(d, 0),
+    ];
     return () => offs.forEach((o) => o());
   }, [rig, road]);
 
@@ -130,10 +150,13 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
     [baseMap, baseMat, wearMap, wearMat, paints, markMat],
   );
   useDusk((d) => {
-    baseMat.color.copy(d.room);
-    wearMat.color.copy(d.room);
-    markMat.edge.color.copy(d.room);
-    markMat.dash.color.copy(d.room);
+    // rain darkens the asphalt and dulls the paint
+    const wetK = 1 - 0.42 * weather.level;
+    const paintK = 1 - 0.18 * weather.level;
+    baseMat.color.copy(d.room).multiplyScalar(wetK);
+    wearMat.color.copy(d.room).multiplyScalar(wetK);
+    markMat.edge.color.copy(d.room).multiplyScalar(paintK);
+    markMat.dash.color.copy(d.room).multiplyScalar(paintK);
   });
 
   // ---- one dash plane and one joint plane, laid out on instances
@@ -189,18 +212,21 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
   return (
     // the road's middle is the car's own centre line
     <group position-z={-rig.rac.y}>
-      <mesh position={[rig.rac.x, 0.002, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStage} material={baseMat}>
-        <planeGeometry args={[length, road.width]} />
-      </mesh>
-      {wet && <WetSheen x={rig.rac.x} length={length} width={road.width} fadeEnd={HIGHWAY_FADE_END} fadeSide={0.9} />}
-      <Verge x0={x0} x1={x1} z0={edge + 0.3} z1={edge + 0.3 + VERGE} fadeEnd={HIGHWAY_FADE_END} />
-      <Verge x0={x0} x1={x1} z0={-(edge + 0.3)} z1={-(edge + 0.3 + VERGE)} fadeEnd={HIGHWAY_FADE_END} />
-      {/* the solid edge lines */}
-      {[-half, half].map((z) => (
-        <mesh key={z} position={[rig.rac.x, 0.003, z]} rotation-x={-Math.PI / 2} renderOrder={-0.4} ref={onStage} material={markMat.edge}>
-          <planeGeometry args={[length * 0.8, EDGE_WIDTH]} />
+      <group ref={still}>
+        <mesh position={[rig.rac.x, 0.002, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStage} material={baseMat}>
+          <planeGeometry args={[length, road.width]} />
         </mesh>
-      ))}
+        <Verge x0={x0} x1={x1} z0={edge + 0.3} z1={edge + 0.3 + VERGE} fadeEnd={HIGHWAY_FADE_END} />
+        <Verge x0={x0} x1={x1} z0={-(edge + 0.3)} z1={-(edge + 0.3 + VERGE)} fadeEnd={HIGHWAY_FADE_END} />
+        {/* the solid edge lines */}
+        {[-half, half].map((z) => (
+          <mesh key={z} position={[rig.rac.x, 0.003, z]} rotation-x={-Math.PI / 2} renderOrder={-0.4} ref={onStage} material={markMat.edge}>
+            <planeGeometry args={[length * 0.8, EDGE_WIDTH]} />
+          </mesh>
+        ))}
+        {/* rain: the road is a mirror (a second picture of the scene from under it, drawn only while it rains) */}
+        {(wet || wetShown) && <WetRoad rig={rig} x={rig.rac.x} length={length} width={road.width} lanes={lanes} fadeEnd={HIGHWAY_FADE_END} />}
+      </group>
       {/* tar joints across the lanes, and the dashes between them: the rig rolls these */}
       <group ref={joints}>
         <instancedMesh ref={jointMesh} args={[undefined, undefined, jointSlots.length]} rotation-x={-Math.PI / 2} position-y={0.0025} renderOrder={-0.42} frustumCulled={false} onUpdate={onStage} material={markMat.joint}>

@@ -191,6 +191,8 @@ export class CarRig {
   private roots = new Set<THREE.Object3D>();
   /** roads that roll under the car (`RigState.scroll`), each with where it stands when it has not rolled, and the period of its pattern when it repeats */
   private roads = new Map<THREE.Object3D, { baseX: number; period?: number }>();
+  /** parts of the stage that stand still under the car but tilt with a hill (a road's asphalt, verges and edge lines), each with where it stands */
+  private stages = new Map<THREE.Object3D, { baseX: number }>();
   /** groups that ride on the body's springs like the exterior's Sprung group: the cabin, the schematic powertrain (placed by a root outside them) */
   private followers = new Set<THREE.Object3D>();
   /** groups placed where the rival stands (`RigState.rival`) */
@@ -289,6 +291,15 @@ export class CarRig {
     };
   }
 
+  /** A part of the stage that does not roll but tilts with a hill (`RigState.slope`): what stands still under the car. */
+  attachStage(g: THREE.Object3D, baseX = 0): () => void {
+    this.stages.set(g, { baseX });
+    this.apply();
+    return () => {
+      this.stages.delete(g);
+    };
+  }
+
   /** The body's motion on its springs and the wheels following the road (src/lib/tech/ride.ts). */
   setChassis(c: Chassis | null) {
     const st = this.state;
@@ -359,6 +370,7 @@ export class CarRig {
     const st = this.state;
     for (const g of this.roots) this.place(g, st.x, st.z, st.yaw);
     for (const g of this.rivals) this.place(g, st.rival.x, st.rival.z, st.rival.yaw);
+    for (const [g, { baseX }] of this.stages) this.place(g, baseX, 0, 0);
     for (const [g, { baseX, period }] of this.roads) {
       this.place(g, baseX - (period ? st.scroll % period : st.scroll), 0, 0);
     }

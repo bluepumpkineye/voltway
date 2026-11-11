@@ -4,6 +4,7 @@ import React from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { Vehicle } from '@/data/vehicles/schema';
+import { RAIN_DIM, weather } from '@/lib/tech/weather';
 import {
   frontEmissive,
   isLampMaterial,
@@ -125,7 +126,8 @@ export function duskOf(night: number): Dusk {
  * work is a few multiplications.
  */
 export function useDusk(apply: (d: Dusk) => void) {
-  useFrame(() => apply(duskOf(lightsRig.now.night)));
+  // a rainy day takes the room part of the way to dusk (src/lib/tech/weather.ts)
+  useFrame(() => apply(duskOf(Math.max(lightsRig.now.night, weather.level * RAIN_DIM))));
 }
 
 // ---------------------------------------------------------------------------- finding the lamps

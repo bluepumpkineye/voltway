@@ -19,6 +19,7 @@ import { DimensionRulers } from './DimensionRulers';
 import { TechCharge } from './TechCharge';
 import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
+import { TechRain, WeatherDriver } from './TechRain';
 import { TechParkAssist } from './TechParkAssist';
 import { TechPowertrain } from './TechPowertrain';
 import { XrayAnatomy, XrayDirector } from './XrayDirector';
@@ -88,6 +89,7 @@ export function ShowroomViewer({
         <Invalidator />
         <OpeningsDriver vehicle={vehicle} />
         <LightsDriver />
+        <WeatherDriver />
         <ScreenDriver vehicle={vehicle} />
         <BoostKnob vehicle={vehicle} />
         <TechDirector vehicle={vehicle} />
@@ -156,6 +158,7 @@ function Stage({
       {!inside && <TechStreet />}
       {!inside && <TechLotDressing />}
       {(!inside || driving) && <TechRoad vehicle={vehicle} />}
+      {(!inside || driving) && <TechRain vehicle={vehicle} />}
       {!inside && <TechCharge vehicle={vehicle} />}
       {!inside && <TechSensors vehicle={vehicle} />}
       {!inside && <TechParkAssist vehicle={vehicle} />}

@@ -1169,3 +1169,24 @@ The owner's note on the night scenes: the road had no lighting from street lamps
 - **The gantry's text** (`gantrySign`): in a bold CJK fallback font "Ningbo" ran into "86 km" and "Wenzhou" into "290 km"; each line is now measured and shrunk to the room it has.
 - Nothing added to the scene's lights; idle frames stay 0 (the glows are drawn on the frames that are drawn).
 - Checked in the Browser pane with the headlamps on (`lights=low`): the RX's expressway from behind the car, the G9L's city street and the Drive tab. Not checked: the 06T's debris scene (same road and lamps).
+
+### Revision, a hill that tilts the road, and a real rain (2026-11-11)
+
+Two notes from the owner on the Drive tab: on a +6 % hill the car tilted but the road stayed flat, and the Wet road looked like a white layer on the ground.
+
+- **The hill.** A regression from the lane road above: `Highway` drew its asphalt, verges and edge lines as plain meshes, and only the rolled groups (dashes, joints, roadside) are
+  placed by the rig, so only they tilted. The still parts now sit in one group the rig stages (`CarRig.attachStage`, rig.ts: placed about the hill's pivot like a road but not rolled).
+  Checked: at +6 % the asphalt, both verges and the wet sheet are all turned 3.43 degrees.
+- **The weather** (`src/lib/tech/weather.ts`, `WeatherDriver` in `TechRain.tsx`): choosing Wet takes the studio's white room to an overcast grey as a partial dusk would
+  (`useDusk` takes `max(night, weather.level * 0.42)`, so the floor, the walls, the image-based light and the haze all go grey and the street lamps come on a little), thickens the
+  distance haze, darkens the asphalt, the paint and the grass, and eases in and out over about a second.
+- **The wet road** (`scenery/WetRoad.tsx`): a true mirror. The scene is drawn again from under the road (three's `Reflector`, the camera mirrored in the road's plane, 960 x 600, the
+  reflection camera taking the main camera's layers so the car, its lamps, the trees, barriers, lamps and the sky are all in it) and shown on a transparent sheet over the asphalt by
+  Fresnel (a lot at a low angle, little looking down). The film is rough, so the picture is smeared up and down and a lamp's reflection is a streak; the puddles (a noise that rolls
+  with the road, deeper in the wheel tracks) are sharp mirrors; rings spread from raindrops and ripple the picture (more in the puddles). The old `WetSheen`, a dark gloss lit by the
+  white environment, is gone. The sheet is drawn, and the extra picture of the scene taken, only while it rains: dry the viewer draws no frame when idle, as before.
+- **The rain** (`TechRain.tsx`, `Rainfall`): 5,200 streaks in a box about the camera, each a ribbon turned to the camera falling at its own speed, leaned back and lengthened by the car's
+  speed (in the car's frame the air rushes past), fading at the box's edge and at the road; and the plume each tyre throws up (`Spray`, about 200 soft billboards per car, fading back
+  behind it and stronger with speed). The frames keep coming while it rains, even with the run paused (a viewer with reduced motion sees it still).
+- **At night** (headlamps on) the street lamps' reflections are long streaks down the road and the tail lamps' glow lies under the car. Checked in the Browser pane: the RX on its Drive
+  tab dry, wet, wet at night and wet on a hill. Not done: rain on the car's paint and glass, wipers, the sound of rain, wet verge and barrier surfaces beyond a darker grass.
