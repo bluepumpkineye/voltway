@@ -1241,3 +1241,24 @@ own loop (1.95 s at that rate) did not show in the 100-700 Hz band, the bed's (1
 - **After:** the 1.26 s peak is gone in every band, and nothing repeats under 7 s. The remaining peaks are the long loops' own: the noise's at 7.9 s (envelope correlation 0.54 in
   1.8-5 kHz, a swing of 1.3 dB) and the bed's at 10 s (0.61 in 60-300 Hz): neither carries a feature a listener could pick out. Not by ear: if a repeat is still heard, the
   next steps are a second, longer noise (a different seed and length) for the right-hand copy, and a second bed stretch from another part of the long recording.
+
+## 24. A road that streams past: the solid edge line, the grass and the grain (2026-11-11)
+
+The owner's report, on the Z9's Drive tab with the Chase camera: "the solid line does not move at all, it is simply static when the car drives". The Drive tab's expressway
+(`TechHighway.tsx`) keeps what stands still under the car (the asphalt, the two solid edge lines, the grass verges, the wet sheet) in the staged group, so that it tilts with a hill
+without rolling, and rolls only what has features (dashes, tar joints, worn patches, barriers, posts, trees, the gantry). A continuous, perfectly even white line shows no movement
+whatever the car does, and the grass and the asphalt's grain were frozen the same way: only the dashes seemed to move.
+- **The edge line is worn paint with marks that move.** `edgeLineTexture` (textures.ts) paints one 24 m repeat (`EDGE_PERIOD`) of a motorway's edge line: the paint thinned in long
+  stretches (a slow noise along it, on a lattice that wraps), chipped, eroded to speckle in a few patches, scuffed by tyres, crossed by tar cracks, with a ragged edge; marks that
+  cross an end are drawn at both ends, so it tiles. The line stays in the staged group (it still tilts with a hill) and its texture slides by the rig's scroll
+  (`edgeTex.offset.x = scroll / EDGE_PERIOD`, in a `useFrame`).
+- **The grass slides too** (`Verge`'s optional `scroll` prop: `map.offset.x = scroll / TILE.grass`), and **the asphalt's aggregate grain** (`withHaze`'s detail option gained a `shift`
+  vector, the `uDetailShift` uniform, added after the repeat so every octave of the grain moves at the road's speed: `asphaltMaterial(map, L, W, shift)`; `shift.x = scroll / TILE.asphalt`).
+  The base map's long streaks of tyre track are still painted into the stretched canvas and stand still (they are continuous along the road).
+- **The tar joints** now run across the whole road (shoulders and the edge lines too) and are drawn over the paint, so a joint crosses the line as it does a real one.
+- **Checked** in the Browser pane on the Z9: the camera straight above the line, two moments of the run, the brightness profile along the line high-passed and cross-correlated: the marks
+  moved -0.333, -0.679 and -1.144 m for a road that moved 0.335, 0.677 and 1.145 m (correlation 0.99-1.0), the grass -0.334 m for 0.335 m (the same movement, folded by the 1.6 m
+  tile, for a longer step), and the grain's uniform read exactly `scroll / 2.4` at four times. Wet, a +6 % hill (3.43 degrees) and the night lamps still work, no errors.
+- Seen on the side: the viewer draws continuously while a run is paused part-way through a pull. `XrayDirector` (the cable pulses of the Drive tab's X-ray lens) asks for a frame
+  while `fx.flow.level > 0.01`, and the Drive tab's live lights leave that level where the car's power was when the clock stopped; it is back to 0 idle on a fresh page. Not touched
+  (X-ray code); `window.__weather` (dev) shows the rain's state when hunting for idle frames.

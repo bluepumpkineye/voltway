@@ -11,7 +11,7 @@ import { clamp, countTo, Easing, fmt, progress, spring, SPRINGS } from '@/lib/te
 import { useRuntime } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { BELOW_TOP } from './Chrome';
-import { DRIVE_COLUMN_W, useDriveSetup } from './Drive';
+import { useDriveSetup } from './Drive';
 import { ACCENT, AMBER, CYAN, RED, TILES, type TileCtx } from './driveTiles';
 
 /**
@@ -25,7 +25,7 @@ import { ACCENT, AMBER, CYAN, RED, TILES, type TileCtx } from './driveTiles';
  *
  * What the cards show is a pure function of the playhead (src/lib/tech/motion.ts): scrub the run and they open and close with it, pause it
  * and they hold. Where they stand follows the camera, so that they keep their place beside the part when the run is held. Inside the cabin camera, where there is nothing outside to point at, the open cards stand in a column at the left; on a
- * narrow window one line shows the card whose moment it is. The controls (mode, load, road, camera) stay on the card at the right.
+ * narrow window one line shows the card whose moment it is. The controls (mode, load, road, camera) are built into the gauges' cockpit (Drive.tsx).
  */
 
 export const RAIL_W = 292;
@@ -151,7 +151,7 @@ const TONE: Record<CaptionTone, string> = { front: CYAN, rear: AMBER, all: '#fff
  * another out of their own masks, a rule draws under them, the line fades in. Each of those is a spring on the seconds since the
  * caption's start, so it plays the same from any scrub.
  */
-function StageCaption({ cap, t, column, still, vh }: { cap: Caption; t: number; column: boolean; still: boolean; vh: number }) {
+function StageCaption({ cap, t, column, still, vh, lift }: { cap: Caption; t: number; column: boolean; still: boolean; vh: number; lift: number }) {
   // reduced motion: the caption comes and goes, with nothing to watch in between
   const age = still ? 9 : t - cap.from;
   const out = Easing.inOutQuad(progress(t, cap.to - 0.35, 0.35));
@@ -163,8 +163,8 @@ function StageCaption({ cap, t, column, still, vh }: { cap: Caption; t: number; 
     <div
       aria-hidden
       className="pointer-events-none absolute left-0 z-10 flex justify-center px-3"
-      // a wide window: over the road between the car and the gauges; a phone: above the gauges, under the car
-      style={{ bottom: column ? 348 : Math.round(vh * 0.34), right: column ? DRIVE_COLUMN_W + 28 : 0 }}
+      // a wide window: over the road between the car and the gauges; a phone: above the gauges, under the car (above the row of buttons, where there is one)
+      style={{ bottom: (column ? 348 : Math.round(vh * 0.34)) + lift, right: 0 }}
     >
       <div
         className="flex max-w-[520px] flex-col items-center rounded-2xl bg-neutral-950/65 px-5 pb-3 pt-2.5 text-center text-white shadow-xl ring-1 ring-white/12 backdrop-blur-md"
@@ -238,7 +238,7 @@ function Tile({ id, c, x, y, chip = false }: { id: DriveOverlay; c: TileCtx; x: 
  * (their places from `layoutCards`, eased toward each frame so that they glide when the camera moves). In the cabin camera they stand
  * in a column at the left; on a narrow window one line shows the card whose moment it is.
  */
-export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boolean }) {
+export function DriveMotion({ vehicle, column, lift = 0 }: { vehicle: Vehicle; column: boolean; lift?: number }) {
   const setup = useDriveSetup(vehicle);
   const facts = useRuntime()?.launch?.drive ?? null;
   const cam = useVehicleStore((s) => s.drive.cam) ?? setup.camera;
@@ -279,7 +279,9 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
   // reduced motion: a card is open or shut, with no in-between to watch
   const open = (o: DriveOverlay) => (reduced ? (raw[o] > 0.5 ? 1 : 0) : raw[o]);
   const tel = facts.telemetry(t);
-  const cap = caps.find((x) => t >= x.from && t < x.to);
+  // a run that has finished says its figures in the summary bar over the instruments (Drive.tsx), not in a caption over the road
+  const ended = !techClock.playing && t >= duration - 0.05;
+  const cap = ended ? undefined : caps.find((x) => t >= x.from && t < x.to);
 
   const introExit = column && vh >= 800 ? Easing.inOutQuad(progress(t, shape.launch + 2.4, 0.5)) : 1;
   const introShown = introExit < 1;
@@ -287,7 +289,7 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
 
   const frame = driveAnchors.frame;
   const floating = column && cam !== 'cabin' && frame !== null;
-  const rightPad = column ? DRIVE_COLUMN_W + 28 : 0;
+  const rightPad = 0;
 
   // ---- floating: the cards beside the car, each next to the part it explains
   let floatingCards: { id: DriveOverlay; x: number; y: number; ctx: TileCtx }[] = [];
@@ -297,7 +299,7 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
     // above the caption, which stands over the road just above the gauges
     const safe = { x: 10, y: 70, w: W - rightPad - 20, h: H * 0.5 - 78 };
     const avoid = [] as { x: number; y: number; w: number; h: number }[];
-    if (cap) avoid.push({ x: (W - rightPad) / 2 - 260, y: H - 348 - 126, w: 520, h: 130 });
+    if (cap) avoid.push({ x: (W - rightPad) / 2 - 260, y: H - 348 - lift - 126, w: 520, h: 130 });
     if (introShown) avoid.push({ x: 8, y: 62, w: RAIL_W + 8, h: INTRO_H + 8 });
     const specs = shown.map((o) => {
       const pts = targetsOf(o, facts, tel)
@@ -349,7 +351,7 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
 
   return (
     <>
-      {cap && <StageCaption cap={cap} t={t} column={column} still={reduced} vh={vh} />}
+      {cap && <StageCaption cap={cap} t={t} column={column} still={reduced} vh={vh} lift={lift} />}
       {floating && frame && (
         <div className="pointer-events-none absolute inset-0 z-10" role="group" aria-label="Live data from the run">
           {floatingCards.map((f) => (
@@ -363,7 +365,7 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
         </div>
       )}
       {!floating && (
-        <div role="group" aria-label="Live data from the run" className={`pointer-events-none absolute left-3 z-10 ${BELOW_TOP} ${column ? '' : 'mt-11 short:left-auto short:right-3'}`} style={{ width: RAIL_W }}>
+        <div role="group" aria-label="Live data from the run" className={`pointer-events-none absolute left-3 z-10 ${BELOW_TOP} ${column ? '' : 'short:left-auto short:right-3'}`} style={{ width: RAIL_W }}>
           {introShown && (
             <div style={{ opacity: 1 - introExit, transform: `translateY(${-introExit * 14}px)` }}>
               <Intro vehicle={vehicle} age={reduced ? 9 : intro} />

@@ -23,7 +23,7 @@ import { COMPARE_COLUMN_W, SPECS_COLUMN_W, SpecsPanel } from './Specs';
 import { showroomCars } from '@/lib/showroom/cars';
 import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
 import { ChassisTools, NoseInTools } from './Chassis';
-import { DRIVE_COLUMN_W, DrivePanel } from './Drive';
+import { DriveCockpit, cockpitForm, cockpitLift } from './Drive';
 import { DriveMotion, RAIL_W } from './DriveMotion';
 import { LaunchTools } from './Launch';
 import { ParkAssistTools } from './ParkAssist';
@@ -358,13 +358,15 @@ export function Showroom({
       if (xrayColumn) setDeviceInset({ right: Math.min(0.5, (XRAY_COLUMN_W + 28) / dash.vw), bottom: 0.1 });
       else setDeviceInset({ right: 0, bottom: xrayPicked && vehicle.xray?.anatomy ? 0.5 : 0.2 });
     } else if (tab === 'drive') {
-      // the card at the right of a wide window and the column of data at the left, the gauges and the playback bar under the car
+      // the column of data at the left, the cockpit (the gauges with the buttons that set the run around them) and the playback bar under
+      // the car; the buttons make a row above the gauges where the two banks do not fit
+      const form = cockpitForm(dash.vw, dash.short);
       setDeviceInset({
-        // a sideways phone: the scenario bar and the run's card stand at the right, the menu column at the left
-        right: dash.wide ? Math.min(0.4, (DRIVE_COLUMN_W + 28) / dash.vw) : dash.short ? (RAIL_W + 24) / dash.vw : 0,
-        left: dash.wide ? Math.min(0.3, (RAIL_W + 24) / dash.vw) : dash.short ? SHORT_MENU_W / dash.vw : 0,
-        // a sideways phone's gauges and playback bar are a smaller stack than a tall window's
-        bottom: dash.short ? 0.2 : 0.4,
+        // a sideways phone: the run's card stands at the right, the menu column at the left
+        right: dash.short ? (RAIL_W + 24) / dash.vw : 0,
+        left: dash.wide ? Math.min(0.2, (RAIL_W + 24) / dash.vw) : dash.short ? SHORT_MENU_W / dash.vw : 0,
+        // a sideways phone's gauges and playback bar are a smaller stack than a tall window's; the row of buttons adds to it
+        bottom: dash.short ? 0.3 : form === 'banks' ? 0.4 : 0.43,
       });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
@@ -380,9 +382,7 @@ export function Showroom({
 
   // what the dock and the demonstrations' menu leave clear at the right
   const rightPad =
-    tab === 'drive' && dash.wide
-      ? DRIVE_COLUMN_W + 40
-      : tab === 'tech' && col.active && col.wide
+    tab === 'tech' && col.active && col.wide
       ? col.colW + 40
       : boostUp && dash.wide
         ? boostColumnWidth(dash.vw) + 40
@@ -558,8 +558,7 @@ export function Showroom({
         </div>
       )}
 
-      {ready && tab === 'drive' && <DriveMotion vehicle={vehicle} column={dash.wide} />}
-      {ready && tab === 'drive' && <DrivePanel vehicle={vehicle} column={dash.wide} />}
+      {ready && tab === 'drive' && <DriveMotion vehicle={vehicle} column={dash.wide} lift={cockpitLift(cockpitForm(dash.vw, dash.short))} />}
 
       <div
         className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 short:pl-[136px] pb-3 sm:pb-5 ${ready ? '' : 'invisible'}`}
@@ -649,7 +648,7 @@ export function Showroom({
         {tab === 'dashboard' && (
           <DashboardControls screenFits wide={dash.wide || dash.short} screenOpen={screenOpen} onScreen={setScreenOpen} />
         )}
-        {tab === 'drive' && <LaunchTools vehicle={vehicle} inset={false} />}
+        {tab === 'drive' && <DriveCockpit vehicle={vehicle} vw={dash.vw} short={dash.short} />}
         {tab === 'tech' && demo && (
           <>
             {demo.driver === 'carpet' && <RideTools vehicle={vehicle} showHeights={!col.active} />}
