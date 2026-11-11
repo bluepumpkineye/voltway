@@ -22,7 +22,6 @@ import { TechRoad } from './TechRoad';
 import { TechParkAssist } from './TechParkAssist';
 import { TechPowertrain } from './TechPowertrain';
 import { XrayAnatomy, XrayDirector } from './XrayDirector';
-import { Blueprint } from './Blueprint';
 import { XrayLabelDriver } from './XrayLabelDriver';
 import { TechAnchors } from './TechAnchors';
 import { TechWheelFx } from './TechWheelFx';
@@ -94,7 +93,6 @@ export function ShowroomViewer({
         <TechDirector vehicle={vehicle} />
         <XrayDirector vehicle={vehicle} />
         <XrayLabelDriver vehicle={vehicle} />
-        <Blueprint vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         <React.Suspense fallback={<Loading />}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />

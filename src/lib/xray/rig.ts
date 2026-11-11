@@ -111,7 +111,7 @@ export class XrayRig {
 
   /** Aim the level at a value; `snap` jumps there at once (a slider being dragged, a tab being left). */
   setTarget(v: number, now: number, snap = false) {
-    const to = Math.min(2, Math.max(0, v));
+    const to = Math.min(1, Math.max(0, v));
     if (snap) {
       this.level = to;
       this.target = to;
@@ -167,7 +167,7 @@ export class XrayRig {
   /** Advance the tweens; true while anything is still moving. */
   /** Put the level at a value at once, every frame if need be (the Drive tab's reveal follows the playhead): the panel hears only when the X-ray starts or stops. */
   setLevel(v: number) {
-    const to = Math.min(2, Math.max(0, v));
+    const to = Math.min(1, Math.max(0, v));
     if (to === this.level && this.tw === null) return;
     this.level = to;
     this.target = to;

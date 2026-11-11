@@ -1,12 +1,8 @@
-# The X-ray tab: exploded view, blueprint mode, and the Drive tab's live motors
+# The X-ray tab and the Drive tab's live motors
 
-The X-ray tab used to show the greenhouse as a ghost with the doors hidden. For the Xiaomi SU7 Ultra it is now a model of the car's
-hardware that can be taken apart: a slider from **Solid** through **X-ray** to **Exploded**, labels on every part, a card with what the part
-does, a short clip of it working, and a **Blueprint** switch that redraws the car as an engineering drawing. The same hardware is reused
-by the Drive tab (camera "X-ray"), where each motor's rotor and windings light up with the torque it is delivering.
+The X-ray tab shows a model of every car's underlying hardware: a slider from **Solid** (`0`) to **X-ray** (`1`), labels on every part, a card with what the part does, and a short clip of it working. The same hardware is reused by the Drive tab (camera "X-ray"), where each motor's rotor and windings light up with the torque it is delivering.
 
-The other cars keep the old X-ray (the doors hidden, the greenhouse ghosted). They get the new one when an anatomy is built for them
-(section 4); the Blueprint switch already works on every car, as a drawing of the shell and the cabin.
+All 9 vehicles in the showcase (`xiaomi-su7-ultra`, `byd-seal`, `denza-z9`, `luxeed-rx`, `zeekr-7x`, `xpeng-g9l`, `avatr-06t`, `nio-es8`, `voyah-passion-s`) ship with a tailored anatomy GLB (`public/models/<slug>-xray.glb`) and sourced `xray.anatomy` part definitions. (`Exploded` mode and `Blueprint` mode have been decommissioned so all parts remain in their anatomical positions inside the ghosted body shell.)
 
 ## 0. Honesty rules (they decide how everything below is written)
 

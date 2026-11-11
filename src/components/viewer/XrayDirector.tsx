@@ -12,7 +12,6 @@ import { driveLensPlan } from '@/lib/tech/drive-lens';
 import { DRIVE_CAMERAS } from '@/lib/tech/drive-setup';
 import { techSession } from '@/lib/tech/session';
 import { AnatomyFx } from '@/lib/xray/fx';
-import { assemblyLift, dimsOf } from '@/lib/xray/plan';
 import { xrayOf } from '@/lib/xray/rig';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { DRACO_PATH, useClonedScene } from './CarModel';
@@ -56,7 +55,7 @@ export function XrayDirector({ vehicle }: { vehicle: Vehicle }) {
   // on any other camera but the driver's seat the car stays solid, and the cards reveal its hardware (the lens: each card, as it opens, ghosts the
   // paint and lights the parts it is about, for a few seconds, then the car is solid again; drive-beats.ts `lensAt`)
   const lensOn = useVehicleStore((s) => s.tab === 'drive' && (s.drive.cam ?? vehicle.drive?.camera ?? 'hero') !== 'cabin' && s.drive.cam !== 'xray') && Boolean(spec?.anatomy);
-  const goal = !spec ? 0 : tab === 'xray' ? (spec.anatomy ? level : Math.min(1, level)) : driveXray ? 1 : 0;
+  const goal = !spec ? 0 : tab === 'xray' ? Math.min(1, level) : driveXray ? 1 : 0;
 
   React.useEffect(() => {
     // leaving the tab puts the car back at once; entering it eases in; a dragged slider is followed as it moves
@@ -215,24 +214,6 @@ export function XrayAnatomy({ vehicle }: { vehicle: Vehicle }) {
   );
 }
 
-interface Meta {
-  sys?: string;
-  id?: string;
-  ex?: [number, number, number];
-  t0?: number;
-  t1?: number;
-}
-
-function metaOf(o: THREE.Object3D): Meta | null {
-  const raw = o.userData?.xr;
-  if (typeof raw !== 'string') return null;
-  try {
-    return JSON.parse(raw) as Meta;
-  } catch {
-    return null;
-  }
-}
-
 function Anatomy({ vehicle, url }: { vehicle: Vehicle; url: string }) {
   const { scene } = useGLTF(url, DRACO_PATH);
   const model = useClonedScene(scene);
@@ -242,23 +223,11 @@ function Anatomy({ vehicle, url }: { vehicle: Vehicle; url: string }) {
   const fx = React.useMemo(() => new AnatomyFx(model, rig, car), [model, rig, car]);
 
   React.useEffect(() => {
-    const lift = assemblyLift(dimsOf(vehicle), vehicle);
     model.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.castShadow = false;
         o.receiveShadow = false;
       }
-      const meta = metaOf(o);
-      if (!meta) return;
-      if (o.name === 'XR_Anatomy') {
-        rig.add('anatomy', o, new THREE.Vector3(0, lift, 0), 0.1, 0.7, 'root');
-        return;
-      }
-      if (!meta.ex) return;
-      const ex = new THREE.Vector3(...meta.ex);
-      if (ex.lengthSq() < 1e-8) return;
-      const child = !!o.parent && o.parent.name !== 'XR_Anatomy' && o.parent.name !== '';
-      rig.add('anatomy', o, ex, meta.t0 ?? 0.3, meta.t1 ?? 0.9, meta.sys ?? 'x', child);
     });
     rig.roots.anatomy = model;
     rig.fx = fx;
@@ -410,6 +379,7 @@ function Harness({ model, fx }: { model: THREE.Object3D; fx: AnatomyFx }) {
     });
     const defs = [
       { from: 'pdu_l', to: 'inv_F', out: 1 },
+      { from: 'rear_l', to: 'inv_R', out: -1 },
       { from: 'rear_l', to: 'inv_RL', out: -1 },
       { from: 'rear_r', to: 'inv_RR', out: -1 },
     ].filter((d) => ports.has(d.from) && ports.has(d.to));

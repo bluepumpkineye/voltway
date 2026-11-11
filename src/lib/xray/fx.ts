@@ -490,10 +490,41 @@ export class AnatomyFx {
         shaft.quaternion.setFromUnitVectors(Y, pout.sub(pin).normalize());
       }
     }
+    const rearRack = this.byName.get('XR_Steering_RearRack');
+    const rl = this.corners.find((c) => c.id === 'RL');
+    const rrCorner = this.corners.find((c) => c.id === 'RR');
+    if (rearRack && rl && rrCorner) {
+      const rShift = -rr * 0.42;
+      const rAngleL = -dl * 0.42;
+      const rAngleR = -dr * 0.42;
+      this.remember(rearRack);
+      rearRack.position.addScaledVector(Z, rShift);
+      for (const [c, a] of [[rl, rAngleL], [rrCorner, rAngleR]] as const) {
+        const kn = this.byName.get(`XR_Susp_${c.id}_Knuckle`);
+        if (kn) {
+          this.remember(kn);
+          kn.quaternion.setFromAxisAngle(Y, a);
+        }
+        const toe = this.byName.get(`XR_Susp_${c.id}_ToeLink`);
+        if (toe) {
+          this.remember(toe);
+          const ti = new THREE.Vector3(...c.kin.TI);
+          const tiNow = ti.clone().addScaledVector(Z, rShift);
+          toe.position.addScaledVector(Z, rShift);
+          const dd = outer(c, a).sub(tiNow);
+          toe.quaternion.setFromUnitVectors(Y, dd.clone().normalize());
+          toe.scale.set(1, dd.length() / L(c), 1);
+        }
+      }
+    }
     if (this.car) {
       this.wheelsDirty = true;
       this.car.state.steer[0] = dl;
       this.car.state.steer[1] = dr;
+      if (rearRack) {
+        this.car.state.steer[2] = -dl * 0.42;
+        this.car.state.steer[3] = -dr * 0.42;
+      }
       this.car.apply();
     }
   }

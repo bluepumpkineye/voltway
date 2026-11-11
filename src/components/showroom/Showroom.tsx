@@ -31,7 +31,7 @@ import { SensorsTools } from './Sensors';
 import { SwivelTools } from './Swivel';
 import { RideTools } from './Ride';
 import { TechChips, TechControls } from './Tech';
-import { XRAY_COLUMN_W, XrayBlueprintSheet, XrayCard, XrayTools } from './Xray';
+import { XRAY_COLUMN_W, XrayCard, XrayTools } from './Xray';
 import { XrayLabelLayer } from './XrayLabels';
 import { TechDevices, activeDevice, useDeviceColumn } from '@/components/tech/TechDevices';
 import { useWebGl } from './useWebGl';
@@ -96,7 +96,7 @@ const NOTES: Record<ShowroomTab, string> = {
     "The car's own screen, live beside the car. Its headlamp controls switch the lamps; the glow, the beam on the floor and the dusk are our rendering of them, not the maker's footage.",
   dimensions:
     "Dimensions, performance, battery and range are the manufacturer's published figures, each range on its own test cycle; a figure marked estimated is derived, and one the maker has not published says so.",
-  xray: "The body goes see-through and, on the slider, the whole car comes apart: the pack, the motors, the frames and the suspension. The exploded view's parts are our own models, placed from the car's dimensions and the maker's published layout. Not the maker's drawing.",
+  xray: "The body goes see-through to reveal the car's underlying hardware: the battery pack, motors, chassis frames, suspension, steering and brakes. The anatomy parts are our own models, placed from the car's dimensions and the maker's published layout.",
   charging:
     "The charging window and its minutes are the maker's where it publishes them. The curve between, a peak it does not publish, the charger and the gun are ours; the minutes play in fourteen seconds.",
   drive:
@@ -433,7 +433,6 @@ export function Showroom({
     <div ref={root} className="fixed inset-0 select-none overflow-hidden bg-[#f1f2f4] text-neutral-900">
       {ready && webgl && <ShowroomViewer vehicle={vehicle} variant={variant} className="absolute inset-0" />}
       {ready && webgl && tab === 'xray' && vehicle.xray?.anatomy && (dash.wide || !xrayPicked) && <XrayLabelLayer vehicle={vehicle} />}
-      {ready && webgl && tab === 'xray' && vehicle.xray && <XrayBlueprintSheet vehicle={vehicle} />}
       {webgl === false && (
         <div className="absolute inset-0 grid place-items-center px-6 text-center">
           <p className="max-w-sm text-[13px] leading-relaxed text-neutral-600">

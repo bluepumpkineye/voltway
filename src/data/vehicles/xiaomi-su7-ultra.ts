@@ -278,7 +278,7 @@ export const xiaomiSu7Ultra: Vehicle = {
     // placed from the car's measured hubs, floor and body (blender/scripts/su7_anatomy.py).
     anatomy: {
       url: '/models/su7-ultra-xray.glb',
-      note: 'A modelled view, not the maker’s drawing. The layout (a flat pack under the floor, one motor at the front and two at the back, double-wishbone front and multi-link rear) and the figures are published or reported; every part’s shape, its size and how it comes apart are ours.',
+      note: 'A modelled view, not the maker’s drawing. The layout (a flat pack under the floor, one motor at the front and two at the back, double-wishbone front and multi-link rear) and the figures are published or reported; every part’s shape and size are ours.',
       parts: [
         {
           id: 'pack',

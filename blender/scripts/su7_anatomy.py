@@ -34,6 +34,10 @@ def spec():
         body_len=5.07,
         body_w=1.97,
         kwh=93.7,
+        pack_style="qilin",
+        drive_style="su7",
+        chassis_style="su7",
+        susp_style="su7",
         motors=[
             Motor("F", "front", None, 288, 500, 21000, "Front V6s"),
             Motor("RL", "rear", "left", 425, 635, 27200, "Rear left V8s"),

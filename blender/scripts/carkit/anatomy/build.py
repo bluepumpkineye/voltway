@@ -55,7 +55,7 @@ def build(spec, clean=True):
             pre = "F" if m.axle == "front" else "R"
             hx, _, hz = spec.hub_f if m.axle == "front" else spec.hub_r
             parts["shafts"][pre + "L"] = suspension.halfshaft(spec, pre + "L", u["output"], col, root, M)
-            right = (hx, -(u["sizes"]["Ls"] / 2 + 0.067), hz)
+            right = u.get("output_r", (hx, -(u["sizes"]["Ls"] / 2 + 0.067), hz))
             parts["shafts"][pre + "R"] = suspension.halfshaft(spec, pre + "R", right, col, root, M)
         else:
             c = "RL" if m.side == "left" else "RR"
@@ -63,6 +63,8 @@ def build(spec, clean=True):
     parts["arb_f"] = suspension.anti_roll_bar(spec, "front", col, root, M)
     parts["arb_r"] = suspension.anti_roll_bar(spec, "rear", col, root, M)
     parts["rack"] = suspension.steering_rack(spec, col, root, M)
+    if getattr(spec, "rear_steer", False):
+        parts["rear_rack"] = suspension.rear_steering_rack(spec, col, root, M)
     _ports(spec, parts)
     plan = explode_plan(spec, parts)
     apply_plan(plan)
@@ -136,6 +138,8 @@ def explode_plan(spec, parts):
     put(f["sub_r"], -0.50 * k, 0, -0.08, 0.35, 0.85)
     put(f["crash_r"], -0.95 * k, 0, 0.0, 0.4, 0.9)
     put(parts["rack"], 0.42 * k, 0, 0.13, 0.45, 0.9)
+    if "rear_rack" in parts:
+        put(parts["rear_rack"], -0.42 * k, 0, 0.10, 0.45, 0.9)
     put(parts["arb_f"], -0.30 * k, 0, -0.07, 0.45, 0.9)
     put(parts["arb_r"], -0.62 * k, 0, -0.06, 0.45, 0.9)
 

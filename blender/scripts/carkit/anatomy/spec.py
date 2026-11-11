@@ -38,6 +38,17 @@ class CarSpec:
     body_w: float
     kwh: float
     motors: List[Motor] = field(default_factory=list)
+    # OEM battery, drivetrain, chassis & suspension specializations:
+    # pack_style: "blocks" | "blade" | "swap" | "qilin" | "whale_800v" | "cib" | "mica"
+    pack_style: str = "blocks"
+    # drive_style: "su7" | "byd_8in1" | "byd_e3" | "driveone" | "zeekr_sic" | "sepa" | "xpt" | "essa"
+    drive_style: str = "su7"
+    # chassis_style: "su7" | "ctb" | "e3_ctb" | "cib_megacast" | "sea_dome" | "nt2_swap" | "tuling" | "chn" | "essa"
+    chassis_style: str = "su7"
+    # susp_style: "su7" | "disus_c_coil" | "disus_a" | "vkp_air" | "air_cdc"
+    susp_style: str = "su7"
+    # rear_steer: adds rear-axle active steering actuator/rack (XR_Steering_RearRack)
+    rear_steer: bool = False
     # derived (filled by derive())
     pack: dict = field(default_factory=dict)
 
@@ -50,7 +61,25 @@ class CarSpec:
         return self.hub_r[0]
 
     @classmethod
-    def from_dims(cls, name, hub_f, hub_r, tyre_r, body_len, body_w, kwh, motors, rim_r=None, under_z=None, floor_z=None):
+    def from_dims(
+        cls,
+        name,
+        hub_f,
+        hub_r,
+        tyre_r,
+        body_len,
+        body_w,
+        kwh,
+        motors,
+        rim_r=None,
+        under_z=None,
+        floor_z=None,
+        pack_style="blocks",
+        drive_style="su7",
+        chassis_style="su7",
+        susp_style="su7",
+        rear_steer=False,
+    ):
         """A spec from what is easy to know about a car: its hubs, tyre, size, pack and motors.
 
         The underbody's height, the floor's and the sills' places come from the SU7's proportions (an underbody
@@ -63,7 +92,8 @@ class CarSpec:
             name=name, wheelbase=hub_f[0] - hub_r[0], hub_f=hub_f, hub_r=hub_r, tyre_r=tyre_r,
             rim_r=rim_r if rim_r is not None else tyre_r * 0.74, floor_z=fz, under_z=uz,
             floor_half_w=0.355 * body_w, sill_y=0.405 * body_w, body_len=body_len, body_w=body_w, kwh=kwh,
-            motors=list(motors),
+            motors=list(motors), pack_style=pack_style, drive_style=drive_style,
+            chassis_style=chassis_style, susp_style=susp_style, rear_steer=rear_steer,
         ).derive()
 
     def derive(self):

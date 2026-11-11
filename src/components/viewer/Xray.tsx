@@ -5,8 +5,6 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import type { Vehicle } from '@/data/vehicles/schema';
 import { hingesOf } from '@/lib/openings';
-import type { PreparedRig } from '@/lib/tech/rig';
-import { assemblyLift, cabinMove, CABIN_WINDOW, dimsOf, exteriorPlan, wheelMove } from '@/lib/xray/plan';
 import { xrayOf } from '@/lib/xray/rig';
 
 /**
@@ -124,27 +122,7 @@ export function useXrayShell(root: THREE.Object3D, vehicle: Vehicle) {
   React.useEffect(() => {
     if (!vehicle.xray) return;
     const rig = xrayOf(vehicle);
-    // a car without an exploded view still hands its scene to the blueprint
     rig.roots.exterior = root;
-    if (!vehicle.xray.anatomy) {
-      return () => {
-        rig.roots.exterior = undefined;
-      };
-    }
-    const d = dimsOf(vehicle);
-    const plan = exteriorPlan(d, vehicle);
-    root.traverse((o) => {
-      const m = plan.find((p) => p.name.test(o.name));
-      if (m) rig.add('shell', o, new THREE.Vector3(...m.ex), m.t0, m.t1, m.sys);
-    });
-    const prepared = root.userData.rig as PreparedRig | undefined;
-    if (prepared) {
-      for (const w of prepared.wheels) {
-        const mv = wheelMove(w.corner, d);
-        rig.add('wheels', w.steer, mv.ex, mv.t0, mv.t1, 'wheels', false, true);
-      }
-      rig.add('wheels', prepared.unsprung, new THREE.Vector3(0, assemblyLift(d, vehicle) + 0.04, 0), 0.1, 0.7, 'wheels');
-    }
     rig.apply();
     invalidate();
     return () => {
@@ -156,27 +134,13 @@ export function useXrayShell(root: THREE.Object3D, vehicle: Vehicle) {
   }, [root, vehicle, invalidate]);
 }
 
-/** The cabin goes up as one piece, and its door cards (and the tail's liner) follow the exterior parts they belong to. */
+/** Registers the cabin root with the car's X-ray rig so it can be hidden when focusing a hardware system. */
 export function useXrayCabinPlan(root: THREE.Object3D, vehicle: Vehicle) {
   const invalidate = useThree((s) => s.invalidate);
   React.useEffect(() => {
     if (!vehicle.xray) return;
     const rig = xrayOf(vehicle);
     rig.roots.cabin = root;
-    if (!vehicle.xray.anatomy) {
-      return () => {
-        rig.roots.cabin = undefined;
-      };
-    }
-    const d = dimsOf(vehicle);
-    const cab = cabinMove(d, vehicle);
-    rig.add('cabin', root, cab, CABIN_WINDOW.t0, CABIN_WINDOW.t1, 'cabin');
-    const plan = exteriorPlan(d, vehicle);
-    for (const s of vehicle.openings ?? []) {
-      const card = s.cardNode ? root.getObjectByName(s.cardNode) : undefined;
-      const mv = plan.find((p) => p.name.test(s.node));
-      if (card && mv) rig.add('cabin', card, new THREE.Vector3(...mv.ex).sub(cab), mv.t0, mv.t1, 'cabin');
-    }
     rig.apply();
     invalidate();
     return () => {

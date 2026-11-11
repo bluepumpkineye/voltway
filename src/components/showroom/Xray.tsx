@@ -52,23 +52,20 @@ function useRigVersion(vehicle: Vehicle) {
 }
 
 /**
- * The dock of the X-ray tab: the level, from solid through see-through to exploded, as a slider with a stop at each (a click on
- * a stop flies there; dragging follows the finger), the blueprint switch, and the chips of the systems the exploded view takes apart.
+ * The dock of the X-ray tab: the level, from solid to see-through X-ray, as a slider with a stop at each (a click on
+ * a stop flies there; dragging follows the finger), and the chips of the systems in the anatomy.
  */
 export function XrayTools({ vehicle }: { vehicle: Vehicle }) {
   const anatomy = vehicle.xray?.anatomy;
   const level = useVehicleStore((s) => s.xrayLevel);
   const setLevel = useVehicleStore((s) => s.setXrayLevel);
-  const blueprint = useVehicleStore((s) => s.xrayBlueprint);
-  const setBlueprint = useVehicleStore((s) => s.setXrayBlueprint);
   const system = useVehicleStore((s) => s.xraySystem);
   const setSystem = useVehicleStore((s) => s.setXraySystem);
   const shown = useShownLevel(vehicle);
-  const max = anatomy ? 2 : 1;
-  const stops: { v: number; label: string; off?: string }[] = [
+  const max = 1;
+  const stops: { v: number; label: string }[] = [
     { v: 0, label: 'Solid' },
     { v: 1, label: 'X-ray' },
-    { v: 2, label: 'Exploded', off: anatomy ? undefined : 'The exploded view is not built for this car yet' },
   ];
   const systems = SYSTEMS.filter((s) => anatomy?.parts.some((p) => p.system === s.id));
   return (
@@ -104,8 +101,8 @@ export function XrayTools({ vehicle }: { vehicle: Vehicle }) {
             max={max}
             step={0.01}
             value={Math.min(max, shown)}
-            aria-label="Solid, X-ray or exploded"
-            aria-valuetext={shown < 0.5 ? 'Solid' : shown < 1.5 ? 'X-ray' : 'Exploded'}
+            aria-label="Solid or X-ray"
+            aria-valuetext={shown < 0.5 ? 'Solid' : 'X-ray'}
             onChange={(e) => setLevel(Number(e.target.value), true)}
             onPointerUp={() => setLevel(useVehicleStore.getState().xrayLevel, false)}
             onKeyUp={() => setLevel(useVehicleStore.getState().xrayLevel, false)}
@@ -116,30 +113,15 @@ export function XrayTools({ vehicle }: { vehicle: Vehicle }) {
               <button
                 key={s.v}
                 type="button"
-                disabled={Boolean(s.off)}
-                title={s.off}
                 aria-pressed={Math.abs(level - s.v) < 0.25}
                 onClick={() => setLevel(s.v, false)}
-                className={`${FOCUS} rounded px-1 py-0.5 transition-colors disabled:opacity-35 ${Math.abs(shown - s.v) < 0.25 ? 'text-neutral-900' : 'text-neutral-500 hover:text-neutral-900'}`}
+                className={`${FOCUS} rounded px-1 py-0.5 transition-colors ${Math.abs(shown - s.v) < 0.25 ? 'text-neutral-900' : 'text-neutral-500 hover:text-neutral-900'}`}
               >
                 {s.label}
               </button>
             ))}
           </div>
         </div>
-        <button
-          type="button"
-          aria-pressed={blueprint}
-          onClick={() => setBlueprint(!blueprint)}
-          title="Blueprint: the car as an engineering drawing"
-          className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-medium transition-colors ${FOCUS} ${blueprint ? 'bg-[#123a66] text-white shadow-sm' : `text-neutral-700 ${GLASS}`}`}
-        >
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden>
-            <rect x="1.5" y="1.5" width="13" height="13" rx="1" />
-            <path d="M1.5 6h13M1.5 10.5h13M6 1.5v13M10.5 1.5v13" strokeWidth="0.7" />
-          </svg>
-          Blueprint
-        </button>
       </div>
     </div>
   );
@@ -242,7 +224,7 @@ function PartList({ vehicle }: { vehicle: Vehicle }) {
   return (
     <div>
       <p className="text-[12.5px] leading-relaxed text-neutral-700">
-        Slide to X-ray to see the hardware through the body, then on to Exploded to take it apart. Pick a part for what it does, and for a short clip of it working.
+        Slide to X-ray to see the hardware through the body. Pick a part for what it does, and for a short clip of it working.
       </p>
       <div className="mt-3 space-y-3">
         {groups.map((g) => (
@@ -292,43 +274,5 @@ export function XrayCard({ vehicle, wide }: { vehicle: Vehicle; wide: boolean })
       </div>
       <p className="border-t border-black/[0.06] px-5 py-3 text-[10.5px] leading-snug text-neutral-500">{anatomy.note}</p>
     </aside>
-  );
-}
-
-/**
- * The drawing's sheet, in blueprint mode: a thin frame round the picture and a title block in the corner, with the dimensions the
- * maker publishes, as on an engineering drawing. Over the canvas, under the menu and the panels.
- */
-export function XrayBlueprintSheet({ vehicle }: { vehicle: Vehicle }) {
-  const on = useVehicleStore((s) => s.xrayBlueprint);
-  const level = useVehicleStore((s) => s.xrayLevel);
-  if (!on) return null;
-  const d = vehicle.dimensions;
-  const what = level < 0.5 ? 'GENERAL ARRANGEMENT' : level < 1.5 ? 'GENERAL ARRANGEMENT, BODY SEEN THROUGH' : 'EXPLODED ASSEMBLY';
-  const rows: [string, string][] = [
-    ['WHEELBASE', `${d.wheelbaseMm.toLocaleString('en-US')} mm`],
-    ['LENGTH', `${d.lengthMm.toLocaleString('en-US')} mm`],
-    ['WIDTH', `${d.widthMm.toLocaleString('en-US')} mm`],
-    ['HEIGHT', `${d.heightMm.toLocaleString('en-US')} mm`],
-  ];
-  return (
-    <div className="pointer-events-none absolute inset-0 z-[4]" aria-hidden>
-      <div className="absolute inset-2.5 border border-[#9bd1ff]/35" />
-      <div className="absolute bottom-[18px] left-[18px] hidden w-[272px] border border-[#9bd1ff]/55 bg-[#0c2d52]/80 font-mono text-[#dff0ff] backdrop-blur-sm xl:block">
-        <div className="border-b border-[#9bd1ff]/40 px-3 py-2">
-          <div className="text-[13px] font-semibold tracking-[0.12em]">{`${vehicle.brand} ${vehicle.model}`.toUpperCase()}</div>
-          <div className="mt-0.5 text-[10px] tracking-[0.1em] text-[#9bd1ff]">{what}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-b border-[#9bd1ff]/40 px-3 py-2 text-[10px] tracking-[0.06em]">
-          {rows.map(([k, v]) => (
-            <React.Fragment key={k}>
-              <span className="text-[#9bd1ff]">{k}</span>
-              <span className="text-right">{v}</span>
-            </React.Fragment>
-          ))}
-        </div>
-        <div className="px-3 py-1.5 text-[9px] tracking-[0.1em] text-[#9bd1ff]">NOT TO SCALE · SHEET 1 OF 1 · PARTS ILLUSTRATIVE</div>
-      </div>
-    </div>
   );
 }

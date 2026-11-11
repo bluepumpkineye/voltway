@@ -68,8 +68,9 @@ export function XrayLabelDriver({ vehicle }: { vehicle: Vehicle }) {
     for (const p of parts) {
       const e = layer.els.get(p.id);
       if (!e?.pill) continue;
-      let a = smooth((rig.level - ((p.minLevel ?? 1.5) - 0.12)) / 0.3);
-      if (!on || (st.xraySystem && st.xraySystem !== p.system)) a = 0;
+      const minLvl = Math.min(p.minLevel ?? 0.85, 0.85);
+      let a = smooth((rig.level - (minLvl - 0.12)) / 0.25);
+      if (!on || !st.xraySystem || st.xraySystem !== p.system) a = 0;
       const nodes = a > 0.01 ? nodesOf(p) : [];
       if (!nodes.length) {
         hide(p.id);
