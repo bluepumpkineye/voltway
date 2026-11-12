@@ -8,13 +8,18 @@ import { isStageTab, useVehicleStore } from '@/store/vehicle-store';
 import { techClock } from '@/lib/tech/clock';
 import { chargeDemo } from '@/lib/tech/charging';
 import { driveDemo } from '@/lib/tech/drive-demo';
-import { DRIVE_CAMERAS } from '@/lib/tech/drive-setup';
+import { DRIVE_CAMERAS, driveSetup } from '@/lib/tech/drive-setup';
 import { DRIVERS, visibleDemos } from '@/lib/tech/demos';
 import type { PlannedRun } from '@/lib/tech/kinematics';
 import { rideLevelsOf, RIDE_SPAN_MM } from '@/lib/tech/ride';
 import { rigOf } from '@/lib/tech/rig';
 import { techSession } from '@/lib/tech/session';
+import { CORNERS } from '@/lib/tech/kinematics';
+import { DRIVE_CARRY_MS, DRIVE_REST_EXIT_S, driveExitS, exitAt, exitInfo, exitPull } from '@/lib/tech/drive-exit';
+import { SHOW_EXIT_S, SHOW_RUN_S } from '@/lib/xray/show';
+import { bendFor } from '@/lib/tech/drive-bend';
 import { motionOk } from './configurator';
+import { hazeUniforms } from './scenery/kit';
 
 /**
  * Plays the Tech tab's demo: builds the motion for the chosen demo from the
@@ -27,6 +32,13 @@ import { motionOk } from './configurator';
  * It also publishes the running demo to the devices (src/lib/tech/session.ts) and the
  * lot the car drives in (the store's `techScene`, which TechStage draws).
  */
+/** the bend's steering is drawn this many times wider than it is (a real half degree is not seen), within this many radians, and the lean this many degrees to the g (ours) */
+/** how far from the arc, m, the road is left alone (the road's strip is 280 m long: the arc is out of it) */
+const BEND_SEEN = 330;
+const BEND_STEER_DRAWN = 6;
+const BEND_STEER_MAX = 0.17;
+const BEND_ROLL_DEG_PER_G = 4;
+
 export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const invalidate = useThree((s) => s.invalidate);
   const rig = rigOf(vehicle);
@@ -49,9 +61,22 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const { run: driveRun, mode: driveMode, load: driveLoad, brake: driveBrake, cam: driveCam, ghost: driveGhost, rival: driveRival, surface: driveSurface, grade: driveGrade } = driveChoice;
   // the rival beside the car is the one the chart sets against it: the visitor's pick, else the scenario's
   const rivalSlug = driveRival ? (driveGhost ?? vehicle.drive?.ghost?.slug ?? '') : '';
+  // the X-ray tab's Play drives the same engine: the car's longest standing start that takes ten seconds or less (0-200 where it has a time for it, else 0-100) at its
+  // standard power, the driver alone, the pace it then holds and a stop at the end, on the salt flat (level and dry)
+  const xrayShow = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
+  const showRun = React.useMemo(() => {
+    const runs = driveSetup(vehicle, { variantId }).runs.filter((r) => r.from === 0);
+    // a pull of more than ten seconds (a slower car to 200) would leave the pace too short to film: that car's show is its 0-100
+    const fits = runs.filter((r) => r.time <= 10);
+    const pool = fits.length ? fits : [runs.reduce((low, r) => (r.to < low.to ? r : low), runs[0])];
+    return pool.reduce((best, r) => (r.to > best.to ? r : best), pool[0])?.id ?? null;
+  }, [vehicle, variantId]);
   const driveSelection = React.useMemo(
-    () => ({ runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake, surface: driveSurface, grade: driveGrade, rival: rivalSlug || null }),
-    [driveRun, driveMode, driveLoad, driveBrake, driveSurface, driveGrade, rivalSlug],
+    () =>
+      xrayShow
+        ? { runId: showRun, modeId: null, loadId: null, brake: true, surface: null, grade: null, rival: null, minRunS: SHOW_RUN_S }
+        : { runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake, surface: driveSurface, grade: driveGrade, rival: rivalSlug || null },
+    [xrayShow, showRun, driveRun, driveMode, driveLoad, driveBrake, driveSurface, driveGrade, rivalSlug],
   );
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
@@ -63,7 +88,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       ? (demos.find((d) => d.id === demoId) ?? demos[0])
       : tab === 'charging'
         ? (charging ?? undefined)
-        : tab === 'drive'
+        : tab === 'drive' || xrayShow
           ? (drive ?? undefined)
           : undefined;
 
@@ -90,6 +115,20 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     // the rig is the same object for the car's life; `rigged` says when its wheels arrive
   }, [spec, rigged, rig, parkSpeed, carpetOn, modeId, vehicle, compassPivot, compassAngle, launchTarget, variantId, driveSelection]);
 
+  // the Drive tab's corner: an arc at a fixed distance along the road, which the car comes to, drives into and leaves behind (src/lib/tech/drive-bend.ts);
+  // none on the X-ray tab's Play
+  const bend = React.useMemo(() => {
+    const facts = tab === 'drive' ? built?.treadmill?.launch?.drive : undefined;
+    return facts && built?.treadmill ? bendFor(facts, built.track.duration, built.treadmill.scroll) : null;
+  }, [tab, built]);
+  // a road left bent when the demo changes or the tab goes would bend the next one
+  React.useEffect(
+    () => () => {
+      hazeUniforms.uBendOn.value = 0;
+    },
+    [bend],
+  );
+
   // a demo starts from the top (or waits for a device to start it), and the camera takes in its floor
   React.useEffect(() => {
     if (!built) return;
@@ -97,7 +136,21 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     const st = useVehicleStore.getState();
     const soc0 = st.soc;
     const intent = st.techIntent;
-    techClock.load(track.duration, { play: intent || (built.autoplay && motionOk()), stops: built.stops });
+    // No run freezes at its end: the clock runs on past it (the exit, src/lib/tech/drive-exit.ts) and the car drives away from a camera that stays where it
+    // is, whichever car it is. The X-ray tab's Play always has one (it speeds up). The Drive tab's has one when the car is going fast at the run's end (a
+    // coast or a cruise: it carries on at its speed) and when it is slow or standing (the end of a slalom or a crab walk, or a stop the visitor chose: it
+    // speeds up from the speed it has, at the pull of its own 0-100); not on a hill (the stage tilts about the car's start).
+    const facts = built.treadmill?.launch?.drive;
+    const v0Raw = (facts?.telemetry(track.duration).speed ?? 0) / 3.6;
+    const slow = v0Raw < DRIVE_CARRY_MS;
+    const v0 = v0Raw < 1 ? 0 : v0Raw;
+    const rest = slow;
+    let exitS = 0;
+    if (xrayShow) exitS = SHOW_EXIT_S;
+    else if (st.tab === 'drive' && facts && facts.env.gradePct === 0) exitS = slow ? DRIVE_REST_EXIT_S : driveExitS(v0);
+    if (exitS > 0) exitPull.a0 = Math.min(13, Math.max(8, 27.8 / driveSetup(vehicle, { variantId }).input.zeroTo100));
+    Object.assign(exitInfo, { duration: track.duration + exitS, exit: exitS, v0, show: xrayShow, accel: xrayShow || rest });
+    techClock.load(track.duration + exitS, { play: intent || (built.autoplay && motionOk()), stops: built.stops });
     if (intent) st.clearTechIntent();
 
     const { bounds } = stage ?? track.stats;
@@ -162,6 +215,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     invalidate();
     return () => {
       techClock.load(0, false);
+      Object.assign(exitInfo, { duration: 0, exit: 0, v0: 0, show: false, accel: false });
       techSession.set(null);
       const s = useVehicleStore.getState();
       if (built.charge) {
@@ -187,6 +241,8 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       rig.reset();
       invalidate();
     };
+    // (`xrayShow` and `variantId` only change together with `built`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [built, rig, vehicle.dimensions.lengthMm, invalidate]);
 
   const gearSet = React.useRef(false);
@@ -230,16 +286,57 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     if (!built) return;
     if (techClock.playing) {
       const speed = useVehicleStore.getState().techSpeed;
-      techClock.advance(Math.min(built.track.duration, techClock.t + Math.min(dt, 0.1) * speed), performance.now());
+      techClock.advance(Math.min(techClock.duration, techClock.t + Math.min(dt, 0.1) * speed), performance.now());
     }
-    const s = built.track.sample(techClock.t);
+    // the run's own end: a run that ends moving carries on after it (the exit), with the run held at its last frame
+    const runDur = built.track.duration;
+    const tRun = Math.min(techClock.t, runDur);
+    const s = built.track.sample(tRun);
     const tm = built.treadmill;
     if (tm) {
       // the car stays on the spot and the road rolls under it
       // (a demo whose car changes lane keeps its sideways place and heading: Autonomous Drive's)
       rig.setSample({ ...s, x: rig.rac.x, y: tm.lateral ? s.y : rig.rac.y, yaw: tm.lateral ? s.yaw : 0 });
-      rig.state.scroll = tm.scroll(techClock.t);
-      rig.setChassis(tm.chassis(techClock.t));
+      rig.state.scroll = tm.scroll(tRun);
+      rig.setChassis(tm.chassis(tRun));
+      if (exitInfo.exit > 0 && techClock.t > runDur) {
+        // the exit: the ground stands still (the camera stays where it is) and the car drives off down the road, until it is lost in the haze: in Play it sets
+        // off from rest or speeds up, in the Drive tab it carries on at the speed it was going (or sets off again if it had stopped). It leaves from where the
+        // run ended: a run with manoeuvres ends at its own lateral place (the Z9's crab walk ends 1.8 m over), and the car does not jump back to the middle
+        const v0 = exitInfo.v0;
+        const ex = exitAt(exitInfo, techClock.t, exitPull.a0, v0, exitInfo.accel ? undefined : v0);
+        const lay = rig.layout;
+        rig.setSample({
+          ...s,
+          x: rig.rac.x + ex.x,
+          y: tm.lateral ? s.y : rig.rac.y,
+          yaw: tm.lateral ? s.yaw : 0,
+          spin: CORNERS.map((c, i) => s.spin[i] + (lay ? ex.x / lay.radius[c] : 0)) as [number, number, number, number],
+        });
+        if (exitInfo.accel) rig.setChassis({ heave: 0, pitch: 0.022 * ex.pull, roll: 0, lift: [0, 0, 0, 0] });
+      }
+      // the Drive tab's corner: the car is `carS` metres along the road (the road rolled under it, and what it has driven since the run's end), the arc lies
+      // `sa - carS` to `sb - carS` metres from it, ahead (positive) or behind. Far up the road the arc is out of the strip's sight and the road is left as it is.
+      const carS = rig.state.scroll + rig.state.x;
+      const seen = bend !== null && carS > bend.sa - BEND_SEEN && carS < bend.sb + BEND_SEEN;
+      hazeUniforms.uBendOn.value = seen ? 1 : 0;
+      if (bend && seen) {
+        hazeUniforms.uBendK.value = bend.k;
+        hazeUniforms.uBendA.value = bend.sa - carS;
+        hazeUniforms.uBendB.value = bend.sb - carS;
+        hazeUniforms.uBendX.value = rig.state.x;
+        hazeUniforms.uBendZ.value = -rig.rac.y;
+        // the wheels turn into the corner and the body leans out (a left corner: the lean is to the right), as the road under the car curves
+        const kc = bend.kCar(carS);
+        if (kc !== 0) {
+          const lay = rig.layout;
+          const v = (built.treadmill?.launch?.drive?.telemetry(tRun).speed ?? 0) / 3.6;
+          const steer = Math.min(BEND_STEER_MAX, Math.atan((lay?.wheelbase ?? 3) * -kc) * BEND_STEER_DRAWN);
+          rig.state.steer[0] += steer;
+          rig.state.steer[1] += steer;
+          rig.state.roll += (BEND_ROLL_DEG_PER_G * bend.gCar(carS, v) * Math.PI) / 180;
+        }
+      }
     } else {
       rig.setSample(s);
       rig.setChassis(null);
@@ -293,8 +390,8 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   // window.__tech: poke the rig from the console (set steer / spin / heave, read the track)
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'production') return;
-    (globalThis as unknown as { __tech?: unknown }).__tech = { rig, clock: techClock, built, invalidate, session: techSession };
-  }, [rig, built, invalidate]);
+    (globalThis as unknown as { __tech?: unknown }).__tech = { rig, clock: techClock, built, invalidate, session: techSession, bend, haze: hazeUniforms };
+  }, [rig, built, invalidate, bend]);
 
   return built?.trailLine ? <primitive object={built.trailLine} /> : null;
 }

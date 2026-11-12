@@ -94,6 +94,8 @@ export class DriveEngine {
   private wantOn = false;
   private mix: DriveMix = SILENT;
   private scale = 1;
+  /** how near the car sounds, 1 beside the camera to 0 lost in the distance (the Drive tab's exit: the car drives away and the motor goes with it) */
+  private proximity = 1;
   private lastFrame = 0;
   private watchdog: ReturnType<typeof setInterval> | null = null;
   private building = 0;
@@ -118,6 +120,7 @@ export class DriveEngine {
   /** Start the motor (silent until frames arrive). Call from a press or a play: a browser lets audio start then. */
   start() {
     this.wantOn = true;
+    this.proximity = 1;
     this.lastFrame = performance.now();
     if (this.graph) return;
     const target = this.target ?? sharedTarget();
@@ -138,9 +141,13 @@ export class DriveEngine {
     }
   }
 
-  /** What the car is doing now: speed km/h, pull g, run phase. `at` schedules it on the context's clock (an offline render). */
-  update(speed: number, g: number, phase?: string, at?: number) {
+  /**
+   * What the car is doing now: speed km/h, pull g, run phase. `at` schedules it on the context's clock (an offline render). `proximity` is how near the
+   * car sounds, 1 beside the camera, 0 gone: the whole motor is quieter with the square of it, and the highs go first (the air takes them).
+   */
+  update(speed: number, g: number, phase?: string, at?: number, proximity = 1) {
     this.lastFrame = performance.now();
+    this.proximity = Math.min(1, Math.max(0, proximity));
     this.mix = driveMix(this.voice, speed, g, phase);
     if (this.graph && this.target) this.apply(at ?? this.target.ctx.currentTime);
   }
@@ -296,7 +303,8 @@ export class DriveEngine {
     const wob = (hz: number, phase: number, amount: number) => 1 + amount * Math.sin(2 * Math.PI * hz * t + phase);
     const pitchDrift = wob(0.31, 0, 0.005) * wob(0.83, 1.7, 0.003);
     // muted by the visitor: the whole motor goes quiet (the loops keep turning, so the sound comes back in place)
-    ease(g.bus.gain, soundOn() ? LEVEL : 0, 0.06);
+    const near = this.proximity;
+    ease(g.bus.gain, soundOn() ? LEVEL * near * near : 0, 0.06);
     ease(g.whine.src.playbackRate, m.whineRate * k * pitchDrift, TC_RATE);
     ease(g.parts.src.playbackRate, m.whineRate * k * pitchDrift * (this.voice.parts?.ratio ?? 1.5), TC_RATE);
     ease(g.bed.src.playbackRate, m.bedRate * k, TC_RATE);
@@ -307,8 +315,8 @@ export class DriveEngine {
     ease(g.bed.gain.gain, m.bed * wob(0.11, 4, 0.04), TC_LEVEL);
     ease(g.hissL.gain.gain, m.hiss * wob(0.23, 1, 0.08), TC_LEVEL);
     ease(g.hissR.gain.gain, m.hiss * wob(0.19, 3, 0.08), TC_LEVEL);
-    ease(g.whine.cut.frequency, m.whineCut, TC_CUT);
-    ease(g.bed.cut.frequency, m.bedCut, TC_CUT);
+    ease(g.whine.cut.frequency, m.whineCut * (0.35 + 0.65 * near), TC_CUT);
+    ease(g.bed.cut.frequency, m.bedCut * (0.5 + 0.5 * near), TC_CUT);
   }
 }
 

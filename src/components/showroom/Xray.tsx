@@ -2,10 +2,13 @@
 
 import React from 'react';
 import type { Vehicle, XrayBasis, XrayPart, XraySystem } from '@/data/vehicles/schema';
+import { useTechClock } from '@/lib/tech/clock';
 import { clipOf, CLIPS, playClip, stopClip } from '@/lib/xray/clips';
 import { xrayOf } from '@/lib/xray/rig';
+import { useRuntime } from '@/lib/tech/session';
+import { chapterAt, planFor, SHOW_EXIT_S, titleK } from '@/lib/xray/show';
 import { useVehicleStore } from '@/store/vehicle-store';
-import { FOCUS, GLASS, PANEL } from './Chrome';
+import { BELOW_TOP, FOCUS, GLASS, PANEL } from './Chrome';
 
 export const XRAY_COLUMN_W = 336;
 
@@ -62,12 +65,31 @@ export function XrayTools({ vehicle }: { vehicle: Vehicle }) {
   const system = useVehicleStore((s) => s.xraySystem);
   const setSystem = useVehicleStore((s) => s.setXraySystem);
   const shown = useShownLevel(vehicle);
+  const show = useVehicleStore((s) => s.xrayShow);
+  const setShow = useVehicleStore((s) => s.setXrayShow);
   const max = 1;
   const stops: { v: number; label: string }[] = [
     { v: 0, label: 'Solid' },
     { v: 1, label: 'X-ray' },
   ];
   const systems = SYSTEMS.filter((s) => anatomy?.parts.some((p) => p.system === s.id));
+  // Play: the run on the salt flat. While it runs the dock is the playback bar (Showroom.tsx) and this is the way back to the tab.
+  if (show) {
+    return (
+      <div className="pointer-events-none flex w-full max-w-[640px] justify-center">
+        <button
+          type="button"
+          onClick={() => setShow(false)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-medium text-neutral-800 transition-colors ${GLASS} ${FOCUS}`}
+        >
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" />
+          </svg>
+          Stop and go back to X-ray
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="pointer-events-none flex w-full max-w-[640px] flex-col items-center gap-2">
       {anatomy && shown > 0.9 && (
@@ -122,7 +144,45 @@ export function XrayTools({ vehicle }: { vehicle: Vehicle }) {
             ))}
           </div>
         </div>
+        {anatomy && (
+          <button
+            type="button"
+            onClick={() => setShow(true)}
+            title="Drive on a salt flat with only the hardware showing"
+            className={`flex shrink-0 items-center gap-2 rounded-full bg-neutral-900 px-5 py-3 text-[13px] font-medium text-white shadow-lg transition-transform hover:scale-[1.03] ${FOCUS}`}
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden>
+              <path d="M4 2.5v11l9.5-5.5z" />
+            </svg>
+            Play
+          </button>
+        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The shot's title at the top of the picture, as the maker's wall film does (a kicker, a short title, a thin rule): it comes in as a shot begins
+ * and goes before the next. A pure function of the run's playhead, so a scrubbed run shows what a played one does.
+ */
+export function ShowTitle() {
+  const clock = useTechClock();
+  const run = useRuntime()?.launch?.drive;
+  if (!run || clock.duration <= 0) return null;
+  const plan = planFor(run, { events: run.events, duration: clock.duration, exit: SHOW_EXIT_S });
+  const c = chapterAt(plan, clock.t);
+  const k = titleK(c, clock.t, c === plan.chapters[0]);
+  if (k <= 0.01 || !c.title) return null;
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute left-4 z-10 sm:left-6 ${BELOW_TOP} mt-12 text-white`}
+      style={{ opacity: k, transform: `translateY(${(1 - k) * 10}px)`, textShadow: '0 1px 12px rgba(10,40,70,0.55)' }}
+    >
+      <div className="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-white/80">{c.kicker}</div>
+      <div className="mt-1 text-[22px] font-semibold leading-tight tracking-[-0.01em] sm:text-[26px]">{c.title}</div>
+      <div className="mt-2 h-px bg-white/70" style={{ width: `${Math.round(60 + 90 * k)}px` }} />
     </div>
   );
 }

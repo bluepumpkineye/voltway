@@ -33,11 +33,6 @@ export function cockpitForm(vw: number, short: boolean): CockpitForm {
   return short ? 'mini' : vw >= BANKS_MIN_W ? 'banks' : 'strip';
 }
 
-/** How much taller the dock is than the instruments alone, px: the row of buttons stands above the gauges in the narrower forms. */
-export function cockpitLift(form: CockpitForm): number {
-  return form === 'strip' ? 84 : form === 'mini' ? 46 : 0;
-}
-
 // ------------------------------------------------------------------------------------------- the look
 //
 // The buttons wear the speedometers' own look (Launch.tsx): dark glass like the gauges' backing (rgba(16,20,27,.65) with a 12 % white
@@ -142,7 +137,7 @@ const StopIcon = () => (
     <path d="M5.2 8h5.6" />
   </svg>
 );
-// the six cameras: what the camera sees of the car
+// the five cameras: what the camera sees of the car
 const CAM_ICON: Record<DriveCamera, React.ReactNode> = {
   hero: (
     <svg {...ico}>
@@ -174,11 +169,6 @@ const CAM_ICON: Record<DriveCamera, React.ReactNode> = {
       <circle cx="8" cy="8" r="6" />
       <circle cx="8" cy="8" r="1.5" />
       <path d="M2.2 7.6h4.4M9.4 7.6h4.4M8 9.5v4.3" />
-    </svg>
-  ),
-  xray: (
-    <svg {...ico}>
-      <path d="M8 1.8l5.6 3.1v6.2L8 14.2l-5.6-3.1V4.9zM2.4 4.9L8 8l5.6-3.1M8 8v6.2" />
     </svg>
   ),
 };

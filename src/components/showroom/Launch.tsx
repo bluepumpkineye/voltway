@@ -8,6 +8,7 @@ import { runPhase } from '@/lib/tech/phase';
 import { useRuntime } from '@/lib/tech/session';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { LaunchAudioController } from '@/lib/sound/launch';
+import { exitAt, exitInfo, exitPull, soundProximity } from '@/lib/tech/drive-exit';
 
 const FOCUS = 'outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-1 focus-visible:ring-offset-transparent';
 
@@ -113,9 +114,13 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
   React.useEffect(() => {
     if (!launch) return;
     const paint = () => {
-      const r = launch.readout(techClock.t);
-      const roundedSpeed = Math.round(r.speed);
       const tSec = techClock.t;
+      const r0 = launch.readout(tSec);
+      // the exit after a run that ended standing: the car sets off again and the instruments follow it (the run's own readout ends with the stop)
+      const setOff = exitInfo.exit > 0 && !exitInfo.show && exitInfo.accel && tSec > exitInfo.duration - exitInfo.exit;
+      const ex = setOff ? exitAt(exitInfo, tSec, exitPull.a0, exitInfo.v0) : null;
+      const r = ex ? { ...r0, speed: ex.v * 3.6, g: (exitPull.a0 * ex.pull) / 9.81, phase: ex.v > 0.5 ? ('pull' as const) : r0.phase } : r0;
+      const roundedSpeed = Math.round(r.speed);
 
       // 1. Mechanical needle flutter / oscillation at top speed: once the pull is over and the car holds its speed (a run
       // with phases says so itself; the Tech tab's launch is timed for the SU7's 1.98 s and 6.09 s)
@@ -308,7 +313,11 @@ export function LaunchTools({ vehicle, inset = true }: { vehicle?: Vehicle; inse
 
       // 10. The sound: the motor is made from what the car is doing now (its speed, its pull, the phase of the run), so it
       // fades with the speed through a brake and a slalom and is the same at any second of a run of any length
-      player.frame(r.speed, r.g, r.phase);
+      // and when the run is over and the car drives away from a camera that stays (the Drive tab's exit, src/lib/tech/drive-exit.ts), the motor goes with it:
+      // quieter and duller as it recedes, silent when it is lost in the haze (not from the seat: the camera rides with the car)
+      const away = exitInfo.exit > 0 && !exitInfo.show && tSec > exitInfo.duration - exitInfo.exit && useVehicleStore.getState().cameraMode !== 'interior';
+      const near = away ? soundProximity(exitAt(exitInfo, tSec, exitPull.a0, exitInfo.v0, exitInfo.accel ? undefined : exitInfo.v0).x) : 1;
+      player.frame(r.speed, r.g, r.phase, near);
     };
 
     paint();

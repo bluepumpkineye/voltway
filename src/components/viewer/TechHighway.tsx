@@ -9,6 +9,7 @@ import { rigOf } from '@/lib/tech/rig';
 import { weather } from '@/lib/tech/weather';
 import { useDusk } from './Lights';
 import { asphaltMaterial, fadeEdges, paintWearStrip } from './scenery/Ground';
+import { withBend } from './scenery/kit';
 import { ExpresswayRoadside, Verge, expresswaySpots } from './scenery/Roadside';
 import { onStage, useHaze } from './scenery/Scenery';
 import { WetRoad } from './scenery/WetRoad';
@@ -40,6 +41,9 @@ const SIDE_PERIOD = 120;
 const HIGHWAY_FADE_END = 70;
 /** how wide the grass verges are, m */
 const VERGE = 15;
+
+/** how many pieces a long plane is cut into along the road, one every 4 m (the Drive tab's curve bends the road at its vertices) */
+const alongOf = (len: number) => Math.min(400, Math.max(1, Math.ceil(len / 4)));
 
 export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { road: RoadStage; lanes: NonNullable<RoadStage['lanes']>; vehicle: Vehicle; wet?: boolean; gantry?: boolean }) {
   const rig = rigOf(vehicle);
@@ -128,7 +132,7 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
     return t;
   }, [road.width]);
   const wearMat = React.useMemo(
-    () => new THREE.MeshBasicMaterial({ map: wearMap, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 }),
+    () => withBend(new THREE.MeshBasicMaterial({ map: wearMap, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })),
     [wearMap],
   );
 
@@ -139,12 +143,12 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
     return { edge: edgeTex, dash: paintStripTexture(PAINT, DASH.length, DASH.width, 34, 0.5) };
   }, [length]);
   const markMat = React.useMemo(() => {
-    const m = (map: THREE.Texture) => new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
+    const m = (map: THREE.Texture) => withBend(new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
     return {
       edge: m(paints.edge),
       dash: m(paints.dash),
       // the tar joints are drawn over the paint, so they cross the edge lines and the dashes
-      joint: new THREE.MeshBasicMaterial({ color: '#141518', transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -7, polygonOffsetUnits: -7 }),
+      joint: withBend(new THREE.MeshBasicMaterial({ color: '#141518', transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -7, polygonOffsetUnits: -7 })),
     };
   }, [paints]);
   React.useEffect(
@@ -226,19 +230,21 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
 
   const x0 = rig.rac.x - length / 2;
   const x1 = rig.rac.x + length / 2;
+  // the road's middle is the car's own centre line, unless the car drives in a lane that is not the middle one (a road of two lanes): the strip is then
+  // moved across so that the car's lane is under it
+  const laneZ = road.carLane === undefined ? 0 : -half + (road.carLane + 0.5) * lanes.width;
   return (
-    // the road's middle is the car's own centre line
-    <group position-z={-rig.rac.y}>
+    <group position-z={-rig.rac.y - laneZ}>
       <group ref={still}>
         <mesh position={[rig.rac.x, 0.002, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.5} ref={onStage} material={baseMat}>
-          <planeGeometry args={[length, road.width]} />
+          <planeGeometry args={[length, road.width, alongOf(length), 1]} />
         </mesh>
         <Verge x0={x0} x1={x1} z0={edge + 0.3} z1={edge + 0.3 + VERGE} fadeEnd={HIGHWAY_FADE_END} scroll={scroll} />
         <Verge x0={x0} x1={x1} z0={-(edge + 0.3)} z1={-(edge + 0.3 + VERGE)} fadeEnd={HIGHWAY_FADE_END} scroll={scroll} />
         {/* the solid edge lines */}
         {[-half, half].map((z) => (
           <mesh key={z} position={[rig.rac.x, 0.003, z]} rotation-x={-Math.PI / 2} renderOrder={-0.4} ref={onStage} material={markMat.edge}>
-            <planeGeometry args={[length * 0.8, EDGE_WIDTH]} />
+            <planeGeometry args={[length * 0.8, EDGE_WIDTH, alongOf(length * 0.8), 1]} />
           </mesh>
         ))}
         {/* rain: the road is a mirror (a second picture of the scene from under it, drawn only while it rains) */}
@@ -258,7 +264,7 @@ export function Highway({ road, lanes, vehicle, wet = false, gantry = true }: { 
       {/* the worn road, the barriers, the trees and the gantry: rolled by one repeat */}
       <group ref={side}>
         <instancedMesh ref={wearMesh} args={[undefined, undefined, 2 * n + 1]} position={[SIDE_PERIOD / 2, 0.0025, 0]} rotation-x={-Math.PI / 2} renderOrder={-0.45} frustumCulled={false} onUpdate={onStage} material={wearMat}>
-          <planeGeometry args={[SIDE_PERIOD, road.width]} />
+          <planeGeometry args={[SIDE_PERIOD, road.width, alongOf(SIDE_PERIOD), 1]} />
         </instancedMesh>
         <ExpresswayRoadside spots={spots} span={gantry ? (edge + 1.3) * 2 : 0} edge={edge} />
       </group>

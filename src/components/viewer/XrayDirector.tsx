@@ -4,32 +4,27 @@ import React from 'react';
 import * as THREE from 'three';
 import { Html, useGLTF } from '@react-three/drei';
 import { createPortal, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import type { DriveCamera, Vehicle, XraySystem } from '@/data/vehicles/schema';
+import type { Vehicle, XraySystem } from '@/data/vehicles/schema';
 import { techClock } from '@/lib/tech/clock';
 import { rigOf } from '@/lib/tech/rig';
-import { lensAt } from '@/lib/tech/drive-beats';
-import { driveLensPlan } from '@/lib/tech/drive-lens';
-import { DRIVE_CAMERAS } from '@/lib/tech/drive-setup';
 import { techSession } from '@/lib/tech/session';
 import { AnatomyFx } from '@/lib/xray/fx';
 import { xrayOf } from '@/lib/xray/rig';
+import { exitAt, exitPull } from '@/lib/tech/drive-exit';
+import { chapterAt, planFor, SHOW_EXIT_S } from '@/lib/xray/show';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { DRACO_PATH, useClonedScene } from './CarModel';
 import { CarFollower } from './techRig';
 import { GHOST, setGhost } from './xrayGhost';
 
-/** The most see-through the Drive tab's lens makes the car (the ghost's level, 0..1), and how far its colour goes to the ghost's then. */
-const LENS_MAX = 0.88;
-const LENS_MIX = 0.55;
-/** the elevation the camera lifts to, at least, while the lens reveals (degrees) */
-const LENS_EL = 24;
-/** the layer the Drive tab's hardware is on: seen by the camera, not by the floor's mirror */
-const MIRROR_SKIP = 3;
-
 /**
  * Runs the X-ray: aims the car's rig at the level the store says, steps it each frame, plays the clip that is on, and fades the
  * shell's ghost (the body firms up a little as it lifts away, and the studio's baked shadow, which belongs to the car on the floor,
  * fades with it). It asks for frames only while something moves, so a demand canvas stays idle at rest.
+ *
+ * On the tab's Play (`xrayShow`) it also dresses the run: the cabin goes, the body is the faintest pane, the motors' rotors spin and glow with
+ * the load they are under (the run's own telemetry), the pack's cells run with the current, and the parts of the system the shot is on
+ * stand out (src/lib/xray/show.ts).
  */
 export function XrayDirector({ vehicle }: { vehicle: Vehicle }) {
   const rig = xrayOf(vehicle);
@@ -50,36 +45,46 @@ export function XrayDirector({ vehicle }: { vehicle: Vehicle }) {
     const id = window.setTimeout(() => useGLTF.preload(anatomyUrl, DRACO_PATH), 3000);
     return () => window.clearTimeout(id);
   }, [anatomyUrl]);
-  // the Drive tab's X-ray camera holds the see-through level, with the motors alive
-  const driveXray = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray') && Boolean(spec?.anatomy);
-  // on any other camera but the driver's seat the car stays solid, and the cards reveal its hardware (the lens: each card, as it opens, ghosts the
-  // paint and lights the parts it is about, for a few seconds, then the car is solid again; drive-beats.ts `lensAt`)
-  const lensOn = useVehicleStore((s) => s.tab === 'drive' && (s.drive.cam ?? vehicle.drive?.camera ?? 'hero') !== 'cabin' && s.drive.cam !== 'xray') && Boolean(spec?.anatomy);
-  const goal = !spec ? 0 : tab === 'xray' ? Math.min(1, level) : driveXray ? 1 : 0;
+  // the tab's Play: the run on the salt flat, the body a faint pane over the hardware
+  const show = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow) && Boolean(spec?.anatomy);
+  const goal = !spec ? 0 : tab === 'xray' ? Math.min(1, level) : 0;
 
   React.useEffect(() => {
     // leaving the tab puts the car back at once; entering it eases in; a dragged slider is followed as it moves
     rig.setTarget(goal, performance.now(), goal === 0 || scrub);
     invalidate();
   }, [rig, goal, scrub, invalidate]);
-  // the lens ends with the Drive tab (or its camera going to the driver's seat): the car is solid again and the parts are as they were
-  const lensSystem = React.useRef<string | null>(null);
-  const lensLifted = React.useRef(false);
+  // the black glass underlays (the exterior's `*_Blackout` nodes: the dark frames of the windows, which the ghost leaves opaque) go while the show runs
   React.useEffect(() => {
-    if (!lensOn) return;
-    return () => {
-      if (lensLifted.current) {
-        lensLifted.current = false;
-        const st = useVehicleStore.getState();
-        const base = DRIVE_CAMERAS[(st.drive.cam ?? vehicle.drive?.camera ?? 'hero') as DriveCamera];
-        if (base && st.techStage && st.tab === 'drive') st.setTechStage({ ...st.techStage, camera: { az: base.az, el: base.el } });
+    if (!show) return;
+    const root = rig.roots.exterior;
+    if (!root) return;
+    const hidden: THREE.Object3D[] = [];
+    root.traverse((o) => {
+      if (o.visible && o.name.toLowerCase().endsWith('_blackout')) {
+        o.visible = false;
+        hidden.push(o);
       }
-      rig.setLevel(0);
-      rig.fx?.setFocus(null, []);
-      lensSystem.current = null;
+    });
+    invalidate();
+    return () => {
+      for (const o of hidden) o.visible = true;
       invalidate();
     };
-  }, [lensOn, rig, invalidate, vehicle.drive?.camera]);
+  }, [show, rig, invalidate]);
+  // the system the shot is on stands out; when the show ends the parts are as the visitor's own pick (or none) leaves them
+  const showSystem = React.useRef<XraySystem | null>(null);
+  React.useEffect(() => {
+    if (!show) return;
+    return () => {
+      showSystem.current = null;
+      const st = useVehicleStore.getState();
+      // the rotors stop, the glows go out
+      rig.fx?.reset();
+      rig.fx?.setFocus(st.xraySystem, []);
+      invalidate();
+    };
+  }, [show, rig, invalidate]);
 
   // a part or a system picked: the camera flies to it, keeping the side it was looking from; unpicked, it goes back to the pose
   const controls = useThree((s) => s.controls) as unknown as {
@@ -141,55 +146,56 @@ export function XrayDirector({ vehicle }: { vehicle: Vehicle }) {
     // a clip plays on the anatomy once the parts are where this frame put them
     const clip = rig.clip;
     rig.fx?.update(clip ? rig.clipTime(now) : null, clip?.id ?? null, Math.min(dt, 0.1));
-    // the Drive tab's lens: the level follows the cards (a pure function of the playhead), and the parts of the system it reveals stand out
-    let lensSys: string | null = null;
-    if (lensOn) {
-      const lens = lensAt(driveLensPlan.plan, techClock.t);
-      rig.setLevel(LENS_MAX * lens.k);
-      lensSys = lens.k > 0.02 ? lens.system : null;
-      if (lensSystem.current !== lensSys) {
-        lensSystem.current = lensSys;
-        rig.fx?.setFocus(lensSys as XraySystem | null, [], 0.34);
-      }
-      // the camera lifts to look down at the hardware while it is revealed (from the side the motors are behind the wheels), and goes back after
-      const st = useVehicleStore.getState();
-      const driveCam = (st.drive.cam ?? vehicle.drive?.camera ?? 'hero') as DriveCamera;
-      const base = DRIVE_CAMERAS[driveCam];
-      const lifted = lens.k > 0.3;
-      if (base && st.techStage && lifted !== lensLifted.current) {
-        lensLifted.current = lifted;
-        st.setTechStage({ ...st.techStage, camera: { az: base.az, el: lifted ? Math.max(base.el, LENS_EL) : base.el } });
+    // the show: the parts of the system the shot is on stand out, the others dim a little
+    const run = techSession.runtime?.launch?.drive;
+    if (show && run && techClock.duration > 0) {
+      const sys = chapterAt(planFor(run, { events: run.events, duration: techClock.duration, exit: SHOW_EXIT_S }), techClock.t).system as XraySystem | null;
+      if (sys !== showSystem.current) {
+        showSystem.current = sys;
+        rig.fx?.setFocus(sys, [], 0.5);
       }
     }
-    // looking at one system: the shell goes fainter and the cabin steps aside
-    const want = system !== null || partId !== null || lensSys !== null ? 1 : 0;
+    // looking at one system (or the show): the shell goes fainter and the cabin steps aside
+    const want = system !== null || partId !== null || show ? 1 : 0;
     focusK.current += (want - focusK.current) * Math.min(1, dt * 6);
     if (Math.abs(want - focusK.current) < 0.01) focusK.current = want;
     else invalidate();
     const cab = rig.roots.cabin;
-    if (cab) cab.visible = focusK.current < 0.5;
-    // the Drive tab's live lights: each rotor spins with the car's speed and glows with the load its motor is under
+    if (cab) cab.visible = !show && focusK.current < 0.5;
+    // the show's live lights: each rotor spins with the car's speed and glows with the load its motor is under, the pack's cells run with the current
     let live = false;
-    if ((driveXray || lensSys !== null) && rig.fx) {
+    if (show && rig.fx) {
       const f = techSession.runtime?.launch?.drive;
       if (f) {
-        const tel = f.telemetry(techClock.t);
+        const exitSpec = { duration: techClock.duration, exit: SHOW_EXIT_S };
+        rig.fx.tagsOn = techClock.t < techClock.duration - SHOW_EXIT_S + 0.2;
+        const tel = f.telemetry(Math.min(techClock.t, techClock.duration - SHOW_EXIT_S));
         const peak = Math.max(f.modePeakKw, 1);
-        const motors = f.motors.map((m, j) => ({ id: m.id, label: m.label, share: tel.motorShare[j] ?? 0, kw: tel.motorKw[j] ?? 0, peakKw: peak * 0.55 }));
+        let motors = f.motors.map((m, j) => ({ id: m.id, label: m.label, share: tel.motorShare[j] ?? 0, kw: tel.motorKw[j] ?? 0, peakKw: peak * 0.55 }));
+        let speed = tel.speed;
+        let power = Math.abs(tel.powerKw) / peak;
+        let regen = tel.powerKw < 0;
+        if (techClock.t > techClock.duration - SHOW_EXIT_S) {
+          // the exit: the car sets off again, the motors take the load of the pull and let go as it settles to its pace
+          const ex = exitAt(exitSpec, techClock.t, exitPull.a0, f.telemetry(techClock.duration - SHOW_EXIT_S).speed / 3.6);
+          speed = ex.v * 3.6;
+          power = 0.12 + 0.6 * ex.pull * (ex.v > 0 ? 1 : 0);
+          regen = false;
+          motors = f.motors.map((m) => ({ id: m.id, label: m.label, share: m.share, kw: m.share * peak * 0.55 * ex.pull * (ex.v > 0 ? 1 : 0), peakKw: peak * 0.55 }));
+        }
         // drawn at a pace that can be read (at the real speed a rotor is a blur): a rev a second or two, faster as the car is
-        const omega = (2 * Math.PI * 2.6 * (1 - Math.exp(-Math.abs(tel.speed) / 70))) / 2.5;
+        const omega = (2 * Math.PI * 2.6 * (1 - Math.exp(-Math.abs(speed) / 70))) / 2.5;
         const step = techClock.playing ? Math.min(dt, 0.1) : 0;
-        rig.fx.live(step, motors, omega, Math.min(1, Math.abs(tel.powerKw) / peak), tel.powerKw < 0);
-        if (driveXray || lensSys === 'battery') rig.fx.liveBattery(step, Math.abs(tel.powerKw) / peak, tel.powerKw < 0);
+        rig.fx.live(step, motors, omega, Math.min(1, power), regen);
+        rig.fx.liveBattery(step, power, regen);
         live = techClock.playing;
       }
     }
-    // the Drive tab's lens keeps the car's own colour in the ghost and does not fade it as a picked system does
-    GHOST.alpha.value = (0.17 + 0.2 * rig.exploded) * (1 - (lensOn ? 0.2 : 0.6) * focusK.current);
+    GHOST.alpha.value = (0.17 + 0.2 * rig.exploded) * (1 - (show ? 0.72 : 0.6) * focusK.current);
     GHOST.rim.value = 0.5 - 0.1 * rig.exploded;
-    GHOST.mix.value = lensOn ? LENS_MIX : 0.85;
+    GHOST.mix.value = 0.85;
     // the hardware is drawn only while it can be seen (in the X-ray tab it stays, as it always did)
-    if (rig.roots.anatomy) rig.roots.anatomy.visible = tab === 'xray' || driveXray || rig.active;
+    if (rig.roots.anatomy) rig.roots.anatomy.visible = tab === 'xray' || rig.active;
     setGhost(rig.ghostMats, rig.ghost);
     if (!shadow.current) shadow.current = (scene.getObjectByName('ground-shadow') as THREE.Mesh | undefined) ?? null;
     const mat = shadow.current?.material as THREE.MeshBasicMaterial | undefined;
@@ -202,8 +208,7 @@ export function XrayDirector({ vehicle }: { vehicle: Vehicle }) {
 /** The anatomy: mounted while the X-ray tab is on (and the car has one), riding with the car like the cabin does. */
 export function XrayAnatomy({ vehicle }: { vehicle: Vehicle }) {
   const url = vehicle.xray?.anatomy?.url;
-  // in the Drive tab on every camera but the driver's seat: the lens reveals it behind the cards
-  const on = useVehicleStore((s) => s.tab === 'xray' || (s.tab === 'drive' && (s.drive.cam ?? vehicle.drive?.camera ?? 'hero') !== 'cabin'));
+  const on = useVehicleStore((s) => s.tab === 'xray');
   if (!url || !on) return null;
   return (
     <React.Suspense fallback={null}>
@@ -242,18 +247,6 @@ function Anatomy({ vehicle, url }: { vehicle: Vehicle; url: string }) {
       invalidate();
     };
   }, [model, rig, fx, vehicle, invalidate]);
-
-  // In the Drive tab the hardware is left out of the floor's mirror: the mirror draws the scene a second time, and the hardware is
-  // hundreds of draws (the run slowed to a crawl on a laptop's graphics). Its own layer, which the camera sees and the mirror's does not;
-  // in the X-ray tab it stays on the default layer, so that the picks (and the exploded parts' reflections) work. The harness joined the model
-  // before this runs (children's effects come first).
-  const onDrive = useVehicleStore((s) => s.tab === 'drive');
-  const viewCamera = useThree((s) => s.camera);
-  React.useEffect(() => {
-    viewCamera.layers.enable(MIRROR_SKIP);
-    model.traverse((o) => o.layers.set(onDrive ? MIRROR_SKIP : 0));
-    invalidate();
-  }, [model, onDrive, viewCamera, invalidate]);
 
   // the system the visitor is looking at stands out, and the part picked glows a little
   const system = useVehicleStore((s) => s.xraySystem);
@@ -295,20 +288,21 @@ function Anatomy({ vehicle, url }: { vehicle: Vehicle; url: string }) {
       },
     };
   }, [vehicle]);
-  const tab = useVehicleStore((s) => s.tab);
+  // a tap picks a part in the tab, not while the show runs (its camera is the show's)
+  const pickable = useVehicleStore((s) => s.tab === 'xray' && !s.xrayShow);
 
   return (
     <>
-      <primitive object={model} {...(tab === 'xray' ? pick : {})} />
+      <primitive object={model} {...(pickable ? pick : {})} />
       <Harness model={model} fx={fx} />
       <DriveTags fx={fx} />
     </>
   );
 }
 
-/** The Drive tab's tags: which motor, what it gives now, its share of the drive, pinned to its rotor (written by `AnatomyFx.live`). */
+/** The show's tags: which motor, what it gives now, its share of the drive, pinned to its rotor (written by `AnatomyFx.live`). */
 function DriveTags({ fx }: { fx: AnatomyFx }) {
-  const on = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray');
+  const on = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
   if (!on) return null;
   return (
     <>

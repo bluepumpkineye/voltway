@@ -30,13 +30,12 @@ export const DRIVE_CAMERAS: Record<DriveCamera, { az: number; el: number; label:
   top: { az: 90, el: 80, label: 'Top' },
   // the cabin's camera is the driver's seat (the store's 'driver' anchor), its az and el are not used
   cabin: { az: 0, el: 0, label: 'Cabin' },
-  xray: { az: 52, el: 24, label: 'X-ray' },
 };
 
-/** The cameras a car offers: all the outside ones, the seat where it has a cabin, the X-ray where it has a cabin to see through. */
+/** The cameras a car offers: all the outside ones, and the seat where it has a cabin. */
 export function camerasOf(vehicle: Vehicle): DriveCamera[] {
   const cams: DriveCamera[] = ['hero', 'chase', 'side', 'top'];
-  if (vehicle.assets.interiorModelUrl) cams.push('cabin', 'xray');
+  if (vehicle.assets.interiorModelUrl) cams.push('cabin');
   return cams;
 }
 
@@ -52,6 +51,8 @@ export interface DriveSelection {
   grade?: number | null;
   /** the slug of the rival drawn beside the car, when there is one (src/lib/tech/drive-rival.ts) */
   rival?: string | null;
+  /** the least the run lasts, s (the X-ray tab's Play asks for more than the Drive tab's `MIN_RUN_S`) */
+  minRunS?: number | null;
 }
 
 export interface DriveLoad {
@@ -201,7 +202,7 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
     finish: spec.finish,
     cruiseKmh: spec.cruiseKmh,
     brake100M: spec.brake100M,
-    runS: Math.max(spec.runS ?? 0, MIN_RUN_S),
+    runS: Math.max(spec.runS ?? 0, sel.minRunS ?? MIN_RUN_S),
     manoeuvres,
     runs: spec.runs,
     env,
@@ -212,9 +213,11 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
   const wanted = sel.runId ?? spec.defaultRun;
   const run = runs.find((r) => r.id === wanted) ?? runs[0];
 
-  // a scenario that ends in a manoeuvre ends in its own stop; the others take the visitor's choice, else the scenario's
+  // a scenario that ends in a manoeuvre cannot be given a stop; the others stop only if the visitor asks (the "Stop" button): no run stops of its own any
+  // more (a scenario's `finish: 'brake'` is the stop the visitor can choose, not the way the run ends), so the drive is continuous into the exit
+  // (src/lib/tech/drive-exit.ts) and the car does not stop and set off again
   const canBrake = !(manoeuvres && run.to <= 150);
-  const brake = canBrake && (sel.brake ?? spec.finish === 'brake');
+  const brake = canBrake && (sel.brake ?? false);
 
   return {
     spec,
@@ -226,7 +229,7 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
     load,
     runs,
     run,
-    input: { ...base, from: run.from, to: run.to },
+    input: { ...base, from: run.from, to: run.to, finish: brake ? 'brake' : spec.finish === 'brake' ? 'coast' : spec.finish },
     brake,
     canBrake,
     camera: spec.camera ?? 'hero',

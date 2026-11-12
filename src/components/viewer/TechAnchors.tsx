@@ -18,7 +18,8 @@ import { CarFollower } from './techRig';
  * Inside the cabin camera there is nothing to point at from the outside: the frame is null and the cards fall back to a column.
  */
 export function TechAnchors({ vehicle }: { vehicle: Vehicle }) {
-  const on = useVehicleStore((s) => s.tab === 'drive');
+  // the X-ray tab's Play carries the cards (the Drive tab has none)
+  const on = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
   React.useEffect(() => {
     if (!on) driveAnchors.frame = null;
     return () => {

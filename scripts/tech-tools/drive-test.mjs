@@ -174,7 +174,8 @@ if (which === 'run') {
   ok('the sweep stays under 0.5 g', s.peakLatG > 0.1 && s.peakLatG < 0.5, `${s.peakLatG.toFixed(2)} g`);
   ok('the rear wheels stay within their 10 degrees', s.maxRearDeg <= 10.2, `${s.maxRearDeg.toFixed(1)} deg`);
   const ev = z9.launch.drive.events.map((e) => e.cue);
-  ok('the events come in order: launch, sweep, crab, stop', ['launch', 'sweep', 'crab', 'stop'].every((c, i, a) => ev.includes(c) && (i === 0 || ev.indexOf(c) > ev.indexOf(a[i - 1]))), ev.join(' '));
+  ok('the events come in order: launch, sweep, crab (and no stop: the run ends moving, the exit takes the car away)', ['launch', 'sweep', 'crab'].every((c, i, a) => ev.includes(c) && (i === 0 || ev.indexOf(c) > ev.indexOf(a[i - 1]))) && !ev.includes('stop'), ev.join(' '));
+  ok('the crab run ends with the car still going', z9.launch.drive.telemetry(z9.track.duration).speed > 3, `${z9.launch.drive.telemetry(z9.track.duration).speed.toFixed(1)} km/h`);
   let maxY = 0;
   let endY = 0;
   for (let t = 0; t <= z9.track.duration; t += 0.05) {

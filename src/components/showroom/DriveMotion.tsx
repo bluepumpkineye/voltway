@@ -3,25 +3,25 @@
 import React from 'react';
 import type { DriveOverlay, Vehicle } from '@/data/vehicles/schema';
 import { techClock } from '@/lib/tech/clock';
-import { beatPlan, captionsOf, launchActs, openAt, runShape, type Caption, type CaptionTone } from '@/lib/tech/drive-beats';
+import { launchActs, openAt, runShape } from '@/lib/tech/drive-beats';
+import { planFor, SHOW_EXIT_S, showBeats, showCards } from '@/lib/xray/show';
 import { driveAnchors, targetsOf } from '@/lib/tech/drive-anchors';
-import { driveLensPlan } from '@/lib/tech/drive-lens';
 import { layoutCards, type Placed, type Slot } from '@/lib/tech/drive-layout';
 import { clamp, countTo, Easing, fmt, progress, spring, SPRINGS } from '@/lib/tech/motion';
 import { useRuntime } from '@/lib/tech/session';
-import { useVehicleStore } from '@/store/vehicle-store';
 import { BELOW_TOP } from './Chrome';
 import { useDriveSetup } from './Drive';
-import { ACCENT, AMBER, CYAN, RED, TILES, type TileCtx } from './driveTiles';
+import { ACCENT, TILES, type TileCtx } from './driveTiles';
 
 /**
- * The Drive tab's data, set in motion. The figures the instruments used to hold on a card at the side float beside the car, each next to
+ * The run's data, set in motion: the cards of the X-ray tab's Play (the Drive tab no longer carries them: it is the solid car, the gauges and
+ * the buttons). The figures the instruments used to hold on a card at the side float beside the car, each next to
  * the part it explains: the suspension's at the tyre's arch, the brake's at the disc, the motors' at the hubs, the power's and the
  * energy's at the pack under the floor, the drag's at the roof (`targetsOf`, src/lib/tech/drive-anchors.ts; the viewer puts the points on
  * the screen each frame, viewer/TechAnchors.tsx). Nothing joins a card to its part: standing next to it says which it is. Only the
- * cards the run has come to are there: when it reaches the moment of one (`beatPlan`, src/lib/tech/drive-beats.ts) it opens, and the one
- * that opened first closes. Where each goes is a layout in pixels (src/lib/tech/drive-layout.ts): beside the car, not over it, the gauges
- * or the caption. Above them, when a run begins, the trim's published figures count up.
+ * cards the run has come to are there: when its time comes (`showBeats`, src/lib/xray/show.ts: each shot takes the cards it is about, spaced so
+ * that each can be read, about five seconds on screen) it opens, and it closes. Where each goes is a layout in pixels (src/lib/tech/drive-layout.ts):
+ * beside the car, not over it, the shot's title or another card. Above them, when a run begins, the trim's published figures count up.
  *
  * What the cards show is a pure function of the playhead (src/lib/tech/motion.ts): scrub the run and they open and close with it, pause it
  * and they hold. Where they stand follows the camera, so that they keep their place beside the part when the run is held. Inside the cabin camera, where there is nothing outside to point at, the open cards stand in a column at the left; on a
@@ -32,6 +32,8 @@ export const RAIL_W = 292;
 const HEAD = 36;
 const GAP = 6;
 const INTRO_H = 72;
+/** the shot's title stands at the top left (showroom/Xray.tsx `ShowTitle`): the trim's figures stand under it and the cards keep clear of both */
+const TITLE_H = 112;
 
 /**
  * The playhead and the wall clock, read every frame (not at the clock's ten a second): the cards are drawn from them. It renders again
@@ -142,62 +144,6 @@ function Intro({ vehicle, age }: { vehicle: Vehicle; age: number }) {
   );
 }
 
-// ------------------------------------------------------------------------------------------- the stage's captions
-
-const TONE: Record<CaptionTone, string> = { front: CYAN, rear: AMBER, all: '#ffffff', peak: AMBER, turn: AMBER, stop: RED };
-
-/**
- * One line of the run set large over the stage, in kinetic type: a small label slides up, the headline's words rise one after
- * another out of their own masks, a rule draws under them, the line fades in. Each of those is a spring on the seconds since the
- * caption's start, so it plays the same from any scrub.
- */
-function StageCaption({ cap, t, column, still, vh, lift }: { cap: Caption; t: number; column: boolean; still: boolean; vh: number; lift: number }) {
-  // reduced motion: the caption comes and goes, with nothing to watch in between
-  const age = still ? 9 : t - cap.from;
-  const out = Easing.inOutQuad(progress(t, cap.to - 0.35, 0.35));
-  const plate = spring(age, SPRINGS.firm);
-  const tone = TONE[cap.tone];
-  const words = cap.title.split(' ');
-  const size = (cap.title.length <= 14 ? 32 : cap.title.length <= 30 ? 24 : 20) - (column ? 0 : 4);
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute left-0 z-10 flex justify-center px-3"
-      // a wide window: over the road between the car and the gauges; a phone: above the gauges, under the car (above the row of buttons, where there is one)
-      style={{ bottom: (column ? 348 : Math.round(vh * 0.34)) + lift, right: 0 }}
-    >
-      <div
-        className="flex max-w-[520px] flex-col items-center rounded-2xl bg-neutral-950/65 px-5 pb-3 pt-2.5 text-center text-white shadow-xl ring-1 ring-white/12 backdrop-blur-md"
-        style={{ opacity: clamp(plate * 1.3) * (1 - out), transform: `translateY(${(1 - Math.min(plate, 1)) * 16 - out * 10}px) scale(${0.94 + 0.06 * Math.min(plate, 1.04)})` }}
-      >
-        <div className="flex items-center gap-1.5 text-[9.5px] font-semibold uppercase tracking-[0.18em]" style={{ color: tone, opacity: clamp(spring(age - 0.05, SPRINGS.soft) * 1.4), transform: `translateY(${(1 - Math.min(spring(age - 0.05, SPRINGS.soft), 1)) * 8}px)` }}>
-          <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: tone }} />
-          {cap.kicker}
-        </div>
-        <div className="mt-1 flex flex-wrap justify-center gap-x-[0.3em] font-bold leading-[1.12] tracking-[-0.01em]" style={{ fontSize: size }}>
-          {words.map((w, i) => {
-            const k = Math.min(spring(age - 0.1 - i * 0.06, SPRINGS.rise), 1);
-            return (
-              // the mask has room under the line for the descenders (y, g, p), and gives it back so that the lines do not drift apart
-              <span key={i} className="-mb-[0.14em] inline-block overflow-hidden pb-[0.14em]" style={{ lineHeight: 1.12 }}>
-                <span className="inline-block" style={{ transform: `translateY(${(1 - k) * 115}%)`, opacity: clamp(k * 2) }}>
-                  {w}
-                </span>
-              </span>
-            );
-          })}
-        </div>
-        <div className="mt-1 h-0.5 rounded-full" style={{ width: `${Math.round(clamp(spring(age - 0.2, SPRINGS.soft)) * 64)}px`, background: tone }} />
-        {cap.line && (
-          <p className="mt-1.5 text-[12px] leading-snug text-white/80" style={{ opacity: clamp((age - 0.35) / 0.35) }}>
-            {cap.line}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ------------------------------------------------------------------------------------------- the cards
 
 /** One card: a line of live figures that opens into its animation. `x` and `y` are its top left in its container. */
@@ -238,13 +184,14 @@ function Tile({ id, c, x, y, chip = false }: { id: DriveOverlay; c: TileCtx; x: 
  * (their places from `layoutCards`, eased toward each frame so that they glide when the camera moves). In the cabin camera they stand
  * in a column at the left; on a narrow window one line shows the card whose moment it is.
  */
-export function DriveMotion({ vehicle, column, lift = 0 }: { vehicle: Vehicle; column: boolean; lift?: number }) {
+export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boolean }) {
   const setup = useDriveSetup(vehicle);
   const facts = useRuntime()?.launch?.drive ?? null;
-  const cam = useVehicleStore((s) => s.drive.cam) ?? setup.camera;
   const reduced = useReducedMotion();
   const vh = useViewportHeight();
+  // the show is the run and the exit (the car driving away): the run's own telemetry ends where the exit begins
   const duration = techClock.duration;
+  const runDur = duration - SHOW_EXIT_S;
   const live = React.useRef(false);
   const isLive = React.useCallback(() => live.current, []);
   const { t, now } = useFrameClock(isLive);
@@ -253,21 +200,14 @@ export function DriveMotion({ vehicle, column, lift = 0 }: { vehicle: Vehicle; c
   const slots = React.useRef<Record<string, Slot>>({});
   const lastNow = React.useRef(now);
 
-  const overlays = React.useMemo(() => setup.spec.overlays.filter((o, i, all) => all.indexOf(o) === i), [setup.spec.overlays]);
-  const shape = React.useMemo(() => (facts ? runShape(facts, duration) : null), [facts, duration]);
+  // the cards the car's scenario lists and the ones every car has, each given its shot and a time of its own (src/lib/xray/show.ts `showBeats`)
+  const overlays = React.useMemo(() => showCards(setup.spec.overlays).filter((o, i, all) => all.indexOf(o) === i), [setup.spec.overlays]);
+  const shape = React.useMemo(() => (facts ? runShape(facts, runDur) : null), [facts, runDur]);
   const acts = React.useMemo(() => (facts && shape ? launchActs(facts, shape.launch) : []), [facts, shape]);
-  // two cards open at once where the window is tall enough for them above the gauges
-  const max = column && vh >= 800 ? 2 : 1;
-  // every run is given a length (`MIN_RUN_S`, drive-setup.ts): a long chapter gives every card its turn, and the car's hardware is revealed beside each (driveLensPlan)
-  const spread = setup.input.runS !== undefined;
-  const plan = React.useMemo(() => (facts && shape ? beatPlan(overlays, facts, shape, max, spread) : []), [overlays, facts, shape, max, spread]);
-  React.useEffect(() => {
-    driveLensPlan.plan = plan;
-    return () => {
-      driveLensPlan.plan = [];
-    };
-  }, [plan]);
-  const caps = React.useMemo(() => (facts && shape ? captionsOf(facts, shape, acts) : []), [facts, shape, acts]);
+  const plan = React.useMemo(
+    () => (facts ? showBeats(overlays, planFor(facts, { events: facts.events, duration, exit: SHOW_EXIT_S })).map((b) => ({ overlay: b.overlay as DriveOverlay, from: b.from, to: b.to })) : []),
+    [overlays, facts, duration],
+  );
   const intro = useRealAge(facts, 3);
 
   if (!facts || !shape || !overlays.length) {
@@ -278,17 +218,15 @@ export function DriveMotion({ vehicle, column, lift = 0 }: { vehicle: Vehicle; c
   const raw = openAt(plan, overlays, t);
   // reduced motion: a card is open or shut, with no in-between to watch
   const open = (o: DriveOverlay) => (reduced ? (raw[o] > 0.5 ? 1 : 0) : raw[o]);
-  const tel = facts.telemetry(t);
-  // a run that has finished says its figures in the summary bar over the instruments (Drive.tsx), not in a caption over the road
-  const ended = !techClock.playing && t >= duration - 0.05;
-  const cap = ended ? undefined : caps.find((x) => t >= x.from && t < x.to);
+  const tel = facts.telemetry(Math.min(t, runDur));
 
   const introExit = column && vh >= 800 ? Easing.inOutQuad(progress(t, shape.launch + 2.4, 0.5)) : 1;
   const introShown = introExit < 1;
   const shown = overlays.filter((o) => open(o) > 0.02);
 
   const frame = driveAnchors.frame;
-  const floating = column && cam !== 'cabin' && frame !== null;
+  // the X-ray tab's Play never looks from the seat: the cards stand beside the car (on a narrow window, one line)
+  const floating = column && frame !== null;
   const rightPad = 0;
 
   // ---- floating: the cards beside the car, each next to the part it explains
@@ -296,18 +234,22 @@ export function DriveMotion({ vehicle, column, lift = 0 }: { vehicle: Vehicle; c
   if (floating && frame) {
     const W = frame.width;
     const H = frame.height;
-    // above the caption, which stands over the road just above the gauges
+    // above the dock
     const safe = { x: 10, y: 70, w: W - rightPad - 20, h: H * 0.5 - 78 };
     const avoid = [] as { x: number; y: number; w: number; h: number }[];
-    if (cap) avoid.push({ x: (W - rightPad) / 2 - 260, y: H - 348 - lift - 126, w: 520, h: 130 });
-    if (introShown) avoid.push({ x: 8, y: 62, w: RAIL_W + 8, h: INTRO_H + 8 });
+    avoid.push({ x: 8, y: 54, w: 300, h: TITLE_H - 8 });
+    if (introShown) avoid.push({ x: 8, y: 62 + TITLE_H, w: RAIL_W + 8, h: INTRO_H + 8 });
     const specs = shown.map((o) => {
       const pts = targetsOf(o, facts, tel)
         .map((name) => frame.pts[name])
         .filter((p) => p.ok);
       return { id: o as string, w: RAIL_W, h: HEAD + TILES[o].body, targets: pts.length ? pts : [{ x: frame.box.x + frame.box.w / 2, y: frame.box.y + frame.box.h / 2 }] };
     });
-    const placed: Placed[] = layoutCards(specs, { safe, car: frame.box, avoid }, slots.current);
+    // a close shot fills the window with the hardware: the cards then keep to the margins, not over it (the car's outline is taken as the middle of the picture)
+    const b = frame.box;
+    const closeUp = b.w > W * 0.8 || b.h > H * 0.7;
+    const car = closeUp ? { x: W * 0.24, y: H * 0.18, w: W * 0.52, h: H * 0.64 } : b;
+    const placed: Placed[] = layoutCards(specs, { safe, car, avoid }, slots.current);
     // glide to the place: a card that has just opened starts there
     const dt = Math.min(0.1, Math.max(0, (now - lastNow.current) / 1000));
     lastNow.current = now;
@@ -351,14 +293,13 @@ export function DriveMotion({ vehicle, column, lift = 0 }: { vehicle: Vehicle; c
 
   return (
     <>
-      {cap && <StageCaption cap={cap} t={t} column={column} still={reduced} vh={vh} lift={lift} />}
       {floating && frame && (
         <div className="pointer-events-none absolute inset-0 z-10" role="group" aria-label="Live data from the run">
           {floatingCards.map((f) => (
             <Tile key={f.id} id={f.id} c={f.ctx} x={f.x} y={f.y} />
           ))}
           {introShown && (
-            <div className={`absolute left-3 ${BELOW_TOP}`} style={{ width: RAIL_W, opacity: 1 - introExit, transform: `translateY(${-introExit * 14}px)` }}>
+            <div className={`absolute left-3 ${BELOW_TOP}`} style={{ width: RAIL_W, marginTop: TITLE_H, opacity: 1 - introExit, transform: `translateY(${-introExit * 14}px)` }}>
               <Intro vehicle={vehicle} age={reduced ? 9 : intro} />
             </div>
           )}

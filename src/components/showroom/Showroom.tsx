@@ -23,15 +23,15 @@ import { COMPARE_COLUMN_W, SPECS_COLUMN_W, SpecsPanel } from './Specs';
 import { showroomCars } from '@/lib/showroom/cars';
 import { BoostPopup, BoostTools, boostColumnWidth } from './Boost';
 import { ChassisTools, NoseInTools } from './Chassis';
-import { DriveCockpit, cockpitForm, cockpitLift } from './Drive';
-import { DriveMotion, RAIL_W } from './DriveMotion';
+import { DriveCockpit, cockpitForm } from './Drive';
+import { DriveMotion } from './DriveMotion';
 import { LaunchTools } from './Launch';
 import { ParkAssistTools } from './ParkAssist';
 import { SensorsTools } from './Sensors';
 import { SwivelTools } from './Swivel';
 import { RideTools } from './Ride';
 import { TechChips, TechControls } from './Tech';
-import { XRAY_COLUMN_W, XrayCard, XrayTools } from './Xray';
+import { ShowTitle, XRAY_COLUMN_W, XrayCard, XrayTools } from './Xray';
 import { XrayLabelLayer } from './XrayLabels';
 import { TechDevices, activeDevice, useDeviceColumn } from '@/components/tech/TechDevices';
 import { useWebGl } from './useWebGl';
@@ -96,7 +96,7 @@ const NOTES: Record<ShowroomTab, string> = {
     "The car's own screen, live beside the car. Its headlamp controls switch the lamps; the glow, the beam on the floor and the dusk are our rendering of them, not the maker's footage.",
   dimensions:
     "Dimensions, performance, battery and range are the manufacturer's published figures, each range on its own test cycle; a figure marked estimated is derived, and one the maker has not published says so.",
-  xray: "The body goes see-through to reveal the car's underlying hardware: the battery pack, motors, chassis frames, suspension, steering and brakes. The anatomy parts are our own models, placed from the car's dimensions and the maker's published layout.",
+  xray: "The body goes see-through to reveal the car's underlying hardware: the battery pack, motors, chassis frames, suspension, steering and brakes. The anatomy parts are our own models, placed from the car's dimensions and the maker's published layout. Play drives the car on a salt flat with only the hardware and a faint body showing: the run is a simulation built from the maker's published performance figures, not its footage.",
   charging:
     "The charging window and its minutes are the maker's where it publishes them. The curve between, a peak it does not publish, the charger and the gun are ours; the minutes play in fourteen seconds.",
   drive:
@@ -143,6 +143,8 @@ export function Showroom({
     setCompareSlug, setCompareVariantId, setDrive,
   } = useVehicleStore.getState();
   const xrayPicked = useVehicleStore((s) => s.xrayPart !== null);
+  // the X-ray tab's Play: a drive on the salt flat (no column of parts, the cards float beside the car, the dock is the playback bar)
+  const xrayShow = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
   const techDevice = useVehicleStore((s) => s.techDevice);
   const demo = demos.find((d) => d.id === techDemoId) ?? demos[0];
   const lightMode = useVehicleStore((s) => s.lightMode);
@@ -342,7 +344,7 @@ export function Showroom({
   const specsColumn = tab === 'dimensions' && dash.wide;
   const chargeColumn = tab === 'charging' && dash.wide;
   // the X-ray tab's parts: a column at the right of a wide window
-  const xrayColumn = tab === 'xray' && Boolean(vehicle.xray?.anatomy) && dash.wide;
+  const xrayColumn = tab === 'xray' && Boolean(vehicle.xray?.anatomy) && dash.wide && !xrayShow;
   React.useEffect(() => {
     if (tab === 'dimensions') {
       if (dash.wide && !compareMaximized) setDeviceInset({ right: Math.min(0.62, (currentSpecsCol + 28) / dash.vw), bottom: 0 });
@@ -355,22 +357,22 @@ export function Showroom({
     } else if (tab === 'xray') {
       // the dock (the level slider and the system chips) covers the foot of the window; the parts' column stands at the right
       // (on a narrow one the picked part's card is a sheet over the lower half, and the car is framed above it)
-      if (xrayColumn) setDeviceInset({ right: Math.min(0.5, (XRAY_COLUMN_W + 28) / dash.vw), bottom: 0.1 });
+      if (xrayShow) setDeviceInset({ right: 0, bottom: dash.short ? 0.2 : 0.16 });
+      else if (xrayColumn) setDeviceInset({ right: Math.min(0.5, (XRAY_COLUMN_W + 28) / dash.vw), bottom: 0.1 });
       else setDeviceInset({ right: 0, bottom: xrayPicked && vehicle.xray?.anatomy ? 0.5 : 0.2 });
     } else if (tab === 'drive') {
-      // the column of data at the left, the cockpit (the gauges with the buttons that set the run around them) and the playback bar under
-      // the car; the buttons make a row above the gauges where the two banks do not fit
+      // the cockpit (the gauges with the buttons that set the run around them) and the playback bar under the car; the buttons make a row
+      // above the gauges where the two banks do not fit; a sideways phone has the menu's column at the left
       const form = cockpitForm(dash.vw, dash.short);
       setDeviceInset({
-        // a sideways phone: the run's card stands at the right, the menu column at the left
-        right: dash.short ? (RAIL_W + 24) / dash.vw : 0,
-        left: dash.wide ? Math.min(0.2, (RAIL_W + 24) / dash.vw) : dash.short ? SHORT_MENU_W / dash.vw : 0,
+        right: 0,
+        left: dash.short ? SHORT_MENU_W / dash.vw : 0,
         // a sideways phone's gauges and playback bar are a smaller stack than a tall window's; the row of buttons adds to it
         bottom: dash.short ? 0.3 : form === 'banks' ? 0.4 : 0.43,
       });
     } else return;
     return () => setDeviceInset({ right: 0, bottom: 0 });
-  }, [tab, dash.wide, dash.short, dash.vw, dash.vh, topPx, currentSpecsCol, chargeCol, compareMaximized, xrayColumn, xrayPicked, vehicle.xray?.anatomy, setDeviceInset]);
+  }, [tab, dash.wide, dash.short, dash.vw, dash.vh, topPx, currentSpecsCol, chargeCol, compareMaximized, xrayColumn, xrayShow, xrayPicked, vehicle.xray?.anatomy, setDeviceInset]);
   // a phone has no column for the car's screen: it opens as a sheet when the Dashboard tab does, and the visitor can shut it
   React.useEffect(() => {
     if (tab === 'dashboard' && !dash.wide && !dash.short) setScreenOpen(true);
@@ -410,7 +412,7 @@ export function Showroom({
       ? demo
       : tab === 'charging' && dash.wide
         ? (charging ?? undefined)
-        : tab === 'drive'
+        : tab === 'drive' || xrayShow
           ? driveSpec
           : undefined;
 
@@ -432,7 +434,7 @@ export function Showroom({
   return (
     <div ref={root} className="fixed inset-0 select-none overflow-hidden bg-[#f1f2f4] text-neutral-900">
       {ready && webgl && <ShowroomViewer vehicle={vehicle} variant={variant} className="absolute inset-0" />}
-      {ready && webgl && tab === 'xray' && vehicle.xray?.anatomy && (dash.wide || !xrayPicked) && <XrayLabelLayer vehicle={vehicle} />}
+      {ready && webgl && tab === 'xray' && vehicle.xray?.anatomy && !xrayShow && (dash.wide || !xrayPicked) && <XrayLabelLayer vehicle={vehicle} />}
       {webgl === false && (
         <div className="absolute inset-0 grid place-items-center px-6 text-center">
           <p className="max-w-sm text-[13px] leading-relaxed text-neutral-600">
@@ -522,7 +524,7 @@ export function Showroom({
           </div>
         </aside>
       )}
-      {ready && tab === 'xray' && vehicle.xray?.anatomy && (
+      {ready && tab === 'xray' && vehicle.xray?.anatomy && !xrayShow && (
         <div
           className={`pointer-events-none absolute z-10 flex ${dash.wide ? 'items-stretch justify-end' : 'inset-x-2 bottom-[132px] items-end justify-center'}`}
           style={dash.wide ? { top: 'calc(var(--top-ui, 56px) + 8px)', bottom: 12, right: 16 } : undefined}
@@ -558,7 +560,9 @@ export function Showroom({
         </div>
       )}
 
-      {ready && tab === 'drive' && <DriveMotion vehicle={vehicle} column={dash.wide} lift={cockpitLift(cockpitForm(dash.vw, dash.short))} />}
+      {/* the X-ray tab's Play: the shot's title, and the Drive tab's cards floating beside the car (the Drive tab itself has none) */}
+      {ready && xrayShow && <ShowTitle />}
+      {ready && xrayShow && <DriveMotion vehicle={vehicle} column={dash.wide} />}
 
       <div
         className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 short:pl-[136px] pb-3 sm:pb-5 ${ready ? '' : 'invisible'}`}
@@ -666,7 +670,7 @@ export function Showroom({
             speed={techSpeed}
             onSpeed={setTechSpeed}
             spec={playing}
-            markers={tab === 'drive' ? driveFacts?.events.map((e) => ({ t: e.t, label: e.label })) : undefined}
+            markers={tab === 'drive' || xrayShow ? driveFacts?.events.map((e) => ({ t: e.t, label: e.label })) : undefined}
             disabled={
               techStatus === 'none'
                 ? "This model's wheels are not rigged for demonstrations yet"

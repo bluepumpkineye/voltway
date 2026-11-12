@@ -25,7 +25,8 @@ import { useVehicleStore } from '@/store/vehicle-store';
  * The split between motors is ours (the maker does not publish it), and the screen's tile says so.
  */
 export function TechWheelFx({ vehicle }: { vehicle: Vehicle }) {
-  const on = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam !== 'cabin');
+  // the X-ray tab's Play (the Drive tab keeps the plain, solid car)
+  const on = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
   const rig = rigOf(vehicle);
   const mounts = React.useSyncExternalStore(rig.subscribe, () => rig.mounts, () => 0);
   if (!on || !rig.wheels) return null;

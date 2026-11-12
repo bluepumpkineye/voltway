@@ -495,8 +495,8 @@ export type DriveCue = 'launch' | 'pull' | 'target' | 'cruise' | 'brake' | 'stop
 /** What a car does after the pull, in its scenario: manoeuvres follow one another, a stop is the visitor's choice. */
 export type DriveManoeuvre = 'sweep' | 'slalom' | 'crab';
 
-/** The Drive tab's cameras: four outside, one in the driver's seat (the cabin rides with the car), one with the body see-through and the motors and battery drawn. */
-export type DriveCamera = 'hero' | 'chase' | 'side' | 'top' | 'cabin' | 'xray';
+/** The Drive tab's cameras: four outside, one in the driver's seat (the cabin rides with the car). The see-through view is the X-ray tab's Play. */
+export type DriveCamera = 'hero' | 'chase' | 'side' | 'top' | 'cabin';
 
 /**
  * One car's Drive scenario (docs/tech-showcase.md section 19): what the run is, which of the car's own modes and loads

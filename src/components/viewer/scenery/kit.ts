@@ -260,7 +260,82 @@ export const hazeUniforms = {
   /** how much of the height haze to apply (a building's own top), and the distance haze's density */
   uHazeAmount: { value: 1 },
   uHazeDensity: { value: 0.0042 },
+  /**
+   * the road's bend (the Drive tab's curve, `withBend`): on or off, the curvature of the arc (1/m, negative bends toward -z), where the arc begins and
+   * ends along the road measured from the car (m, negative: behind it), and where the car is (x and z in the viewer's axes)
+   */
+  uBendOn: { value: 0 },
+  uBendK: { value: -0.01 },
+  uBendA: { value: 1e4 },
+  uBendB: { value: 1e4 + 1 },
+  uBendX: { value: 0 },
+  uBendZ: { value: 0 },
 };
+
+/**
+ * The bend: the Drive tab's road has a curve in it, drawn in the vertex shader of every road and roadside material (`withHaze`, `withBend`) so that
+ * no geometry is rebuilt. The curve belongs to the road: it is an arc of the car's own line that begins `uBendA` metres from the car and ends
+ * `uBendB` metres from it (both fall as the car drives, so it comes up the road from the haze, is driven into and is left behind), straight on either
+ * side. A vertex `u` metres along the road and `z` across it is put where it lies on that path, and the whole path is then turned and moved so that
+ * the car (which stays on the spot, with the road rolling under it) is at its origin pointing along +x: ahead of the arc the road is as it was, in it the
+ * road bends away and the road already driven turns back behind the car, past it the road runs straight again at the new heading. Angles are measured
+ * from +x toward +z, so a left bend is a negative curvature. With `uBendOn` at 0 it does nothing.
+ */
+const BEND_COMMON = /* glsl */ `
+uniform float uBendOn;
+uniform float uBendK;
+uniform float uBendA;
+uniform float uBendB;
+uniform float uBendX;
+uniform float uBendZ;
+void bendPath( float u, out vec2 P, out float psi ) {
+  if ( u <= uBendA ) {
+    psi = 0.0;
+    P = vec2( u, 0.0 );
+  } else if ( u <= uBendB ) {
+    psi = uBendK * ( u - uBendA );
+    P = vec2( uBendA + sin( psi ) / uBendK, ( 1.0 - cos( psi ) ) / uBendK );
+  } else {
+    float pb = uBendK * ( uBendB - uBendA );
+    vec2 Pb = vec2( uBendA + sin( pb ) / uBendK, ( 1.0 - cos( pb ) ) / uBendK );
+    psi = pb;
+    P = Pb + ( u - uBendB ) * vec2( cos( pb ), sin( pb ) );
+  }
+}
+vec3 bendWorld( vec3 p ) {
+  if ( uBendOn < 0.5 ) return p;
+  vec2 P;
+  vec2 Pc;
+  float psi;
+  float psic;
+  bendPath( p.x - uBendX, P, psi );
+  bendPath( 0.0, Pc, psic );
+  vec2 d = P + ( p.z - uBendZ ) * vec2( -sin( psi ), cos( psi ) ) - Pc;
+  float c = cos( psic );
+  float s = sin( psic );
+  return vec3( uBendX + c * d.x + s * d.y, p.y, uBendZ - s * d.x + c * d.y );
+}`;
+const BEND_PROJECT = /* glsl */ `
+vec4 bzp = vec4( transformed, 1.0 );
+#ifdef USE_INSTANCING
+  bzp = instanceMatrix * bzp;
+#endif
+vec4 bzw = modelMatrix * bzp;
+bzw.xyz = bendWorld( bzw.xyz );
+mvPosition = viewMatrix * bzw;
+gl_Position = projectionMatrix * mvPosition;`;
+
+/** Lets a material that does not take the haze (the paint on the road, a tree's shadow) bend with the road. */
+export function withBend<T extends THREE.Material>(mat: T): T {
+  mat.onBeforeCompile = (shader) => {
+    for (const k of ['uBendOn', 'uBendK', 'uBendA', 'uBendB', 'uBendX', 'uBendZ'] as const) shader.uniforms[k] = hazeUniforms[k];
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${BEND_COMMON}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>\n${BEND_PROJECT}`);
+  };
+  mat.customProgramCacheKey = () => 'bend';
+  return mat;
+}
 
 export function setHaze(room: THREE.Color, studioWhite: THREE.Color) {
   const c = tmpC.copy(studioWhite).multiply(room);
@@ -286,16 +361,8 @@ export function withHaze<T extends THREE.Material>(mat: T, opts: HazeOpts = {}):
       shader.uniforms.uDetailStrength = { value: detail.strength };
     }
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vHazeW;')
-      .replace(
-        '#include <project_vertex>',
-        `#include <project_vertex>
-        vec4 hzp = vec4( transformed, 1.0 );
-        #ifdef USE_INSTANCING
-          hzp = instanceMatrix * hzp;
-        #endif
-        vHazeW = ( modelMatrix * hzp ).xyz;`,
-      );
+      .replace('#include <common>', `#include <common>\nvarying vec3 vHazeW;\n${BEND_COMMON}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>\n${BEND_PROJECT}\nvHazeW = bzw.xyz;`);
     let frag = shader.fragmentShader.replace(
       '#include <common>',
       `#include <common>
@@ -323,6 +390,6 @@ export function withHaze<T extends THREE.Material>(mat: T, opts: HazeOpts = {}):
     );
     shader.fragmentShader = frag;
   };
-  mat.customProgramCacheKey = () => `haze${height ? 'H' : ''}${distance ? 'D' : ''}${detail ? 'T' : ''}`;
+  mat.customProgramCacheKey = () => `hazeB${height ? 'H' : ''}${distance ? 'D' : ''}${detail ? 'T' : ''}`;
   return mat;
 }

@@ -12,7 +12,7 @@ import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
 import { cullBehindClearGlass, useCabinStencil, useGlassStencil } from './clearGlass';
-import { useBodyGhost, useXray, useXrayCabin, useXrayCabinPlan, useXrayShell } from './Xray';
+import { useXray, useXrayCabin, useXrayCabinPlan, useXrayShell } from './Xray';
 import { ghostable } from './xrayGhost';
 import { xrayOf } from '@/lib/xray/rig';
 import { hingesOf } from '@/lib/openings';
@@ -208,12 +208,11 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   // the doors swing on their hinge nodes (vehicle.openings) and open on a tap
   useHingedNodes(model, vehicle, 'node');
   useHingedNodes(model, vehicle, 'frameNode');
-  // the X-ray tab (the greenhouse and the doors go; needs the car's X-ray spec) and the Drive tab's X-ray camera (the whole body goes)
+  // the X-ray tab (the whole body goes to a ghost; needs the car's X-ray spec)
   const xrayRig = xrayOf(vehicle);
-  // the X-ray tab's level is above zero (the body is going to a ghost; src/lib/xray/rig.ts), or the Drive tab's X-ray camera is on
+  // the X-ray tab's level is above zero (the body is going to a ghost; src/lib/xray/rig.ts)
   const xrayOn = React.useSyncExternalStore(xrayRig.subscribe, () => xrayRig.active, () => false) && Boolean(vehicle.xray) && hasCabin;
-  const driveXray = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray') && hasCabin;
-  const xray = xrayOn || driveXray;
+  const xray = xrayOn;
   // the cabin is mounted behind the exterior (ShowroomViewer): the windscreen and the front windows are clear glass once it is
   const cabinReady = useVehicleStore((s) => s.cabinReady);
   const isCabinReady = forceClearGlass !== undefined ? forceClearGlass : cabinReady;
@@ -223,10 +222,9 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   useGlass(model, vehicle, inside, hasCabin, xray, isCabinReady && clearTab);
   useGlassStencil(model, hasCabin && isCabinReady && clearTab && !inside && !xray && shut);
   // a car without an exploded view keeps the X-ray it always had (the greenhouse a ghost, the doors gone); one with it ghosts the whole shell
-  // through the rig (xrayGhost.ts), in the X-ray tab and in the Drive tab's X-ray camera alike
+  // through the rig (xrayGhost.ts), in the X-ray tab and on its Play alike
   const anatomy = Boolean(vehicle.xray?.anatomy);
-  useXray(model, vehicle, anatomy ? false : xrayOn || driveXray);
-  useBodyGhost(model, driveXray && !anatomy);
+  useXray(model, vehicle, anatomy ? false : xrayOn);
   // the exploded view: the shell, the doors, the wheels go where the plan says
   useXrayShell(model, vehicle);
   useStruts(model, vehicle);
@@ -437,8 +435,7 @@ function Cabin({
   // through the bodywork, and the windscreen and front windows are windows (clearGlass.ts)
   const xrayRig = xrayOf(vehicle);
   const xrayOn = React.useSyncExternalStore(xrayRig.subscribe, () => xrayRig.active, () => false);
-  const driveXray = useVehicleStore((s) => s.tab === 'drive' && s.drive.cam === 'xray');
-  const xrayActive = xrayOn || driveXray;
+  const xrayActive = xrayOn;
   const masked = useVehicleStore((s) => s.cameraMode === 'exterior' && s.tab !== 'tech' && s.shut) && !xrayActive;
   useCabinStencil(model, masked);
 

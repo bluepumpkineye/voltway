@@ -91,8 +91,11 @@ export interface DriveChoice {
 
 export const DRIVE_CHOICE_NONE: DriveChoice = { run: null, mode: null, load: null, cam: null, brake: null, ghost: null, rival: null, voice: null, surface: null, grade: null };
 
-/** The X-ray view: the X-ray tab, or the Drive tab's X-ray camera (the body see-through, the motors and the battery drawn). */
-export const isXrayView = (s: { tab: ShowroomTab; drive: DriveChoice }) => s.tab === 'xray' || (s.tab === 'drive' && s.drive.cam === 'xray');
+/**
+ * The drive stage is up: the Drive tab, or the X-ray tab's Play (a drive run on the salt flat with the body see-through). They share the
+ * run's engine (the road that rolls, the car's pitch and roll, the telemetry, the cards' anchors); what differs is the world and the camera.
+ */
+export const onDriveStage = (s: { tab: ShowroomTab; xrayShow: boolean }) => s.tab === 'drive' || (s.tab === 'xray' && s.xrayShow);
 
 /** Which end of the car the Dashboard tab looks at: the lamps are at both. */
 export type LightsView = 'front' | 'rear';
@@ -268,6 +271,8 @@ export interface VehicleUiState {
   xrayScrub: boolean;
   xraySystem: XraySystem | null;
   xrayPart: string | null;
+  /** the X-ray tab's Play: the car drives on the salt flat with only its hardware and a faint body (src/lib/xray/show.ts) */
+  xrayShow: boolean;
   /** the parking lot (or other staged floor) of the running demo, which the viewer draws round the car */
   techScene: ParkStage | null;
   /** the street of a chassis demo (the crab walk, the compass turn, the U-turn), which the viewer draws round the car */
@@ -368,6 +373,8 @@ export interface VehicleUiState {
   setXrayLevel: (level: number, scrub?: boolean) => void;
   setXraySystem: (system: XraySystem | null) => void;
   setXrayPart: (id: string | null) => void;
+  /** Start or end the X-ray tab's Play: the run starts from its top, the doors are shut, and no part or system is picked. */
+  setXrayShow: (on: boolean) => void;
   setRpaEnabled: (v: boolean) => void;
   setParkSpeed: (v: ParkSpeed) => void;
   /**
@@ -489,6 +496,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
   xrayScrub: false,
   xraySystem: null,
   xrayPart: null,
+  xrayShow: false,
   techScene: null,
   techStreet: null,
   compassPivot: 'FL',
@@ -581,6 +589,8 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       ...(isStageTab(tab) ? techTab : {}),
       // the X-ray tab opens see-through, with nothing picked, and the exploded view's camera only once the slider goes there
       ...(tab === 'xray' ? { xrayLevel: 1, xrayScrub: false, xraySystem: null, xrayPart: null } : {}),
+      // Play belongs to the X-ray tab: entering or leaving the tab ends it
+      xrayShow: false,
       // the Dashboard tab opens on the car's home screen, whatever page the last tab left it on
       ...(tab === 'dashboard' ? { hmiScreen: 'home' as const, climateOpen: false, appCentreOpen: false } : {}),
     })),
@@ -625,6 +635,15 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
     set({ xrayLevel: Math.min(1, Math.max(0, xrayLevel)), xrayScrub }),
   setXraySystem: (xraySystem) => set((s) => (s.xraySystem === xraySystem ? s : { xraySystem, xrayPart: null })),
   setXrayPart: (xrayPart) => set((s) => (s.xrayPart === xrayPart ? s : { xrayPart })),
+  setXrayShow: (xrayShow) =>
+    set((s) =>
+      s.xrayShow === xrayShow
+        ? s
+        : xrayShow
+          // a shut car, the whole anatomy, nothing picked; the run begins from its top (TechDirector builds it and starts the clock)
+          ? { xrayShow, xrayLevel: 1, xrayScrub: false, xraySystem: null, xrayPart: null, openings: { ...initialOpenings }, techIntent: true }
+          : { xrayShow },
+    ),
   setRpaEnabled: (rpaEnabled) => set({ rpaEnabled }),
   setParkSpeed: (parkSpeed) => set({ parkSpeed }),
   startTech: (techDemoId, techDevice) =>
@@ -679,6 +698,7 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
       xrayScrub: false,
       xraySystem: null,
       xrayPart: null,
+      xrayShow: false,
       headlightsOn: false,
       locked: true,
       adasActive: false,

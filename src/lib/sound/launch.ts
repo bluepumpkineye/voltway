@@ -39,9 +39,9 @@ export class LaunchAudioController {
     this.engine?.stop();
   }
 
-  /** The car, each frame: its speed (km/h), its pull (g) and what the run is doing. */
-  frame(speed: number, g: number, phase?: string) {
-    this.engine?.update(speed, g, phase);
+  /** The car, each frame: its speed (km/h), its pull (g) and what the run is doing, and how near it sounds (1 beside the camera, 0 gone: the exit). */
+  frame(speed: number, g: number, phase?: string, proximity = 1) {
+    this.engine?.update(speed, g, phase, undefined, proximity);
   }
 
   setSpeed(speed: number) {

@@ -7,7 +7,7 @@ import { ContactShadows, Html, Preload, useGLTF } from '@react-three/drei';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { rigOf } from '@/lib/tech/rig';
-import { useVehicleStore } from '@/store/vehicle-store';
+import { onDriveStage, useVehicleStore } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
 import { BoostKnob } from './BoostKnob';
 import { LightsDriver } from './Lights';
@@ -22,8 +22,10 @@ import { TechDirector } from './TechDirector';
 import { TechRoad } from './TechRoad';
 import { TechRain, WeatherDriver } from './TechRain';
 import { TechParkAssist } from './TechParkAssist';
-import { TechPowertrain } from './TechPowertrain';
+import { DriveFog } from './DriveFog';
 import { XrayAnatomy, XrayDirector } from './XrayDirector';
+import { XrayShowCamera } from './XrayShow';
+import { XrayWorld } from './XrayWorld';
 import { XrayLabelDriver } from './XrayLabelDriver';
 import { TechAnchors } from './TechAnchors';
 import { TechWheelFx } from './TechWheelFx';
@@ -133,13 +135,15 @@ function Stage({
   const cameraMode = useVehicleStore((s) => s.cameraMode);
   const inside = cameraMode === 'interior';
   // the Drive tab drives from the seat too: the road still rolls past the windscreen
-  const driving = useVehicleStore((s) => s.tab === 'drive');
+  const driving = useVehicleStore(onDriveStage);
+  // the X-ray tab's Play: the salt flat takes the place of the studio, and of the Drive tab's road
+  const show = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
   // a hill lifts the car off the studio's floor: a mirror there would show it hanging in the air
   const hill = useVehicleStore((s) => s.tab === 'drive' && (s.drive.grade ?? 0) !== 0);
   const frame = useCarFrame(vehicle);
   const outside = vehicle.assets.outside;
   const studioShadow = vehicle.assets.studioShadow;
-  const city = sceneKind === 'city' && Boolean(outside);
+  const city = sceneKind === 'city' && Boolean(outside) && !show;
   // the seat's eye point, from the build's axes to the viewer's (x, z, -y)
   const eye = React.useMemo<V3>(() => {
     const e = vehicle.assets.driverEye ?? [-0.38, 0.42, 1.18];
@@ -149,7 +153,13 @@ function Stage({
   return (
     <>
       <ShowroomCameraRig vehicle={vehicle} />
-      {city && outside ? (
+      {/* the X-ray tab's Play drives the camera along its shots (it needs the loaded exterior, as the rig does) */}
+      <XrayShowCamera vehicle={vehicle} />
+      {/* the Drive tab's exit: the fog that takes the car as it drives away (Play's world has its own) */}
+      {driving && !show && <DriveFog />}
+      {show ? (
+        <XrayWorld vehicle={vehicle} reflections={reflections} />
+      ) : city && outside ? (
         <OutsideWorld world={outside} inside={inside} eye={eye} />
       ) : (
         <StudioShowroom reflections={reflections && !hill} inside={inside} hill={hill} rig={rigOf(vehicle)} />
@@ -158,13 +168,12 @@ function Stage({
       {!inside && <TechStage />}
       {!inside && <TechStreet />}
       {!inside && <TechLotDressing />}
-      {(!inside || driving) && <TechRoad vehicle={vehicle} />}
-      {(!inside || driving) && <TechRain vehicle={vehicle} />}
+      {(!inside || driving) && !show && <TechRoad vehicle={vehicle} />}
+      {(!inside || driving) && !show && <TechRain vehicle={vehicle} />}
       {!inside && <TechCharge vehicle={vehicle} />}
       {!inside && <TechSensors vehicle={vehicle} />}
       {!inside && <TechParkAssist vehicle={vehicle} />}
-      {/* the Drive tab's X-ray camera: the motors and the battery, schematic, riding with the body */}
-      <TechPowertrain vehicle={vehicle} />
+      {/* the X-ray tab's hardware (and, on its Play, the run it drives) */}
       <XrayAnatomy vehicle={vehicle} />
       {/* the Drive tab's lights on the wheels: what each motor and brake is doing */}
       <TechWheelFx vehicle={vehicle} />
@@ -179,7 +188,7 @@ function Stage({
             without one) projects a contact shadow from the car */}
         {!inside && !city && studioShadow && <GroundShadow shadow={studioShadow} />}
       </CarRoot>
-      {!inside && (city || !studioShadow) && (
+      {!inside && !show && (city || !studioShadow) && (
         <ContactShadows
           key={city ? 'city' : 'studio'}
           position={[0, 0.002, 0]}

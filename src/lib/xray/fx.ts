@@ -574,7 +574,7 @@ export class AnatomyFx {
         if (name) name.textContent = m.label;
         if (kw) kw.textContent = `${regen ? '−' : ''}${Math.round(Math.abs(m.kw))} kW`;
         if (share) share.textContent = `${Math.round(m.share * 100)}%`;
-        tag.style.opacity = '1';
+        tag.style.opacity = this.tagsOn ? '1' : '0';
         tag.style.setProperty('--load', String(load));
       }
     }
@@ -599,4 +599,6 @@ export class AnatomyFx {
     this.glow(this.mats('XR_Battery_Plate'), color, 0.1 + 0.3 * lvl);
   }
   private batteryPhase = 0;
+  /** the motors' tags are shown (the show hides them while the car drives away: they would float over nothing) */
+  tagsOn = true;
 }

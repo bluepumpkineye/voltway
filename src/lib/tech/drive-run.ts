@@ -434,9 +434,10 @@ function segmentsOf(inp: DriveInput, brakeNow: boolean, lead = 0): Seg[] {
       if (m === 'slalom') segs.push({ kind: 'decel', vTo: 16 / 3.6 }, { kind: 'slalom', v: 16 / 3.6 });
       if (m === 'crab') segs.push({ kind: 'decel', vTo: 7 / 3.6 }, { kind: 'crab', v: 7 / 3.6 });
     }
+    // the run ends where its last manoeuvre does, the car still going (a breath of coast to straighten out): it does not stop and set off again, the
+    // exit takes it away from there (src/lib/tech/drive-exit.ts)
     const last = moves[moves.length - 1];
-    if (last === 'sweep') segs.push({ kind: 'coast', dur: 2 });
-    else segs.push({ kind: 'gentle' }, { kind: 'stop', dur: 1.4 });
+    segs.push({ kind: 'coast', dur: last === 'sweep' ? 2 : 1.5 });
   } else if (brakeNow) {
     // a run given a length holds the speed it reached until the stop (a second to lift, about three to brake, two stood) fits the rest
     if (inp.runS) segs.push({ kind: 'cruise', vTo: inp.to / 3.6, dur: 0, until: inp.runS - STOP_TAIL });
@@ -1060,9 +1061,10 @@ function planOnce(
 
   return {
     track,
-    // an expressway of three lanes, the car in the middle one (a rival has the next, a manoeuvre room to move sideways): the strip stands
-    // still and what streams past is the speed
-    road: expressRoad(3),
+    // an expressway: three lanes, the car in the middle one, where a rival has the next or a manoeuvre needs room to move sideways; two lanes (the car in
+    // the right one) for a plain run, which narrows the road round the car and the curve (drive-bend.ts) with it. The strip stands still and what
+    // streams past is the speed
+    road: lateral || opts.rival ? expressRoad(3) : expressRoad(2, 140, 1),
     scroll: (time) => at(C.S, time),
     chassis: (time) => ({ heave: 0, pitch: at(C.P, time), roll: at(C.R, time), lift: [0, 0, 0, 0] }),
     launch: {

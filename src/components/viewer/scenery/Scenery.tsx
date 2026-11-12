@@ -6,7 +6,7 @@ import { useFrame } from '@react-three/fiber';
 import { useDusk } from '../Lights';
 import { STAGE_LAYER, STUDIO_WHITE } from '../StudioShowroom';
 import { buildRow, type RowSpec } from './buildings';
-import { hazeUniforms, rng, setHaze, withHaze } from './kit';
+import { hazeUniforms, rng, setHaze, withBend, withHaze } from './kit';
 import { propGeometry, signFaces, type PropKind } from './props';
 import { barkTexture, brickTexture, canopyShadow, foliageMass, leafCluster, softDot, stuccoTexture, tileTexture, windowAtlas } from './textures';
 import { treeParts, type TreeKind } from './trees';
@@ -88,7 +88,7 @@ function TreeSet({ kind, seed, spots, shadows }: { kind: TreeKind; seed: number;
         ? new THREE.MeshStandardMaterial({ map: foliageMass(), vertexColors: true, roughness: 0.88, envMapIntensity: 0.85 })
         : new THREE.MeshStandardMaterial({ map: barkTexture(), vertexColors: true, roughness: 0.95, side: THREE.DoubleSide }),
     );
-    const shade = new THREE.MeshBasicMaterial({ map: canopyShadow(), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    const shade = withBend(new THREE.MeshBasicMaterial({ map: canopyShadow(), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
     return { leaf, bark, shade };
   }, [parts.leaf, parts.solid]);
   React.useEffect(

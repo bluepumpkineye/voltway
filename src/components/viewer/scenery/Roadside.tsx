@@ -85,7 +85,7 @@ export function Verge({ x0, x1, z0, z1, fadeEnd, scroll }: { x0: number; x1: num
   });
   return (
     <mesh position={[(x0 + x1) / 2, 0.001, (z0 + z1) / 2]} rotation-x={-Math.PI / 2} renderOrder={-0.55} ref={onStage} material={mat}>
-      <planeGeometry args={[L, W]} />
+      <planeGeometry args={[L, W, Math.min(400, Math.max(1, Math.ceil(L / 4))), 1]} />
     </mesh>
   );
 }

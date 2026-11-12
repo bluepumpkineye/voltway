@@ -31,10 +31,11 @@ export const SHOULDERS = 3.2;
 /**
  * An expressway of `count` lanes for a car that stays on the spot: a strip that stands still under it (the lanes' dashes, the
  * joints and the roadside roll by as far as their period, TechHighway.tsx), so its length is only how far the eye can see. The
- * car's own lane is the middle one (the middle of the strip is the car's centre line).
+ * car's own lane is the middle one (the middle of the strip is the car's centre line), or lane `carLane` (0 the leftmost) when it is given:
+ * a road of two lanes has no middle one, and the strip is then laid so that the car's lane is under it.
  */
-export function expressRoad(count: number, half = 140): RoadStage {
-  return { humps: [], from: -half, to: half, width: LANE_WIDTH * count + SHOULDERS, lanes: { count, width: LANE_WIDTH } };
+export function expressRoad(count: number, half = 140, carLane?: number): RoadStage {
+  return { humps: [], from: -half, to: half, width: LANE_WIDTH * count + SHOULDERS, lanes: { count, width: LANE_WIDTH }, carLane };
 }
 
 /** The road of the run, in distances from the rear axle's start. */
@@ -49,6 +50,8 @@ export interface RoadStage {
   markings?: { period: number; length: number; joint: number };
   /** a road of several lanes (Autonomous Drive's): how many and how wide; it is drawn with dashed lane lines and solid edge lines, not the broken edge lines above */
   lanes?: { count: number; width: number };
+  /** the lane the car drives in, counted from the left, 0 first (a road of lanes where it is not the middle one: the strip is laid so that this lane is under the car); left out, the middle of the strip is the car's centre line */
+  carLane?: number;
   /** a city street (Autonomous Drive on the G9L): kerbs, footways, painted lines and crossings */
   city?: CityRoad;
 }

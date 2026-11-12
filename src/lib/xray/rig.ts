@@ -78,6 +78,10 @@ export class XrayRig {
     live: (dt: number, motors: LiveMotor[], wheelRev: number, power: number, regen: boolean) => void;
     liveBattery: (dt: number, power: number, regen: boolean) => void;
     setFocus: (system: XraySystem | null, partNodes: string[], dim?: number) => void;
+    /** put every node a clip or the live lights moved back, and every glow out */
+    reset: () => void;
+    /** the motors' tags are shown */
+    tagsOn: boolean;
   } | null = null;
   private levelFollowers = new Set<(ghost: number, exploded: number) => void>();
   private lastGhost = -1;
