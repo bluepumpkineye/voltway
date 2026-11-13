@@ -72,6 +72,10 @@ Automatic on every car (web side, nothing per car): materials, the composer (N8A
 
 To raise a car to the Seal's level: write its own `<car>_polish.py` from `seal_polish.py` (keys, charge pad, light-guide spill), drop its entry from `car_polish.CARS`, re-export.
 
+## BYD Seal seat view (2026-11-13)
+
+The Seal's eye sits 0.55 m from its wheel; the other cars' sit 0.75-0.83 m (Zeekr 7X 0.81, G9L 0.81, SU7 0.83, RX 0.77, Voyah 0.76, ES8 0.75, Z9 0.62), so at the shared 52 degrees the wheel filled the picture and the seat felt close. The owner asked for a wider view than the SU7's, so the Seal alone has `driverView: { fov: 64 }` in `byd-seal.ts` (the cap `INTERIOR_PRESET.fovMax` only limits the portrait-window widening, an explicit `driverView.fov` is used as given) and its wheel is drawn 10 % smaller (`seal_wheel.SCALE`, `shrink_wheel`: rim, pad, plate, keys, logo and stalks about the wheel's centre; the column shroud keeps its size). Anything placed on the wheel after the build (key collars and icons in `seal_polish`) multiplies its (u, v, w) and size by `SW.SCALE`. The driver's and passenger's door-handle kidney moved from u 0.663 to 0.60 (toward the B-pillar); the rear cards' handles are unchanged.
+
 ## BYD Seal (reference)
 
 `seal_polish.py`: cluster stood proud of the band glass with a bezel; key collars, screen-neck collar, column gasket ring, charge-tray collar; ADAS housing, wipers, B-pillar belt loops and webbing; icons on the 10 wheel keys, the 8 selector keys, the charge pad, the driver's window / lock / mirror / child keys, the other three doors' rockers, the boot switches; glow ribbon under the dash light guide; bevel + weighted normals on 31 hard surfaces; wheel window chamfers removed (they read as white wire strokes); the wheel plate pulled inside the rim (it poked a black diamond out of the leather).

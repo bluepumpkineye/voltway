@@ -121,6 +121,7 @@ export const bydSeal: Vehicle = {
     heroColor: '#66809F',
     driverEye: [0.06, 0.355, 1.12],
     proxyUrl: '/models/byd-seal-proxy.glb',
+    driverView: { fov: 64 },
   },
   configurator: {
     paintMaterial: 'M_Paint_Seal_Blue',

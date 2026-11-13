@@ -52,6 +52,7 @@ def build_icons(col, lib):
     up = Vector(fr.V)
     nrm = Vector(fr.A)
     lift = 0.0004
+    k = SW.SCALE                    # the wheel is drawn 10 % smaller about its centre (seal_wheel.shrink_wheel)
     layout = {
         "L": {"key": ["cruise", "adas_distance", "lane"], "small": ["arrow_up", "arrow_down"]},
         "R": {"key": ["vol_plus", "next", "vol_minus"], "small": ["voice", "phone"]},
@@ -59,12 +60,12 @@ def build_icons(col, lib):
     for side, tag in ((1.0, "R"), (-1.0, "L")):
         for j, (u, v) in enumerate(SW.LEFT_KEYS):
             uu = -u if side > 0 else u
-            c = fr.p(uu, v, SW.PLATE_W1 + 0.0040 + lift)
-            made.append(icon_quad(col, mat, "int_icon_wheel%s%d" % (tag, j), c, up, nrm, 0.0115, layout[tag]["key"][j]))
+            c = fr.p(k * uu, k * v, k * (SW.PLATE_W1 + 0.0040) + lift)
+            made.append(icon_quad(col, mat, "int_icon_wheel%s%d" % (tag, j), c, up, nrm, k * 0.0115, layout[tag]["key"][j]))
         for j, (u, v) in enumerate(SW.LEFT_SMALL):
             uu = -u if side > 0 else u
-            c = fr.p(uu, v, SW.PLATE_W1 + 0.0040 + lift)
-            made.append(icon_quad(col, mat, "int_icon_wheelS%s%d" % (tag, j), c, up, nrm, 0.0080, layout[tag]["small"][j]))
+            c = fr.p(k * uu, k * v, k * (SW.PLATE_W1 + 0.0040) + lift)
+            made.append(icon_quad(col, mat, "int_icon_wheelS%s%d" % (tag, j), c, up, nrm, k * 0.0080, layout[tag]["small"][j]))
 
     # ---- wireless charger pad (flat on the felt) and the selector's keys
     import seal_console as SC
@@ -157,17 +158,18 @@ def build_collars(col, lib):
     made = []
     fr = ST.WheelFrame(ZI.WHEEL_C, ZI.WHEEL_TILT)
     k = 0
+    s = SW.SCALE                    # the keys sit on a wheel drawn 10 % smaller about its centre
     # a recess of dark satin under every key, 2 mm wider than the cap, the edge a shadow seam
     for side, tag in ((1.0, "R"), (-1.0, "L")):
         for (u, v) in SW.LEFT_KEYS:
             uu = -u if side > 0 else u
-            made.append(SW._key(fr, col, lib, "int_wheel_collar%s%d" % (tag, k), uu, v, SW.PLATE_W1 - 0.0004,
-                                0.034, 0.0205, mat="satin", h=0.0012))
+            made.append(SW._key(fr, col, lib, "int_wheel_collar%s%d" % (tag, k), s * uu, s * v,
+                                s * (SW.PLATE_W1 - 0.0004), s * 0.034, s * 0.0205, mat="satin", h=s * 0.0012))
             k += 1
         for (u, v) in SW.LEFT_SMALL:
             uu = -u if side > 0 else u
-            made.append(SW._key(fr, col, lib, "int_wheel_collar%s%d" % (tag, k), uu, v, SW.PLATE_W1 - 0.0004,
-                                0.018, 0.015, mat="satin", h=0.0012))
+            made.append(SW._key(fr, col, lib, "int_wheel_collar%s%d" % (tag, k), s * uu, s * v,
+                                s * (SW.PLATE_W1 - 0.0004), s * 0.018, s * 0.015, mat="satin", h=s * 0.0012))
             k += 1
     # the screen's neck into the shelf: a flat dark collar
     ctr = ZI.SCREEN_C

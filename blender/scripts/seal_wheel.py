@@ -44,6 +44,31 @@ ARM_L = [(-0.0738, 0.0252), (-0.1038, 0.0189), (-0.1339, 0.0085), (-0.1565, -0.0
 PLATE_W0, PLATE_W1 = -0.004, 0.011
 INSET = 0.945            # the plate's lower edge, as a fraction of the rim's centreline radius
 
+# Everything above is the wheel as the photographs measure it (a 375 mm rim). The seat's eye is only 0.55 m from it (the other
+# cars' are 0.75-0.83 m), so in the seat the wheel filled the picture: the owner asked for it 10 % smaller (2026-11-13).
+# `build` draws the wheel at its measured size, then shrinks the wheel (not the column shroud, which must still reach the dash)
+# about its centre. Whatever is placed on the wheel afterwards (seal_polish: key collars, icons) must use SCALE too.
+SCALE = 0.90
+
+
+def shrink_wheel(objs, centre=None, k=SCALE):
+    """Scale mesh objects uniformly about the wheel's centre and bake it into their vertices."""
+    from mathutils import Matrix
+    c = Vector(centre if centre is not None else ZI.WHEEL_C)
+    m = Matrix.Translation(c) @ Matrix.Scale(k, 4) @ Matrix.Translation(-c)
+    done = set()
+    for ob in objs:
+        if ob is None or ob.type != 'MESH':
+            continue
+        if ob.data.users > 1:
+            ob.data = ob.data.copy()
+        if ob.data.name in done:
+            continue
+        done.add(ob.data.name)
+        ob.data.transform(m @ ob.matrix_world)
+        ob.matrix_world = Matrix.Identity(4)
+        ob.data.update()
+
 
 def d_loop(n=96):
     """The rim's centreline: a circle with a flat bottom and filleted corners, counter-clockwise from
@@ -239,6 +264,8 @@ def build(col, lib):
     made += build_chamfer(fr, col, lib)
     made += build_keys(fr, col, lib)
     made += build_logo(frh, col, lib, 0.0330)
-    made += ST.column(fr, col, lib)
     made += build_stalks(fr, col, lib)
+    shrink_wheel(made)
+    # the column shroud keeps its size: it runs from behind the hub to the dash
+    made += ST.column(fr, col, lib)
     return made

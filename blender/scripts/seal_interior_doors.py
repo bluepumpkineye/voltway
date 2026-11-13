@@ -400,7 +400,9 @@ def build_front_card(side, pre, col, lib, driver):
     p = L.path([(0.03, F_T_TOP(0.03) - 0.006), (0.30, F_T_TOP(0.30) - 0.006), (0.62, F_T_TOP(0.62) - 0.006)],
                0.0072, 30)
     made.append(piping(pre + "Ambient", p, col, lib["ambient"], r=0.0013, lateral=(0.0, 0.0, 1.0)))
-    made += build_handle(L, pre, col, lib, 0.663, 0.879)
+    # u 0.663 put the kidney's front tip close to the card's hinge edge, where the trim runs into the dash (owner, 2026-11-13:
+    # "too close to the door edge, push it backward a little"): 0.60 moves it toward the B-pillar
+    made += build_handle(L, pre, col, lib, 0.60, 0.879)
     return made
 
 
