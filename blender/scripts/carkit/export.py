@@ -69,8 +69,15 @@ def join(name, member_names):
 
 
 def merge_for_export(groups, protected=()):
-    """Join each collection into one object; report objects, slots, tris."""
+    """Join each collection into one object; report objects, slots, tris.
+
+    Objects flagged `decal` (bpy_interior_polish.finish_decals: icon quads and glow ribbons) are never joined: the web app dresses
+    them and hangs the door cards' under their card nodes, and the AO atlas bake leaves them out."""
     protected = set(protected)
+    for _, cname in groups:
+        col = bpy.data.collections.get(cname)
+        if col:
+            protected |= {o.name for o in col.objects if o.get("decal")}
     before = 0
     for _, cname in groups:
         col = bpy.data.collections.get(cname)

@@ -1,7 +1,6 @@
 import React from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-import type { Vehicle } from '@/data/vehicles/schema';
 
 /**
  * The control-icon decals: standard automotive micro-icons on the keys the cabin model leaves blank (steering-wheel keys, the
@@ -10,7 +9,11 @@ import type { Vehicle } from '@/data/vehicles/schema';
  * The cabin GLB carries them as tiny flat quads in one material, `M_Icons`, whose UVs point into an 8 x 4 atlas; the atlas is
  * drawn here, on a canvas, so it is crisp at any size and needs no image file. ICONS is the atlas's order and must match
  * blender/scripts/seal_polish.py. The decals sit 0.4 mm over the keys, win the depth test with a polygon offset, and glow a
- * little (emission 0.25) so a control reads as lit and engineered. Only cars listed in WITH_ICONS carry the quads.
+ * little (emission 0.25) so a control reads as lit and engineered.
+ *
+ * `applyInteriorDecals(scene, carId)` is the one entry point and is self-describing: a car gets icons when its cabin GLB carries
+ * `M_Icons` quads, and WHERE they sit (which key, which glyph) is that car's mapping, written in Blender with
+ * blender/scripts/bpy_interior_polish.place_icons (the Seal's is seal_polish.py). Nothing here lists cars.
  */
 export const ICONS = [
   'vol_plus', 'vol_minus', 'mute', 'next', 'voice', 'phone', 'cruise', 'adas_distance',
@@ -255,6 +258,56 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
       ctx.stroke();
     }
   },
+  mode(ctx) {
+    // a steering wheel seen from the front, with a gauge needle: the drive-mode key
+    stroke(ctx, WHITE, 8);
+    arc(ctx, 64, 64, 42, 0, Math.PI * 2);
+    arc(ctx, 64, 64, 12, 0, Math.PI * 2);
+    line(ctx, 22, 64, 52, 64);
+    line(ctx, 76, 64, 106, 64);
+    line(ctx, 64, 76, 64, 106);
+  },
+  boot(ctx) {
+    stroke(ctx, WHITE, 8);
+    line(ctx, 18, 98, 18, 62, 36, 40, 92, 40, 110, 62, 110, 98, 18, 98);
+    line(ctx, 38, 40, 28, 18, 76, 14);
+    line(ctx, 42, 80, 86, 80);
+  },
+  camera(ctx) {
+    stroke(ctx, WHITE, 8);
+    ctx.beginPath();
+    ctx.roundRect(18, 40, 92, 62, 10);
+    ctx.stroke();
+    arc(ctx, 64, 71, 18, 0, Math.PI * 2);
+    line(ctx, 44, 40, 52, 26, 76, 26, 84, 40);
+  },
+  child(ctx) {
+    // child lock: a small figure and a padlock stroke
+    stroke(ctx, WHITE, 8);
+    arc(ctx, 64, 36, 14, 0, Math.PI * 2);
+    line(ctx, 64, 52, 64, 84);
+    line(ctx, 40, 66, 88, 66);
+    line(ctx, 64, 84, 46, 108);
+    line(ctx, 64, 84, 82, 108);
+  },
+  back(ctx) {
+    stroke(ctx, WHITE, 9);
+    line(ctx, 84, 28, 38, 64, 84, 100);
+  },
+  ok(ctx) {
+    stroke(ctx, WHITE, 9);
+    arc(ctx, 64, 64, 44, 0, Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(64, 64, 9, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  light(ctx) {
+    stroke(ctx, WHITE, 8);
+    ctx.beginPath();
+    ctx.ellipse(46, 64, 22, 34, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    for (const y of [38, 56, 74, 92]) line(ctx, 74, y, 108, y);
+  },
   fan(ctx) {
     stroke(ctx, WHITE, 8);
     for (let k = 0; k < 3; k++) {
@@ -295,49 +348,72 @@ export function buildIconAtlas(): THREE.CanvasTexture {
   return tex;
 }
 
-const WITH_ICONS = new Set(['byd-seal']);
 const DECALS = /^m_icons$/i;
+/** Per-car emission of the glyphs (the default is the brief's 0.25). */
+const DECAL_EMISSION: Record<string, number> = {};
 
-/** Dresses the cabin's `M_Icons` quads with the atlas: glowing glyphs over the keys, in front of them in depth. */
-export function useIconDecals(model: THREE.Object3D, vehicle: Vehicle) {
-  const invalidate = useThree((s) => s.invalidate);
-  const wanted = WITH_ICONS.has(vehicle.slug);
-  React.useEffect(() => {
-    if (!wanted) return;
-    const mats = new Set<THREE.MeshStandardMaterial>();
-    model.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        if (DECALS.test(m.name) && m instanceof THREE.MeshStandardMaterial) mats.add(m);
-      }
-    });
-    if (!mats.size) return;
-    const atlas = buildIconAtlas();
+/**
+ * Dresses a cabin's `M_Icons` quads with the shared atlas: glowing glyphs over the keys, in front of them in depth. Returns the
+ * undo (the cabin may unmount). A cabin with no `M_Icons` quads is left as it is.
+ */
+export function applyInteriorDecals(scene: THREE.Object3D, carId: string): () => void {
+  // The cabin export keeps decals apart from its merge (bpy_interior_polish.finish_decals): `decal_<card node>` holds the icons of
+  // that door card, and hangs under the card's own node here so they swing with the door; `decal_cabin` and `decal_glow` stay put.
+  const moved: [THREE.Object3D, THREE.Object3D | null][] = [];
+  const pending: [THREE.Object3D, THREE.Object3D][] = [];
+  scene.traverse((o) => {
+    const m = /^decal_(int_r?door_[LR])$/.exec(o.name);
+    const card = m ? scene.getObjectByName(m[1]) : null;
+    if (card && o.parent !== card) pending.push([o, card]);
+  });
+  // moved after the walk: attach() edits the children being walked
+  for (const [o, card] of pending) {
+    moved.push([o, o.parent]);
+    card.attach(o);
+  }
+  const mats = new Set<THREE.MeshStandardMaterial>();
+  scene.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (DECALS.test(m.name) && m instanceof THREE.MeshStandardMaterial) mats.add(m);
+    }
+  });
+  if (!mats.size) return () => moved.forEach(([o, p]) => p?.attach(o));
+  const atlas = buildIconAtlas();
+  for (const m of mats) {
+    m.map = atlas;
+    m.emissiveMap = atlas;
+    m.emissive.set('#ffffff');
+    m.emissiveIntensity = DECAL_EMISSION[carId] ?? 0.25;
+    m.transparent = true;
+    m.alphaTest = 0.02;
+    m.depthWrite = false;
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = -1;
+    m.polygonOffsetUnits = -1;
+    m.roughness = 0.6;
+    m.metalness = 0;
+    m.color.set('#ffffff');
+    m.needsUpdate = true;
+  }
+  return () => {
     for (const m of mats) {
-      m.map = atlas;
-      m.emissiveMap = atlas;
-      m.emissive.set('#ffffff');
-      m.emissiveIntensity = 0.25;
-      m.transparent = true;
-      m.alphaTest = 0.02;
-      m.depthWrite = false;
-      m.polygonOffset = true;
-      m.polygonOffsetFactor = -1;
-      m.polygonOffsetUnits = -1;
-      m.roughness = 0.6;
-      m.metalness = 0;
-      m.color.set('#ffffff');
+      m.map = null;
+      m.emissiveMap = null;
       m.needsUpdate = true;
     }
+    atlas.dispose();
+    moved.forEach(([o, p]) => p?.attach(o));
+  };
+}
+
+/** The hook form: applied when the cabin mounts, undone when it goes. */
+export function useInteriorDecals(model: THREE.Object3D, carId: string) {
+  const invalidate = useThree((s) => s.invalidate);
+  React.useEffect(() => {
+    const undo = applyInteriorDecals(model, carId);
     invalidate();
-    return () => {
-      for (const m of mats) {
-        m.map = null;
-        m.emissiveMap = null;
-        m.needsUpdate = true;
-      }
-      atlas.dispose();
-    };
-  }, [model, wanted, invalidate]);
+    return undo;
+  }, [model, carId, invalidate]);
 }

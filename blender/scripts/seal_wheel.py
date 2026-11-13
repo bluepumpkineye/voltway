@@ -41,7 +41,8 @@ WINDOW_L = [(-0.1604, -0.0189), (-0.0829, -0.0414), (-0.0637, -0.0720), (-0.0802
 BOTTOM = [(-0.040, -0.090), (0.040, -0.090), (0.062, -0.105), (0.085, -0.130), (-0.085, -0.130),
           (-0.062, -0.105)]
 ARM_L = [(-0.0738, 0.0252), (-0.1038, 0.0189), (-0.1339, 0.0085), (-0.1565, -0.0013)]
-PLATE_W0, PLATE_W1 = -0.004, 0.012
+PLATE_W0, PLATE_W1 = -0.004, 0.011
+INSET = 0.945            # the plate's lower edge, as a fraction of the rim's centreline radius
 
 
 def d_loop(n=96):
@@ -110,7 +111,10 @@ def _plate_loops():
         a = math.degrees(math.atan2(p[1], p[0]))
         return a + 360.0 if a < 0 else a
     lower = sorted([p for p in loop if p[1] < -0.012 and 183.0 < ang(p) < 357.0], key=ang)
-    outer = ([(-0.1706, -0.012)] + lower + [(0.1706, -0.012)]
+    # The plate's lower edge follows the rim's centreline; at 12 mm it poked a black diamond out of the leather at the rim's left
+    # (found 2026-11-13 by hiding INT_Graphite in the viewer). Its edge now runs 5 % inside the centreline, where the tube is deep.
+    lower = [(p[0] * INSET, p[1] * INSET) for p in lower]
+    outer = ([(-0.1706 * INSET, -0.012)] + lower + [(0.1706 * INSET, -0.012)]
              + [(-u, v) for (u, v) in ARM_L[::-1]] + [(0.0, 0.026)] + list(ARM_L))
     outer = _dedupe(outer)
 
@@ -133,15 +137,9 @@ def _dedupe(pts, eps=1e-5):
 
 
 def build_chamfer(fr, col, lib):
-    """A silver chamfer round each window and the bottom opening."""
-    made = []
-    outer, holes = _plate_loops()
-    for k, h in enumerate(holes):
-        path = [fr.p(p[0], p[1], PLATE_W1 + 0.0006) for p in h]
-        path.append(path[0])
-        made.append(tube("int_wheel_chamfer%d" % k, path, ellipse(0.0017, 0.0010, 6), col,
-                         lib["brushed"] if k < 2 else lib["gunmetal"], lateral=tuple(fr.A)))
-    return made
+    """No chamfer tubes: the silver outline round each window and the bottom opening read as white wire strokes in the web
+    viewer (2026-11-13). The plate's own edge is bevelled instead (seal_polish: Bevel + Weighted Normal on int_wheel_plate)."""
+    return []
 
 
 # ----------------------------------------------------------------- keys

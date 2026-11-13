@@ -286,6 +286,12 @@ def build_dash(col, lib):
     # ambient light guide in the lip under the band, a fine silver line on its rim
     p, nrm = sw.iso_col(sw.col(6), int(n * 0.03), int(n * 0.97), lift=0.0010)
     made.append(piping("int_dash_Ambient", p, col, lib["ambient"], r=0.0016, lateral=(1.0, 0.0, 0.0)))
+    # the light guide's spill on the shelf below it (seal_polish.glow_ribbon: M_Glow, drawn additively by the web)
+    try:
+        import seal_polish as SP
+        made += SP.glow_ribbon(col, sw)
+    except Exception as exc:  # noqa: BLE001
+        print("seal_interior: glow ribbon skipped: %r" % (exc,))
     p, nrm = sw.iso_col(sw.col(4), int(n * 0.02), int(n * 0.98), lift=0.0006)
     made.append(piping("int_dash_Rim", p, col, lib["gunmetal"], r=0.0012, lateral=(1.0, 0.0, 0.0)))
     # the shelf's seam, a fine stitch under its front edge

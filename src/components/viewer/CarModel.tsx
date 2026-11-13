@@ -21,10 +21,11 @@ import { CarLights } from './Lights';
 import { CarFollower, useRigBinding } from './techRig';
 import { rigSwivel } from './ScreenSwivel';
 import { smoothBakedLight } from './bakeSmooth';
-import { FOOTWELL, fxVersion } from './cabinfx/settings';
+import { FOOTWELL, applyCarPreset, fxVersion } from './cabinfx/settings';
 import { useCabinFx, useCabinFxOn } from './cabinfx/InteriorFx';
 import { useLiveCluster } from './cabinfx/cluster';
-import { useIconDecals } from './cabinfx/icons';
+import { useInteriorDecals } from './cabinfx/icons';
+import { useAmbientSpill } from './cabinfx/spill';
 import { buildGlossEnvironment, retuneInteriorMaterials, syncSheenTint, upgradeInteriorMaterials } from './cabinfx/materials';
 
 /**
@@ -404,6 +405,8 @@ function Cabin({
   // the Interior tab's seat: where the cabin's post-processing runs and the upgraded look applies (cabinfx/)
   const fxOn = useCabinFxOn();
   const fx = useCabinFx();
+  // this car's own values on top of the locked defaults, once when its cabin mounts (cabinfx/settings.ts CAR_PRESETS)
+  React.useEffect(() => applyCarPreset(vehicle.slug), [vehicle.slug]);
   const invalidate = useThree((s) => s.invalidate);
   React.useEffect(() => {
     if (process.env.NODE_ENV !== 'production') (window as unknown as { __invalidate?: () => void }).__invalidate = invalidate;
@@ -496,7 +499,8 @@ function Cabin({
       }
       const baked = Boolean(g.getAttribute('bakedLight'));
       // a cabin with an occlusion atlas on its second UV set (carkit.aoatlas) is lit by the hall instead
-      const atlas = !baked && Boolean(g.getAttribute('uv1'));
+      // (the decal quads and glow ribbons are kept out of the occlusion bake, so they have no second UV set but are lit like the rest)
+      const atlas = !baked && (Boolean(g.getAttribute('uv1')) || o.name.startsWith('decal_'));
       for (const m of materialsOf(o)) {
         if (!(m instanceof THREE.MeshStandardMaterial)) continue;
         if (atlas) {
@@ -556,7 +560,9 @@ function Cabin({
   // the driver's cluster, drawn crisp and live (the Seal: cabinfx/cluster.ts); lit past 1.0 in the seat so the bloom lifts its digits
   useLiveCluster(model, vehicle, fxOn ? 1.35 : null);
   // the control icons over the keys the model leaves blank (cabinfx/icons.ts, the quads are the Blender cabin's `M_Icons`)
-  useIconDecals(model, vehicle);
+  useInteriorDecals(model, vehicle.slug);
+  // the light guides' soft spill on the leather beside them (cabinfx/spill.ts; the ribbons are the cabin's `M_Glow`): seat only
+  useAmbientSpill(model, ambientOn && fxOn, ambientHue, ambientBrightness, fx.spill);
 
   React.useEffect(() => {
     // the live HMI covers screen_main, so its backing material stays dim

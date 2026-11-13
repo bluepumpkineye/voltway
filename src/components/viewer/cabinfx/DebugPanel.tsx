@@ -1,17 +1,7 @@
 'use client';
 
 import React from 'react';
-import { DEBUG_UI, FX, FX_DEFAULTS, touchFx } from './settings';
-
-type Rec = Record<string, unknown>;
-
-function deepAssign(to: Rec, from: Rec) {
-  for (const k of Object.keys(from)) {
-    const v = from[k];
-    if (v && typeof v === 'object') deepAssign(to[k] as Rec, v as Rec);
-    else to[k] = v;
-  }
-}
+import { DEBUG_UI, FX, resetFx, touchFx } from './settings';
 
 /**
  * The tuning panel (lil-gui), only with `?debug=true` in the address and only in the browser: every slider writes the
@@ -59,6 +49,7 @@ export function CabinFxDebugPanel() {
       on(b.add(FX.bloom, 'intensity', 0, 3, 0.01).name('strength'));
       on(b.add(FX.bloom, 'radius', 0, 1, 0.01));
       on(b.add(FX, 'ambientGain', 0.5, 8, 0.05).name('ambient strip x'));
+      on(b.add(FX, 'spill', 0, 4, 0.05).name('ambient spill on leather'));
 
       const f = g.addFolder('Footwell');
       on(f.add(FX.footwell, 'enabled'));
@@ -91,14 +82,13 @@ export function CabinFxDebugPanel() {
       g.add(
         {
           reset: () => {
-            // in place: the sliders hold the nested objects themselves
-            deepAssign(FX as unknown as Rec, FX_DEFAULTS as unknown as Rec);
+            // the active car's own values, in place (the sliders hold the nested objects themselves)
+            resetFx();
             g.controllersRecursive().forEach((ct) => ct.updateDisplay());
-            touchFx();
           },
         },
         'reset',
-      ).name('reset to defaults');
+      ).name('reset to this car values');
       gui = g;
     });
     return () => {

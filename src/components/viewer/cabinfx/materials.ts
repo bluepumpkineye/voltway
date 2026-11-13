@@ -49,6 +49,7 @@ interface Base {
   sheenRoughness: number;
   envMap: THREE.Texture | null;
   normalMap: THREE.Texture | null;
+  roughnessMap: THREE.Texture | null;
   normalScale: THREE.Vector2;
 }
 
@@ -106,6 +107,7 @@ export function upgradeInteriorMaterials(root: THREE.Object3D, themeConfig?: Con
         sheenRoughness: p.sheenRoughness,
         envMap: p.envMap,
         normalMap: p.normalMap,
+        roughnessMap: p.roughnessMap,
         normalScale: p.normalScale.clone(),
       };
       p.needsUpdate = true;
@@ -150,6 +152,7 @@ export function retuneInteriorMaterials(root: THREE.Object3D, glossEnv: THREE.Te
     m.sheen = base.sheen;
     m.sheenRoughness = base.sheenRoughness;
     m.normalMap = base.normalMap;
+    m.roughnessMap = base.roughnessMap;
     m.normalScale.copy(base.normalScale);
     // the hall probe the cabin shader was given stays unless a softbox room replaces it on the gloss surfaces
     const hall = (m.userData.fxHall ??= base.envMap ?? m.envMap ?? null) as THREE.Texture | null;
@@ -159,7 +162,6 @@ export function retuneInteriorMaterials(root: THREE.Object3D, glossEnv: THREE.Te
     if (on) {
       switch (base.kind) {
         case 'leather': {
-          m.roughness = mt.leatherRoughness;
           m.sheen = Math.max(base.sheen, mt.leatherSheen);
           m.sheenRoughness = 0.5;
           if (m.normalMap && !mt.proceduralLeather) {
@@ -169,17 +171,19 @@ export function retuneInteriorMaterials(root: THREE.Object3D, glossEnv: THREE.Te
             m.normalMap = leather.normal;
             m.normalScale.set(mt.leatherNormal, mt.leatherNormal);
           }
+          giveRoughnessGrain(m, base, mt.leatherRoughness);
           break;
         }
         case 'perf': {
-          // the holes' depth is in the normal map at its own strength: only the skin around them is retuned
-          m.roughness = mt.leatherRoughness;
+          // the holes' depth is in the normal map at its own strength (a touch stronger: they are the point): the skin
+          // around them is retuned like the other leathers
           m.sheen = Math.max(base.sheen, mt.leatherSheen);
           m.sheenRoughness = 0.5;
           if (!m.normalMap) {
             m.normalMap = proceduralPerforation();
             m.normalScale.set(1, 1);
-          }
+          } else m.normalScale.multiplyScalar(1.25);
+          giveRoughnessGrain(m, base, mt.leatherRoughness);
           break;
         }
         case 'alcantara':
@@ -226,8 +230,41 @@ export function retuneInteriorMaterials(root: THREE.Object3D, glossEnv: THREE.Te
     if (was[2] !== m.clearcoat && (was[2] === 0 || m.clearcoat === 0)) m.needsUpdate = true;
     if (was[3] !== m.sheen && (was[3] === 0 || m.sheen === 0)) m.needsUpdate = true;
     if (was[5] !== m.normalMap) m.needsUpdate = true;
+    if (m.roughnessMap !== (m.userData.fxRough ?? null)) {
+      m.userData.fxRough = m.roughnessMap;
+      m.needsUpdate = true;
+    }
     if (was[4] !== m.envMap) m.needsUpdate = true;
   }
+}
+
+/**
+ * A roughness map for leather that ships without one: the procedural grain's, tiled with the SAME repeat, offset and UV set as
+ * the material's own normal map (so the glints sit in the pebbles the normals draw). The factor is divided by the map's mean
+ * (0.8) so the leather's overall roughness stays what the panel says.
+ */
+const grainCache = new Map<string, THREE.Texture>();
+function giveRoughnessGrain(m: THREE.MeshPhysicalMaterial, base: Base, rough: number) {
+  const nm = m.normalMap;
+  if (base.roughnessMap || !nm) {
+    m.roughness = rough;
+    return;
+  }
+  let t = grainCache.get(nm.uuid);
+  if (!t) {
+    t = proceduralLeather().roughness.clone();
+    t.repeat.copy(nm.repeat);
+    t.offset.copy(nm.offset);
+    t.rotation = nm.rotation;
+    t.center.copy(nm.center);
+    t.channel = nm.channel;
+    // the glTF's own UV tiling when it carries none: the grain's own repeat
+    if (nm.repeat.x === 1 && nm.repeat.y === 1) t.repeat.set(LEATHER_REPEAT, LEATHER_REPEAT);
+    t.needsUpdate = true;
+    grainCache.set(nm.uuid, t);
+  }
+  m.roughnessMap = t;
+  m.roughness = Math.min(1, rough / 0.8);
 }
 
 /** The sheen of leather and Alcantara is a slightly lighter version of whatever colour the theme has made the surface. */

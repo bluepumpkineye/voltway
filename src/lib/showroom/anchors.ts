@@ -1,4 +1,5 @@
 import type { AnchorId, Vehicle } from '@/data/vehicles/schema';
+import { INTERIOR_PRESET } from './interiorPreset';
 
 export type V3 = [number, number, number];
 
@@ -182,7 +183,7 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number, atEye = f
   // sits low in the picture and the dash fills the width
   const pos: V3 = [x - EYE_BACK - (dv?.back ?? 0), z + (dv?.lift ?? 0), -(y + (dv?.out ?? 0))];
   const look = dv?.look ?? [0.142, -0.038, 0.031];
-  const fov = dv?.fov ?? 46;
+  const fov = dv?.fov ?? INTERIOR_PRESET.fov;
   return {
     id: 'driver',
     mode: 'interior',
@@ -190,9 +191,9 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number, atEye = f
     // the camera pivots 15 cm ahead of the eye, so a drag turns the head
     // rather than swinging the eye across the cabin
     target: [pos[0] + look[0], pos[1] + look[1], pos[2] + look[2]],
-    // a portrait window with a panel at the foot opens the lens out so the centre screen is not cut off; never past 56 degrees,
+    // a portrait window with a panel at the foot opens the lens out so the centre screen is not cut off; never past the preset's fovMax,
     // beyond which the doors, the mirrors and the wheel's rim stretch toward the picture's edges
-    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.max(fov, Math.min(56, fov * (1 + (0.9 - aspect)))) : fov,
+    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.max(fov, Math.min(INTERIOR_PRESET.fovMax, fov * (1 + (0.9 - aspect)))) : fov,
     minDistance: 0.05,
     maxDistance: 0.3,
     minPolar: 0.2 * Math.PI,

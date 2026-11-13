@@ -288,7 +288,7 @@ def build_pack(L, pre, col, lib, uc, tc, proud, driver, tilt=24.0):
         # decals over the window faces and the small keys (seal_polish: an icon atlas the web app draws)
         try:
             import seal_polish as SP
-            made += SP.pack_icons(col, pre, n, up, at)
+            made += SP.pack_icons(col, pre, n, up, at, driver=True)
         except Exception as exc:  # noqa: BLE001
             print("seal_interior_doors: icons skipped: %r" % (exc,))
     else:
@@ -296,6 +296,11 @@ def build_pack(L, pre, col, lib, uc, tc, proud, driver, tilt=24.0):
         made.append(_box(col, lib, pre + "Win", at(0.0, 0.0, 0.0090), (0.007, 0.040, 0.018), "chrome", fr, 0.0012))
         made.append(_box(col, lib, pre + "WinFace", at(0.0, 0.0, 0.0125), (0.002, 0.033, 0.012), "key", fr,
                          0.0004))
+        try:
+            import seal_polish as SP
+            made += SP.pack_icons(col, pre, n, up, at, driver=False)
+        except Exception as exc:  # noqa: BLE001
+            print("seal_interior_doors: rocker icons skipped: %r" % (exc,))
     return made
 
 
@@ -365,6 +370,11 @@ def build_front_card(side, pre, col, lib, driver):
     made.append(_box(col, lib, pre + "BootSwitch",
                      Vector(L.point(0.751, 0.295, -0.002)) + Vector(L.normal()) * 0.004,
                      (0.008, 0.040, 0.046), "key", _frame(L, 0.0), 0.005))
+    try:
+        import seal_polish as SP
+        made += SP.boot_icon(col, pre, L)
+    except Exception as exc:  # noqa: BLE001
+        print("seal_interior_doors: boot icon skipped: %r" % (exc,))
     # the lower orange band and the big swoop above the ledge
     made.append(region(L, col, pre + "LowerBand", lib["leather_door"], 0.0, 0.95, F_C_BOT, F_C_TOP, 0.003,
                        nx=72, nz=8))

@@ -8,6 +8,7 @@ import { hingesOf } from '@/lib/openings';
 import { xrayOf } from '@/lib/xray/rig';
 import { PART_OF, playCue } from '@/lib/sound/engine';
 import { useVehicleStore } from '@/store/vehicle-store';
+import { FX } from './cabinfx/settings';
 
 const reducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -334,6 +335,23 @@ export function useGlass(
       const phys = pane.m as THREE.MeshPhysicalMaterial;
       const reflect = pane.privacy ? (vehicle.glass?.privacyReflect ?? vehicle.glass?.reflect ?? 1) : (vehicle.glass?.reflect ?? 1);
       if (pane.spec !== undefined) phys.specularIntensity = pane.spec * (pane.frit || lv.inside ? 1 : reflect);
+      // The Interior tab's seat (cabinfx): the glass is a thin tinted window with a clear coat and a little mirror, so the view out
+      // is not a hole. As built everywhere else.
+      if (phys.isMeshPhysicalMaterial) {
+        const seat = lv.inside && !pane.frit && FX.enabled && useVehicleStore.getState().tab === 'interior';
+        const b = (pane.m.userData.fxGlass ??= {
+          roughness: phys.roughness,
+          metalness: phys.metalness,
+          clearcoat: phys.clearcoat,
+          clearcoatRoughness: phys.clearcoatRoughness,
+        }) as Record<'roughness' | 'metalness' | 'clearcoat' | 'clearcoatRoughness', number>;
+        const wasCoat = phys.clearcoat > 0;
+        phys.roughness = seat ? 0.05 : b.roughness;
+        phys.metalness = seat ? 0.1 : b.metalness;
+        phys.clearcoat = seat ? 1 : b.clearcoat;
+        phys.clearcoatRoughness = seat ? 0.04 : b.clearcoatRoughness;
+        if (wasCoat !== phys.clearcoat > 0) phys.needsUpdate = true;
+      }
     };
     lv.repaint = () => panes.forEach(paint);
     const undo: (() => void)[] = [];

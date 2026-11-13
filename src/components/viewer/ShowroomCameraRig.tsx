@@ -11,6 +11,7 @@ import { rigOf } from '@/lib/tech/rig';
 import { DRACO_PATH } from './CarModel';
 import { motionOk } from './configurator';
 import { FX } from './cabinfx/settings';
+import { INTERIOR_PRESET } from '@/lib/showroom/interiorPreset';
 
 // scratch for the seat camera's ride with the car
 const _seat = new THREE.Vector3();
@@ -181,6 +182,18 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     fovGoal.current = pose.fov;
     moved.current = false;
 
+    // the seat's head turn is limited either side of the pose's own look (interiorPreset.ts): past it the eye is inside the headrest
+    const yaw = (pos: V3, target: V3) => {
+      if (pose.id !== 'driver') {
+        c.minAzimuthAngle = -Infinity;
+        c.maxAzimuthAngle = Infinity;
+        return;
+      }
+      const az = Math.atan2(pos[0] - target[0], pos[2] - target[2]);
+      const lim = (INTERIOR_PRESET.yawLimitDeg * Math.PI) / 180;
+      c.minAzimuthAngle = az - lim;
+      c.maxAzimuthAngle = az + lim;
+    };
     const lock = () => {
       c.minDistance = pose.minDistance;
       c.maxDistance = pose.maxDistance;
@@ -202,6 +215,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       shift.current = shiftOf(pose, viewport.current.width);
       void c.setLookAt(...pos, ...target, false);
       lock();
+      yaw(pos, target);
       invalidate();
       return;
     }
@@ -211,12 +225,15 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     c.maxDistance = 200;
     c.minPolarAngle = 0;
     c.maxPolarAngle = Math.PI;
+    c.minAzimuthAngle = -Infinity;
+    c.maxAzimuthAngle = Infinity;
     c.smoothTime = motionOk() ? 0.55 : 0.01;
     const id = ++flight.current;
     void c.setLookAt(...pos, ...target, true).then(() => {
       if (id !== flight.current) return;
       c.smoothTime = 0.22;
       lock();
+      yaw(pos, target);
     });
     invalidate();
   }, [pose, tick, stage, camera, invalidate, inCar, vehicle]);

@@ -26,7 +26,8 @@ def cabin_objects(collection):
     """The collection's meshes with their modifiers applied, ready to unwrap."""
     from .export import bake_modifiers
     col = bpy.data.collections[collection] if isinstance(collection, str) else collection
-    objs = [o for o in col.objects if o.type == 'MESH' and len(o.data.polygons)]
+    # decal quads and glow ribbons (flagged `decal`) are neither baked nor occluders: see bpy_interior_polish.finish_decals
+    objs = [o for o in col.objects if o.type == 'MESH' and len(o.data.polygons) and not o.get("decal")]
     for o in objs:
         bake_modifiers(o)
     return objs
@@ -178,6 +179,14 @@ def _bake_once(objs, size, samples, distance, hide, margin, name):
         if not o.hide_render:
             o.hide_render = True
             hidden.append(o)
+    # a decal 0.4 mm over a surface would shade a square of it: out of every ray
+    decals = [o for o in bpy.data.objects if o.get("decal")]
+    ray_flags = ("visible_shadow", "visible_diffuse", "visible_glossy", "visible_transmission")
+    saved = [(o, [getattr(o, f, True) for f in ray_flags]) for o in decals]
+    for o in decals:
+        for f in ray_flags:
+            if hasattr(o, f):
+                setattr(o, f, False)
     targets = _bake_targets(objs, img)
     try:
         for o in bpy.context.view_layer.objects:
@@ -197,6 +206,10 @@ def _bake_once(objs, size, samples, distance, hide, margin, name):
             nt.nodes.remove(n)
         for o in hidden:
             o.hide_render = False
+        for o, vals in saved:
+            for f, v in zip(ray_flags, vals):
+                if hasattr(o, f):
+                    setattr(o, f, v)
         world.light_settings.distance = prev
         if made_world is not None:
             scn.world = None

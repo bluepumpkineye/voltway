@@ -43,6 +43,8 @@ export interface CabinFxSettings {
   };
   /** emissive intensity of the ambient strips per unit of the HMI's brightness slider (they bloom above `bloom.threshold`) */
   ambientGain: number;
+  /** the soft spill of a light guide on the leather beside it (the M_Glow ribbons), per unit of the HMI's brightness slider */
+  spill: number;
   /** the footwells and the dash overhang: light falls off toward the floor */
   footwell: { enabled: boolean; light: number; height: number };
   /** the cabin's gloss environment: crisp softboxes for chrome, piano black and screen glass */
@@ -67,9 +69,11 @@ export const FX_DEFAULTS: CabinFxSettings = {
   ao: { enabled: true, radius: 0.28, distanceFalloff: 0.6, intensity: 2.4, samples: 16, denoiseSamples: 8, denoiseRadius: 10, halfRes: false },
   bloom: { enabled: true, threshold: 1.1, smoothing: 0.25, intensity: 0.55, radius: 0.6 },
   ambientGain: 4.0,
-  footwell: { enabled: true, light: 0.38, height: 0.5 },
+  spill: 1.1,
+  // locked 2026-11-13 from the Seal's approved look: darker footwells (0.38 -> 0.25, over a taller ramp)
+  footwell: { enabled: true, light: 0.25, height: 0.55 },
   gloss: { softbox: true, envIntensity: 1.5, chromeEnv: 1.5 },
-  materials: { leatherNormal: 0.35, leatherRoughness: 0.62, leatherSheen: 0.15, alcantaraSheen: 1.0, proceduralLeather: false },
+  materials: { leatherNormal: 0.9, leatherRoughness: 0.62, leatherSheen: 0.15, alcantaraSheen: 1.0, proceduralLeather: false },
   fov: 0,
 };
 
@@ -105,6 +109,32 @@ function flag(name: string, on: string): boolean {
 /** `?debug=true`: show the tuning panel. */
 export const DEBUG_UI = flag('debug', 'true');
 
+type Deep<T> = { [K in keyof T]?: T[K] extends object ? Deep<T[K]> : T[K] };
+
+/**
+ * Per-car adjustments on top of the locked defaults (the Seal's approved look). Only where a car's own calibration needs it:
+ * every cabin was matched to its reference photographs under the Neutral curve (`assets.cabinGain`), and AgX moves a darker or
+ * a lighter cabin by a different amount. Each entry was measured against the Seal's relationship (the seat view's mean luma with
+ * the upgrade on is 1.03 x the mean with it off), by sweeping the exposure; see docs/cabin-fx.md "Per-car presets".
+ */
+export const CAR_PRESETS: Record<string, Deep<CabinFxSettings>> = {
+  // measured 2026-11-13: exposure at which the seat view's mean luma with the upgrade on is 1.03 x the mean with it off (the Seal's
+  // own relationship at 0.9). BYD Seal, XPeng G9L, Voyah Passion S and Denza Z9 land on it at the default 0.9.
+  'zeekr-7x': { tone: { exposure: 1.0 } }, // a bright cream cabin: AgX holds the whites down, so it needs more
+  'luxeed-rx': { tone: { exposure: 0.8 } }, // a dark cabin: AgX lifts the blacks, so it needs less
+  'nio-es8': { tone: { exposure: 0.82 } },
+  'xiaomi-su7-ultra': { tone: { exposure: 0.83 } },
+  'avatr-06t': { tone: { exposure: 1.05 } }, // extrapolated from 0.7-0.94 (ratio 0.99 at 0.94)
+};
+
+function deepAssign(to: Record<string, unknown>, from: Record<string, unknown>) {
+  for (const k of Object.keys(from)) {
+    const v = from[k];
+    if (v && typeof v === 'object') deepAssign(to[k] as Record<string, unknown>, v as Record<string, unknown>);
+    else to[k] = v;
+  }
+}
+
 export const FX: CabinFxSettings = structuredClone(FX_DEFAULTS);
 // `?cabinfx=0` turns the upgrade off for a before / after
 if (typeof window !== 'undefined' && addresses().some((q) => q.get('cabinfx') === '0')) FX.enabled = false;
@@ -115,6 +145,21 @@ if (typeof window !== 'undefined' && addresses().some((q) => q.get('cabinfx') ==
  * floor, w = on (1) or off (0).
  */
 export const FOOTWELL = { value: new THREE.Vector4(0, 0.5, 0.38, 1) };
+
+let activeCar = '';
+
+/** The locked defaults plus this car's preset, in place (the panel's sliders hold the nested objects); the URL's on / off stays. */
+export function applyCarPreset(slug: string) {
+  activeCar = slug;
+  const enabled = FX.enabled;
+  deepAssign(FX as unknown as Record<string, unknown>, structuredClone(FX_DEFAULTS) as unknown as Record<string, unknown>);
+  deepAssign(FX as unknown as Record<string, unknown>, (CAR_PRESETS[slug] ?? {}) as Record<string, unknown>);
+  FX.enabled = enabled;
+  touchFx();
+}
+
+/** Back to the active car's own values (the panel's reset). */
+export const resetFx = () => applyCarPreset(activeCar);
 
 const listeners = new Set<() => void>();
 let version = 0;
