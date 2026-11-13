@@ -57,7 +57,8 @@ export const CLUSTER_BRANDS: Record<string, ClusterBrand> = {
   'xiaomi-su7-ultra': { layout: 'wide', font: SANS, weight: 700, accent: '#ff6700', system: 'HyperOS', cycle: 'CLTC', efficiency: '15.1 kWh/100km' },
   'zeekr-7x': { layout: 'calm', font: LIGHT, weight: 200, system: 'ZEEKR OS', cycle: 'CLTC', efficiency: '15.9 kWh/100km' },
   'voyah-passion-s': { layout: 'calm', font: LIGHT, weight: 300, accent: '#c9a96e', system: 'VOYAH', cycle: 'CLTC', efficiency: '16.8 kWh/100km' },
-  'avatr-06t': { layout: 'strip', font: SANS, weight: 300, accent: '#b48cff', system: 'AVATR', cycle: 'CLTC', efficiency: '16.1 kWh/100km' },
+  // the Avatr 06T is left as it was (interiorPreset.CABIN_FX_EXCLUDED): its own cluster picture stays. The `strip` layout (an 18:1
+  // dash-wide band) is ready for it if that changes: { layout: 'strip', font: SANS, weight: 300, accent: '#b48cff', system: 'AVATR', ... }
 };
 
 export interface ClusterState {

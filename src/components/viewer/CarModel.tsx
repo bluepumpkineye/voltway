@@ -22,6 +22,7 @@ import { CarFollower, useRigBinding } from './techRig';
 import { rigSwivel } from './ScreenSwivel';
 import { smoothBakedLight } from './bakeSmooth';
 import { FOOTWELL, applyCarPreset, fxVersion } from './cabinfx/settings';
+import { cabinFxExcluded } from '@/lib/showroom/interiorPreset';
 import { useCabinFx, useCabinFxOn } from './cabinfx/InteriorFx';
 import { useLiveCluster } from './cabinfx/cluster';
 import { useInteriorDecals } from './cabinfx/icons';
@@ -399,11 +400,17 @@ function Cabin({
   const { scene } = useGLTF(url, DRACO_PATH);
   // flat standard materials become physical ones (cabinfx/materials.ts) BEFORE useTrim below looks for the leathers by name
   const theme = vehicle.configurator;
-  const prepare = React.useCallback((root: THREE.Object3D) => upgradeInteriorMaterials(root, theme), [theme]);
+  const prepare = React.useCallback(
+    (root: THREE.Object3D) => {
+      // a car left as it was (the 06T) keeps its materials exactly as exported
+      if (!cabinFxExcluded(vehicle.slug)) upgradeInteriorMaterials(root, theme);
+    },
+    [theme, vehicle.slug],
+  );
   const model = useClonedScene(scene, prepare);
   const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
   // the Interior tab's seat: where the cabin's post-processing runs and the upgraded look applies (cabinfx/)
-  const fxOn = useCabinFxOn();
+  const fxOn = useCabinFxOn(vehicle.slug);
   const fx = useCabinFx();
   // this car's own values on top of the locked defaults, once when its cabin mounts (cabinfx/settings.ts CAR_PRESETS)
   React.useEffect(() => applyCarPreset(vehicle.slug), [vehicle.slug]);

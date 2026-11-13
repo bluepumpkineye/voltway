@@ -9,6 +9,7 @@ import { xrayOf } from '@/lib/xray/rig';
 import { PART_OF, playCue } from '@/lib/sound/engine';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { FX } from './cabinfx/settings';
+import { cabinFxExcluded } from '@/lib/showroom/interiorPreset';
 
 const reducedMotion = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -338,7 +339,8 @@ export function useGlass(
       // The Interior tab's seat (cabinfx): the glass is a thin tinted window with a clear coat and a little mirror, so the view out
       // is not a hole. As built everywhere else.
       if (phys.isMeshPhysicalMaterial) {
-        const seat = lv.inside && !pane.frit && FX.enabled && useVehicleStore.getState().tab === 'interior';
+        const seat =
+          lv.inside && !pane.frit && FX.enabled && !cabinFxExcluded(vehicle.slug) && useVehicleStore.getState().tab === 'interior';
         const b = (pane.m.userData.fxGlass ??= {
           roughness: phys.roughness,
           metalness: phys.metalness,
@@ -376,7 +378,7 @@ export function useGlass(
       }
       lv.repaint = () => {};
     };
-  }, [root, hinges, xrayRig, enabled, invalidate, vehicle.xray, vehicle.glass]);
+  }, [root, hinges, xrayRig, enabled, invalidate, vehicle.xray, vehicle.glass, vehicle.slug]);
 
   React.useEffect(() => {
     live.current.inside = inside;

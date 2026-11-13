@@ -24,7 +24,7 @@ CARS = {
     "es8": ("es8_interior", "NIO_ES8_WHEEL", ()),
     "z9": ("z9_interior", "DENZA_WHEEL", ()),
     "su7": ("su7_interior", "SU7_ULTRA", ("mode", "voice")),        # the red dial, the brushed key
-    "a06t": ("a06t_interior", None, ()),
+    # the Avatr 06T is left as it was (owner, 2026-11-13): no entry, and no hook in a06t_interior.py
 }
 
 

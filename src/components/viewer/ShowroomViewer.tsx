@@ -104,7 +104,7 @@ export function ShowroomViewer({
         <XrayLabelDriver vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         {/* the cabin's post-processing (N8AO, bloom, tone map): mounted only while the visitor sits in the cabin on the Interior tab */}
-        <InteriorFx />
+        <InteriorFx slug={vehicle.slug} />
         <React.Suspense fallback={<Loading />}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />
           <Preload all />

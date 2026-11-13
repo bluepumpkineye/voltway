@@ -124,7 +124,6 @@ export const CAR_PRESETS: Record<string, Deep<CabinFxSettings>> = {
   'luxeed-rx': { tone: { exposure: 0.8 } }, // a dark cabin: AgX lifts the blacks, so it needs less
   'nio-es8': { tone: { exposure: 0.82 } },
   'xiaomi-su7-ultra': { tone: { exposure: 0.83 } },
-  'avatr-06t': { tone: { exposure: 1.05 } }, // extrapolated from 0.7-0.94 (ratio 0.99 at 0.94)
 };
 
 function deepAssign(to: Record<string, unknown>, from: Record<string, unknown>) {

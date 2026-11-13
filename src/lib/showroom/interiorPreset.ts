@@ -12,3 +12,17 @@ export const INTERIOR_PRESET = {
   fovMax: 56,
   yawLimitDeg: 110,
 } as const;
+
+/**
+ * Cars left exactly as they were before the interior upgrade (cabinfx): no composer, no material or glass changes, no live cluster,
+ * the old 46 degree seat lens and no head-turn limit. The Avatr 06T: its own render (the baked light map, the original cluster) is
+ * better than the upgrade's, the owner's call on 2026-11-13.
+ */
+export const CABIN_FX_EXCLUDED: readonly string[] = ['avatr-06t'];
+
+export const cabinFxExcluded = (slug: string): boolean => CABIN_FX_EXCLUDED.includes(slug);
+
+/** The seat's lens and head-turn limit for a car: the shared preset, or what an excluded car always had. */
+export function interiorPresetFor(slug: string): { fov: number; fovMax: number; yawLimitDeg: number | null } {
+  return cabinFxExcluded(slug) ? { fov: 46, fovMax: 88, yawLimitDeg: null } : INTERIOR_PRESET;
+}

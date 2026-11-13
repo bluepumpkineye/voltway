@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, SelectiveBloom, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
+import { cabinFxExcluded } from '@/lib/showroom/interiorPreset';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { FX, bindFrame, fxVersion, subscribeFx } from './settings';
 
@@ -34,17 +35,17 @@ const MODES: Record<typeof FX.tone.mode, ToneMappingMode> = {
   aces: ToneMappingMode.ACES_FILMIC,
 };
 
-/** True while the visitor is in the cabin on the Interior tab with the upgrade switched on. */
-export function useCabinFxOn(): boolean {
+/** True while the visitor is in the cabin on the Interior tab with the upgrade switched on, for a car that has it (not cabinFxExcluded). */
+export function useCabinFxOn(slug: string): boolean {
   const fx = useCabinFx();
   const seated = useVehicleStore((s) => s.cameraMode === 'interior' && s.tab === 'interior');
-  return fx.enabled && seated;
+  return fx.enabled && seated && !cabinFxExcluded(slug);
 }
 
-export function InteriorFx() {
+export function InteriorFx({ slug }: { slug: string }) {
   const invalidate = useThree((s) => s.invalidate);
   React.useEffect(() => bindFrame(invalidate), [invalidate]);
-  const on = useCabinFxOn();
+  const on = useCabinFxOn(slug);
   const cabinReady = useVehicleStore((s) => s.cabinReady);
   return on && cabinReady ? <Composer /> : null;
 }
