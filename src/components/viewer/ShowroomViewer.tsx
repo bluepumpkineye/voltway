@@ -34,6 +34,8 @@ import { TechSensors } from './TechSensors';
 import { TechStage } from './TechStage';
 import { TechLotDressing, TechStreet } from './TechStreet';
 import { CarRoot } from './techRig';
+import { InteriorFx } from './cabinfx/InteriorFx';
+import { CabinFxDebugPanel } from './cabinfx/DebugPanel';
 
 /**
  * The showroom's viewer (/showroom/[slug]): the same car and cabin as the
@@ -70,6 +72,8 @@ export function ShowroomViewer({
 
   return (
     <div className={className}>
+      {/* ?debug=true: lil-gui sliders for the cabin's look (cabinfx/settings.ts) */}
+      <CabinFxDebugPanel />
       <Canvas
         frameloop="demand"
         shadows
@@ -99,6 +103,8 @@ export function ShowroomViewer({
         <XrayDirector vehicle={vehicle} />
         <XrayLabelDriver vehicle={vehicle} />
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
+        {/* the cabin's post-processing (N8AO, bloom, tone map): mounted only while the visitor sits in the cabin on the Interior tab */}
+        <InteriorFx />
         <React.Suspense fallback={<Loading />}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />
           <Preload all />

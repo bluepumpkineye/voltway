@@ -21,6 +21,11 @@ import { CarLights } from './Lights';
 import { CarFollower, useRigBinding } from './techRig';
 import { rigSwivel } from './ScreenSwivel';
 import { smoothBakedLight } from './bakeSmooth';
+import { FOOTWELL, fxVersion } from './cabinfx/settings';
+import { useCabinFx, useCabinFxOn } from './cabinfx/InteriorFx';
+import { useLiveCluster } from './cabinfx/cluster';
+import { useIconDecals } from './cabinfx/icons';
+import { buildGlossEnvironment, retuneInteriorMaterials, syncSheenTint, upgradeInteriorMaterials } from './cabinfx/materials';
 
 /**
  * Blender exports with +Y up, so the car's axes arrive as:
@@ -391,8 +396,14 @@ function Cabin({
   lightMap = null,
 }: Props & { probe: THREE.Texture | null; lightMap?: THREE.Texture | null }) {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const model = useClonedScene(scene);
+  // flat standard materials become physical ones (cabinfx/materials.ts) BEFORE useTrim below looks for the leathers by name
+  const theme = vehicle.configurator;
+  const prepare = React.useCallback((root: THREE.Object3D) => upgradeInteriorMaterials(root, theme), [theme]);
+  const model = useClonedScene(scene, prepare);
   const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
+  // the Interior tab's seat: where the cabin's post-processing runs and the upgraded look applies (cabinfx/)
+  const fxOn = useCabinFxOn();
+  const fx = useCabinFx();
   const invalidate = useThree((s) => s.invalidate);
   React.useEffect(() => {
     if (process.env.NODE_ENV !== 'production') (window as unknown as { __invalidate?: () => void }).__invalidate = invalidate;
@@ -461,6 +472,8 @@ function Cabin({
 
   const refs = React.useMemo(() => {
     CABIN_GAIN.value = vehicle.assets.cabinGain ?? 1;
+    // the footwell's shade is measured from this cabin's own floor (its carpet)
+    FOOTWELL.value.x = floorHeightOf(model);
     const ambient: THREE.MeshStandardMaterial[] = [];
     const screens: THREE.MeshStandardMaterial[] = [];
     model.traverse((o) => {
@@ -508,13 +521,42 @@ function Cabin({
     const col = new THREE.Color().setHSL(ambientHue / 360, 0.92, 0.5);
     for (const m of refs.ambient) {
       m.emissive = col;
-      // a 3.4 mm light guide: bright enough to read as light, not as a neon tube
-      m.emissiveIntensity = ambientOn ? ambientBrightness * 2.2 : 0;
+      // a 3.4 mm light guide: bright enough to read as light, not as a neon tube. In the seat the strips are driven past 1.0
+      // (cabinfx: HDR, so the bloom takes them and nothing else)
+      m.emissiveIntensity = ambientOn ? ambientBrightness * (fxOn ? fx.ambientGain : 2.2) : 0;
       m.toneMapped = false;
       m.needsUpdate = true;
     }
     invalidate();
-  }, [refs.ambient, ambientOn, ambientHue, ambientBrightness, invalidate]);
+  }, [refs.ambient, ambientOn, ambientHue, ambientBrightness, invalidate, fxOn, fx.ambientGain]);
+
+  // ---- the seat's upgraded materials: gloss environment, leather and Alcantara tuning, live from the panel
+  const gl = useThree((s) => s.gl);
+  const [glossEnv, setGlossEnv] = React.useState<THREE.Texture | null>(null);
+  React.useEffect(() => {
+    if (!fxOn) return;
+    // built in an effect, not a memo: a GPU target made in a memo and disposed by a StrictMode cleanup comes back empty
+    const rt = buildGlossEnvironment(gl);
+    setGlossEnv(rt.texture);
+    return () => {
+      rt.dispose();
+      setGlossEnv(null);
+    };
+  }, [gl, fxOn]);
+  // the panel changed a number (useCabinFx above re-rendered this): the materials are retuned from it
+  const fxVer = fxVersion();
+  React.useEffect(() => {
+    retuneInteriorMaterials(model, glossEnv, fxOn);
+    invalidate();
+  }, [model, refs, glossEnv, fxOn, fxVer, invalidate]);
+  // the sheen's tint follows the leather's colour while the theme switcher tweens it
+  useFrame(() => {
+    if (fxOn) syncSheenTint(model);
+  });
+  // the driver's cluster, drawn crisp and live (the Seal: cabinfx/cluster.ts); lit past 1.0 in the seat so the bloom lifts its digits
+  useLiveCluster(model, vehicle, fxOn ? 1.35 : null);
+  // the control icons over the keys the model leaves blank (cabinfx/icons.ts, the quads are the Blender cabin's `M_Icons`)
+  useIconDecals(model, vehicle);
 
   React.useEffect(() => {
     // the live HMI covers screen_main, so its backing material stays dim
@@ -563,6 +605,23 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   });
 }
 
+
+/** The cabin's floor, world height in metres: the lowest point of its carpet (the lowest of anything, when it has none). */
+function floorHeightOf(model: THREE.Object3D): number {
+  model.updateWorldMatrix(true, true);
+  const carpet = new THREE.Box3();
+  const all = new THREE.Box3();
+  const one = new THREE.Box3();
+  model.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    one.setFromObject(mesh);
+    if (one.isEmpty()) return;
+    all.union(one);
+    if (materialsOf(mesh).some((m) => /carpet/i.test(m.name))) carpet.union(one);
+  });
+  return (carpet.isEmpty() ? all : carpet).min.y;
+}
 
 /**
  * HIMA's cabin light: a bright, even hall environment shaded by a baked occlusion atlas, and nothing else (docs/hima-benchmark.md).
@@ -633,7 +692,7 @@ function hallLighting(m: THREE.MeshStandardMaterial, env: THREE.Texture | null, 
         #endif`,
       );
   };
-  m.customProgramCacheKey = () => (lm ? 'cabin-hall-lm-v1' : 'cabin-hall-v1');
+  m.customProgramCacheKey = () => (lm ? 'cabin-hall-lm-v2' : 'cabin-hall-v2');
   m.needsUpdate = true;
 }
 

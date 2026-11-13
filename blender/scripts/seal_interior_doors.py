@@ -285,6 +285,12 @@ def build_pack(L, pre, col, lib, uc, tc, proud, driver, tilt=24.0):
                              "key", fr, 0.0010))
         made += F.disc(col, pre + "Mirror", tuple(at(0.053, 0.008, 0.0075)), tuple(n), 0.0105, lib["key"],
                        dome=0.0015, rim=0.0016, rim_mat=lib["chrome"])
+        # decals over the window faces and the small keys (seal_polish: an icon atlas the web app draws)
+        try:
+            import seal_polish as SP
+            made += SP.pack_icons(col, pre, n, up, at)
+        except Exception as exc:  # noqa: BLE001
+            print("seal_interior_doors: icons skipped: %r" % (exc,))
     else:
         made.append(_box(col, lib, pre + "Pack", base + n * 0.0040, (0.008, 0.062, 0.030), "key", fr, 0.004))
         made.append(_box(col, lib, pre + "Win", at(0.0, 0.0, 0.0090), (0.007, 0.040, 0.018), "chrome", fr, 0.0012))

@@ -10,6 +10,7 @@ import { resolveAnchor, type CarFrame, type V3 } from '@/lib/showroom/anchors';
 import { rigOf } from '@/lib/tech/rig';
 import { DRACO_PATH } from './CarModel';
 import { motionOk } from './configurator';
+import { FX } from './cabinfx/settings';
 
 // scratch for the seat camera's ride with the car
 const _seat = new THREE.Vector3();
@@ -251,11 +252,13 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     const cam = camera as THREE.PerspectiveCamera;
     const k = 1 - Math.exp(-dt * 5.5);
     let busy = false;
-    const dFov = fovGoal.current - cam.fov;
+    // the debug panel's lens for the Interior tab's seat (cabinfx; 0 = the pose's own)
+    const goalFov = FX.enabled && FX.fov > 0 && poseRef.current.id === 'driver' ? FX.fov : fovGoal.current;
+    const dFov = goalFov - cam.fov;
     if (Math.abs(dFov) >= 0.02) {
       cam.fov += dFov * k;
       busy = true;
-    } else cam.fov = fovGoal.current;
+    } else cam.fov = goalFov;
     // the goals come from the pose and the window as they are this frame: a visitor who has turned the car
     // still has it centred in the free part of the window when a device comes or goes
     const liftGoal = liftOf(poseRef.current, size.height);

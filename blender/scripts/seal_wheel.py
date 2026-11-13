@@ -215,8 +215,8 @@ def build_stalks(fr, col, lib):
     made = []
     for side, tag, tip in ((-1.0, "L", 0.012), (1.0, "R", 0.016)):
         path = smooth_path([fr.p(side * 0.040, 0.018, -0.050), fr.p(side * 0.080, 0.034, -0.044),
-                            fr.p(side * 0.116, 0.044, -0.036)], 10)
-        made.append(tube("int_wheel_stalk" + tag, path, ellipse(0.0092, 0.0074, 10), col, lib["key"],
+                            fr.p(side * 0.116, 0.044, -0.036)], 24)
+        made.append(tube("int_wheel_stalk" + tag, path, ellipse(0.0092, 0.0074, 28), col, lib["key"],
                          lateral=tuple(fr.V), scale=lambda s: (1.0 - 0.12 * s, 1.0 - 0.12 * s)))
         end = Vector(path[-1])
         made += F.disc(col, "int_wheel_stalkcap" + tag, tuple(end + Vector(fr.U) * side * 0.001),
@@ -233,7 +233,7 @@ def build(col, lib):
                 segments=[(0.0, 180.0, "leather_door"), (180.0, 360.0, "leather_door")], marker=None)
     made += ST.rim(fr, spec, col, lib)
     frh = ST.WheelFrame(tuple(Vector(ZI.WHEEL_C) + fr.V * PAD_DV), ZI.WHEEL_TILT)
-    pad = dict(hub=dict(w=0.15, h=0.135, sides=16, r_corner=0.0, dome=0.011, depth=0.050,
+    pad = dict(hub=dict(w=0.15, h=0.135, sides=32, r_corner=0.0, dome=0.011, depth=0.050,
                         outline=[(p[0], p[1]) for p in cr_segments(PAD, 3, closed=True, alpha=0.5)],
                         pad_role="leather_door", housing_role="graphite"))
     made += ST.hub(frh, pad, col, lib)

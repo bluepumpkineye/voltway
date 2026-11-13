@@ -190,7 +190,9 @@ function driverPose(vehicle: Vehicle, frame: CarFrame, aspect: number, atEye = f
     // the camera pivots 15 cm ahead of the eye, so a drag turns the head
     // rather than swinging the eye across the cabin
     target: [pos[0] + look[0], pos[1] + look[1], pos[2] + look[2]],
-    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.min(88, fov * (1 + (0.9 - aspect))) : fov,
+    // a portrait window with a panel at the foot opens the lens out so the centre screen is not cut off; never past 56 degrees,
+    // beyond which the doors, the mirrors and the wheel's rim stretch toward the picture's edges
+    fov: (frame.inset?.bottom ?? 0) > 0 && aspect < 0.9 ? Math.max(fov, Math.min(56, fov * (1 + (0.9 - aspect)))) : fov,
     minDistance: 0.05,
     maxDistance: 0.3,
     minPolar: 0.2 * Math.PI,
