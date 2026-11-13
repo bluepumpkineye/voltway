@@ -27,7 +27,10 @@ const COLS = 8;
 const ROWS = 4;
 const CELL = 128;
 const WHITE = '#f4f2ec';
+const DARK = '#15181c';
 const AMBER = '#ffb02e';
+/** the glyphs' ink while an atlas is drawn: white for dark keys, near-black for light ones (silver, cream, white) */
+let ink = WHITE;
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -66,26 +69,26 @@ function line(ctx: Ctx, ...p: number[]) {
 
 const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
   vol_plus(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     speaker(ctx);
     arc(ctx, 56, 64, 22, -0.7, 0.7);
     line(ctx, 96, 40, 96, 64);
     line(ctx, 84, 52, 108, 52);
   },
   vol_minus(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     speaker(ctx);
     arc(ctx, 56, 64, 22, -0.7, 0.7);
     line(ctx, 84, 52, 108, 52);
   },
   mute(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     speaker(ctx);
     line(ctx, 80, 46, 108, 82);
     line(ctx, 108, 46, 80, 82);
   },
   next(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.moveTo(34, 34);
     ctx.lineTo(80, 64);
@@ -95,7 +98,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     line(ctx, 96, 34, 96, 94);
   },
   voice(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(50, 22, 28, 52, 14);
     ctx.fill();
@@ -104,7 +107,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     line(ctx, 46, 106, 82, 106);
   },
   phone(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     // a handset: a thick arc with a pad at each end
     ctx.beginPath();
     ctx.arc(64, 64, 34, 0.15 * Math.PI, 0.85 * Math.PI, true);
@@ -121,7 +124,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.restore();
   },
   cruise(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     arc(ctx, 64, 74, 40, 0.85 * Math.PI, 2.15 * Math.PI);
     line(ctx, 64, 74, 88, 46);
     ctx.beginPath();
@@ -129,7 +132,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.fill();
   },
   adas_distance(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(36, 62, 56, 36, 10);
     ctx.stroke();
@@ -139,7 +142,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     line(ctx, 50, 28, 78, 28);
   },
   lane(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     line(ctx, 38, 106, 52, 22);
     line(ctx, 90, 106, 76, 22);
     ctx.setLineDash([12, 12]);
@@ -147,7 +150,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.setLineDash([]);
   },
   arrow_up(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.moveTo(64, 28);
     ctx.lineTo(98, 82);
@@ -156,7 +159,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.fill();
   },
   arrow_down(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.moveTo(64, 100);
     ctx.lineTo(98, 46);
@@ -165,26 +168,26 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.fill();
   },
   win_up(ctx) {
-    stroke(ctx, WHITE, 7);
+    stroke(ctx, ink, 7);
     line(ctx, 22, 104, 22, 54, 52, 22, 108, 22, 108, 104);
     line(ctx, 52, 88, 52, 52);
     line(ctx, 38, 66, 52, 52, 66, 66);
   },
   win_down(ctx) {
-    stroke(ctx, WHITE, 7);
+    stroke(ctx, ink, 7);
     line(ctx, 22, 104, 22, 54, 52, 22, 108, 22, 108, 104);
     line(ctx, 52, 52, 52, 88);
     line(ctx, 38, 74, 52, 88, 66, 74);
   },
   lock(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(34, 58, 60, 46, 8);
     ctx.fill();
     arc(ctx, 64, 58, 20, Math.PI, 2 * Math.PI);
   },
   fold(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(26, 40, 52, 44, 12);
     ctx.stroke();
@@ -208,7 +211,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.stroke();
   },
   charger(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(40, 18, 48, 84, 10);
     ctx.stroke();
@@ -220,7 +223,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.fill();
   },
   park(ctx) {
-    stroke(ctx, WHITE, 9);
+    stroke(ctx, ink, 9);
     arc(ctx, 64, 64, 46, 0, Math.PI * 2);
     ctx.font = `700 64px 'Inter','Segoe UI',Arial,sans-serif`;
     ctx.textAlign = 'center';
@@ -241,7 +244,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     ctx.fillText('A', 64, 68);
   },
   regen(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(18, 44, 76, 44, 8);
     ctx.stroke();
@@ -249,7 +252,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     line(ctx, 66, 50, 46, 66, 62, 66, 42, 84);
   },
   defrost(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     line(ctx, 18, 100, 30, 36, 98, 36, 110, 100);
     for (const x of [44, 64, 84]) {
       ctx.beginPath();
@@ -260,7 +263,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
   },
   mode(ctx) {
     // a steering wheel seen from the front, with a gauge needle: the drive-mode key
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     arc(ctx, 64, 64, 42, 0, Math.PI * 2);
     arc(ctx, 64, 64, 12, 0, Math.PI * 2);
     line(ctx, 22, 64, 52, 64);
@@ -268,13 +271,13 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     line(ctx, 64, 76, 64, 106);
   },
   boot(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     line(ctx, 18, 98, 18, 62, 36, 40, 92, 40, 110, 62, 110, 98, 18, 98);
     line(ctx, 38, 40, 28, 18, 76, 14);
     line(ctx, 42, 80, 86, 80);
   },
   camera(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.roundRect(18, 40, 92, 62, 10);
     ctx.stroke();
@@ -283,7 +286,7 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
   },
   child(ctx) {
     // child lock: a small figure and a padlock stroke
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     arc(ctx, 64, 36, 14, 0, Math.PI * 2);
     line(ctx, 64, 52, 64, 84);
     line(ctx, 40, 66, 88, 66);
@@ -291,25 +294,25 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
     line(ctx, 64, 84, 82, 108);
   },
   back(ctx) {
-    stroke(ctx, WHITE, 9);
+    stroke(ctx, ink, 9);
     line(ctx, 84, 28, 38, 64, 84, 100);
   },
   ok(ctx) {
-    stroke(ctx, WHITE, 9);
+    stroke(ctx, ink, 9);
     arc(ctx, 64, 64, 44, 0, Math.PI * 2);
     ctx.beginPath();
     ctx.arc(64, 64, 9, 0, Math.PI * 2);
     ctx.fill();
   },
   light(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     ctx.beginPath();
     ctx.ellipse(46, 64, 22, 34, 0, 0, Math.PI * 2);
     ctx.stroke();
     for (const y of [38, 56, 74, 92]) line(ctx, 74, y, 108, y);
   },
   fan(ctx) {
-    stroke(ctx, WHITE, 8);
+    stroke(ctx, ink, 8);
     for (let k = 0; k < 3; k++) {
       ctx.save();
       ctx.translate(64, 64);
@@ -322,8 +325,9 @@ const GLYPHS: Partial<Record<IconName, (ctx: Ctx) => void>> = {
   },
 };
 
-/** The atlas, drawn once: icons white (amber for the warnings) on transparent. */
-export function buildIconAtlas(): THREE.CanvasTexture {
+/** The atlas, drawn once per ink: icons white (or dark, for light keys; amber for the warnings) on transparent. */
+export function buildIconAtlas(kind: 'light' | 'dark' = 'light'): THREE.CanvasTexture {
+  ink = kind === 'dark' ? DARK : WHITE;
   const canvas = document.createElement('canvas');
   canvas.width = COLS * CELL;
   canvas.height = ROWS * CELL;
@@ -335,7 +339,7 @@ export function buildIconAtlas(): THREE.CanvasTexture {
     ctx.rect(0, 0, CELL, CELL);
     ctx.clip();
     (GLYPHS[name] ?? ((c: Ctx) => {
-      stroke(c, WHITE, 8);
+      stroke(c, ink, 8);
       arc(c, 64, 64, 40, 0, Math.PI * 2);
     }))(ctx);
     ctx.restore();
@@ -348,7 +352,7 @@ export function buildIconAtlas(): THREE.CanvasTexture {
   return tex;
 }
 
-const DECALS = /^m_icons$/i;
+const DECALS = /^m_icons(dark)?$/i;
 /** Per-car emission of the glyphs (the default is the brief's 0.25). */
 const DECAL_EMISSION: Record<string, number> = {};
 
@@ -380,12 +384,15 @@ export function applyInteriorDecals(scene: THREE.Object3D, carId: string): () =>
     }
   });
   if (!mats.size) return () => moved.forEach(([o, p]) => p?.attach(o));
-  const atlas = buildIconAtlas();
+  const atlases = { light: buildIconAtlas('light'), dark: buildIconAtlas('dark') };
   for (const m of mats) {
+    const dark = /dark$/i.test(m.name);
+    const atlas = dark ? atlases.dark : atlases.light;
     m.map = atlas;
     m.emissiveMap = atlas;
     m.emissive.set('#ffffff');
-    m.emissiveIntensity = DECAL_EMISSION[carId] ?? 0.25;
+    // a lit glyph on a dark key glows a little; a dark glyph on a light key does not
+    m.emissiveIntensity = dark ? 0.04 : (DECAL_EMISSION[carId] ?? 0.25);
     m.transparent = true;
     m.alphaTest = 0.02;
     m.depthWrite = false;
@@ -403,7 +410,8 @@ export function applyInteriorDecals(scene: THREE.Object3D, carId: string): () =>
       m.emissiveMap = null;
       m.needsUpdate = true;
     }
-    atlas.dispose();
+    atlases.light.dispose();
+    atlases.dark.dispose();
     moved.forEach(([o, p]) => p?.attach(o));
   };
 }

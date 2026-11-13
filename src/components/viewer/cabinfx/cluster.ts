@@ -563,6 +563,43 @@ function aspectOf(mesh: THREE.Mesh): number {
 }
 
 /**
+ * A cluster quad whose UVs are not a 0..1 planar map (the SU7's came out of the build with world-space ones, so a picture sampled a
+ * sliver of itself): its own planar UVs, from the quad's two long axes. The picture reads left to right toward the passenger side
+ * (+z, as the driver looks along +x) and top to bottom (glTF's v = 0 is the top row). Done on a clone of the geometry.
+ */
+function ensurePlanarUv(mesh: THREE.Mesh) {
+  const uv = mesh.geometry.getAttribute('uv');
+  if (!uv) return;
+  let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+  for (let i = 0; i < uv.count; i++) {
+    u0 = Math.min(u0, uv.getX(i)); u1 = Math.max(u1, uv.getX(i));
+    v0 = Math.min(v0, uv.getY(i)); v1 = Math.max(v1, uv.getY(i));
+  }
+  if (u1 - u0 > 0.95 && v1 - v0 > 0.95) return;
+  const g = mesh.geometry.clone();
+  const pos = g.getAttribute('position');
+  const box = new THREE.Box3().setFromBufferAttribute(pos as THREE.BufferAttribute);
+  const size = box.getSize(new THREE.Vector3());
+  // the picture's across axis is the longer of the plan axes (x, z); its down axis is the height (y), unless the quad lies flat
+  const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+  const order = axes.slice().sort((a, b) => size[b] - size[a]);
+  const across: 'x' | 'y' | 'z' = order.find((a) => a !== 'y') ?? 'z';
+  const down: 'x' | 'y' | 'z' = size.y > 1e-4 ? 'y' : order.find((a) => a !== across) ?? 'x';
+  const nu = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const a = across === 'x' ? pos.getX(i) : pos.getZ(i);
+    const d = down === 'x' ? pos.getX(i) : down === 'y' ? pos.getY(i) : pos.getZ(i);
+    const ta = (a - box.min[across]) / Math.max(1e-6, size[across]);
+    const td = (d - box.min[down]) / Math.max(1e-6, size[down]);
+    // left to right toward +z (or +x when the long axis is x); top to bottom with falling y
+    nu[i * 2] = across === 'x' ? 1 - ta : ta;
+    nu[i * 2 + 1] = down === 'y' ? 1 - td : td;
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(nu, 2));
+  mesh.geometry = g;
+}
+
+/**
  * Swaps the cluster's emissive picture for the live canvas. The mapping is copied from the picture it replaces, so the UVs of
  * the Blender quad stay as they were; the original comes back when the cabin unmounts.
  */
@@ -583,6 +620,7 @@ export function useLiveCluster(model: THREE.Object3D, vehicle: Vehicle, glow: nu
         }
       }
     });
+    if (mesh) ensurePlanarUv(mesh);
     return { mats, aspect: mesh ? aspectOf(mesh) : 2.65 };
   }, [model, brand]);
   const slots = found.mats;

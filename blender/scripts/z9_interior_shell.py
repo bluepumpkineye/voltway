@@ -361,7 +361,8 @@ def main(lights=True, parts=None):
                 ("shell", lambda: build_shell(col, lib)),
                 ("closures", lambda: build_closures(col, lib)),
                 ("gate", lambda: GT.build_liner(col)),
-                ("pedals", lambda: build_pedals(col, lib)))
+                ("pedals", lambda: build_pedals(col, lib)),
+                ("polish", lambda: __import__("car_polish").build("z9", col, lib)))
     for name, fn in builders:
         if parts and name not in parts:
             continue

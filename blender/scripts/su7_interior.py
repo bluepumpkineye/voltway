@@ -883,6 +883,8 @@ def main(lights=True):
     build_doors(col, lib)
     build_closures(col, lib)
     build_pedals(col, lib)
+    # the gold-standard pass: collars, bevels, wheel icons (car_polish.py)
+    __import__("car_polish").build("su7", col, lib)
     if lights:
         cabin_lights(col)
     assert bpy.data.objects.get("screen_main"), "screen_main is the HMI anchor"

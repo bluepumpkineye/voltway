@@ -1244,6 +1244,8 @@ def main(lights=True):
     build_doors(col, lib)
     build_closures(col, lib)
     build_pedals(col, lib)
+    # the gold-standard pass: collars, bevels, wheel icons (car_polish.py)
+    __import__("car_polish").build("rx", col, lib)
     if lights:
         cabin_lights(col)
     # world-space UVs for every textured trim (the perforation, grain and the

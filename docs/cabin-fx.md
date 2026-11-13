@@ -54,6 +54,24 @@ Car-specific, in Blender (one `<car>_polish.py` called last from the car's cabin
 5. `BP.finish_decals(col)` last. The car's export must go through `carkit.export.merge_for_export` (they all do) and `carkit.aoatlas`.
 6. Re-export the cabin (background Blender, about 6 minutes) and check the cluster is not buried or hidden by the wheel hub (the Seal's quad was 11.5 mm behind the band glass: `seal_polish.fix_cluster`).
 
+## Fleet status (2026-11-13)
+
+Automatic on every car (web side, nothing per car): materials, the composer (N8AO, AgX, selective bloom on the light guides only), footwell, gloss environment, seat lens and head-turn limit, per-car exposure, the live cluster, the seat's glass, the colour-theme switcher, Studio / City, the debug panel.
+
+| Car | Cluster | Blender polish (module) | Icons placed | Spill ribbon | Notes |
+| --- | --- | --- | --- | --- | --- |
+| BYD Seal | gauge, follows the HMI theme | `seal_polish.py` | 40+ (wheel, selector, charge pad, window / lock / mirror / boot keys on all doors) | yes, dash shelf | the reference |
+| Zeekr 7X | calm, thin type | `zx_polish.py` | 14 (two wheel pods, five screen keys, charge pad; dark ink on the light keys) | no light guide on the dash | door switch pack is one moulded band: no keys to mark |
+| XPeng G9L | wide, minimal | `g9l_polish.py` | 2 (the lower dials) | yes, under the purple slot | spoke pads are plain leather plates |
+| Voyah Passion S | calm, champagne accent | `car_polish.py` (generic) | 0 (the wheel has no buttons) | no | the cabin was already near white before this work |
+| Luxeed RX | gauge | `car_polish.py` | 1 (the BOOST dial) | no | |
+| NIO ES8 | wide, light type | `car_polish.py` | 0 (the wheel has no buttons) | no | the NOMI head is untouched |
+| Denza Z9 | gauge, champagne accent | `car_polish.py` | 0 | no | the cluster sits behind the wheel's rim from the seat; the wheel pods have keys to mark (a `z9_polish.py`) |
+| Avatr 06T | strip (the cluster is a 1.08 x 0.06 m band) | none | 0 | no | the cabin ships with a baked light map; a re-export needs `export_a06t.web_cabin(lightmap=True)` and the owner's eye |
+| Xiaomi SU7 | wide, orange accent | `car_polish.py` | 2 (the red dial, the brushed key) | no | |
+
+To raise a car to the Seal's level: write its own `<car>_polish.py` from `seal_polish.py` (keys, charge pad, light-guide spill), drop its entry from `car_polish.CARS`, re-export.
+
 ## BYD Seal (reference)
 
 `seal_polish.py`: cluster stood proud of the band glass with a bezel; key collars, screen-neck collar, column gasket ring, charge-tray collar; ADAS housing, wipers, B-pillar belt loops and webbing; icons on the 10 wheel keys, the 8 selector keys, the charge pad, the driver's window / lock / mirror / child keys, the other three doors' rockers, the boot switches; glow ribbon under the dash light guide; bevel + weighted normals on 31 hard surfaces; wheel window chamfers removed (they read as white wire strokes); the wheel plate pulled inside the rim (it poked a black diamond out of the leather).

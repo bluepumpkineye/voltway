@@ -187,6 +187,12 @@ def build_dash(col, lib):
     made.append(F.ngon_cap(col, "int_dash_EndR", list(sw.pts[-1]), lib["leather_dash"], (0.0, -1.0, 0.0)))
     made += build_dash_details(col, lib, sw)
     made += build_glovebox(col, lib, sw)
+    # the purple slot's soft spill on the leather below it (g9l_polish.spill: M_Glow, drawn additively by the web)
+    try:
+        import g9l_polish as GP
+        made += GP.spill(col, sw)
+    except Exception as exc:  # noqa: BLE001
+        print("g9l_interior: glow ribbon skipped: %r" % (exc,))
     return made, sw
 
 

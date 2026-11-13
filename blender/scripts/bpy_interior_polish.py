@@ -34,6 +34,7 @@ ICONS = [
     "back", "ok", "camera", "horn", "boot", "child", "light", "unused",
 ]
 ICON_MAT = "M_Icons"
+ICON_MAT_DARK = "M_IconsDark"      # the same atlas drawn in dark ink: for keys that are light (silver, cream, white)
 GLOW_MAT = "M_Glow"
 
 
@@ -131,6 +132,16 @@ def collar_loop(col, name, path, mat, rx=0.0022, ry=0.0012, lateral=(0.0, 0.0, 1
     return tube(name, path, ellipse(rx, ry, 8), col, mat, lateral=lateral, closed=True)
 
 
+def column_collar(col, mat, fr, length=0.20, rx=0.074, ry=0.066, grow=1.0):
+    """A gasket ring where a steering column meets the dash: carkit.interior.steering.column runs `length` m back from the hub
+    (w -0.03 .. -0.03 - length); the ring sits just short of its far end. `fr` is the wheel's frame."""
+    ring = []
+    for t in range(33):
+        a = 2.0 * math.pi * t / 32.0
+        ring.append(fr.p(rx * grow * math.cos(a), -0.01 + ry * grow * math.sin(a), -0.03 - length + 0.006))
+    return collar_loop(col, "int_column_collar", ring, mat, 0.0050, 0.0030, lateral=tuple(fr.A))
+
+
 # ------------------------------------------------------------------ materials
 def _plain_material(name, rough=0.5):
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
@@ -146,8 +157,8 @@ def _plain_material(name, rough=0.5):
     return m
 
 
-def icon_material():
-    return _plain_material(ICON_MAT, 0.5)
+def icon_material(ink="light"):
+    return _plain_material(ICON_MAT_DARK if ink == "dark" else ICON_MAT, 0.5)
 
 
 def glow_material():
@@ -181,9 +192,10 @@ def icon_quad(col, mat, name, centre, up, normal, size, icon):
     return ob
 
 
-def place_icons(col, layout):
-    """layout: [(name, centre, up, normal, size, icon), ...] -> the quads. One call places a car's whole button set."""
-    mat = icon_material()
+def place_icons(col, layout, ink="light"):
+    """layout: [(name, centre, up, normal, size, icon), ...] -> the quads. One call places a car's whole button set; `ink` is
+    "dark" for glyphs on light keys (silver, cream, white)."""
+    mat = icon_material(ink)
     return [icon_quad(col, mat, nm, c, up, n, size, ic) for (nm, c, up, n, size, ic) in layout]
 
 
@@ -231,7 +243,7 @@ def finish_decals(col):
         if ob.type != "MESH" or not ob.data.materials:
             continue
         mats = {m.name for m in ob.data.materials if m}
-        if mats and mats <= {ICON_MAT, GLOW_MAT}:
+        if mats and mats <= {ICON_MAT, ICON_MAT_DARK, GLOW_MAT}:
             m = re.match(r"^(int_r?door_[LR])_", ob.name)
             key = m.group(1) if m else ("glow" if mats == {GLOW_MAT} else "cabin")
             groups.setdefault(key, []).append(ob.name)
@@ -257,6 +269,20 @@ def export_names_ok():
     if missing:
         print("polish: materials the web upgrader expects but this car lacks: %s" % ", ".join(missing))
     return missing
+
+
+def wheel_button_icons(col, fr, spec, icons, size_k=1.5, ink="light"):
+    """Icons on the round buttons of a carkit.interior.steering wheel: `spec["buttons"][k]` is (u, v, radius, ...), its cap's face
+    stands at w = 0.0183 (steering.buttons); `icons[k]` is the glyph for button k (None = leave it blank)."""
+    mat = icon_material(ink)
+    made = []
+    for k, ic in enumerate(icons):
+        if not ic or k >= len(spec.get("buttons", [])):
+            continue
+        u, v, r = spec["buttons"][k][:3]
+        c = fr.p(u, v, 0.0183 + 0.0004)
+        made.append(icon_quad(col, mat, "int_icon_wheelbtn%d" % k, c, fr.V, fr.A, r * size_k, ic))
+    return made
 
 
 def polish(col, bevel_pattern=None, smooth_pattern=None, width=0.002):

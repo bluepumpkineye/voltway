@@ -3,7 +3,7 @@
 import React from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, ToneMapping } from '@react-three/postprocessing';
+import { BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, SelectiveBloom, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { FX, bindFrame, fxVersion, subscribeFx } from './settings';
@@ -49,9 +49,25 @@ export function InteriorFx() {
   return on && cabinReady ? <Composer /> : null;
 }
 
+/** The meshes drawn in an ambient light guide's material: the only things that may glow. */
+function useGuideMeshes(): THREE.Object3D[] {
+  const scene = useThree((s) => s.scene);
+  return React.useMemo(() => {
+    const out: THREE.Object3D[] = [];
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      if (mats.some((m) => /ambient/i.test(m.name))) out.push(mesh);
+    });
+    return out;
+  }, [scene]);
+}
+
 function Composer() {
   const fx = useCabinFx();
   const gl = useThree((s) => s.gl);
+  const guides = useGuideMeshes();
 
   // three's exposure is what the composer's tone-mapping pass reads (its shader includes three's own AgX / Neutral / ACES).
   // Set every frame, before the composer's render: the Canvas re-applies its own `gl` props (Neutral, 0.92) whenever the
@@ -85,13 +101,19 @@ function Composer() {
         halfRes={fx.ao.halfRes}
         quality="medium"
       />
-      <Bloom
-        luminanceThreshold={fx.bloom.threshold}
-        luminanceSmoothing={fx.bloom.smoothing}
-        intensity={fx.bloom.enabled ? fx.bloom.intensity : 0}
-        radius={fx.bloom.radius}
-        mipmapBlur
-      />
+      {/* selective: only the ambient light guides are in the mask, so a chrome ring's glint never glows (a plain Bloom hazed
+          every bright reflection, which read as a white outline round the wheel's rings) */}
+      {guides.length > 0 && (
+        <SelectiveBloom
+          selection={guides}
+          selectionLayer={11}
+          luminanceThreshold={fx.bloom.threshold}
+          luminanceSmoothing={fx.bloom.smoothing}
+          intensity={fx.bloom.enabled ? fx.bloom.intensity : 0}
+          radius={fx.bloom.radius}
+          mipmapBlur
+        />
+      )}
       <ToneMapping mode={MODES[fx.tone.mode]} />
       <HueSaturation saturation={fx.tone.saturation} />
       <BrightnessContrast contrast={fx.tone.contrast} />
