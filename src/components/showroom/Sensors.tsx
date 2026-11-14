@@ -13,6 +13,7 @@ import { FOCUS, GLASS } from './Chrome';
 /** The groups of sensors the demo draws: the colour in the scene, what it is, and the car's own count where the maker gives one. */
 const GROUPS: { id: LayerId; label: string; note: string; color: string; has: (s: SensorSpec) => boolean }[] = [
   { id: 'lidar', label: 'Roof lidar', note: 'The forward lidar', color: '#2f6bff', has: (s) => !!s.lidar },
+  { id: 'front', label: 'Front lidars', note: 'One in each side of the front bumper', color: '#2f6bff', has: (s) => !!s.frontLidar },
   { id: 'side', label: 'Side lidars', note: 'Solid-state, one on each side', color: '#0fa594', has: (s) => !!s.sideLidar },
   { id: 'rear', label: 'Rear lidar', note: 'Solid-state, at the tail', color: '#8b5cf6', has: (s) => !!s.rearLidar },
   { id: 'surround', label: 'Surround cameras', note: 'Drawn as four diagonal beams', color: '#38a8ff', has: (s) => !!s.surround },

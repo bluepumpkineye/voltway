@@ -27,7 +27,7 @@ const ANGLES = [90, 180, 360];
  * what the manoeuvre needed, with the compass turn's choices (which front wheel, how far). The car's own screen carries
  * the same numbers and the button that starts the run; this is what is left when that screen is put away.
  */
-export function ChassisTools({ driver }: { driver: string }) {
+export function ChassisTools({ driver, params }: { driver: string; params?: Record<string, number> }) {
   const r = useChassisReadout();
   const facts = useRuntime()?.chassis?.facts;
   const pivot = useVehicleStore((s) => s.compassPivot);
@@ -106,11 +106,18 @@ export function ChassisTools({ driver }: { driver: string }) {
           the gap is {facts?.gap?.toFixed(1) ?? '6.1'} m, the car’s length and a metre <span className="text-neutral-400">ours</span>
         </p>
       )}
-      {driver === 'uturn' && (
+      {driver === 'uturn' && (params?.rearMaxDeg ?? 0) > 0 && (
         <p className="mt-1.5 text-[10.5px] leading-snug text-neutral-500">
-          5.4 m turning radius, rear wheels up to 15° against the fronts <span className="text-neutral-400">published</span>
+          {params?.radiusM ?? 5.4} m turning radius, rear wheels up to {params?.rearMaxDeg}° against the fronts <span className="text-neutral-400">published</span>
           <span className="mx-1 text-neutral-300">·</span>
           front angles from the geometry <span className="text-neutral-400">ours</span>
+        </p>
+      )}
+      {driver === 'uturn' && (params?.rearMaxDeg ?? 0) === 0 && (
+        <p className="mt-1.5 text-[10.5px] leading-snug text-neutral-500">
+          {params?.radiusM ?? 5.7} m turning radius{params?.lockDeg ? `, ${params.lockDeg}° front-wheel steering angle` : ''}, with EasyTurn <span className="text-neutral-400">published</span>
+          <span className="mx-1 text-neutral-300">·</span>
+          how EasyTurn works is not published, so it is not drawn: the angles shown are what the circle needs <span className="text-neutral-400">ours</span>
         </p>
       )}
     </div>

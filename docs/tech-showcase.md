@@ -1322,3 +1322,89 @@ The owner's request: "remove the X-Ray and the floating cards" from Drive (a cle
 - **The exit: no run freezes at its end, none stops of its own, and every car has one (2026-11-12, "freeze the camera and let the car drive off"; "does the car who disappears only apply to SU7?"; then, on the ES8, "why is there a stop sequence at 0:18 before it resumes drive and exits? make the drive continuous until the exit", also the RX and the G9L):** the clock runs on past the run's own end for a few seconds (`techClock.duration` is the run and the exit, `TechDirector` holds the run at its last frame and drives the exit; the pure physics is `lib/tech/drive-exit.ts`, shared with Play). The ground stands still (the scroll is held), the camera stays where it is (the Drive cameras are the stage's: the car is what moves), the car drives away, wheels turning, and the scene's fog (`viewer/DriveFog.tsx`: the studio's white, mounted for the whole Drive tab so the materials compile with it once, 4 km away until the exit, closing in to 50-120 m over the exit's first 1.5 s) takes it as it goes. **No run brakes to a stop by itself any more:** the ES8 and the RX (`finish: 'brake'`) used to hold 100 km/h, brake at about 16 s, stand for two seconds and then set off again for the exit, and the G9L's slalom and the Z9's crab walk ended in a gentle stop and a 1.4 s stand. Now `driveSetup` makes a scenario's `finish: 'brake'` a coast unless the visitor presses "Stop" (`brake = canBrake && (sel.brake ?? false)`, and `input.finish` is 'brake' only then), and a run that ends in a manoeuvre ends where the manoeuvre does, with 1.5 s of coast to straighten out (2 s after an S-curve): the car is still going, at 104 km/h (the ES8, the RX), 16 km/h (the slalom) or 7 km/h (the crab walk). The exit then has two kinds, by the speed at the run's end (`DRIVE_CARRY_MS` = 15 m/s, `exitInfo.accel`): **fast** (the SU7, the 7X, the 06T, the Seal, the Voyah, the ES8 and the RX on their default runs, any coast or cruise) carries on at its speed for `driveExitS(v0)`, the time to go 110 m (3.5 to 8 s; 3.7 s at 107 km/h); **slow or standing** (the end of a slalom or a crab walk, or the stop the visitor chose) speeds up from the speed it has, or from rest after a stop with a 0.3 s wait, at the pull of its own 0-100 (`exitPull.a0` 8-13 m/s2, up to 58 m/s, the body squatting), `DRIVE_REST_EXIT_S` = 6 s. Only a hill has none (the stage tilts about the car's start). A run with manoeuvres leaves from where it ended, not from the middle of the road (the Z9's crab walk ends 1.8 m over and the car does not jump back). In a speeding-up exit the instruments follow the car (the cluster's speed, gear and tachometer, and the motor's sound, get the exit's own speed and pull in `Launch.tsx`, since the run's own readout has ended); after a coast they hold the speed the car carries on at. "Stop" stays as the visitor's choice (the 100-0 figure, the brake card in Play): the car then brakes, stands and sets off. The run lengths of the manoeuvre cars are kept (a run that ends with its manoeuvres is planned again with the time it lacks held before them: the G9L is 25.4 s, the Z9 28.3 s). Where the car leaves depends on the camera: the chase camera sees it recede, the hero and side cameras see it cross and leave within a second; the cabin camera (carried by the car) just keeps driving through the exit. The scrub bar and the run summary ("Run complete", which now comes once the car has gone) follow the longer clock. `drive-test.mjs` now expects the Z9 run to have no stop cue and to end at 7 km/h. Checked headlessly on all nine cars (how each default run ends) and in the pane on the SU7, the RX (before this change), the Z9 (before), the ES8 (104 km/h held through 18 s, no stop, 23.8 s, the car 86 m away at +3 s) and the G9L (16 km/h at the end of 25.4 s, then 3 m, 22 m, 67 m and 123 m driven at +0.5, +2, +4 and +5.8 s).
 - **The sound goes with the car (2026-11-12, "the car sound should also fade out as the car disappears"):** in the Drive tab's exit the motor is made quieter and duller as the car recedes and is silent when it is lost in the haze. `soundProximity(x)` (`lib/tech/drive-exit.ts`, pure) is 1 until the car is 8 m from where it was at the run's end and falls smoothly to 0 at 100 m; `Launch.tsx` passes it to `LaunchAudioController.frame(speed, g, phase, proximity)` and `DriveEngine.update(..., proximity)` (`lib/sound/drive-engine.ts`) scales the motor bus by its square (the visitor's mute still wins) and closes the whine's and the bed's low-pass (down to 35 % and 50 % of their cut-offs: the air takes the highs first). The speed and phase the engine reads are the run's last (the car carries on at its speed). Not from the seat (the cabin camera rides with the car: no fade), not in Play (it has no sound), and no Doppler. Offline renders and tests call `update` without it (1).
 - **Shared code:** `onDriveStage` (store), `TechDirector` (builds the drive demo for Play), `TechAnchors` and `TechWheelFx` (now Play-only), `DriveMotion` (Play-only; takes `bottom`), `ShowroomViewer` (swaps the studio for `XrayWorld`, leaves out the road and rain), `TechDirector` (the longer run and the exit for Play, the curve for Drive).
+
+## 28. The ES8's NOMI (2026-11-14)
+
+**Owner report:** "when I play the NOMI Mate companion scene we don't see anything happening; the companion is hidden behind the central screen. Research this feature and how it should work."
+
+**What was wrong.** The chip used the Luxeed RX's `swivel` driver, which turns a centre screen the ES8 does not have: it opened the RX's direction dialog on the car's screen and the panel
+showed the RX's four buttons ("Screen square on, pulled back"). Nothing on the car moved. And the model's NOMI (`int_nomi_*`, built by `es8_interior.py build_nomi`) stands at x 0.935,
+z 1.138 with its sphere centre at z 1.176, while the centre screen's top edge is about 1.20 and the driver's eye 1.12 at x 0.06: from the seat the screen is in the way (a sight line to the
+sphere's centre passes 5 cm under the screen's top edge). NIO's own photograph (blender/reference/nio-es8/official/cockpit_nomi.jpg) has the sphere standing clear above the screen.
+
+**What is published (read 2026-11-14; none is a spec sheet for the all-new ES8, and NIO's own release for that car does not mention NOMI):**
+- NIO blog "The History Behind NOMI", 2021-11-11 (the first generation): a small ball-shaped dashtop device, one motor for the horizontal axis and one for the vertical.
+- CnEVPost, 2021-03-30 (first generation): it turns its face toward whoever opens a door and says hello; it lowers its head as a hand reaches for the screen (not used: generation one only).
+- Baidu Baike (NIO NOMI, English mirror, updated after 2026-07): NOMI Mate 3.0 came with the new ES8; it senses doors opening and closing and where passengers are and turns its head to greet them;
+  brushless motor for near-silent turning; swaying to music; more than 200 expressions; travel about 100 degrees horizontal and 30 vertical.
+- CHINA CASE (note.com, 2025-07-26, automatic translation): the gaze goes to sounds, it tilts its head and sometimes nods; synchronises with music; up to 340 degrees of silent rotation (conflicts with the
+  100 above: the smaller is used and the panel says so).
+
+**What was built.**
+- `Vehicle.nomi` (`NomiSpec`, schema.ts): the head sphere's centre, radius, the face's centre and normal, and a `lift`. `rigNomi` (viewer/NomiHead.tsx, called from CarModel beside `rigSwivel`) hangs
+  `int_nomi_head`, `_face` and the two eye tubes on a pivot `NomiHead` at the sphere's centre (rotation order YZX: yaw about the vertical, then the nod), raises it by `lift` (0.075 m, ES8) and adds a short
+  neck cylinder in the pedestal's own material. This applies on every tab, so the Interior tab shows NOMI above the screen too. The eye tubes are hidden and a round quad (`int_nomi_screen`) over the glass
+  carries a canvas face drawn live: idle (two ovals, blinking), hello and happy (arched eyes, cheeks), listening (eyes and a level meter), music (bobbing arches and notes).
+- `src/lib/tech/nomi.ts` (no value imports): `poseAt(t)` (yaw, nod, face), `doorOpen(t)`, the three beats and `SWEEP` (100 by 30). The demo is 27.5 s: the front passenger door opens at 2.0 s and NOMI turns to it at
+  2.4 s (48 degrees), greets with two nods and shuts with the door; at 9.8 s the driver speaks and NOMI turns to them (-42), listens, nods twice and smiles; from 17.6 s the music makes it sway (14 degrees,
+  0.5 Hz) with a small bob. All of that is ours; the behaviours are published.
+- `NomiDriver` (mounted in ShowroomViewer and VehicleViewer) reads the demo's clock and the run (`setNomiRun`, set by the director) every frame, so scrubbing is exact; the director opens `doorFR`.
+- `driver: 'nomi'` (demos.ts), `view: 'cabin'`, panel `showroom/Beats.tsx` (shared with the Star Ring: a button and one chip per beat, a press jumps there). It does not lift the picture clear of the panel
+  (the others do): that took NOMI up under the menu.
+- Not done: the Blender source (`es8_interior.py`) still has NOMI low (the lift is a browser fix: if the cabin is re-exported, raise `z_base` by about 0.075 and drop `lift`); idle blinking on the Interior tab
+  (it would keep the viewer drawing); NOMI's reaction to a hand reaching for the screen (generation one only).
+
+## 29. The 06T's Star Ring (2026-11-14)
+
+**Owner report:** "when I play the panoramic star ring display, nothing happens."
+
+**What was wrong.** Same cause as NOMI: the chip used the RX's `swivel` driver. And the ring itself is a blank dark strip in the 06T cabin (`cluster_image()` in `a06t_cockpit.py` fills a gradient only).
+
+**What is published (read 2026-11-14).** Avatr's page: "35.4-inch 4K Panoramic Star Ring Display", "Dual 6.7-inch High Definition Rearview Screens", some functions arrive by OTA. CarNewsChina (launch,
+2026-04-23): a four-screen linkage system (the ring, the 15.6-inch floating screen, two 6.7-inch exterior-mirror screens). ifanr (2026-04-08): the ring runs along the lower edge of the windscreen and is mainly for
+speed, navigation and battery information. Not stated anywhere read: the zones, how content passes between screens, a start-up animation, what the mirror screens show beyond "rearview". The layout used is read off
+Autohome photographs c10_0001 and c10_0048 (day mode): car, range, power meter and mileage at the left; P, time and temperature; a media card with a disc; trip energy; weather; time and a round clock.
+
+**What was built.**
+- `src/lib/tech/starring.ts` (no value imports): `stateAt(t)` gives the ring's state (wake 0..1, gear, belt and brake lamps, speed, power, range, the route's next turn, media, mirrors lit, clock) and `centreAt(t)` the centre
+  screen's page. 28 s: the light sweeps from the left end to the right (0.8 to 3.4 s), the belt and brake lamps go out (4.4, 5.0), D at 5.6 and the car pulls to 54 km/h, a route is set at 8.4 s (the centre screen
+  goes to its map page, 7.8 to 17.4 s) and the ring shows the turn (110 m, counting down, a bar), media returns at 17.6 s, the track changes at 21.2 s, the car stops at 26 s and goes to P. All ours.
+- `viewer/starRingDraw.ts` draws the ring (4096 px wide, 18:1, the light edge, the zones) and the two mirror pictures (the road behind, lane marks that stream with the distance, a following car).
+- `viewer/StarRing.tsx` (`StarRingDriver`, in ShowroomViewer) swaps the emissive map of `screen_cluster` for the canvas and gives each of `screen_mirror_L/R` (they share `INT_Display_Mirror`) a material of its own with a
+  canvas, only while the demo is on (15 redraws a second at most), and puts the originals back (checked: the ring's `cluster_a06t` map and the shared mirror material come back on leaving the chip). The 06T stays
+  `cabinFxExcluded`: its Interior tab picture is unchanged.
+- `driver: 'starring'`, `view: 'cabin'`; the director sets the centre screen's page (`setHmiScreen`), and `StarRingTools` is the panel.
+- Not done: the passenger side of the ring (nothing says what it carries), a dark theme, an e-mirror turn-signal or blind-spot overlay (not stated), the three-quarter car render the photographs show (a flat side
+  view is drawn).
+
+## 30. The Z9's God's Eye, the Seal's chips, the ES8's turning radius (2026-11-14)
+
+**Seal.** `ctb` and `godseye` named drivers that do not exist (section 18 built the God's Eye scene and the roof lidar, but the Seal's `tech` entry in `byd-seal.ts` still named the dead drivers: a later
+commit had brought the old entry back). The God's Eye chip now uses `driver: 'sensors', scenario: 'trafficlight'` (title "God's Eye · Red light", claims from Autohome's spec 71666). The CTB chip is gone: Cell-to-Body is a
+structure with nothing that moves, and the X-ray tab already has its cards for the Seal (the 80.64 kWh CTB Blade pack, the CTB floor cage).
+
+**Z9 God's Eye.** Autohome's table for the Z9 (series 7838, read 2026-11-14 in the pane; all five trims the same): DiPilot level 2 on an NVIDIA Orin, two lidars, fourteen exterior cameras (a three-lens front unit) and one or
+two in the cabin, five mm-wave radars, twelve ultrasonic sensors, full-speed adaptive cruise, lane centring, assisted lane change, ramp entry and exit, traffic-light recognition, assisted, remote and memory parking,
+360 view, transparent chassis, tank turn. The name God's Eye and the tier are not on it; CarNewsChina (2026-10-13) calls the Z9 GT's system "God's Eye 5.0" (and says one lidar, an Xuanji A3 chip: the two do not agree
+with the table, so neither is used). The Z9's `sensors` spec had been written in Blender's axes and lay outside the car: rewritten in glTF axes from rays on the model. The car has no roof lidar; the two lidars are
+the dark modules in each outer bumper pocket (model node `Z9_Front_Side_Lidar`, glTF (2.329, 0.35, +-0.68)); no source places them, and the panel says so. New: `SensorSpec.frontLidar` (two forward fans, 14 degrees
+outward, `lidarFov` wide), layer `front`, the panel switch "Front lidars". Scene `queue` (src/lib/tech/scenes/queue.ts, 28 s, ours): three-lane expressway at 80 km/h, a queue standing 260 m ahead in every lane, the lead brakes,
+the Z9 slows and stops 5 m behind it (at 12.7 s; stopped 15.2 to 18.2 s), waits, moves off as the queue does and ends following at 25 km/h; the readout counts the stopped cars' distance (marked from 200 m). Checked with
+`scene-test.mjs queue` (accel -3.0 to 1.2 m/s^2, nearest car 1.8 m laterally, 5.5 m behind the lead) and in the pane.
+
+**ES8 PrimeRide, "Front & Rear 5-Link Agility".** The chip's story (five-link and virtual kingpins give the 5.7 m radius) is not in NIO's release, and the chip drew only a U-turn with the XPeng G9L's panel text ("rear wheels up to 15
+degrees"). NIO (2025-08-21): a 41-degree front-wheel steering angle with EasyTurn (EZT) gives a 5.7 m turning radius; the chassis is front and rear five-link with dual-chamber air suspension, 100 mm of height
+travel, 50 mm lower in seven seconds for entry; a "4D Smart Suspension" predicts bumps at lane level; a wet mode; a flood guard (CarNewsChina). Nothing on rear steering. Now "PrimeRide · EasyTurn, 5.7 m radius": the same
+U-turn on the 5.7 m path with the rear axle's path drawn on the floor (`params.trail`), a panel that reads its numbers from `params` (`radiusM`, `rearMaxDeg`, `lockDeg`) and says EasyTurn's mechanism is not published, and the
+five-link suspension left to the X-ray tab. The geometry shows 46 degrees inside and 33 outside for a 5.7 m circle (not 41: the two figures are probably not measured the same way; the chip says so). The shared `uturn`
+chassis page text ("virtual kingpins ... deep wheel articulation") was ours and is now neutral.
+
+**Follow-up, same day (owner's screenshot and note).** *Star Ring:* the model's two mirror quads lie in the ring's plane and overlap its ends by about 2.6 cm of the 1.08 m (ring spans y +-0.54, mirrors 0.5125 to 0.6575), so a pale box flickered
+over the ring's first figures (the speed, the range). Fixed three ways: the ring leaves 3.4 % of its width dark at each end and lays its content out inside that (`MARGIN`, `X()`/`Wd()` in starRingDraw.ts), and the cloned mirror materials get
+`polygonOffset` (-2, -2) so the mirror screen wins the overlap. *NOMI:* `NomiSpec.scale` (ES8: 1.1, "10 % bigger for the demo"), applied to the pivot about the sphere's centre, with `lift` raised by `(scale - 1) * radius` so the underside stays on the
+neck and the neck widened to match; it shows on the Interior tab too. "The scene plays one time of two": not reproducible once the car is loaded (the Again button, chip switching, three door cycles and real-time playback all repeat
+cleanly), but the demo panel was on screen with an active Start button while the car was still loading, and a press then does nothing (the clock has no length until the demo is built), so only the second press played. The panel's
+button and chips (`showroom/Beats.tsx`, used by NOMI and the Star Ring) now read "Loading..." and are disabled until the clock has a length. The RX's `SwivelTools` panel has the same hazard and was left alone.
+
+Checked 2026-11-14: tsc and eslint (src) clean; each demo played in the Browser pane (Z9 at 3 s and 16.5 s, Seal at 9 s, ES8 U-turn at 10.5 s, NOMI at 5 and 11.8 s with the faces drawn out large, the 06T ring at
+2, 7, 12, 19 and 23 s). Not done: a production build in a copy; the owner's look.

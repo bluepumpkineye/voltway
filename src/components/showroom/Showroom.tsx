@@ -29,6 +29,7 @@ import { LaunchTools } from './Launch';
 import { ParkAssistTools } from './ParkAssist';
 import { SensorsTools } from './Sensors';
 import { SwivelTools } from './Swivel';
+import { NomiTools, StarRingTools } from './Beats';
 import { RideTools } from './Ride';
 import { TechChips, TechControls } from './Tech';
 import { ShowTitle, XRAY_COLUMN_W, XrayCard, XrayTools } from './Xray';
@@ -658,9 +659,11 @@ export function Showroom({
             {demo.driver === 'carpet' && <RideTools vehicle={vehicle} showHeights={!col.active} />}
             {demo.driver === 'launch' && <LaunchTools vehicle={vehicle} />}
             {demo.driver === 'swivel' && <SwivelTools />}
+            {demo.driver === 'nomi' && <NomiTools />}
+            {demo.driver === 'starring' && <StarRingTools />}
             {demo.driver === 'sensors' && <SensorsTools vehicle={vehicle} />}
             {demo.driver === 'boost' && !boostSheet && <BoostTools />}
-            {isChassisDriver(demo.driver) && <ChassisTools driver={demo.driver} />}
+            {isChassisDriver(demo.driver) && <ChassisTools driver={demo.driver} params={demo.params} />}
             {demo.driver === 'park' && demo.params?.noseIn === 1 && (!demo.devices || demo.devices.length === 0) && <NoseInTools />}
             {demo.driver === 'park' && (demo.params?.search ?? 0) > 0 && (!demo.devices || demo.devices.length === 0) && <ParkAssistTools />}
           </>

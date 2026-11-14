@@ -49,6 +49,8 @@ const DEG = Math.PI / 180;
 /** the RX's forward lidar's two light paths, and the solid-state ones: angles are illustrative */
 const FOV = { wide: 120 * DEG, tele: 26 * DEG, side: 110 * DEG, rear: 110 * DEG, surround: 26 * DEG };
 const FLOOR = 0.03;
+/** how far outward the two bumper lidars look, degrees (ours) */
+const FRONT_OUT = 14;
 
 /** the paint of the other cars: mid greys, as Xiaomi's animation draws them, so the car in the demo stays the one the eye follows */
 const TRAFFIC_TONES = ['#5f656f', '#80868f', '#454a53', '#6f757e', '#8e949c', '#565c66'];
@@ -68,7 +70,7 @@ function Scene({ vehicle, spec, sensors, runtime }: { vehicle: Vehicle; spec: Se
   }, [rig]);
 
   // what marks the road users the sensors have: the lidar's switch, or on a car without a lidar the camera views'
-  const sense: LayerId = spec.lidar ? 'lidar' : 'vision';
+  const sense: LayerId = spec.lidar ? 'lidar' : spec.frontLidar ? 'front' : 'vision';
   return (
     <group>
       <CarCoverage vehicle={vehicle} spec={spec} runtime={runtime} />
@@ -120,6 +122,8 @@ export function CarCoverage({
   );
   const surroundAt = React.useMemo<[number, number, number]>(() => [middle[0], 0.7, middle[2]], [middle]);
   const lidar = spec.lidar;
+  const front = spec.frontLidar;
+  const frontOther = React.useMemo<[number, number, number] | null>(() => (front ? [front[0], front[1], -front[2]] : null), [front]);
   const side = spec.sideLidar;
   const sideOther = React.useMemo<[number, number, number] | null>(() => (side ? [side[0], side[1], -side[2]] : null), [side]);
   const tail = spec.rearLidar;
@@ -151,6 +155,13 @@ export function CarCoverage({
             <Fan layer={sw('lidar')} at={lidar} yaw={0} range={REACH.tele} fov={FOV.tele} color={COLOR.lidar} alpha={0.18} hz={0.9} phase={1.3} />
           </>
         ))}
+      {/* two forward lidars in the bumper (the Z9's), each looking ahead and a little outward: angles and reach are ours */}
+      {has('front') && front && frontOther && (
+        <>
+          <Fan layer={sw('front')} at={front} yaw={-FRONT_OUT * DEG} range={REACH.wide * 1.3} fov={(spec.lidarFov ?? 120) * DEG} color={COLOR.lidar} alpha={0.2} hz={0.5} rings />
+          <Fan layer={sw('front')} at={frontOther} yaw={FRONT_OUT * DEG} range={REACH.wide * 1.3} fov={(spec.lidarFov ?? 120) * DEG} color={COLOR.lidar} alpha={0.2} hz={0.5} phase={2.4} rings />
+        </>
+      )}
       {/* a car without a lidar: what its cameras see, from where each one sits (angles and reach are ours) */}
       {has('vision') &&
         views.map((v, i) => (
@@ -171,11 +182,19 @@ export function CarCoverage({
           <Fan key={deg} layer={sw('surround')} at={surroundAt} yaw={deg * DEG} range={surroundReach} fov={FOV.surround} color={COLOR.surround} alpha={0.2} hz={0} />
         ))}
 
-      {(has('lidar') || has('vision')) && (lidar || views.length > 0) && <ScanRing at={middle} layer={sw(lidar ? 'lidar' : 'vision')} />}
+      {(has('lidar') || has('front') || has('vision')) && (lidar || front || views.length > 0) && (
+        <ScanRing at={middle} layer={sw(lidar ? 'lidar' : front ? 'front' : 'vision')} />
+      )}
       {has('ultrasonic') && <Pulses footprint={footprint} layer={sw('ultrasonic')} />}
 
       {/* where the sensors are: filled, photographed; a ring, reported or not published */}
       {has('lidar') && lidar && <Marker layer={sw('lidar')} at={lidar} color={COLOR.lidar} />}
+      {has('front') && front && frontOther && (
+        <>
+          <Marker layer={sw('front')} at={front} color={COLOR.lidar} />
+          <Marker layer={sw('front')} at={frontOther} color={COLOR.lidar} />
+        </>
+      )}
       {has('side') && side && sideOther && (
         <>
           <Marker layer={sw('side')} at={side} color={COLOR.side} ring />

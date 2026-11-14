@@ -529,21 +529,49 @@ export const denzaZ9: Vehicle = {
   },
   // The Tech tab (docs/tech-showcase.md, section 14). Every source below describes the Z9 GT, the shooting brake on the same
   // e³ platform: the showroom's Z9 is listed with the same two modes in its drive-mode list, but check that the sedan has them.
+  // The sensors of the God's Eye demo, in the glTF model's axes (x forward, y up, z toward the passenger side), measured on the model
+  // with rays on 2026-11-14 (the earlier values here were in Blender's axes and lay outside the car). Autohome (series 7838) lists
+  // two lidars: the front photographs show a dark module in each outer bumper pocket, where the model has them, but no source says
+  // that is where the lidars are, and the car has no roof lidar (the 2026 Z9 GT's is on the roof: another car). Only the sensors the
+  // model shows are placed; the counts the table gives are in `notes`.
   sensors: {
-    lidar: [0.65, 0.0, 1.45],
-    cameras: [
-      { at: [2.55, 0.0, 0.85] },
-      { at: [0.65, 0.48, 1.42], mirror: true },
-      { at: [1.05, 0.96, 0.96], mirror: true },
-      { at: [-2.55, 0.0, 0.98] },
-    ],
-    ultrasonic: [
-      { at: [2.50, 0.40, 0.42], mirror: true },
-      { at: [-2.48, 0.42, 0.46], mirror: true },
-    ],
+    frontLidar: [2.329, 0.35, 0.68],
+    lidarFov: 120,
+    cameras: [{ at: [0.62, 1.19, 0] }],
+    ultrasonic: [{ at: [2.48, 0.385, 0.36], mirror: true }],
     surround: true,
+    notes: {
+      front: 'Two lidars (Autohome). Drawn from the dark module in each outer bumper pocket, which the front photographs show; no source says that is where they sit. The 120° fan is ours.',
+      cameras: 'Fourteen outside, with a three-lens unit at the windscreen, and one or two in the cabin (Autohome); only the windscreen unit is marked',
+      ultrasonic: 'Twelve (Autohome); the pair beside the plate is marked',
+      surround: 'The surround cameras, drawn as four diagonal beams (ours)',
+    },
   },
   tech: [
+    {
+      id: 'gods-eye',
+      title: 'God’s Eye (天神之眼) · Traffic jam',
+      blurb:
+        'On an expressway the Z9 follows the traffic with its adaptive cruise. A queue is standing far ahead: the lidars mark it long before the car in front brakes, the Z9 slows with that car, stops behind it holding the gap, waits, and moves off when the queue does.',
+      driver: 'sensors',
+      scenario: 'queue',
+      claims: [
+        {
+          text: 'On every trim the driver-assist system is listed as DiPilot, level 2, on an NVIDIA Orin chip, with two lidars, fourteen exterior cameras (a three-lens unit at the front) and one or two in the cabin, five millimetre-wave radars and twelve ultrasonic sensors.',
+          source: { label: 'Autohome configuration table, Denza Z9 (series 7838), read 2026-11-14', url: 'https://car.autohome.com.cn/config/series/7838.html' },
+        },
+        {
+          text: 'The same table lists full-speed adaptive cruise, lane centring, assisted lane change, ramp entry and exit, traffic-light recognition and assisted, remote and memory parking as standard.',
+          source: { label: 'Autohome configuration table, Denza Z9 (series 7838), read 2026-11-14', url: 'https://car.autohome.com.cn/config/series/7838.html' },
+        },
+        {
+          text: 'BYD sells this family of systems as God’s Eye: the China-market Z9 GT, on the same platform, carries “God’s Eye 5.0”, and its city navigation assistant is announced for Europe in 2027.',
+          source: { label: 'CarNewsChina, 13 October 2026', url: 'https://carnewschina.com/2026/10/13/denza-z9-gt-to-become-first-byd-car-with-gods-eye-autonomous-navigation-in-europe/' },
+        },
+      ],
+      simulated:
+        'A simulation. The expressway, the queue, where it stands, every speed, when the jam clears and how far off the lidars mark the stopped cars are ours: BYD publishes no scenario. Autohome names the system DiPilot and the sources found do not say which God’s Eye tier the sedan carries; the 120° fans, their reach, the four surround beams and the pulses are ours; the two lidars are drawn from the dark module in each outer bumper pocket that the front photographs show, which no source confirms as their place. The other cars are the other models’ stand-ins.',
+    },
     {
       id: 'crab',
       title: 'Crab walk',

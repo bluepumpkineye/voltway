@@ -79,7 +79,7 @@ export function Signal({ signal }: { signal: CitySignal }) {
       const layers = getLayers();
       const ego = sensors?.ego(t);
       const d = ego && sensors ? signal.x - (ego.x + sensors.egoLength / 2) : Infinity;
-      const seen = Boolean((layers.lidar || layers.vision) && d < signal.reach && d > -4);
+      const seen = Boolean((layers.lidar || layers.front || layers.vision) && d < signal.reach && d > -4);
       m.visible = seen;
       if (seen && st !== shown.current) {
         (m.material as THREE.LineBasicMaterial).color.set(st === 'green' ? '#ffffff' : '#f59e0b');

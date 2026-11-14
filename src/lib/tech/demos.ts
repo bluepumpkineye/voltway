@@ -13,6 +13,8 @@ import type { Chassis, RideMode } from './ride';
 import { planBoost, type BoostRun } from './boost';
 import { planSensors, type SceneId, type SensorsRun } from './sensors';
 import { planSwivel, type SwivelRun } from './swivel';
+import { planNomi, type NomiRun } from './nomi';
+import { planStarRing, type StarRingRun } from './starring';
 import { planCompass, planCrab, planPivotPark, planUTurn, type Pivot, type StreetNeighbour, type StreetRun } from './street';
 
 /** The demos the Tech tab offers: development-only ones are left out of a production build. */
@@ -67,6 +69,10 @@ export interface BuiltDemo {
   sensors?: SensorsRun;
   /** the swivel screen's demo: the pose the car's screen is asked for at each time (the director writes it to the store) */
   swivel?: SwivelRun;
+  /** the NOMI demo: the head's pose, the door and the beat at each time (the director opens the door; the head's driver reads the pose) */
+  nomi?: NomiRun;
+  /** the Star Ring demo: what the ring shows at each time, and the centre screen's page (the ring's driver draws; the director sets the page) */
+  starRing?: StarRingRun;
   /** the Drive tab's rival: who it is, how far along the road it has got at time t, and the lane it keeps (m to the right of the car's) */
   rival?: { slug: string; distance: (t: number) => number; lane: number };
   /**
@@ -204,7 +210,8 @@ const uturn: Driver = {
       rearMaxDeg: params.rearMaxDeg ?? 15,
       neighbours: streetCars(vehicle),
     });
-    return { track: run.track, stops: run.stops, autoplay: false, trail: false, stage: null, frame: run.frame, street: run };
+    // `trail: 1` draws the path of the rear axle on the floor (the ES8's turning-radius demo: the circle is the point)
+    return { track: run.track, stops: run.stops, autoplay: false, trail: params.trail === 1, stage: null, frame: run.frame, street: run };
   },
 };
 
@@ -335,6 +342,22 @@ const boost: Driver = {
   },
 };
 
+/** The ES8's NOMI, seen from the driver's seat: the car stands still; a door opens, someone speaks, music plays, and the head answers each. */
+const nomi: Driver = {
+  build: ({ start }) => {
+    const run = planNomi(start);
+    return { track: run.track, stops: [], autoplay: false, trail: false, stage: null, nomi: run };
+  },
+};
+
+/** The 06T's Star Ring, seen from the driver's seat: the car stands still; the ring lights, goes to drive, shows a turn and the media, and the mirror screens show the road. */
+const starring: Driver = {
+  build: ({ start }) => {
+    const run = planStarRing(start);
+    return { track: run.track, stops: [], autoplay: false, trail: false, stage: null, starRing: run };
+  },
+};
+
 /** The RX's swivel screen, seen from the driver's seat: the car stands still, the screen is pressed through its four ways. */
 const swivel: Driver = {
   build: ({ start }) => {
@@ -343,4 +366,4 @@ const swivel: Driver = {
   },
 };
 
-export const DRIVERS: Record<string, Driver> = { 'rig-test': rigTest, park, carpet, launch, drive, charge, swivel, sensors, boost, crab, compass, e3park, uturn };
+export const DRIVERS: Record<string, Driver> = { 'rig-test': rigTest, park, carpet, launch, drive, charge, swivel, nomi, starring, sensors, boost, crab, compass, e3park, uturn };

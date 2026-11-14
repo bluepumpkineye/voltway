@@ -1,5 +1,5 @@
 // Plays an Autonomous Drive scene on a stand-in car and prints its timeline and every road user's closest approach.
-//   node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/scene-test.mjs <overtake|debris|city|trafficlight> [seconds between rows]
+//   node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/scene-test.mjs <overtake|debris|city|trafficlight|queue> [seconds between rows]
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = fileURLToPath(new URL('../../', import.meta.url)).split(String.fromCharCode(92)).join('/').replace(/[/]$/, '');
 const { simulate } = await import(pathToFileURL(`${root}/src/lib/tech/drive.ts`).href);
@@ -10,6 +10,8 @@ const scenes = {
 try { scenes.city = (await import(pathToFileURL(`${root}/src/lib/tech/scenes/city.ts`).href)).cityScene; } catch (e) { if (!/ENOENT|Cannot find/.test(String(e))) throw e; }
 
 try { scenes.trafficlight = (await import(pathToFileURL(`${root}/src/lib/tech/scenes/trafficlight.ts`).href)).trafficLightScene; } catch (e) { if (!/ENOENT|Cannot find/.test(String(e))) throw e; }
+
+try { scenes.queue = (await import(pathToFileURL(`${root}/src/lib/tech/scenes/queue.ts`).href)).queueScene; } catch (e) { if (!/ENOENT|Cannot find/.test(String(e))) throw e; }
 
 const which = process.argv[2] ?? 'debris';
 const every = Number(process.argv[3] ?? 1);

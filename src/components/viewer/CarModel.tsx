@@ -20,6 +20,7 @@ import { prepareRig } from '@/lib/tech/rig';
 import { CarLights } from './Lights';
 import { CarFollower, useRigBinding } from './techRig';
 import { rigSwivel } from './ScreenSwivel';
+import { rigNomi } from './NomiHead';
 import { smoothBakedLight } from './bakeSmooth';
 import { FOOTWELL, applyCarPreset, fxVersion } from './cabinfx/settings';
 import { cabinFxExcluded } from '@/lib/showroom/interiorPreset';
@@ -423,6 +424,8 @@ function Cabin({
   // pivot (ScreenDriver turns it). Done while rendering, so the live HMI below finds the picture under its pivot.
   React.useMemo(() => {
     if (vehicle.swivel) rigSwivel(model, vehicle.swivel);
+    // a companion head on the dashboard (the ES8's NOMI): hung on a pivot, and stood clear of the centre screen that hides it
+    if (vehicle.nomi) rigNomi(model, vehicle.nomi);
   }, [model, vehicle]);
 
   // each door card gets materials of its own: its light follows its swing

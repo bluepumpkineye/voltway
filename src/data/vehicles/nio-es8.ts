@@ -547,25 +547,28 @@ export const nioEs8: Vehicle = {
         'A simulation of speed hump traversal at 16 km/h. Toggle between PrimeRide 4D proactive damping and passive suspension to observe real-time body pitch and heave control. 5-level 100 mm air height adjustment and Easy Entry kneeling are interactive.',
     },
     {
+      // What this chip was: "Front & Rear 5-Link Agility", a U-turn explained by a five-link / virtual-kingpin story that NIO's release does not
+      // tell (it names a 41° front-wheel angle and EasyTurn). The five-link layout is hardware: it cannot be seen from outside, and is the X-ray
+      // tab's 'Front & rear five-link' card. What is left here is the one visible, published thing: the turning radius.
       id: 'primeride-agility',
-      title: 'PrimeRide · Front & Rear 5-Link Agility',
+      title: 'PrimeRide · EasyTurn, 5.7 m radius',
       blurb:
-        'All-aluminum front virtual-kingpin and rear five-link suspension architecture enables exceptional wheel articulation for a tight 5.7 m turning radius in an executive flagship SUV.',
+        'NIO quotes a 41° front-wheel steering angle and its EasyTurn function for a turning radius of 5.7 m on a 5.3 m seven-seater. The car turns half a circle on that radius, on a street only as wide as the sweep needs; the line on the floor is the path of its rear axle.',
       driver: 'uturn',
       devices: ['dashboard'],
-      params: { radiusM: 5.7, rearMaxDeg: 0 },
+      params: { radiusM: 5.7, rearMaxDeg: 0, lockDeg: 41, trail: 1 },
       claims: [
         {
-          text: 'The all-new ES8 features front and rear five-link independent suspensions crafted with high-strength forged aluminum alloy.',
-          source: { label: 'NIO Official Website - All-New ES8', url: 'https://www.nio.com/es8' },
+          text: 'An industry-leading 41-degree front-wheel steering angle, combined with EasyTurn (EZT), achieves a turning radius of only 5.7 m: NIO’s words for “the agility of a mid-size car”.',
+          source: { label: 'NIO, All-New ES8 pre-order release, 21 August 2025', url: 'https://www.nio.com/news/20250821001' },
         },
         {
-          text: 'Front dual-wishbone / five-link geometry with virtual kingpins decouples steering from suspension loads, achieving an ultra-tight turning radius of 5.7 meters.',
-          source: { label: 'Autohome - NIO ES8 Specifications', url: 'https://www.autohome.com.cn/' },
+          text: 'The chassis is front and rear five-link with standard dual-chamber air suspension and up to 100 mm of height travel (its parts are in the X-ray tab).',
+          source: { label: 'NIO, All-New ES8 pre-order release, 21 August 2025', url: 'https://www.nio.com/news/20250821001' },
         },
       ],
       simulated:
-        'A simulation of a 5.7 m radius street U-turn demonstrating front virtual-kingpin steering articulation. The street width, trajectory sweep, and real-time wheel angle telemetry are rendered live.',
+        'A simulation. The 5.7 m radius and the 41° angle are NIO’s; the half-circle, the street (as wide as the sweep plus 90 cm each side), the pace and the parked cars are ours. NIO does not say what EasyTurn does, so it is not drawn. The wheel angles shown are what a 5.7 m circle needs from the car’s geometry (about 46° inside and 33° outside), not NIO’s 41°: the two published figures are probably not measured the same way. The five-link suspension cannot be seen from outside: it is in the X-ray tab.',
     },
     {
       id: 'primeride-launch',
@@ -633,21 +636,42 @@ export const nioEs8: Vehicle = {
     },
 
     {
+      // This chip used the Luxeed RX's swivel-screen driver, which turns a screen the ES8 does not have: it opened the RX's direction
+      // dialog and nothing moved (and the model's NOMI stood behind the centre screen). It now plays NOMI itself (docs section 28).
       id: 'nomi',
-      title: 'NOMI Mate 2.0 AI Companion',
+      title: 'NOMI Mate · The dashboard companion',
       blurb:
-        'In-car emotional artificial intelligence with circular AMOLED display, expressive digital personality, and full voice control.',
-      driver: 'swivel',
+        'NOMI is a sphere on the dashboard with a round screen for a face. A door opens and it turns its head to greet; the driver speaks and it turns to them and nods; music plays and it sways. Watch it from the driver’s seat.',
+      driver: 'nomi',
       view: 'cabin',
       claims: [
         {
-          text: 'NOMI Mate 2.0 brings the smart cockpit alive with a circular AMOLED display and real-time emotive animations.',
-          source: { label: 'NIO Official', url: 'https://www.nio.cn/es8' },
+          text: 'NOMI is a small ball-shaped device on top of the dashboard, with a round screen for a face; one motor turns it across and one up and down.',
+          source: { label: 'NIO blog, “The History Behind NOMI”, 11 November 2021 (the first generation)', url: 'https://www.nio.com/blog/history-behind-nomi' },
+        },
+        {
+          text: 'NOMI Mate 3.0, introduced with the new ES8, senses doors opening and closing and where passengers sit, and turns its head to greet them; it has a brushless motor for near-silent turning, supports swaying to music and has more than 200 expressions.',
+          source: { label: 'Baidu Baike, NIO NOMI', url: 'https://baike.baidu.com/en/item/NIO%20NOMI/6253302' },
+        },
+        {
+          text: 'It turns its gaze toward sounds, tilts its head and sometimes nods in reply, and moves in time with music.',
+          source: { label: 'CHINA CASE, 26 July 2025 (automatic translation)', url: 'https://note.com/china_case/n/n93a67f0c04fa' },
         },
       ],
-      simulated: 'Cockpit view highlighting the NOMI Mate AI companion on the dashboard center.',
+      simulated:
+        'A simulation. That NOMI greets a door, turns toward a voice, nods and sways to music is published; the order, the timing, every pose and speed, the three faces drawn (it has more than 200) and what is said are ours. The head’s travel is one source’s, about 100° across and 30° up and down; another says up to 340° across, so the smaller is used. The sources are a 2021 NIO blog about the first generation, a Baidu Baike entry and a July 2025 third-party note: none is a spec sheet, and NIO’s own release for the all-new ES8 does not mention NOMI. The model had NOMI low behind the centre screen, out of sight from the driver’s seat; it stands here on a short neck above the screen, as in NIO’s photograph of it.',
     },
   ],
+  // NOMI's head, as the cabin model has it (Blender's (0.935, 0, 1.176) in glTF axes; the face on the sphere 12° above the horizon, facing the
+  // driver) and how far the browser raises it so the centre screen no longer hides it from the driver's seat (src/components/viewer/NomiHead.tsx).
+  nomi: {
+    head: [0.935, 1.176, 0],
+    radius: 0.032,
+    face: { at: [0.9047, 1.18265, 0], normal: [-0.97815, 0.20791, 0], radius: 0.024 },
+    lift: 0.075,
+    // 10% larger than modelled, at the owner's request (2026-11-14), so that the demo reads from the driver's seat
+    scale: 1.1,
+  },
   // The Drive tab's scenario (docs/tech-showcase.md section 19). The 100-0 distance is the 34.3 m of the 'primeride-launch' demo
   // above (NIO's page); the 480 kW and 850 N·m in that demo's text disagree with this file's 520 kW and 700 N·m and are left alone.
   drive: {

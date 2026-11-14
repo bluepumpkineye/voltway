@@ -601,6 +601,12 @@ export interface SensorSpec {
    */
   lidarFov?: number;
   /**
+   * Two forward lidars in the front bumper, one in each side (the Denza Z9's: Autohome lists two lidars and the front photographs show
+   * a dark module in each outer pocket): the passenger side's place, mirrored for the driver's. Each is drawn as a fan looking ahead and
+   * a little outward, `lidarFov` wide when that is given. A car with these has no `lidar`.
+   */
+  frontLidar?: [number, number, number];
+  /**
    * Where the solid-state lidars are drawn from, the passenger side's (mirrored for the driver's side). Reported at the
    * fenders by one secondary source; the photographs show cameras and a slot there, no marked lidar. Left out for a car
    * that has none.
@@ -623,7 +629,7 @@ export interface SensorSpec {
   cameras: { at: [number, number, number]; mirror?: boolean }[];
   ultrasonic: { at: [number, number, number]; mirror?: boolean }[];
   /** what each switch on the demo's panel says it is (a tooltip): the maker's counts, where it gives them */
-  notes?: Partial<Record<'lidar' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround' | 'vision', string>>;
+  notes?: Partial<Record<'lidar' | 'front' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround' | 'vision', string>>;
 }
 
 /**
@@ -640,6 +646,26 @@ export interface SwivelSpec {
   travelM: number;
   /** the vertical axis it turns about, as x and z in the cabin model's space (glTF: x forward, z toward the passenger side) */
   hub: [number, number];
+}
+
+/**
+ * A companion head on the dashboard (the NIO ES8's NOMI): a sphere with a round screen for a face, on two motors. The cabin model has it as
+ * nodes of its own (`int_nomi_head`, `int_nomi_face`, `int_nomi_eye_L`/`_R`, `int_nomi_pedestal`); the browser hangs the head on a pivot so it can turn and
+ * nod, and lifts it clear of the centre screen (src/components/viewer/NomiHead.tsx).
+ */
+export interface NomiSpec {
+  /** the head sphere's centre as the model has it, in the cabin model's space (glTF: x forward, y up, z toward the passenger side), and its radius, m */
+  head: [number, number, number];
+  radius: number;
+  /** the face's centre on the sphere, the way it looks (a unit vector) and its radius, m */
+  face: { at: [number, number, number]; normal: [number, number, number]; radius: number };
+  /**
+   * How far the head is raised over where the model has it, m. The model puts the sphere low enough for the centre screen to hide it from
+   * the driver's seat; NIO's own photograph has it standing clear above the screen.
+   */
+  lift: number;
+  /** the head drawn this many times its modelled size (about its centre), for the demo's sake; 1 when left out */
+  scale?: number;
 }
 
 /**
@@ -723,6 +749,8 @@ export interface Vehicle {
   sensors?: SensorSpec;
   /** The centre screen's mount, when it moves (the cabin's `screen_main` and its frame turn about the hub). */
   swivel?: SwivelSpec;
+  /** A companion head on the dashboard that can turn (the ES8's NOMI), see NomiSpec. */
+  nomi?: NomiSpec;
   sources: Source[];
   /** Set when a car is too new for reliable data on some fields. */
   dataCaveat?: string;

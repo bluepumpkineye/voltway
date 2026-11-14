@@ -13,6 +13,7 @@ import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type CameraMode } from '@/store/vehicle-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
 import { ScreenDriver } from './ScreenSwivel';
+import { NomiDriver } from './NomiHead';
 import { LightsDriver } from './Lights';
 import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
@@ -101,6 +102,7 @@ export function VehicleViewer({
         <OpeningsDriver vehicle={vehicle} />
         <LightsDriver />
         <ScreenDriver vehicle={vehicle} />
+        <NomiDriver vehicle={vehicle} />
         {fixedShot ? <LockedCamera shot={fixedShot} /> : <Rig interior={interiorShot(vehicle)} />}
         {!worldOutside && <StudioEnvironment intensity={1.05} inside={inside} />}
 

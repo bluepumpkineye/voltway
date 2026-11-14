@@ -15,6 +15,8 @@ import { OpeningsDriver, useCabinWanted } from './Openings';
 import { OutsideWorld } from './OutsideWorld';
 import { GroundShadow, StudioShowroom, STUDIO_WHITE } from './StudioShowroom';
 import { ScreenDriver } from './ScreenSwivel';
+import { NomiDriver } from './NomiHead';
+import { StarRingDriver } from './StarRing';
 import { ShowroomCameraRig, useCarFrame } from './ShowroomCameraRig';
 import { DimensionRulers } from './DimensionRulers';
 import { TechCharge } from './TechCharge';
@@ -98,6 +100,8 @@ export function ShowroomViewer({
         <LightsDriver />
         <WeatherDriver />
         <ScreenDriver vehicle={vehicle} />
+        <NomiDriver vehicle={vehicle} />
+        <StarRingDriver vehicle={vehicle} />
         <BoostKnob vehicle={vehicle} />
         <TechDirector vehicle={vehicle} />
         <XrayDirector vehicle={vehicle} />

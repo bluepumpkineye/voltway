@@ -4,11 +4,11 @@
  */
 import React from 'react';
 
-export type LayerId = 'lidar' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround' | 'vision';
-export const LAYERS: LayerId[] = ['lidar', 'side', 'rear', 'surround', 'vision', 'ultrasonic', 'cameras'];
+export type LayerId = 'lidar' | 'front' | 'side' | 'rear' | 'ultrasonic' | 'cameras' | 'surround' | 'vision';
+export const LAYERS: LayerId[] = ['lidar', 'front', 'side', 'rear', 'surround', 'vision', 'ultrasonic', 'cameras'];
 
 type Layers = Record<LayerId, boolean>;
-let snap: Layers = { lidar: true, side: true, rear: true, surround: true, vision: true, ultrasonic: true, cameras: true };
+let snap: Layers = { lidar: true, front: true, side: true, rear: true, surround: true, vision: true, ultrasonic: true, cameras: true };
 const subs = new Set<() => void>();
 
 export const getLayers = (): Layers => snap;

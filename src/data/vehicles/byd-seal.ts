@@ -523,37 +523,27 @@ export const bydSeal: Vehicle = {
     },
   },
   tech: [
-    {
-      id: 'ctb-tech',
-      title: 'CTB Cell-to-Body Technology',
-      blurb:
-        'The Blade Battery is structurally integrated into the vehicle body, acting as both the energy source and a structural component, yielding 40,500 Nm/deg torsional stiffness.',
-      driver: 'ctb',
-      devices: ['dashboard'],
-      claims: [
-        {
-          text: 'BYD CTB (Cell to Body) battery integration makes the battery pack sandwich part of the vehicle platform floor, achieving 40,500 Nm/deg torsional rigidity and 50:50 front-rear axle weight distribution.',
-          source: { label: 'BYD Official CTB Technology', url: 'https://www.byd.com/cn/tech/ctb' },
-        },
-      ],
-      simulated:
-        'A simulation demonstrating the high torsional rigidity and crash protection provided by CTB cell-to-body sandwich structure.',
-    },
+    // The Cell-to-Body battery (CTB) has no entry here: it is a structure, with nothing that moves, and it is already shown where it
+    // can be: the X-ray tab's battery and floor-cage cards (anatomy above). The chip that named a driver that never existed is gone.
     {
       id: 'gods-eye-adas',
-      title: 'God’s Eye (天神之眼) LiDAR ADAS',
+      title: 'God’s Eye (天神之眼) · Red light',
       blurb:
-        'Equipped with watchtower-mounted roof LiDAR, 5 millimeter-wave radars, 12 ultrasonic sensors, and 11 HD cameras for city & highway Navigation on Autopilot (NOA).',
-      driver: 'godseye',
-      devices: ['dashboard'],
+        'A city street at 50 km/h behind another car: the roof lidar and cameras read the traffic light as it turns amber and then red, the car stops at the line behind the one ahead, waits while people cross, and moves off on green.',
+      driver: 'sensors',
+      scenario: 'trafficlight',
       claims: [
         {
-          text: 'The 2025/2026/2027 Seal EV features the God’s Eye (天神之眼) advanced driver assistance system (DiPilot 300) with roof-mounted LiDAR, enabling full-scenario highway and urban navigation assistance.',
-          source: { label: 'Autohome — 比亚迪 海豹 EV Configuration', url: 'https://www.autohome.com.cn/6394/' },
+          text: 'The 650 and 600 AWD Smart Driving trims carry DiPilot 300 (BYD sells it as God’s Eye), level 2, on one Orin-X chip: one lidar, eleven exterior cameras (a stereo pair at the front) and two in the cabin, five millimetre-wave radars and twelve ultrasonic sensors.',
+          source: { label: 'Autohome configuration table, BYD Seal 600 AWD Smart Driving (spec 71666)', url: 'https://car.autohome.com.cn/config/spec/71666.html' },
+        },
+        {
+          text: 'Traffic-light recognition and driving on city roads are listed for those trims only; the 510 Smart Navigation trim runs the lidar-less DiPilot 100 (twelve cameras, Orin-N) and has neither.',
+          source: { label: 'Autohome configuration table, BYD Seal (spec 71666)', url: 'https://car.autohome.com.cn/config/spec/71666.html' },
         },
       ],
       simulated:
-        'A simulation highlighting the sensor suite and multi-layer perception perception envelope around the vehicle.',
+        'A simulation. The street, the light’s timing, the people, the speeds, how far off the car reads the light and how it stops are ours: BYD publishes no scenario. The roof lidar’s 120° fan and every cone’s reach are ours (no field of view is published); the lidar housing is modelled from Autohome photographs of the 650 Smart Driving, so it shows on the 510 too, which has none. The other cars are the other models’ stand-ins.',
     },
     {
       id: 'park',

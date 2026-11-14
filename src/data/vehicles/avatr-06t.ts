@@ -568,18 +568,30 @@ export const avatr06t: Vehicle = {
         'A simulation. The road, the other cars, the box, their speeds, what the car does and when are ours: no maker publishes a scenario. The box stands for the general obstacles the GOD network is described as detecting, and the cut-in for what the PDP network is described as predicting; the maker shows neither. The 14 cm at 120 m is Huawei’s figure for its 896-line lidar, used here as the distance at which the box is first marked; the beams’ angles and the reach they are drawn to are ours (no field of view is published). The other cars are the other models’ stand-ins in neutral paint.',
     },
     {
+      // This chip used the Luxeed RX's swivel-screen driver, which turns a centre screen the 06T does not have: nothing on the car moved.
+      // It now lights the ring itself (docs section 29).
       id: 'star-ring',
       title: '35.4" Panoramic Star Ring Display',
-      blurb: 'Surrounding cockpit with 35.4-inch 4K integrated star-ring display and dual 6.7-inch high-definition electronic rearview mirror screens.',
-      driver: 'swivel',
+      blurb:
+        'The 4K ring across the foot of the windscreen lights from end to end, the car goes to D and it carries the speed, the power and the range; a route set on the centre screen puts its next turn on the ring; media plays on it, and the two mirror screens show the road behind. Watch it from the driver’s seat.',
+      driver: 'starring',
       view: 'cabin',
       claims: [
         {
-          text: 'The 35.4-inch 4K star-ring panoramic screen wraps across the front cowl, paired with dual electronic rearview mirror monitors.',
+          text: 'The cockpit has a 35.4-inch 4K Panoramic Star Ring Display, a 15.6-inch floating centre screen and two 6.7-inch exterior-mirror screens: a four-screen linkage system.',
+          source: { label: 'CarNewsChina, Avatr 06T launch, 23 April 2026', url: 'https://carnewschina.com/2026/04/23/avatr-launches-06t-wagon-with-up-to-955-hp-and-1250-km-range-starting-from-31900-usd/' },
+        },
+        {
+          text: 'The ring runs along the lower edge of the windscreen and is mainly for speed, navigation and battery information, so the driver looks down less.',
+          source: { label: 'ifanr, 8 April 2026', url: 'https://www.ifanr.com/1661450.md' },
+        },
+        {
+          text: 'Avatr’s own page names the “35.4-inch 4K Panoramic Star Ring Display” and “Dual 6.7-inch High Definition Rearview Screens”, and notes that some functions arrive by over-the-air update.',
           source: { label: 'Avatr Official', url: 'https://www.avatr.com/en/06T' },
         },
       ],
-      simulated: 'Cockpit view highlighting the panoramic wrap-around display and digital mirror screens.',
+      simulated:
+        'A simulation. The ring’s layout is read from Autohome’s photographs of the car (the car with its range, power and mileage at the left; a media card; the trip’s energy; the weather and the time at the right) and drawn in its daytime look. No page says how the screens pass content to one another, and no photograph shows the ring in drive, showing a turn, or the mirror screens lit: the speed, the power meter, the turn card, the road in the mirror screens, the drive itself, every number and the timing are ours, and so is the idea that a route set on the centre screen shows on the ring.',
     },
     {
       id: 'park',

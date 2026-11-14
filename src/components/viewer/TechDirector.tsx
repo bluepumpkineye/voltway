@@ -14,6 +14,8 @@ import type { PlannedRun } from '@/lib/tech/kinematics';
 import { rideLevelsOf, RIDE_SPAN_MM } from '@/lib/tech/ride';
 import { rigOf } from '@/lib/tech/rig';
 import { techSession } from '@/lib/tech/session';
+import { setNomiRun } from '@/lib/tech/nomi';
+import { setStarRingRun } from '@/lib/tech/starring';
 import { CORNERS } from '@/lib/tech/kinematics';
 import { DRIVE_CARRY_MS, DRIVE_REST_EXIT_S, driveExitS, exitAt, exitInfo, exitPull } from '@/lib/tech/drive-exit';
 import { SHOW_EXIT_S, SHOW_RUN_S } from '@/lib/xray/show';
@@ -185,6 +187,16 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     if (built.charge) {
       st.setHmiScreen('charge');
     }
+    // NOMI's head follows the clock (NomiDriver reads the run); the door it greets is the director's
+    if (built.nomi) {
+      setNomiRun(built.nomi);
+      st.setOpening('doorFR', false);
+    }
+    // the 06T's Star Ring: the ring's driver draws from the run; the centre screen's page is the director's
+    if (built.starRing) {
+      setStarRingRun(built.starRing);
+      st.setHmiScreen('home');
+    }
     poseAt.current = NaN;
     // the Drive tab's hill: the whole stage (road, car, cabin, rival) is tilted nose-up by it
     rig.state.slope = Math.atan((built.treadmill?.launch?.drive?.env.gradePct ?? 0) / 100);
@@ -225,6 +237,14 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
         s.setHmiScreen('home');
       }
       if (built.sensors) s.setBraking(false);
+      if (built.nomi) {
+        setNomiRun(null);
+        s.setOpening('doorFR', false);
+      }
+      if (built.starRing) {
+        setStarRingRun(null);
+        s.setHmiScreen('home');
+      }
       if (built.boost) {
         s.setBoost(false, 0);
         s.setBoostPopup(false);
@@ -375,6 +395,14 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       poseAt.current = techClock.t;
       const p = sw.pose(techClock.t);
       useVehicleStore.getState().setScreenPose(p.turn, p.slide);
+    }
+    const nm = built.nomi;
+    if (nm) useVehicleStore.getState().setOpening('doorFR', nm.door(techClock.t));
+    const sr = built.starRing;
+    if (sr) {
+      const page = sr.centre(techClock.t);
+      const st = useVehicleStore.getState();
+      if (st.hmiScreen !== page) st.setHmiScreen(page);
     }
     const ch = built.charge;
     if (ch) {
