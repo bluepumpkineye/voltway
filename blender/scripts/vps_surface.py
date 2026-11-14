@@ -22,7 +22,7 @@ Key proportion and surface traits read off c1_0004 / c1_0002 / c1_0006:
   - Broad SUV wheel arches (painted opening r 0.522 m, framed by gloss-black cladding flaring to
     1998 mm overall width) and muscular rear haunches under a tucked-in greenhouse
 """
-from carkit.geom import Curve, Joined          # noqa: F401  (re-exported)
+from carkit.geom import Curve, Joined, smoothstep  # noqa: F401  (re-exported)
 from carkit.body import LoftBody
 from carkit.body.loft import Section
 
@@ -59,14 +59,27 @@ Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve([
     (-0.510, 1.636), (-0.350, 1.636), (-0.190, 1.633), (-0.050, 1.622),
     (0.100, 1.602), (0.260, 1.564), (0.380, 1.518), (0.465, 1.478),
     (0.550, 1.440), (0.630, 1.395), (0.710, 1.349), (0.790, 1.304),
-    (0.870, 1.252), (0.955, 1.207), (COWL_X, 1.158),
+    (0.870, 1.254), (0.955, 1.208), (COWL_X, 1.159),
 ])), Curve([
-    # Bonnet centreline valley: sits 24-32 mm below the outer fender crowns / hood domes (Z_CREST)
-    # and meets the nose cap's top edge at (2.360, 0.892).
-    (COWL_X, 1.158), (1.150, 1.114), (1.350, 1.109), (1.550, 1.098),
-    (1.750, 1.074), (1.950, 1.036), (2.150, 0.971), (2.280, 0.924),
+    # Bonnet centreline valley: taut convex sweep sitting 15-18 mm below the outer power domes
+    # (Z_CREST / Z_DOME) and meeting the nose cap's top edge at (2.360, 0.892).
+    (COWL_X, 1.159), (1.180, 1.149), (1.350, 1.135), (1.550, 1.116),
+    (1.750, 1.091), (1.950, 1.055), (2.150, 1.000), (2.280, 0.945),
     (2.360, 0.892), (HALF_L, 0.780),
-]))
+], mode="pchip"))
+
+# Smooth front fender top crown (upper[2] control point, y = Y_FENDER_CROWN, z = Z_FENDER_CROWN),
+# decoupling the front fender's upper silhouette from the steep windscreen slope at x 0.88..1.04.
+Y_FENDER_CROWN = Curve([
+    (0.700, 0.840), (0.880, 0.842), (COWL_X, 0.842), (1.180, 0.840),
+    (1.350, 0.836), (1.650, 0.825), (2.020, 0.800), (2.300, 0.755), (HALF_L, 0.700),
+], mode="pchip")
+
+Z_FENDER_CROWN = Curve([
+    (0.700, 1.186), (0.880, 1.179), (COWL_X, 1.170), (1.180, 1.159),
+    (1.350, 1.145), (1.550, 1.126), (1.750, 1.100), (1.950, 1.060),
+    (2.150, 0.998), (2.280, 0.936), (2.360, 0.888), (HALF_L, 0.780),
+], mode="pchip")
 
 # Underbody / rocker lower edge (read off side_grid_mid/nose/tail: z 0.258-0.268 along the sills,
 # rising into the rear diffuser behind the rear wheel).
@@ -89,35 +102,36 @@ Z_HIP = Curve([
 Z_SHOULDER = Curve([
     (-HALF_L, 1.065), (-2.350, 1.090), (-2.120, 1.115), (-1.850, 1.132),
     (REAR_AXLE, 1.145), (-1.200, 1.160), (-0.900, 1.152), (-0.500, 1.142),
-    (0.000, 1.138), (0.450, 1.134), (0.850, 1.130), (COWL_X, 1.110),
-    (1.300, 1.078), (FRONT_AXLE, 1.055), (1.850, 1.015), (2.150, 0.945),
+    (0.000, 1.138), (0.450, 1.134), (0.850, 1.126), (COWL_X, 1.116),
+    (1.250, 1.102), (FRONT_AXLE, 1.074), (1.850, 1.025), (2.150, 0.950),
     (2.360, 0.885), (HALF_L, 0.820),
-])
+], mode="pchip")
 
 # Crown of the roof / backlight and front fender tops relative to Z_ROOF
 Z_CREST = Joined(COWL_X, Curve([
     (-HALF_L, -0.058), (-2.380, -0.068), (-2.200, -0.070), (-2.000, -0.056),
     (-1.820, -0.036), (-1.680, -0.024), (-1.450, -0.020), (-1.000, -0.020),
-    (-0.450, -0.018), (0.000, -0.018), (0.400, -0.024), (0.750, -0.016),
-    (COWL_X, 0.000),
+    (-0.450, -0.018), (0.000, -0.018), (0.400, -0.024), (0.750, -0.018),
+    (0.900, -0.002), (COWL_X, 0.015),
 ], mode="pchip"), Curve([
-    # Outer fender crowns standing 24-32 mm proud of the recessed bonnet centreline
-    (COWL_X, 0.000), (1.150, 0.022), (1.350, 0.030), (1.550, 0.032),
-    (1.750, 0.030), (1.950, 0.024), (2.150, 0.014), (2.280, 0.004),
+    # Outer bonnet crowns standing 15-18 mm proud of the recessed bonnet centreline
+    (COWL_X, 0.015), (1.180, 0.016), (1.350, 0.017), (1.550, 0.018),
+    (1.750, 0.018), (1.950, 0.016), (2.150, 0.012), (2.280, 0.005),
     (2.360, 0.000), (HALF_L, 0.000),
-]))
+], mode="pchip"))
+
 
 # Sculpted outer bonnet power domes (front_grid.png u 1260..1460 / 2380..2580)
-Z_DOME = Curve([
-    (-HALF_L, 0.000), (COWL_X, 0.000), (1.150, 0.018), (1.350, 0.026),
-    (1.550, 0.028), (1.750, 0.026), (1.950, 0.020), (2.150, 0.010),
-    (2.280, 0.000), (HALF_L, 0.000),
-], mode="pchip")
+def Z_DOME(x):
+    if x <= COWL_X:
+        return 0.0
+    return max(0.0, Z_CREST(x))
+
 
 Y_DOME = Curve([
-    (-HALF_L, 0.620), (COWL_X, 0.640), (1.250, 0.610), (1.550, 0.585),
-    (1.850, 0.555), (2.100, 0.505), (2.280, 0.455), (HALF_L, 0.420),
-])
+    (-HALF_L, 0.580), (COWL_X, 0.575), (1.250, 0.555), (1.550, 0.525),
+    (1.850, 0.490), (2.150, 0.450), (2.300, 0.420), (HALF_L, 0.390),
+], mode="pchip")
 
 # Half-widths: painted haunches reach 0.980 m, with gloss-black arch cladding flaring ~19 mm to
 # 0.999 m (1998 mm overall width across front/rear arches, matching front_grid & rear_grid).
@@ -137,14 +151,14 @@ Y_SHOULDER = Curve([
     (1.920, 0.910), (2.200, 0.870), (HALF_L, 0.805),
 ])
 
-# Roof rail half-width (rear_grid: +/-0.60 at z 1.53; front_grid: +/-0.615 at header, +/-0.83 at cowl)
+# Roof rail half-width (rear_grid: +/-0.60 at z 1.53; front_grid: +/-0.615 at header, +/-0.805 at cowl)
 Y_ROOF = Curve([
     (-HALF_L, 0.545), (-2.380, 0.550), (-2.100, 0.535), (-1.750, 0.555),
     (-1.350, 0.580), (-0.950, 0.598), (-0.500, 0.612), (0.000, 0.618),
-    (0.280, 0.635), (0.480, 0.685), (0.680, 0.742), (0.880, 0.795),
-    (COWL_X, 0.825), (1.300, 0.815), (1.650, 0.805), (2.020, 0.775),
+    (0.280, 0.635), (0.480, 0.685), (0.680, 0.742), (0.880, 0.790),
+    (COWL_X, 0.805), (1.300, 0.800), (1.650, 0.790), (2.020, 0.765),
     (2.300, 0.715), (HALF_L, 0.640),
-])
+], mode="pchip")
 
 # Greenhouse base half-width: broad rear haunch deck under the C-pillar and quarter glass
 # (rear_grid v 1165: y 0.734 at z 1.27 over a 0.980 haunch).
@@ -156,7 +170,8 @@ Y_GLASS = Curve([
 
 Z_STEP = Curve([
     (-HALF_L, 0.028), (-2.280, 0.042), (-2.020, 0.064), (-1.720, 0.066),
-    (-1.420, 0.062), (-1.150, 0.042), (-0.900, 0.028), (HALF_L, 0.028),
+    (-1.420, 0.062), (-1.150, 0.042), (-0.900, 0.028), (0.740, 0.028),
+    (0.880, 0.019), (COWL_X, 0.018), (HALF_L, 0.014),
 ], mode="pchip")
 SOFT = Curve([(-HALF_L, 1.0), (-1.420, 1.0), (-0.900, 0.0), (HALF_L, 0.0)], mode="pchip")
 
@@ -173,6 +188,41 @@ UNDERCUT = Curve([
 
 
 # ------------------------------------------------------------------ the loft
+def SECTION_AT(x):
+    """Ahead of the A-pillar foot (x >= 0.880), pin upper[2] to the smooth C2 fender crown
+    (Y_FENDER_CROWN, Z_FENDER_CROWN) so the front fender's upper edge is completely decoupled
+    from the windscreen slope and COWL_X corner, and match p0/p1/q to d0/d1/(yv,zv) on the
+    bonnet (x >= COWL_X) so the power dome has zero longitudinal dip or W-groove."""
+    t = smoothstep((x - 0.740) / 0.140)
+    if t <= 0.0:
+        return None
+    th_hood = smoothstep((x - 1.025) / 0.015)
+    lerp = lambda a, b: a + (b - a) * t
+    lerp_h = lambda a, b: a + (b - a) * th_hood
+    sbr = lerp(0.045, 0.020)
+    zs = min(max(Z_SHOULDER(x), Z_HIP(x) + 0.08), Z_ROOF(x) - sbr)
+    head = max(1e-4, Z_ROOF(x) - zs)
+    crest = Z_CREST(x)
+    tc = lerp(0.40, 0.76)
+    th_target = (Z_FENDER_CROWN(x) - zs - crest * tc) / head
+    th = lerp(0.52, th_target)
+    ys, yrf = Y_SHOULDER(x), Y_ROOF(x)
+    ts_target = (Y_FENDER_CROWN(x) - yrf) / max(1e-4, ys - yrf)
+    ts = lerp(0.36, ts_target)
+    tr = 1.0 - ts
+    r_in_target = min(Y_DOME(x), yrf - 0.06) / yrf
+    return dict(
+        step_in=lerp(0.045, 0.028),
+        step_max=lerp(0.028, 0.019),
+        tumble=(ts, tr, th, tc),
+        shoulder_below_roof=sbr,
+        rail_in=lerp_h(0.52, r_in_target),
+        rail_crest=lerp_h(0.34, 1.00),
+        dome_groove=lerp_h(0.40, 0.00),
+        dome_flank=(lerp_h(0.76, 0.50), lerp_h(0.22, 0.30)),
+    )
+
+
 BODY = LoftBody(
     name="Voyah Passion S", length=LENGTH, width=WIDTH, height=HEIGHT,
     front_axle=FRONT_AXLE, rear_axle=REAR_AXLE, wheel_r=WHEEL_R, arch_r=ARCH_R,
@@ -184,6 +234,7 @@ BODY = LoftBody(
     y_glass=Y_GLASS, z_step=Z_STEP, soft=SOFT,
     section=Section(step_in=0.045, step_max=0.028, tumble=(0.36, 0.64, 0.52, 0.40),
                     dome_groove=0.40, dome_flank=(0.76, 0.22)),
+    section_at=SECTION_AT,
 )
 
 z_rocker = BODY.z_rocker

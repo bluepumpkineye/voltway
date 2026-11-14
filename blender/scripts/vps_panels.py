@@ -151,10 +151,10 @@ DLO_TOP_Z = Curve([
     (0.140, 1.542), (X_ROOF_F, 1.512),
 ], mode="pchip")
 
-A_FOOT = (0.865, 1.187)
+A_FOOT = (0.865, 1.182)
 A_TOP = (X_ROOF_F, 1.512)
 _A_LINE = Curve([
-    (X_ROOF_F, 1.512), (0.406, 1.450), (0.643, 1.328), (0.865, 1.187),
+    (X_ROOF_F, 1.512), (0.406, 1.450), (0.643, 1.328), (0.865, 1.182),
 ], mode="pchip")
 
 
@@ -163,21 +163,36 @@ def z_a(x):
 
 
 def V_BELT(x):
-    return v_up(x, BELT_Z(max(X_DLO_TIP, min(BELT_X_MAX, x))))
+    v0 = v_up(x, BELT_Z(max(X_DLO_TIP, min(BELT_X_MAX, x))))
+    if x <= 0.830:
+        return v0
+    w = _smooth(_clamp01((x - 0.830) / 0.050))
+    return v0 * (1.0 - w) + V_HOOD(x) * w
 
 
 def V_GT(x):
-    if x > X_ROOF_F:
-        return v_up(x, z_a(x))
-    return v_up(x, DLO_TOP_Z(max(X_DLO_TIP, x)))
+    if x <= X_ROOF_F:
+        return v_up(x, DLO_TOP_Z(max(X_DLO_TIP, x)))
+    if x >= 0.865:
+        return V_HOOD(x)
+    v0 = v_up(x, z_a(x))
+    w = _smooth(_clamp01((x - 0.815) / 0.050))
+    return v0 * (1.0 - w) + V_HOOD(x) * w
 
 
 def V_A(x):
-    return S.v_along(x, v_up(x, z_a(min(A_FOOT[0], x))), 0.068)
+    v0 = S.v_along(x, v_up(x, z_a(min(A_FOOT[0], x))), 0.068)
+    if x <= 0.820:
+        return v0
+    v1 = S.v_at_y_upper(x, S.Y_ROOF(x))
+    w = _smooth(_clamp01((x - 0.820) / 0.080))
+    return v0 * (1.0 - w) + v1 * w
 
 
 def V_FRAME(x):
-    return S.v_along(x, V_GT(x), 0.005 + 0.015 * geom.smoothstep((x - X_DLO_TIP) / 0.28))
+    w_rear = 0.005 + 0.015 * geom.smoothstep((x - X_DLO_TIP) / 0.28)
+    w_front = 1.0 - _smooth(_clamp01((x - 0.835) / 0.050))
+    return S.v_along(x, V_GT(x), w_rear * w_front)
 
 
 def V_RAIL(x):
@@ -277,14 +292,14 @@ def _hood_front(v):
 
 
 Y_HOOD = Curve([
-    (X_COWL, 0.835), (1.180, 0.818), (1.420, 0.790), (1.680, 0.758),
-    (1.900, 0.718), (2.060, 0.665), (2.200, 0.585), (2.300, 0.460),
-    (2.350, 0.260), (2.360, 0.000),
-])
+    (0.860, 0.842), (X_COWL, 0.840), (1.180, 0.822), (1.420, 0.792),
+    (1.680, 0.758), (1.900, 0.718), (2.060, 0.665), (2.200, 0.585),
+    (2.300, 0.460), (2.350, 0.260), (2.360, 0.000),
+], mode="pchip")
 
 
 def V_HOOD(x):
-    return S.v_at_y_upper(x, Y_HOOD(x))
+    return S.v_at_y_upper(x, Y_HOOD(max(0.860, x)))
 
 
 GB_F = -0.115
@@ -317,12 +332,12 @@ PANELS = [
          mat="black_gloss"),
     dict(name="VPS_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=62, nv=36, gap=dict(v1=False), mat="paint", offset=0.0005),
-    dict(name="VPS_Roof_Rail", x=(X_DLO_TIP, A_FOOT[0] + 0.015),
+    dict(name="VPS_Roof_Rail", x=(X_DLO_TIP, 0.855),
          v=(lambda x: V_GT(x) + 0.005, V_FRAME),
          nx=92, nv=5, gap=dict(x0=False), mat="black_gloss"),
-    dict(name="VPS_Roof_Edge", x=(X_DLO_TIP, A_FOOT[0] + 0.015),
+    dict(name="VPS_Roof_Edge", x=(X_DLO_TIP, X_COWL),
          v=(lambda x: V_FRAME(x) + 0.002, V_RAIL_TOP),
-         nx=96, nv=9, gap=dict(x0=False), mat="paint"),
+         nx=104, nv=9, gap=dict(x0=False), mat="paint"),
 
     # ---- greenhouse underlay & cowl plenum
     dict(name="VPS_Cowl_Black", x=(X_COWL - 0.040, X_COWL + 0.028),

@@ -155,6 +155,21 @@ FAILURES = {
         looks_like="Zebra stripes break or kink; a highlight shows a crease on a smooth surface.",
         cause="A profile curve is not C2 or sections are not resampled by arc length.",
         fix="Use natural cubic Curve/Joined profiles and arc-length resampling; check with qa.zebra."),
+    "hood_fender_cowl_cavity": dict(
+        looks_like="A concave scoop, saddle or dip on the rear half of the hood and upper front fender "
+                   "just ahead of the A-pillar / cowl, conspicuous in 3/4 and side views (or a triangular "
+                   "hole at the A-pillar foot).",
+        cause="Three compounding causes in LoftBody cars where X_DOOR_F < COWL_X: (1) Z_ROOF / Z_CREST "
+              "has d2z/dx2 > 0 behind the front axle, or LoftBody's a = smoothstep(dome / 0.010) ramps "
+              "between mismatched roof (p0, p1, q) and dome (d0, d1, yv/zv) points ahead of COWL_X; "
+              "(2) upper[2] (the fender crown) is coupled to z_rf(x) across X_DOOR_F .. COWL_X, so it "
+              "climbs the ~30 deg windscreen slope and dips at the cowl corner; (3) Roof_Edge stops at "
+              "X_DOOR_F instead of X_COWL.",
+        fix="(1) Make Z_ROOF and Z_ROOF + Z_CREST strictly convex (pchip, dz/dx < 0, d2z/dx2 <= 0) ahead "
+            "of COWL_X, keep Z_DOME(x) = 0 for x <= COWL_X, and match (p0, p1, q) to (d0, d1, (yv, zv)) "
+            "for x >= COWL_X with dome_groove = 0; (2) pin upper[2] to dedicated Y_FENDER_CROWN(x) and "
+            "Z_FENDER_CROWN(x) curves for x >= X_DOOR_F by solving for ts and th in SECTION_AT(x); "
+            "(3) extend Roof_Edge to X_COWL (see vps_surface.py and vps_panels.py)."),
     "slope_cache_drift": dict(
         looks_like="Nose or tail geometry changes slightly between runs or after a refactor; the "
                    "fingerprint drifts though no data changed.",
