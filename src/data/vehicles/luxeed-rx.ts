@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const luxeedRx: Vehicle = {
   slug: 'luxeed-rx',
@@ -102,13 +103,6 @@ export const luxeedRx: Vehicle = {
         swatch: 'linear-gradient(135deg, #3b5cf2 0%, #5a4ff0 48%, #8e55e0 100%)',
       },
       {
-        id: 'star-rose',
-        name: 'Star Rose',
-        nameZh: '星玫粉',
-        swatch: '#dfb7aa',
-        finish: { color: '#bd887d', roughness: 0.3, metalness: 0.45, clearcoat: 1, clearcoatRoughness: 0.04 },
-      },
-      {
         id: 'titanium-silver',
         name: 'Titanium Silver',
         nameZh: '钛空银',
@@ -136,6 +130,7 @@ export const luxeedRx: Vehicle = {
         swatch: '#efede8',
         finish: { color: '#e8e5de', roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04 },
       },
+      ...ownPaints('candy-red', 'saffron-gold', 'champagne-sand', 'graphite', 'matt-black', 'matt-orange'),
     ],
     // The cabin's seat leather is the white perforated texture, so a colourway
     // tints it; the accent leather and the stitching take the second colour.
@@ -178,6 +173,7 @@ export const luxeedRx: Vehicle = {
       { id: 'red', name: 'Red', nameZh: '红色', color: '#bf2724' },
       { id: 'grey', name: 'Grey', nameZh: '灰色', color: '#7c7d7e' },
       { id: 'yellow', name: 'Yellow', nameZh: '黄色', color: '#e2bf19' },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
     ],
     // The maker's configuration page (hima.auto/zhijie/rx/configuration) lists four
     // wheels: the 20 in 'Starlight' (no photograph of it exists, so it is not built),

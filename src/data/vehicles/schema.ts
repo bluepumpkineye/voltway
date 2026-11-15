@@ -228,6 +228,9 @@ export interface PaintFinish {
   sheen?: { color: string; roughness?: number; weight?: number };
 }
 
+/** How a paint is named in the interface; the render itself only reads the `finish` values. */
+export type PaintKind = 'solid' | 'metallic' | 'pearl' | 'satin' | 'matt';
+
 /**
  * One paint the car is sold in. The first entry of `paints` is the colour the
  * Blender build is painted in and carries no `finish`: choosing it restores the
@@ -241,6 +244,13 @@ export interface PaintOption {
   /** CSS background for the swatch: a colour, or a gradient for a shifting paint. */
   swatch: string;
   finish?: PaintFinish;
+  /**
+   * A colour Voltway made up (src/data/vehicles/own-paints.ts): the maker does not offer it, so it has no `nameZh`
+   * and the showroom marks it as ours. Left out for every maker colour.
+   */
+  ours?: boolean;
+  /** The finish's name for the interface, when it is worth saying (the matt and satin paints). */
+  kind?: PaintKind;
 }
 
 /**
@@ -270,6 +280,15 @@ export interface CaliperOption {
   nameZh?: string;
   /** The painted colour in daylight, sRGB hex: the swatch, and what the material takes. */
   color: string;
+  /**
+   * How the caliper is finished, when it differs from the car as built. Left out, the material keeps its own
+   * values: a painted colour on a car whose build is a metallic grey would then pick up the metal, so a painted
+   * option says `metalness: 0` (and a roughness) and an anodised one raises it.
+   */
+  metalness?: number;
+  roughness?: number;
+  /** A colour Voltway added (the maker lists no such caliper, or none at all): the showroom marks it as ours. */
+  ours?: boolean;
 }
 
 /**
@@ -324,7 +343,8 @@ export type AnchorId =
 /**
  * What a car offers the showroom. Colour values are matched by eye to the
  * maker's published imagery under Voltway's studio rig, so the interface calls
- * them approximate; the names, and which options exist, are the maker's.
+ * them approximate; the names, and which options exist, are the maker's, except
+ * the paints flagged `ours`.
  */
 export interface ConfiguratorSpec {
   /** Exact name of the paint material in the exterior GLB (case-insensitive). */

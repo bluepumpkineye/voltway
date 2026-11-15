@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const avatr06t: Vehicle = {
   slug: 'avatr-06t',
@@ -140,13 +141,6 @@ export const avatr06t: Vehicle = {
         finish: { color: '#3c324b', roughness: 0.28, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.03 },
       },
       {
-        id: 'solar-bronze',
-        name: 'Solar Bronze',
-        nameZh: '鎏棕',
-        swatch: '#7a6352',
-        finish: { color: '#685140', roughness: 0.28, metalness: 0.65, clearcoat: 1, clearcoatRoughness: 0.03 },
-      },
-      {
         id: 'skylight-silk',
         name: 'Skylight Silk',
         nameZh: '晴蓝',
@@ -167,6 +161,7 @@ export const avatr06t: Vehicle = {
         swatch: '#f0f2f5',
         finish: { color: '#e5e8ed', roughness: 0.28, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.03 },
       },
+      ...ownPaints('racing-green', 'saffron-gold', 'petrol-teal', 'champagne-sand', 'matt-grey', 'matt-orange'),
     ],
     trims: [
       // The three cabins Autohome photographed (series 8538, cat 3: photos 1-64, 116-160 and 65-115). The cabin is built in
@@ -214,6 +209,7 @@ export const avatr06t: Vehicle = {
       { id: 'silver_grey', name: 'Silver Grey', nameZh: '银灰色', color: '#8e9297' },
       { id: 'yellow', name: 'Performance Yellow', nameZh: '性能黄', color: '#e8be14' },
       { id: 'red', name: 'Competition Red', nameZh: '竞技红', color: '#c42628' },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
     ],
     wheels: [
       // The maker offers two wheels, both 20 in (Autohome's photographs of every trim show only these): the standard

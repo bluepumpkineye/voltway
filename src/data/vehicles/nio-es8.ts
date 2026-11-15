@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const nioEs8: Vehicle = {
   slug: 'nio-es8',
@@ -158,6 +159,7 @@ export const nioEs8: Vehicle = {
         swatch: '#8C3A27',
         finish: { color: '#752f1e', roughness: 0.28, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.03 },
       },
+      ...ownPaints('garnet-red', 'aubergine', 'mocha-brown', 'ceramic-ivory', 'matt-olive', 'matt-yellow'),
     ],
     trims: [
       {
@@ -196,6 +198,8 @@ export const nioEs8: Vehicle = {
     calipers: [
       { id: 'red', name: 'Red', nameZh: '红色', color: '#a61d1a' },
       { id: 'gold', name: 'Dawn Gold', nameZh: '曙光金', color: '#c99a3a' },
+      { id: 'grey', name: 'Grey', color: '#9ea2a7', metalness: 0.2, roughness: 0.28, ours: true },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
     ],
     wheels: [
       {

@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const voyahPassionS: Vehicle = {
   slug: 'voyah-passion-s',
@@ -119,18 +120,12 @@ export const voyahPassionS: Vehicle = {
     },
     studioShadow: { url: '/models/voyah-passion-s-shadow.webp', size: [8.089, 5.2], centre: [0.011, 0] },
     proxyUrl: '/models/voyah-passion-s-proxy.glb',
-    heroColor: '#a6878b',
+    heroColor: '#9e1e24',
     driverEye: [-0.28, 0.41, 1.24],
   },
   configurator: {
     paintMaterial: 'M_Paint_VPS_RosyMistPink',
     paints: [
-      {
-        id: 'rosy-mist-pink',
-        name: 'Rosy Mist Pink',
-        nameZh: '烟霞粉',
-        swatch: 'linear-gradient(135deg, #b8989c 0%, #9e7f84 52%, #7d6468 100%)',
-      },
       {
         id: 'sunleap-red',
         name: 'Sunleap Red',
@@ -166,6 +161,7 @@ export const voyahPassionS: Vehicle = {
         swatch: '#4a4e54',
         finish: { color: '#383b41', roughness: 0.28, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.03 },
       },
+      ...ownPaints('ember-orange', 'saffron-gold', 'racing-green', 'sapphire-blue', 'matt-grey', 'matt-orange'),
     ],
     trims: [
       {
@@ -187,6 +183,7 @@ export const voyahPassionS: Vehicle = {
       { id: 'voyah_amber', name: 'Voyah Amber', nameZh: '琥珀橙', color: '#eb7b16' },
       { id: 'red', name: 'Competition Red', nameZh: '竞技红', color: '#c42628' },
       { id: 'silver', name: 'Obsidian Silver', nameZh: '曜石银', color: '#8a8e94' },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
     ],
     wheels: [
       {

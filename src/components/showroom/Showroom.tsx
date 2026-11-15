@@ -88,11 +88,11 @@ const TITLES: Record<ShowroomTab, string> = {
 
 const NOTES: Record<ShowroomTab, string> = {
   colour:
-    "Paint names are the maker's. Colours are matched to its published images under our studio lights, so they are approximate.",
+    "Paint names are the maker's. Colours are matched to its published images under our studio lights, so they are approximate. The dots after the divider are Voltway's own colours and matt finishes: the maker does not offer them.",
   interior:
     "Cabin colourways follow the maker's options; which panel takes which colour is our model's, so colours are approximate. Drag to look around; the centre screen is live.",
   wheels:
-    "Wheel designs and tyre sizes are the maker's, modelled from published photographs. Caliper colours follow its options (red, grey, yellow and others) and are approximate.",
+    "Wheel designs and tyre sizes are the maker's, modelled from published photographs. Caliper colours follow its options (red, grey, yellow and others) and are approximate; a caliper marked Voltway colour is one the maker does not list.",
   dashboard:
     "The car's own screen, live beside the car. Its headlamp controls switch the lamps; the glow, the beam on the floor and the dusk are our rendering of them, not the maker's footage.",
   dimensions:

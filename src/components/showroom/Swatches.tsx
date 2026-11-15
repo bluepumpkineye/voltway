@@ -19,8 +19,14 @@ function Dot({
   onClick: () => void;
   background: string;
 }) {
+  // a long row scrolls sideways on a narrow screen: keep the chosen dot in view (a deep link can pick one far along)
+  const ref = React.useRef<HTMLButtonElement>(null);
+  React.useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selected]);
   return (
     <button
+      ref={ref}
       type="button"
       aria-label={label}
       aria-pressed={selected}
@@ -45,10 +51,13 @@ function Row({
   children,
   name,
   nameZh,
+  tag,
 }: {
   children: React.ReactNode;
   name: string;
   nameZh?: string;
+  /** What the name is not saying: a Voltway colour, a matt finish. */
+  tag?: string;
 }) {
   return (
     <div className="pointer-events-auto relative flex max-w-full flex-col items-center gap-2 md:block">
@@ -61,6 +70,7 @@ function Row({
       >
         {name}
         {nameZh && <span className="ml-2 font-normal text-neutral-500">{nameZh}</span>}
+        {tag && <span className="ml-2 font-normal text-neutral-500">{tag}</span>}
       </div>
     </div>
   );
@@ -76,19 +86,30 @@ export function PaintSwatches({
   onSelect: (id: string) => void;
 }) {
   const cur = paints.find((p) => p.id === selected) ?? paints[0];
+  // the maker's colours first, then a hairline, then ours (own-paints.ts always follows the maker's list)
+  const firstOurs = paints.findIndex((p) => p.ours);
   return (
-    <Row name={cur.name} nameZh={cur.nameZh}>
-      {paints.map((p) => (
-        <Dot
-          key={p.id}
-          label={p.name}
-          selected={p.id === cur.id}
-          onClick={() => onSelect(p.id)}
-          background={p.swatch}
-        />
+    <Row name={cur.name} nameZh={cur.nameZh} tag={paintTag(cur)}>
+      {paints.map((p, i) => (
+        <React.Fragment key={p.id}>
+          {i === firstOurs && i > 0 && <span aria-hidden className="h-5 w-px shrink-0 bg-neutral-900/15" />}
+          <Dot
+            label={paintTag(p) ? `${p.name}, ${paintTag(p)}` : p.name}
+            selected={p.id === cur.id}
+            onClick={() => onSelect(p.id)}
+            background={p.swatch}
+          />
+        </React.Fragment>
       ))}
     </Row>
   );
+}
+
+/** "Voltway colour" for a paint no maker sells, with its finish when that is notable: the label under the dots. */
+export function paintTag(p: PaintOption): string {
+  const kind = p.kind === 'matt' ? 'matt' : p.kind === 'satin' ? 'satin' : '';
+  if (p.ours) return kind ? `Voltway colour · ${kind}` : 'Voltway colour';
+  return kind;
 }
 
 export function TrimSwatches({
@@ -127,16 +148,20 @@ export function CaliperSwatches({
   onSelect: (id: string) => void;
 }) {
   const cur = calipers.find((c) => c.id === selected) ?? calipers[0];
+  // the maker's colours first, then a hairline, then the ones we added
+  const firstOurs = calipers.findIndex((c) => c.ours);
   return (
-    <Row name={`${cur.name} calipers`} nameZh={cur.nameZh}>
-      {calipers.map((c) => (
-        <Dot
-          key={c.id}
-          label={`${c.name} calipers`}
-          selected={c.id === cur.id}
-          onClick={() => onSelect(c.id)}
-          background={c.color}
-        />
+    <Row name={`${cur.name} calipers`} nameZh={cur.nameZh} tag={cur.ours ? 'Voltway colour' : undefined}>
+      {calipers.map((c, i) => (
+        <React.Fragment key={c.id}>
+          {i === firstOurs && i > 0 && <span aria-hidden className="h-5 w-px shrink-0 bg-neutral-900/15" />}
+          <Dot
+            label={c.ours ? `${c.name} calipers, Voltway colour` : `${c.name} calipers`}
+            selected={c.id === cur.id}
+            onClick={() => onSelect(c.id)}
+            background={c.color}
+          />
+        </React.Fragment>
       ))}
     </Row>
   );

@@ -64,6 +64,13 @@ function paintOf(m: THREE.MeshPhysicalMaterial): PaintParams {
  */
 const SHEEN_FLOOR = 0.001;
 
+/**
+ * The same for the clear coat: three.js compiles the clear-coat path only while clearcoat > 0, so a matt paint that
+ * took it to exactly zero would make the program recompile (a visible hitch) the first time the visitor picked it.
+ * A strength this small, over a rough coat, cannot be seen.
+ */
+const CLEARCOAT_FLOOR = 0.002;
+
 function paintTarget(built: PaintParams, finish: PaintFinish | undefined): PaintParams {
   if (!finish) return built;
   const sheen = finish.sheen;
@@ -72,7 +79,7 @@ function paintTarget(built: PaintParams, finish: PaintFinish | undefined): Paint
     roughness: finish.roughness ?? built.roughness,
     // the build's paint is dielectric; a finish says how metallic it is
     metalness: finish.metalness ?? 0,
-    clearcoat: finish.clearcoat ?? built.clearcoat,
+    clearcoat: built.clearcoat > 0 ? Math.max(finish.clearcoat ?? built.clearcoat, CLEARCOAT_FLOOR) : (finish.clearcoat ?? 0),
     clearcoatRoughness: finish.clearcoatRoughness ?? built.clearcoatRoughness,
     sheen: sheen ? (sheen.weight ?? 1) : built.sheen > 0 ? SHEEN_FLOOR : 0,
     sheenColor: sheen ? new THREE.Color(sheen.color) : built.sheenColor.clone(),
@@ -126,11 +133,14 @@ export function usePaint(model: THREE.Object3D, spec: ConfiguratorSpec | undefin
     if (!slots.length || !option) return;
     // as built on first mount: leave the material exactly as exported
     if (!touched.current && !option.finish) return;
+    // the paint the car opens in lands at once: a first option with a finish (the Voyah's Sunleap Red, the G9L's
+    // Provence Purple) would otherwise fade in from the Blender build's colour at every load. A later pick tweens.
+    const opening = !touched.current;
     touched.current = true;
     anim.current = {
       from: paintOf(slots[0].m),
       to: paintTarget(slots[0].built, option.finish),
-      t: motionOk() ? 0 : 1,
+      t: motionOk() && !opening ? 0 : 1,
     };
     invalidate();
     // keyed on the option id: its identity would restart the tween every render
@@ -150,16 +160,23 @@ export function usePaint(model: THREE.Object3D, spec: ConfiguratorSpec | undefin
 
 // -------------------------------------------------------------------- caliper
 
+interface CaliperParams {
+  color: THREE.Color;
+  metalness: number;
+  roughness: number;
+}
+
 /**
  * The brake calipers' paint, by material name: a colour swap on the exterior's
- * caliper material, tweened like the body paint. The first option is the car as
- * built and restores the material exactly as exported.
+ * caliper material (and its metalness and roughness, when the option names them),
+ * tweened like the body paint. The first option is the car as built and restores
+ * the material exactly as exported.
  */
 export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undefined, caliperId: string) {
   const invalidate = useThree((s) => s.invalidate);
 
   const slots = React.useMemo(() => {
-    const found: { m: THREE.MeshStandardMaterial; built: THREE.Color }[] = [];
+    const found: { m: THREE.MeshStandardMaterial; built: CaliperParams }[] = [];
     if (!spec?.caliperMaterial) return found;
     const want = spec.caliperMaterial.toLowerCase();
     const seen = new Set<THREE.Material>();
@@ -168,7 +185,7 @@ export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undef
       for (const m of materialsOf(o)) {
         if (seen.has(m) || m.name.toLowerCase() !== want || !(m instanceof THREE.MeshStandardMaterial)) continue;
         seen.add(m);
-        found.push({ m, built: m.color.clone() });
+        found.push({ m, built: { color: m.color.clone(), metalness: m.metalness, roughness: m.roughness } });
       }
     });
     return found;
@@ -176,7 +193,7 @@ export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undef
 
   const option = spec?.calipers?.find((c) => c.id === caliperId) ?? spec?.calipers?.[0];
   const optionKey = option?.id;
-  const anim = React.useRef<{ from: THREE.Color; to: THREE.Color; t: number } | null>(null);
+  const anim = React.useRef<{ from: CaliperParams; to: CaliperParams; t: number } | null>(null);
   const touched = React.useRef(false);
 
   React.useEffect(() => {
@@ -185,9 +202,16 @@ export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undef
     // as built on first mount: leave the material exactly as exported
     if (!touched.current && asBuilt) return;
     touched.current = true;
+    const built = slots[0].built;
     anim.current = {
-      from: slots[0].m.color.clone(),
-      to: asBuilt ? slots[0].built.clone() : new THREE.Color(option.color),
+      from: { color: slots[0].m.color.clone(), metalness: slots[0].m.metalness, roughness: slots[0].m.roughness },
+      to: asBuilt
+        ? { color: built.color.clone(), metalness: built.metalness, roughness: built.roughness }
+        : {
+            color: new THREE.Color(option.color),
+            metalness: option.metalness ?? built.metalness,
+            roughness: option.roughness ?? built.roughness,
+          },
       t: motionOk() ? 0 : 1,
     };
     invalidate();
@@ -200,7 +224,11 @@ export function useCaliper(model: THREE.Object3D, spec: ConfiguratorSpec | undef
     if (!a) return;
     a.t = Math.min(1, a.t + dt / DURATION);
     const k = ease(a.t);
-    for (const s of slots) s.m.color.copy(a.from).lerp(a.to, k);
+    for (const s of slots) {
+      s.m.color.copy(a.from.color).lerp(a.to.color, k);
+      s.m.metalness = lerp(a.from.metalness, a.to.metalness, k);
+      s.m.roughness = lerp(a.from.roughness, a.to.roughness, k);
+    }
     if (a.t >= 1) anim.current = null;
     else invalidate();
   });

@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const xpengG9l: Vehicle = {
   slug: 'xpeng-g9l',
@@ -202,6 +203,7 @@ export const xpengG9l: Vehicle = {
         swatch: '#141518',
         finish: { color: '#111214', roughness: 0.32, metalness: 0.05, clearcoat: 0.6 },
       },
+      ...ownPaints('ember-orange', 'saffron-gold', 'sapphire-blue', 'champagne-sand', 'matt-olive', 'matt-red'),
     ],
     // The first colourway is the cabin as built (the purple car's Bordeaux Red interior, Autohome's spec 77790); the
     // others recolour its leathers, which panel takes which colour is ours.
@@ -267,6 +269,14 @@ export const xpengG9l: Vehicle = {
         tyres: '265/45 R21',
         node: 'XpengG9L_Turbine_Wheels',
       },
+    ],
+    // No source lists XPeng's caliper colours: the gunmetal is how the model was built, and all four are ours.
+    caliperMaterial: 'M_Caliper_Gunmetal',
+    calipers: [
+      { id: 'gunmetal', name: 'Gunmetal Grey', color: '#7b7d80', ours: true },
+      { id: 'red', name: 'Red', color: '#c42628', metalness: 0, roughness: 0.26, ours: true },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
+      { id: 'yellow', name: 'Yellow', color: '#e8be14', metalness: 0, roughness: 0.26, ours: true },
     ],
     sources: [
       { label: 'Autohome - XPeng G9L Configuration & Specs (Series 8659)', url: 'https://www.autohome.com.cn/8659/' },

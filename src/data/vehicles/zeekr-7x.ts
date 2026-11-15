@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const zeekr7x: Vehicle = {
   slug: 'zeekr-7x',
@@ -133,6 +134,7 @@ export const zeekr7x: Vehicle = {
         swatch: '#f3f3f1',
         finish: { color: '#dcdcd8', roughness: 0.36, metalness: 0.08, clearcoat: 0.6, clearcoatRoughness: 0.15 },
       },
+      ...ownPaints('amber-orange', 'garnet-red', 'sapphire-blue', 'stone-taupe', 'matt-grey', 'matt-yellow'),
     ],
     // The cabin colourways (紫/白, 黑/橙, 黑/灰, 黑/紫 on the maker's list). The build is the
     // cream and taupe cabin of the studio car (Autohome cat 3, 1-58); the others recolour its
@@ -191,6 +193,9 @@ export const zeekr7x: Vehicle = {
     calipers: [
       { id: 'orange', name: 'Orange', nameZh: '橙色', color: '#e56f1d' },
       { id: 'silver', name: 'Silver', nameZh: '银色', color: '#8d9399' },
+      { id: 'red', name: 'Red', color: '#c42628', metalness: 0, roughness: 0.26, ours: true },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
+      { id: 'yellow', name: 'Yellow', color: '#e8be14', metalness: 0, roughness: 0.26, ours: true },
     ],
     // The wheels Autohome's configuration lists with the car: 255/50 R19 (standard), 265/45 R20
     // (+ CNY 11,000) and 265/40 R21 (+ CNY 20,000). No page names the designs. The 21 in six-Y is

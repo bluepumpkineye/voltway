@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const xiaomiSu7Ultra: Vehicle = {
   slug: 'xiaomi-su7-ultra',
@@ -140,6 +141,7 @@ export const xiaomiSu7Ultra: Vehicle = {
         swatch: '#f1f1ee',
         finish: { color: '#ecece8', roughness: 0.3, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.035 },
       },
+      ...ownPaints('sapphire-blue', 'ember-orange', 'mocha-brown', 'matt-grey', 'matt-red'),
     ],
     // The cabin is black Alcantara and leather with one accent colour on the
     // seat panels, the stitching and the wheel marker.
@@ -221,6 +223,14 @@ export const xiaomiSu7Ultra: Vehicle = {
         node: 'SU7Ultra_Forged_Wheels',
         accent: { material: 'M_Rim_Forged', color: '#1d1d1f', metalness: 0.7, roughness: 0.34 },
       },
+    ],
+    // The maker lists one caliper: the yellow Akebono set, whatever the wheel. The red, grey and black are ours.
+    caliperMaterial: 'M_Caliper_Gold',
+    calipers: [
+      { id: 'yellow', name: 'Yellow', nameZh: '黄色', color: '#cea238' },
+      { id: 'red', name: 'Red', color: '#c42628', metalness: 0, roughness: 0.26, ours: true },
+      { id: 'grey', name: 'Grey', color: '#9ea2a7', metalness: 0.2, roughness: 0.28, ours: true },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
     ],
     sources: [
       { label: 'Xiaomi - SU7 Ultra: five exterior colours; the 21 in forged wheel (reservation only)', url: 'https://www.xiaomiev.com/ultra' },

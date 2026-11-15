@@ -222,6 +222,32 @@ sources. In short:
 Colour values are approximate: they are matched by eye to the makers'
 imagery under our own studio rig, and the interface labels them as such.
 
+**Voltway's own paints (2026-11-11, revised 2026-11-16).** The makers' palettes are mostly white, silver, grey, black, blue and
+purple, so every car also carries five or six colours of ours (`src/data/vehicles/own-paints.ts`, picked per car with
+`ownPaints(...)` so the nine rows differ). The first round was vivid gloss reds, oranges, yellows and greens; the owner rejected
+nearly all of them ("they do not render good", 2026-11-16) and kept the matt ones. The second round is deep metallic colours in
+the coat of the Voyah's Sunleap Red (burnt orange, saffron gold, racing green, sapphire blue, garnet red) plus neutral and muted
+metallics (graphite, stone taupe, champagne sand, mocha brown, petrol teal, aubergine, ceramic ivory), and the matt finishes. They are flagged `ours` in the
+data, have no `nameZh`, follow the maker's colours behind a hairline in the swatch row, and the label under the dots says
+"Voltway colour" (and "matt"): none is a maker option, and the compare page's tooltips say so too. A matt paint is a rough
+(0.50) part-metallic (0.35) base with no clear coat, because a fully dielectric rough paint looks flat in the studio (the white
+cove lights it evenly all round, so the shape disappears) while a little metalness lets the softboxes' blurred reflections
+model the bonnet and flanks. The clear coat is kept at 0.002 rather than 0 so the shader does not recompile on the first pick.
+`docs/voltway-paints.xlsx` (git-ignored) lists every paint per model, official or ours, with a Delete / Keep column and a Removed
+tab.
+
+**Brake calipers (2026-11-16).** Every car's Wheels tab now offers red, grey, black and yellow or orange. Three cars had no choice
+at all (the SU7 Ultra's maker lists one yellow Akebono set; the G9L and Z9 have no source for caliper colours) and six had two to
+four. The ones the makers list are unchanged; the rest are flagged `ours` on `CaliperOption` (no `nameZh`, a hairline before them in
+the swatch row, "Voltway colour" under the dots). An option can also set `metalness` and `roughness`, which the viewer tweens with the
+colour: a painted red on a car whose build is a metallic gunmetal would otherwise pick up the metal. The Calipers tab of
+`docs/voltway-paints.xlsx` lists them with a Delete / Keep column.
+
+**The Seal's green (2026-11-16).** Autohome's colour list for the Seal (series 6394) has no 迷迭青 ("Mystic Green"); its grey-green is
+风卷草绿, Windswept Grass Green (chip #7E9286, 14 photographs). The old finish (#628980) rendered as a cool teal; the photographs show
+a dusty, slightly yellow sage (mid-tones 124-153, 139-167, 129-160 on the overcast shots), so the finish is now #73857a (metalness
+0.12), which renders the doors at 138-142, 153-158, 141-146 in the studio. The id `mystic-green` is kept for deep links.
+
 ## 7. Door sounds and the wheel view (2026-10-21)
 
 Two things the owner asked for after looking at HIMA's hall (<https://hima.auto/3d-view/>), which we match in behaviour, not in assets.

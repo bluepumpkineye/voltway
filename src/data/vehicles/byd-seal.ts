@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const bydSeal: Vehicle = {
   slug: 'byd-seal',
@@ -132,12 +133,17 @@ export const bydSeal: Vehicle = {
         nameZh: '北冰蓝',
         swatch: '#66809F',
       },
+      // The grey-green Seal in Autohome's gallery (series 6394: 14 photographs, chip #7E9286). It is listed there as
+      // 风卷草绿, Windswept Grass Green; no 迷迭青 exists in that series' colour list (迷迭灰, Rosemary Grey, is a grey).
+      // The photographs show a dusty, slightly yellow sage, not a cool mint: in overcast light its mid-tones read
+      // 124-153, 139-167, 129-160 (sRGB); the old finish (#628980, hue 170) rendered 128, 169, 160, a teal. This one
+      // renders 138-142, 153-158, 141-146 on the doors in the studio. The id stays so deep links keep working.
       {
         id: 'mystic-green',
-        name: 'Mystic Green',
-        nameZh: '迷迭青',
-        swatch: '#6E948B',
-        finish: { color: '#628980', roughness: 0.28, metalness: 0.20, clearcoat: 0.85, clearcoatRoughness: 0.04 },
+        name: 'Windswept Grass Green',
+        nameZh: '风卷草绿',
+        swatch: '#7E9286',
+        finish: { color: '#73857a', roughness: 0.28, metalness: 0.12, clearcoat: 0.85, clearcoatRoughness: 0.04 },
       },
       {
         id: 'aurora-white',
@@ -167,6 +173,7 @@ export const bydSeal: Vehicle = {
         swatch: '#C6BED8',
         finish: { color: '#B6ABCC', roughness: 0.34, metalness: 0.12, clearcoat: 0.50 },
       },
+      ...ownPaints('ember-orange', 'saffron-gold', 'sapphire-blue', 'stone-taupe', 'matt-white', 'matt-red'),
     ],
     trims: [
       {
@@ -201,6 +208,8 @@ export const bydSeal: Vehicle = {
     calipers: [
       { id: 'silver', name: 'Silver Grey', nameZh: '银灰色', color: '#8a8e93' },
       { id: 'yellow', name: 'Performance Amber', nameZh: '性能橙黄', color: '#e9a410' },
+      { id: 'red', name: 'Red', color: '#c42628', metalness: 0, roughness: 0.26, ours: true },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
     ],
     wheels: [
       {

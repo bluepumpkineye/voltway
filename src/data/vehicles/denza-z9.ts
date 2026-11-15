@@ -1,4 +1,5 @@
 import type { Vehicle } from './schema';
+import { ownPaints } from './own-paints';
 
 export const denzaZ9: Vehicle = {
   slug: 'denza-z9',
@@ -167,6 +168,7 @@ export const denzaZ9: Vehicle = {
         swatch: '#5E7691',
         finish: { color: '#566E89', roughness: 0.37, metalness: 0.18, clearcoat: 0.45 },
       },
+      ...ownPaints('garnet-red', 'ember-orange', 'racing-green', 'mocha-brown', 'matt-black'),
     ],
     trims: [
       {
@@ -221,6 +223,14 @@ export const denzaZ9: Vehicle = {
         tyres: '255/45 R20',
         node: 'DenzaZ9_Pro_Wheels',
       },
+    ],
+    // No source lists Denza's caliper colours: the gunmetal is how the model was built, and all four are ours.
+    caliperMaterial: 'M_Caliper_Gunmetal',
+    calipers: [
+      { id: 'gunmetal', name: 'Gunmetal Grey', color: '#7b7d80', ours: true },
+      { id: 'red', name: 'Red', color: '#c42628', metalness: 0, roughness: 0.26, ours: true },
+      { id: 'black', name: 'Black', color: '#17181a', metalness: 0, roughness: 0.3, ours: true },
+      { id: 'yellow', name: 'Yellow', color: '#e8be14', metalness: 0, roughness: 0.26, ours: true },
     ],
     sources: [
       { label: 'Autohome — 腾势Z9 Configuration & Gallery (Series 7838)', url: 'https://www.autohome.com.cn/7838/' },

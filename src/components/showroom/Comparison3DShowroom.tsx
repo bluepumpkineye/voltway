@@ -642,13 +642,13 @@ export function Comparison3DShowroom({
               <div className="mb-1.5 text-[10.5px] font-semibold text-neutral-600">
                 {vehicleA.brand} Paint
               </div>
-              <div className="flex gap-2">
+              <div className="flex max-w-[15rem] flex-wrap justify-center gap-2">
                 {vehicleA.configurator?.paints.map((p) => (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => setPaintA(p.id)}
-                    title={p.name}
+                    title={p.ours ? `${p.name} (Voltway colour)` : p.name}
                     className={`h-7 w-7 rounded-full shadow-xs transition-transform hover:scale-110 ${FOCUS} ${
                       paintA === p.id ? 'ring-2 ring-neutral-900 ring-offset-2 scale-105' : 'ring-1 ring-black/10'
                     }`}
@@ -663,13 +663,13 @@ export function Comparison3DShowroom({
               <div className="mb-1.5 text-[10.5px] font-semibold text-neutral-600">
                 {vehicleB.brand} Paint
               </div>
-              <div className="flex gap-2">
+              <div className="flex max-w-[15rem] flex-wrap justify-center gap-2">
                 {vehicleB.configurator?.paints.map((p) => (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => setPaintB(p.id)}
-                    title={p.name}
+                    title={p.ours ? `${p.name} (Voltway colour)` : p.name}
                     className={`h-7 w-7 rounded-full shadow-xs transition-transform hover:scale-110 ${FOCUS} ${
                       paintB === p.id ? 'ring-2 ring-neutral-900 ring-offset-2 scale-105' : 'ring-1 ring-black/10'
                     }`}
