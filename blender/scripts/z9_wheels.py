@@ -55,6 +55,7 @@ SPEC_LUXURY = W.preset(
     hub=dict(depth=0.052, setback=0.008, cap_rise=0.005, cap_r=0.034),
     lugs=dict(count=5, pcd_r=0.0540, r=0.0100, deg=18.0, rise=0.004),
     disc=dict(style="plain", inner_r=0.118, thickness=0.032),
+    backplate=dict(gap=0.025),
     caliper=CALIPER,
     mats=dict(
         rim="wheel_silver",
@@ -110,6 +111,7 @@ SPEC_PRO20 = W.preset(
     hub=dict(depth=0.048, setback=0.008, cap_rise=0.005, cap_r=0.040),
     lugs=dict(count=5, pcd_r=0.0540, r=0.0100, deg=18.0, rise=0.004, hidden=True),
     disc=dict(style="plain", inner_r=0.118, thickness=0.032),
+    backplate=dict(gap=0.025),
     caliper=CALIPER,
     mats=dict(
         rim="wheel_black",

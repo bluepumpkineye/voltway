@@ -32,16 +32,18 @@ def _box(name, c, size, collection, mat):
 
 
 # ------------------------------------------------------------------ mirrors
-MIRROR_REAR = (0.695, 1.015, 0.995)
-MIRROR_SIZE = (0.215, 0.130, 0.105)
-MIRROR_ARM = (0.755, 0.945, 0.935)
+# 2026-11-15: the photographed mirror (c1_0036) is a TALL rounded flag housing, all gloss black: glass face x 0.62, z 0.97-1.16
+# (0.19 high; the model's was 0.105 high and 6 cm low), 0.20 long, on a stalk from the door's upper front corner
+MIRROR_REAR = (0.640, 1.000, 1.065)
+MIRROR_SIZE = (0.200, 0.115, 0.185)
+MIRROR_ARM = (0.800, 0.930, 0.935)
 
 
 def build_mirrors(collection, lib):
     made = fittings.mirror_cap(
         "Z9_Mirror", collection, lib, rear=MIRROR_REAR,
-        size=MIRROR_SIZE, arm_base=MIRROR_ARM, proud=proud, arm_t=0.028,
-        mats=("paint", "mirror_glass", "black_gloss", "black_gloss"),
+        size=MIRROR_SIZE, arm_base=MIRROR_ARM, proud=proud, arm_t=0.034,
+        mats=("black_gloss", "mirror_glass", "black_gloss", "black_gloss"),
     )
     cx, cy, cz = MIRROR_REAR[0] + 0.035, MIRROR_REAR[1] - 0.055, MIRROR_REAR[2] - 0.060
     pod = _box("Z9_Mirror_Cam_Pod", (cx, cy, cz), (0.024, 0.022, 0.014), collection, lib["black_gloss"])
@@ -108,10 +110,8 @@ def build_fender_and_z_line(collection, lib):
     # 2. Diagonal-to-horizontal Z-line door sculpture accent (c1_0040.jpg, c1_0044.jpg)
     # Starts at fender camera blade (x 1.04, z 0.72), sweeps down across front door to sill,
     # runs horizontal, and curves up into rear door
-    z_pts = [
-        (1.040, 0.722), (0.850, 0.605), (0.620, 0.475), (0.350, 0.365),
-        (0.100, 0.315), (-0.300, 0.305), (-0.700, 0.312), (-1.020, 0.365),
-    ]
+    # (2026-11-15: the photographed lip, z9_surface.LIP: the horizontal run is at 0.42, not 0.31)
+    z_pts = [(x_, z_) for (x_, z_) in S.LIP_PTS if -1.02 <= x_ <= 1.04]
     z_curve = S.Curve(sorted(z_pts, key=lambda p: p[0]), mode="pchip")
     nz = 40
     z_cols = []

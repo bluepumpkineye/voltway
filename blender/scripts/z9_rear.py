@@ -30,10 +30,21 @@ CAP_HIGH = TAIL.Z_HI - 0.002
 X_PLANE = -2.58
 
 
-def _yz(px, x=X_PLANE):
+def _at(u, v):
+    """(y, z) of a photo pixel ON the tail's centre profile. The tail face slopes (TAIL_X_OF_Z: -2.41 at the ducktail, -2.55
+    at the bumper), so the plane the rear camera looks at is the profile's own x at the pixel's height, not one fixed plane:
+    the lamps (z 0.9) are 14 cm nearer the lens than the bumper's belly and read 3 % smaller in y."""
+    x = -2.50
+    for _ in range(4):
+        y, z = CAM.rear_yz(u, v, x)
+        x = TAIL.X_OF_Z(max(TAIL.Z_LO, min(TAIL.Z_HI, z)))
+    return y, z
+
+
+def _yz(px, x=None):
     out = []
     for (u, v) in px:
-        y, z = CAM.rear_yz(u, v, x)
+        y, z = CAM.rear_yz(u, v, x) if x is not None else _at(u, v)
         out.append((abs(y), z))
     return out
 
@@ -79,8 +90,37 @@ TRAY_PX = [(1628, 1816), (1646, 1950), (1690, 1990), (1920, 2000)]    # left hal
 SLOT_PX = [(1130, 2093), (1500, 2093), (1850, 2093)]
 FOG_PX = [(1882, 2075, 1905, 2142), (1936, 2075, 1960, 2142)]          # two vertical red lamps (u0,v0,u1,v1)
 LIP_PX = [(1140, 2168), (1500, 2190), (1920, 2195)]
+
+# 2026-11-15, the bumper's zones. Read off the black car's close-up (c1_0038) and checked on the white car (c1_0046), the purple car
+# (c1_0014) and the grey one (c1_0070), where the picture is clearer: the lower valance is BODY COLOUR (it reads dark satin on the
+# black car), framed by glossy black "wings" that run from the tailgate's lower edge round both outer corners, a plate pocket
+# between them, and under the valance a black chin strip separated by a thin slot. The valance's top edge is W-shaped: ~0.43 at the
+# sides, falling to 0.37 under the plate (the plate pocket's floor), and ends at the corner at |y| 0.80.
+VALANCE_TOP = sorted(_yz([(1921, 2040), (1700, 2040), (1682, 2040), (1655, 2037), (1639, 2027), (1608, 1998), (1582, 1986),
+                          (1497, 1981), (1366, 1981), (1224, 1987), (1187, 1993), (1150, 2014), (1129, 2035)]))
+Z_VAL_BOT = _at(1500, 2083)[1]          # the slot between the valance and the chin strip (z ~ 0.323)
+Y_VAL_END = 0.772                       # the valance and the chin stop here; the wing's fin carries on to the corner
+POCKET_Z = (0.372, 0.592)               # the plate pocket's floor and top (the tailgate's lower edge)
+POCKET_Y = (0.268, 0.345)               # its half width at the floor and at the top (the sides slope in, c1_0014)
+
+
+def val_top(y):
+    return _lerp(VALANCE_TOP, min(abs(y), VALANCE_TOP[-1][0]))
+
+
+def wing_lo(y):
+    """The wing's lower edge: the valance's top edge, then (past the valance's end) down the corner as the black fin."""
+    t = geom.smoothstep((abs(y) - 0.765) / 0.045)
+    return val_top(y) * (1.0 - t) + 0.235 * t
+
+
+def pocket_mask(y, z):
+    """1 inside the plate pocket (a trapezoid narrowing downward), 0 outside, eased over 2.5 cm."""
+    f = max(0.0, min(1.0, (z - POCKET_Z[0]) / (POCKET_Z[1] - POCKET_Z[0])))
+    half = POCKET_Y[0] + (POCKET_Y[1] - POCKET_Y[0]) * f
+    return geom.smoothstep((half - abs(y)) / 0.025 + 0.5) if z > POCKET_Z[0] - 0.004 else 0.0
 Z_LAMP_TOP, Z_LAMP_BOT = 0.971, 0.860
-Z_ROUNDEL = CAM.rear_yz(1924, 1495, -2.61)[1]
+Z_ROUNDEL = _at(1924, 1495)[1]
 Z_PLATE = 0.515
 
 
@@ -269,6 +309,15 @@ def _tunnel(name, loop, d, depth, collection, mat, taper=0.9):
     return ob
 
 
+def swell(y, z):
+    """The diffuser's convex belly (m): the lower bumper is not a flat slab (c1_0038 / c1_0037: soft highlights roll over it).
+    Zero at the band's top (z 0.434, where it meets the black eyebrow) and bottom (0.20), 11 mm at its middle, fading to the sides."""
+    t = (z - 0.20) / (0.434 - 0.20)
+    if t <= 0.0 or t >= 1.0:
+        return 0.0
+    return 0.011 * math.sin(math.pi * t) ** 0.8 * max(0.0, 1.0 - (y / 0.92) ** 2)
+
+
 # ------------------------------------------------------------------ the tail
 def build_tail(collection, lib):
     made = []
@@ -278,76 +327,127 @@ def build_tail(collection, lib):
     # the tailgate: from the bumper's top edge to the lamps (a slim gap above the bumper)
     made.append(band("Z9_Tailgate", lambda y: bumper_top(y) + 0.5 * GAP, lambda y: lamp_bot(min(y, 0.82)) - 0.5 * GAP,
                      56, 14, collection, lib["paint"]))
-    # the gloss-black upper bumper ("eyebrow") from the pocket's floor to the tailgate
-    made.append(band("Z9_Bumper_Upper", lambda y: 0.432, lambda y: bumper_top(y) + 0.001, 56, 8, collection,
-                     lib["black_gloss"], thickness=0.004))
-    # the matt-black diffuser under it
-    made.append(band("Z9_Bumper_Lower", lambda y: CAP_LOW, lambda y: 0.434, 56, 10, collection,
-                     lib["cap_black"], thickness=0.004))
+    # the gloss-black WINGS: from the tailgate's lower edge down to the valance's W-shaped top edge, and past the valance's end
+    # down the corner as a fin; the plate pocket is dished into them (12 mm, a trapezoid narrowing downward)
+    made.append(band("Z9_Bumper_Upper", wing_lo, lambda y: bumper_top(y) + 0.001, 64, 8, collection,
+                     lib["wing"], thickness=0.004,
+                     off_fn=lambda y, fr: -0.012 * pocket_mask(y, wing_lo(y) + fr * (bumper_top(y) + 0.001 - wing_lo(y)))))
+    # the BODY-COLOUR valance under the plate and across the tail, with its convex belly
+    made.append(band("Z9_Bumper_Valance", lambda y: Z_VAL_BOT + 0.003, val_top, 44, 7, collection, lib["paint"],
+                     thickness=0.004, y_max=Y_VAL_END,
+                     off_fn=lambda y, fr: swell(y, (Z_VAL_BOT + 0.003) + fr * (val_top(y) - Z_VAL_BOT - 0.003))))
+    # the black chin strip under it (satin), its top edge the slot
+    made.append(band("Z9_Bumper_Lower", lambda y: CAP_LOW, lambda y: Z_VAL_BOT - 0.006, 56, 8, collection,
+                     lib["diffuser"], thickness=0.004, y_max=Y_VAL_END,
+                     off_fn=lambda y, fr: swell(y, CAP_LOW + fr * (Z_VAL_BOT - 0.006 - CAP_LOW))))
     return made
 
 
 # ---------------------------------------------------------- tail lamps
+def block(name, corners, ny, nz, collection, mat, off, thickness=0.002):
+    """A quadrilateral patch on the tail cap. corners = [(y, z) bottom-left, bottom-right, top-right, top-left] in the
+    elevation plane (the left half, y >= 0); the grid between them is bilinear and every point is put on the cap (wv) and
+    lifted along its normal by off (a number, or a function of (s, t) across and up the block)."""
+    (yb0, zb0), (yb1, zb1), (yt1, zt1), (yt0, zt0) = corners
+    cols = []
+    for i in range(ny + 1):
+        s = i / float(ny)
+        col = []
+        for k in range(nz + 1):
+            t = k / float(nz)
+            yl, yr = yb0 + (yt0 - yb0) * t, yb1 + (yt1 - yb1) * t
+            zb, zt = zb0 + (zb1 - zb0) * s, zt0 + (zt1 - zt0) * s
+            y, z = yl + (yr - yl) * s, zb + (zt - zb) * t
+            w, v = wv(y, z)
+            d = off(s, t) if callable(off) else off
+            col.append(TAIL.offset(w, v, d) if d else TAIL.point(w, v))
+        cols.append(col)
+    ob = M.mesh_from_rows(name, cols, collection)
+    M.orient(ob.data, geom.axial(-1.0))
+    ob.data.materials.append(mat)
+    M.mirror_y(ob)
+    M.finish(ob, thickness=thickness, bevel=0.0)
+    return ob
+
+
+# The photographed lamp (c1_0038 / c1_0037 close-ups): ONE smoked-red leaf from the pointed tip beside the roundel (y 0.137) to
+# the tailgate's side shut line (y 0.704), split along its length by a thin grey bar; in each half a row of pale red cells,
+# wide-topped (V) in the upper row and wide-bottomed (A) in the lower, so a pair makes an hourglass; past the shut line a
+# separate wrap-round piece (two strips, the lower with a bright red line along its foot) turns the corner onto the quarter.
+Y_TIP, Y_RIB, Y_END = 0.125, 0.704, 0.842
+CELLS_Y = [(0.575, 0.668), (0.410, 0.515), (0.225, 0.350), (0.146, 0.204)]      # cells along the leaf, outer to inner
+BAR = 0.0036
+
+
+def _split(y):
+    return lamp_bot(y) + 0.52 * (lamp_top(y) - lamp_bot(y))
+
+
 def build_lamps(collection, lib):
     made = []
 
-    def lens_band(name, zlo, zhi, mat, off, ny=70, nz=3, y0=0.12, y1=0.83, thickness=0.002):
+    def lb(name, zlo, zhi, mat, off, y0, y1, ny, nz=2, thickness=0.002):
         return band(name, zlo, zhi, ny, nz, collection, mat, off_fn=off, ymin=y0, y_max=y1, thickness=thickness)
 
-    # the housing: a dark pocket the shape of the leaf, its lens on top
-    zlo = lambda y: lamp_bot(y)
-    zhi = lambda y: lamp_top(y)
-    made.append(lens_band("Z9_Tail_Lamp_Back", zlo, zhi, lib["black_gloss"], lambda y, k: -0.004, thickness=0.003))
-    made.append(lens_band("Z9_Tail_Lamp_Lens", zlo, zhi, lib["lamp_red_lens"], lambda y, k: 0.0035 * math.sin(math.pi * k) + 0.0010))
-    # the two rows of red light elements, split by a thin grey line
-    split = lambda y: lamp_bot(y) + 0.52 * (lamp_top(y) - lamp_bot(y))
-    made.append(lens_band("Z9_Tail_Lamp_Row_Up", lambda y: split(y) + 0.004, lambda y: lamp_top(y) - 0.006, lib["led_red"],
-                          lambda y, k: 0.0050, y0=0.20, y1=0.70, nz=2))
-    made.append(lens_band("Z9_Tail_Lamp_Row_Low", lambda y: lamp_bot(y) + 0.006, lambda y: split(y) - 0.004, lib["led_red"],
-                          lambda y, k: 0.0050, y0=0.20, y1=0.70, nz=2))
+    bulge = lambda y, k: 0.0030 * math.sin(math.pi * k) + 0.0010
+    zu_lo = lambda y: _split(y) + BAR
+    zu_hi = lambda y: lamp_top(y) - 0.003
+    zl_lo = lambda y: lamp_bot(y) + 0.003
+    zl_hi = lambda y: _split(y) - BAR
+
+    # the housing: a gloss-black pocket the shape of the leaf (its rim shows round the lens)
+    made.append(lb("Z9_Tail_Lamp_Back", lambda y: lamp_bot(y), lambda y: lamp_top(y), lib["black_gloss"],
+                   lambda y, k: -0.004, 0.12, Y_END, 80, thickness=0.003))
+    # the main leaf: two lens strips and the bar between them
+    for tag, lo, hi in (("U", zu_lo, zu_hi), ("L", zl_lo, zl_hi)):
+        made.append(lb("Z9_Tail_Lamp_Lens_" + tag, lo, hi, lib["lamp_smoke"], bulge, Y_TIP - 0.004, Y_RIB - 0.004, 60))
+        made.append(lb("Z9_Tail_Lamp_Wrap_" + tag, lo, hi, lib["lamp_smoke"], bulge, Y_RIB + 0.008, Y_END, 14))
+    made.append(lb("Z9_Tail_Lamp_Bar", lambda y: _split(y) - BAR, lambda y: _split(y) + BAR, lib["paint"],
+                   lambda y, k: 0.0036, Y_TIP, Y_END, 80, nz=1))
+    # the cells: four a row, the upper row V-shaped (wide at the top), the lower A-shaped
+    slant = 0.020
+    for k, (ya, yb) in enumerate(CELLS_Y):
+        for row in ("U", "L"):
+            lo, hi = (zu_lo, zu_hi) if row == "U" else (zl_lo, zl_hi)
+            zlo = lambda y, lo=lo: lo(y) + 0.0065
+            zhi = lambda y, hi=hi: hi(y) - 0.0065
+            d = min(slant, 0.4 * (yb - ya))
+            if row == "U":
+                c = [(ya + d, zlo(ya + d)), (yb - d, zlo(yb - d)), (yb, zhi(yb)), (ya, zhi(ya))]
+            else:
+                c = [(ya, zlo(ya)), (yb, zlo(yb)), (yb - d, zhi(yb - d)), (ya + d, zhi(ya + d))]
+            made.append(block("Z9_Tail_Cell_%s%d" % (row, k), c, 7, 2, collection, lib["led_red"], 0.0060,
+                              thickness=0.0015))
+    # the wrap piece: a pale cell in the upper strip and the bright red line along the lower strip's foot
+    yw0, yw1 = Y_RIB + 0.020, Y_END - 0.060
+    made.append(block("Z9_Tail_Cell_WU", [(yw0, zu_lo(yw0) + 0.007), (yw1, zu_lo(yw1) + 0.007), (yw1, zu_hi(yw1) - 0.007),
+                                          (yw0, zu_hi(yw0) - 0.007)], 5, 2, collection, lib["led_red"], 0.0060,
+                      thickness=0.0015))
+    made.append(block("Z9_Tail_Cell_WL", [(yw0, zl_lo(yw0) + 0.004), (yw1, zl_lo(yw1) + 0.004), (yw1, zl_lo(yw1) + 0.011),
+                                          (yw0, zl_lo(yw0) + 0.011)], 5, 1, collection, lib["led_red"], 0.0060,
+                      thickness=0.0015))
     return made
 
 
 # ------------------------------------------------- roundel, plate tray, camera
 def build_badges(collection, lib):
-    made = []
-    # the roundel: a chrome ring, a dark disc and the two-triangle hourglass
+    """The Denza emblem on the tailgate (z9_logo: black ring, silver disc with the hourglass opening, blue enamel), 93 mm across
+    (c1_0046: 0.19 of the 480 mm plate sign's width), centred on the car's axis at the lamps' height."""
+    import z9_logo as LG
     p, n = face(0.0, Z_ROUNDEL, 0.0)
-    from mathutils import Vector
-    nv = Vector(n).normalized()
-    t1 = Vector((0.0, 1.0, 0.0))
-    t2 = nv.cross(t1).normalized()
-    r = 0.0465
-    for tag, rad, lift, mat in (("Ring", r, 0.004, lib["trim_chrome"]), ("Disc", r * 0.80, 0.0055, lib["cap_black"])):
-        verts = [tuple(Vector(p) + nv * lift)]
-        for i in range(32):
-            a = 2 * math.pi * i / 32
-            verts.append(tuple(Vector(p) + nv * lift + t1 * (math.cos(a) * rad) + t2 * (math.sin(a) * rad)))
-        faces = [[0, 1 + i, 1 + (i + 1) % 32] for i in range(32)]
-        ob = M.obj("Z9_Roundel_" + tag, verts, faces, collection, mat)
-        M.orient(ob.data, lambda cc, d=tuple(nv): d)
-        made.append(ob)
-    for k, sgn in enumerate((1.0, -1.0)):
-        a = 0.016
-        tri = [Vector(p) + nv * 0.0065 + t2 * (sgn * 0.034) + t1 * dy for dy in (-a,)]
-        verts = [tuple(Vector(p) + nv * 0.0065 + t2 * (sgn * 0.002) + t1 * (-0.020)),
-                 tuple(Vector(p) + nv * 0.0065 + t2 * (sgn * 0.002) + t1 * (0.020)),
-                 tuple(Vector(p) + nv * 0.0065 + t2 * (sgn * 0.034) + t1 * 0.0)]
-        ob = M.obj("Z9_Roundel_Mark_%d" % k, verts, [[0, 1, 2]], collection, lib["trim_chrome"])
-        M.orient(ob.data, lambda cc, d=tuple(nv): d)
-        made.append(ob)
-    return made
+    centre = tuple(p[i] - n[i] * 0.0015 for i in range(3))
+    return LG.build("Z9_Roundel_", collection, lib, centre, n, 0.0465)
 
 
 def build_plate_tray(collection, lib):
     from carkit.parts import fittings
     made = []
-    # the black trapezoid pocket: a recessed gloss panel, dished 12 mm
+    # (the black trapezoid pocket is dished into the bumper's wing band now: z9_rear.pocket_mask)
     half = _yz(TRAY_PX)
     zt, zb = half[0][1], half[-1][1]
     yt, yb = half[0][0], half[-2][0]
-    made.append(band("Z9_Plate_Tray", lambda y: zb, lambda y: zt, 24, 10, collection, lib["black_gloss"],
-                     off_fn=lambda y, k: -0.012, y_max=yt, thickness=0.003))
+    # (the plate is a flat board on a curved face: it has to stand 4 mm clear at the centre or the bumper bands bury its ends
+    # ("DENZA Z9" read "A Z9" when it was sunk 10 mm into the dished tray: the tray is under those bands, not cut through them))
     p, n = face(0.0, Z_PLATE, -0.004)
     made += fittings.plate("Z9_Plate_Rear", tuple(p[i] + n[i] * 0.004 for i in range(3)), n, collection, lib,
                            w=0.480, h=0.148, depth=0.008,
@@ -392,41 +492,57 @@ def build_bumper(collection, lib):
     made = []
     # the long reflector in its pocket: red outer, clear inner
     pocket = _loop3(sorted(_yz(LAMP_POCKET_PX), key=lambda p: math.atan2(p[1] - 0.45, p[0] - 0.5)), 0.001)
-    tun = _tunnel("Z9_Reflector_Pocket", pocket, (-1.0, 0.0, 0.0), 0.05, collection, lib["shadow"], taper=0.95)
+    tun = _tunnel("Z9_Reflector_Pocket", pocket, (-1.0, 0.0, 0.0), 0.05, collection, lib["cap_black"], taper=0.95)
     M.mirror_y(tun)
     made.append(tun)
-    refl = _yz(REFLECTOR_PX)
-    red = [p for p in refl if p[0] >= 0.63] or refl
-    made.append(_flat("Z9_Reflector", _loop3(refl, 0.0045), collection, lib["lamp_red_lens"], 0.002))
+    # the long lamp in its slot: a red outer part and, inboard of it, the reversing lamp's clear lens (c1_0038: red
+    # u 1231-1413, clear 1413-1497 px)
+    red = _yz([(1231, 1929), (1245, 1900), (1290, 1889), (1411, 1887), (1414, 1929)])
+    clear = _yz([(1414, 1887), (1497, 1889), (1480, 1925), (1414, 1929)])
+    made.append(_flat("Z9_Reflector", _loop3(red, 0.0045), collection, lib["led_red"], 0.002))
+    made.append(_flat("Z9_Reflector_Clear", _loop3(clear, 0.0045), collection, lib["lamp_white"], 0.002))
     # parking sensors
     for k, (u, v) in enumerate(SENSORS_PX):
-        y, z = CAM.rear_yz(u, v, X_PLANE)
+        y, z = _at(u, v)
         p, n = face(abs(y), z, 0.0)
         made += _disc("Z9_Sensor_%d" % k, p, n, 0.0125, collection, lib["cap_black"], 0.003)
         q, m_ = face(-abs(y), z, 0.0)
         made += _disc("Z9_Sensor_R%d" % k, q, m_, 0.0125, collection, lib["cap_black"], 0.003)
     # the horizontal slot across the diffuser
-    z_slot = CAM.rear_yz(1500, 2093, X_PLANE)[1]
-    made.append(band("Z9_Diffuser_Slot", lambda y: z_slot - 0.006, lambda y: z_slot + 0.006, 40, 1, collection,
-                     lib["black_gloss"], offset=-0.010, y_max=0.50, thickness=0.002))
+    # (c1_0038: a thin dark slot runs from the fog lamps' housings to the corner, between the valance and the chin strip)
+    made.append(band("Z9_Diffuser_Slot", lambda y: Z_VAL_BOT - 0.006, lambda y: Z_VAL_BOT + 0.003, 70, 1, collection,
+                     lib["shadow"], off_fn=lambda y, fr: -0.005 + swell(y, Z_VAL_BOT), ymin=0.07, y_max=Y_VAL_END + 0.004,
+                     thickness=0.002))
     # the two vertical fog lamps side by side in the middle
     for k, (u0, v0, u1, v1) in enumerate(FOG_PX):
-        ya, za = CAM.rear_yz(u0, v0, X_PLANE)
-        yb, zb = CAM.rear_yz(u1, v1, X_PLANE)
+        ya, za = _at(u0, v0)
+        yb, zb = _at(u1, v1)
         yc = 0.5 * (ya + yb)
         hy = 0.5 * abs(yb - ya)
         # a black housing and the red lens inside it
+        zm = 0.5 * (za + zb)
         made.append(band("Z9_Fog_House_%d" % k, lambda y, zb=zb: zb - 0.012, lambda y, za=za: za + 0.012, 2, 4,
-                         collection, lib["black_gloss"], offset=0.006, ymin=max(0.0, abs(yc) - hy - 0.012),
-                         y_max=abs(yc) + hy + 0.012, thickness=0.003))
+                         collection, lib["black_gloss"], offset=0.006 + swell(0.0, zm),
+                         ymin=max(0.0, abs(yc) - hy - 0.012), y_max=abs(yc) + hy + 0.012, thickness=0.003))
         made.append(band("Z9_Fog_Lens_%d" % k, lambda y, zb=zb: zb, lambda y, za=za: za, 2, 4, collection,
-                         lib["led_red"], offset=0.0085, ymin=max(0.0, abs(yc) - hy), y_max=abs(yc) + hy,
-                         thickness=0.002))
-    # the lip along the bottom of the diffuser: a dark satin band, a few mm proud (c1_0038: it is dark grey,
-    # not chrome)
-    z_lip = CAM.rear_yz(1500, 2190, X_PLANE)[1]
-    made.append(band("Z9_Diffuser_Lip", lambda y: z_lip - 0.010, lambda y: z_lip + 0.030, 40, 3, collection,
-                     lib["black_gloss"], offset=0.005, y_max=0.60, thickness=0.003))
+                         lib["led_red"], offset=0.0085 + swell(0.0, zm), ymin=max(0.0, abs(yc) - hy),
+                         y_max=abs(yc) + hy, thickness=0.002))
+    # (the separate dark lip band under the chin is gone: it hung like a tray with square ends; the chin strip's own lower edge
+    # is the lip, as in c1_0038)
+    # the silver tips at the chin strip's lower outer corners (c1_0038: a pointed sliver where the strip ends at the tyre)
+    made.append(band("Z9_Chin_Tip", lambda y: 0.222, lambda y: 0.234, 10, 1, collection, lib["trim_chrome"],
+                     off_fn=lambda y, fr: 0.011 * (1.0 - geom.smoothstep((y - 0.70) / 0.14)) + 0.002, ymin=0.70, y_max=0.84,
+                     thickness=0.002))
+    # the small pictogram label (an open boot with an arrow) at the tailgate's lower edge, 0.20 m to the car's right (c1_0046,
+    # c1_0014): a dark plaque with two silver strokes
+    zb, yb = 0.620, -0.200
+    plaque = [(yb + 0.016, zb - 0.0075), (yb - 0.016, zb - 0.0075), (yb - 0.016, zb + 0.0075), (yb + 0.016, zb + 0.0075)]
+    made.append(_flat("Z9_Label_Boot", _loop3(plaque, 0.0030), collection, lib["black_gloss"], 0.002, mirror=False))
+    for k, (dy, w_) in enumerate(((0.007, 0.0090), (-0.006, 0.0050))):
+        stroke = [(yb + dy + w_, zb - 0.0020), (yb + dy - w_, zb - 0.0020), (yb + dy - w_, zb + 0.0028),
+                  (yb + dy + w_, zb + 0.0028)]
+        made.append(_flat("Z9_Label_Boot_Mark_%d" % k, _loop3(stroke, 0.0044), collection, lib["trim_chrome"], 0.0008,
+                          mirror=False))
     return made
 
 
@@ -453,7 +569,7 @@ def build_lettering(collection, lib):
     inter, cjk = _font("Inter.woff2"), _font("Noto Sans CJK Regular.woff2")
     for name, text, u, v, size, fnt in (("Z9_Badge_Model", "腾势Z9", 1432, 1732, 0.030, cjk),
                                         ("Z9_Badge_E3", "e³", 2410, 1732, 0.026, inter)):
-        y, z = CAM.rear_yz(u, v, -2.57)
+        y, z = _at(u, v)
         p, n = face(y, z, 0.0012)
         t = M.text_mesh(name, text, size, collection, lib["trim_chrome"], extrude=0.0012, font=fnt, resolution=4)
         _on_surface(t, p, n)
@@ -464,8 +580,10 @@ def build_lettering(collection, lib):
 # ------------------------------------------------------------ ducktail lip
 def build_ducktail(collection, lib):
     """The slim spoiler lip across the top of the tail (the side photograph's tip at z 1.0)."""
-    return [band("Z9_Ducktail_Lip", lambda y: CAP_HIGH - 0.012, lambda y: CAP_HIGH, 40, 2, collection, lib["paint"], cut=True,
-                 off_fn=lambda y, k: 0.008 * k * (1.0 - geom.smoothstep((y - 0.55) / 0.22)) + 0.001, y_max=0.86, thickness=0.003)]
+    # (2026-11-15: it ends at the lid's side shut line (y 0.70) and fades to nothing there, as the photographed lip does:
+    # the old one ran on to y 0.86 round the corner, where the cap's top edge falls away, and crumpled into a flap)
+    return [band("Z9_Ducktail_Lip", lambda y: CAP_HIGH - 0.012, lambda y: CAP_HIGH, 40, 2, collection, lib["paint"], hold=True,
+                 off_fn=lambda y, k: 0.008 * k * (1.0 - geom.smoothstep((y - 0.30) / 0.40)) + 0.001, y_max=0.70, thickness=0.003)]
 
 
 def build_deck(collection, lib):
@@ -503,6 +621,6 @@ def build_all(collection, lib):
     made += build_plate_tray(collection, lib)
     made += build_bumper(collection, lib)
     made += build_lettering(collection, lib)
-    made += build_ducktail(collection, lib)
+    # (2026-11-15: the separate ducktail lip is gone: its crumpled ends read as a flap; the deck's own trailing edge is the lip)
     made += build_deck(collection, lib)
     return made

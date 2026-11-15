@@ -31,13 +31,14 @@ NODE = "Z9_Tailgate_Node"
 
 # whole objects that live in the lid (each holds both sides)
 PARTS = (
-    "Z9_Decklid", "Z9_Ducktail_Lip",
-    "Z9_Roundel_Ring", "Z9_Roundel_Disc", "Z9_Roundel_Mark_0", "Z9_Roundel_Mark_1",
+    "Z9_Decklid",
+    "Z9_Roundel_Ring", "Z9_Roundel_Disc", "Z9_Roundel_Enamel",
     "Z9_Badge_Model", "Z9_Badge_E3",
-)
+    # the tail lamp's leaf (y < 0.700): its two lens strips and the eight cells; the wrap-round piece stays on the quarter
+    "Z9_Tail_Lamp_Lens_U", "Z9_Tail_Lamp_Lens_L",
+) + tuple("Z9_Tail_Cell_%s%d" % (r, k) for r in "UL" for k in range(4))
 # the bands the shut line cuts: only the middle (|y| < Y_SHUT) goes with the lid; the rest stays on the quarters
-CUT = ("Z9_Tail_Upper", "Z9_Tailgate", "Z9_Tail_Lamp_Back", "Z9_Tail_Lamp_Lens", "Z9_Tail_Lamp_Row_Up",
-       "Z9_Tail_Lamp_Row_Low")
+CUT = ("Z9_Tail_Upper", "Z9_Tailgate", "Z9_Tail_Lamp_Back", "Z9_Tail_Lamp_Bar")
 Y_SHUT = 0.700                            # the lid's side shut line at the tail (the decklid itself is 0.59 wide)
 
 _HINGE = []

@@ -833,6 +833,14 @@ def build_wheel(collection, prefix, tag, centre, sign, lib, spec, tyre_w, radius
     v, f = M.revolve(disc, 72)
     parts.append(M.obj(prefix + "Disc_" + tag, v, f, collection, lib[mats["disc"]],
                        smooth=False))
+    bp = spec.get("backplate")
+    if bp:
+        # opt-in: a dark plate behind the disc, a hand's width inside the face, so the windows between the spokes show the
+        # brake and then the dark inner barrel (as the photographs do), not the floor and the far wheel through the car
+        d_back = d_disc - th - bp.get("gap", 0.02)
+        r0, r1 = bp.get("r_in", r_in - 0.02), rim_r - 0.034
+        v, f = M.revolve([(r0, d_back), (r1, d_back), (r1, d_back - 0.004), (r0, d_back - 0.004)], seg)
+        parts.append(M.obj(prefix + "Backplate_" + tag, v, f, collection, lib[bp.get("mat", "cladding")], smooth=False))
     bell = [(0.100, d_hub - 0.024), (r_in, d_hub - 0.030), (r_in, d_disc)]
     v, f = M.revolve(bell, 40)
     parts.append(M.obj(prefix + "DiscBell_" + tag, v, f, collection, lib[mats["bell"]]))

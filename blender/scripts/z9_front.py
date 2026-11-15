@@ -371,55 +371,12 @@ def build_headlamps(collection, lib):
 
 # --------------------------------------------------------------- emblem
 def build_emblem(collection, lib):
-    """Denza circular/oval emblem centered on the upper nose at z=0.690 (c1_0042.jpg):
-    - Outer polished chrome ring
-    - Gloss black backing disc
-    - Central chrome water-drop / wing motif
-    """
-    made = []
-    z_c = 0.690
-    n_seg = 24
-    ry, rz = 0.036, 0.028
-
-    # Black backing disc
-    disc_cols = []
-    for i in range(n_seg + 1):
-        ang = math.pi * i / float(n_seg) - 0.5 * math.pi
-        y = ry * math.cos(ang)
-        z0 = z_c - rz * math.sin(ang)
-        z1 = z_c + rz * math.sin(ang)
-        disc_cols.append([_face(y, z0, d=0.0025)[0], _face(y, z1, d=0.0025)[0]])
-    disc = M.mesh_from_rows("Z9_Emblem_Front_Disc", disc_cols, collection)
-    disc.data.materials.append(lib["black_gloss"])
-    M.mirror_y(disc)
-    M.finish(disc, thickness=0.002, bevel=0.0)
-    made.append(disc)
-
-    # Outer chrome ring + central vertical drop
-    ring_cols = []
-    for i in range(n_seg + 1):
-        ang = math.pi * i / float(n_seg)
-        y_in, z_in = 0.78 * ry * math.sin(ang), z_c + 0.78 * rz * math.cos(ang)
-        y_out, z_out = ry * math.sin(ang), z_c + rz * math.cos(ang)
-        ring_cols.append([_face(y_in, z_in, d=0.004)[0], _face(y_out, z_out, d=0.004)[0]])
-    ring = M.mesh_from_rows("Z9_Emblem_Front_Ring", ring_cols, collection)
-    ring.data.materials.append(lib["logo_chrome"])
-    M.mirror_y(ring)
-    M.finish(ring, thickness=0.002, bevel=0.0)
-    made.append(ring)
-
-    p_drop, n_drop = _face(0.0, z_c, d=0.004)
-    d_cols = [
-        [(p_drop[0] + n_drop[0]*0.0015, 0.0, z_c + 0.014), (p_drop[0] + n_drop[0]*0.0015, 0.0, z_c + 0.014)],
-        [(p_drop[0] + n_drop[0]*0.0015, -0.007, z_c), (p_drop[0] + n_drop[0]*0.0015, 0.007, z_c)],
-        [(p_drop[0] + n_drop[0]*0.0015, 0.0, z_c - 0.014), (p_drop[0] + n_drop[0]*0.0015, 0.0, z_c - 0.014)],
-    ]
-    drop = M.mesh_from_rows("Z9_Emblem_Front_Drop", d_cols, collection)
-    drop.data.materials.append(lib["logo_chrome"])
-    M.finish(drop, thickness=0.0015, bevel=0.0)
-    made.append(drop)
-
-    return made
+    """The Denza emblem on the nose (z9_logo, the same badge as the tail's): centred on the axis at z 0.690 (c1_0042), about
+    100 mm across (c1_0034: 103 px of the 480 mm plate's 493)."""
+    import z9_logo as LG
+    p, n = _face(0.0, 0.690, 0.0)
+    centre = tuple(p[i] - n[i] * 0.0015 for i in range(3))
+    return LG.build("Z9_Emblem_Front_", collection, lib, centre, n, 0.050)
 
 
 # -------------------------------------------------------- hood ridges

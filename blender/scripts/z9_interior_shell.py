@@ -183,7 +183,8 @@ def build_shell(col, lib):
                          # out to 0.80 at the toe board: the footwell's outboard corner was open below the floor line
                          # (the underbody showed as a white triangle ahead of the sill)
                          lambda x: 0.73 + 0.07 * _smooth((x - 0.85) / 0.05), name="int_floor"))
-    made.append(CB.sill(col, lib["satin"], -1.30, 1.02, 0.72, 0.86, FLOOR_Z, 0.340, name="int_sill"))
+    # (2026-11-15: out to 0.83, was 0.86: the lower-door channel steps the skin in 2-3 cm there and the narrower rear hips take another 2)
+    made.append(CB.sill(col, lib["satin"], -1.30, 1.02, 0.72, 0.83, FLOOR_Z, 0.340, name="int_sill"))
     made += build_sill_plates(col, lib)
     return made
 
@@ -238,7 +239,7 @@ def build_closures(col, lib):
                         lambda x, y: FLOOR_Z, lambda x, y: 0.93, name="int_kick",
                         facing=(0.0, -1.0, 0.0)))
     made.append(CB.wall(col, lib["leather_door"],
-                        [(x_open, yk + (0.90 - yk) * k / 10.0) for k in range(11)],
+                        [(x_open, yk + (0.87 - yk) * k / 10.0) for k in range(11)],
                         lambda x, y: FLOOR_Z, lambda x, y: 1.00 + 0.10 * _smooth((y - 0.78) / 0.04),
                         name="int_kick_front", facing=(-1.0, 0.0, 0.0)))
     # rear wheelhouse and quarter trims, closing out to the rear door card

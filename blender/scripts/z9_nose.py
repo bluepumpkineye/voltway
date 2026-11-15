@@ -31,10 +31,14 @@ NOSE_Z_LO, NOSE_Z_HI = 0.1433, 0.7300
 
 # Rear profile reaches x = -2.6100 m at ducktail (z = 0.995..1.008 m) and taillight (z = 0.805 m),
 # and smoothly rounds forward and down to x = -2.4000 m at z = 0.1600 m
+# 2026-11-15: the tail face SLOPES (c1_0036 through the solved side camera, centre plane: the ducktail lip ends at x -2.41,
+# z 1.0; the lamps' height -2.44..-2.50; the bumper's belly -2.55..-2.6). It was a vertical wall at -2.61 from z 0.8 up to the
+# lip, 20 cm too long at the top: the "boxy, chopped" tail. Old: (0.68, -2.585) (0.805, -2.608) (0.92, -2.605) (0.995, -2.61)
 TAIL_X_OF_Z = Curve([
     (0.1600, -2.4000), (0.2400, -2.4450), (0.3400, -2.4850), (0.4400, -2.5250),
-    (0.5600, -2.5600), (0.6800, -2.5850), (0.8050, -2.6080), (0.9200, -2.6050),
-    (0.9950, -2.6100), (1.0080, -2.6050),
+    (0.5600, -2.5600), (0.6800, -2.5700), (0.7600, -2.5400), (0.8000, -2.5200),
+    (0.8400, -2.5000), (0.8800, -2.4700), (0.9200, -2.4400), (0.9600, -2.4150),
+    (1.0080, -2.4050),
 ], mode="pchip")
 TAIL_Z_LO, TAIL_Z_HI = 0.1600, 1.0080
 
@@ -45,10 +49,11 @@ WRAP = Curve([
     (0.9600, 0.8800), (1.0000, 1.0000),
 ])
 
+# (2026-11-15: the plan-view corner starts turning earlier: the photographed tail is round, not a flat face with a hard shoulder)
 TAIL_WRAP = Curve([
-    (0.0000, 0.0000), (0.1500, 0.0550), (0.3000, 0.1550), (0.4500, 0.2850),
-    (0.6000, 0.4350), (0.7200, 0.5750), (0.8200, 0.7000), (0.9000, 0.8150),
-    (0.9600, 0.9200), (1.0000, 1.0000),
+    (0.0000, 0.0000), (0.1500, 0.0700), (0.3000, 0.1900), (0.4500, 0.3300),
+    (0.6000, 0.4850), (0.7200, 0.6200), (0.8200, 0.7350), (0.9000, 0.8350),
+    (0.9600, 0.9300), (1.0000, 1.0000),
 ])
 
 _SLOPE = {}

@@ -488,8 +488,10 @@ def _seat_spec(k=1.0):
 # 12 % shorter, z 1.335) 4 cm through the sloping rear headliner (1.306). 0.86 puts the front headrest's top at z 1.405,
 # 0.885 m above the bight like the 7X's, 5 cm under the side headliner and 9 cm under the glass; 0.76 puts the rear's at
 # z 1.251, 4 cm under the headliner (the rear photographs, c3_0016/0017, show a short back and a small headrest).
-FRONT_BACK_K = 0.86
-REAR_BACK_K = 0.76
+# (2026-11-15: the roof is 3-5 cm lower now (z9_surface.Z_ROOF): 0.86 -> 0.83 and 0.76 -> 0.74 keep the headrests the same few cm
+# under the headliner as before)
+FRONT_BACK_K = 0.83
+REAR_BACK_K = 0.74
 
 
 def _rear_spec():

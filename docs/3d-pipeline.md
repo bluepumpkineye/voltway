@@ -1215,6 +1215,28 @@ export are driven by a config dict instead of copied scripts:
     (`CB.skin_offset_y(S.BODY, x, z, ...)`) and the belt is read at `max(x, -1.8)`. `blender/scripts/porting/poke_probe.py` (run in a background Blender with `-- g9l`) fires a ray
     sideways from every cabin vertex at the exterior and lists the ones that escape (arches, window openings and the sail's
     lower tip are legitimate).
+  - **Z9 exterior rebuilt against the photographs (2026-11-15; memory `z9-rework-from-brief-2026-11-15`).** A generic "modeler's brief"
+    (widen the rear haunches 12-15 %, aero blade, push the wheels out...) disagreed with the black car's photographs, which won:
+    the rear tyres stand 3.5-6 cm proud of the body (hips narrowed up to 6.5 cm: `Y_HIP`, `Y_SHOULDER`, `Y_ROOF`, plus
+    `z9_surface._section_at` for tumblehome behind the front doors), the roof peaks at 1.453 m, not the published 1.50 (`Z_ROOF`
+    3-5 cm lower; the cabin's headrests were fitted 4-5 cm under the old ceiling, see `FRONT_BACK_K`/`REAR_BACK_K`), and the tail
+    face slopes from x -2.41 at the lip to -2.55..-2.6 at the bumper (`z9_nose.TAIL_X_OF_Z`; it was a vertical wall at -2.61).
+    Photo pixels on that face convert with `z9_rear._at(u, v)`, not one fixed plane. `z9_surface.Z9Loft` adds the lower-door
+    channel (lip path `LIP_PTS` read off the clean side photograph, recess `CHANNEL_DEPTH` 34 mm below it). The tail lamp is one
+    smoked leaf with a grey bar and 4 + 4 trapezoid cells a side (`z9_rear.build_lamps`, `block()`), its wrap-round piece stays on the
+    quarter; `z9_gate.PARTS/CUT` name the pieces that go with the lid. The tail cap has no width under z 0.20 off the centreline:
+    a band that reaches below it crumples into shards. Wheels take an opt-in `backplate` (dark annulus behind the disc).
+    Measuring: `RM.render_passes(cam, tag)` through `side_black` / `rear_black`, then compare per-row half-widths and top edges with the
+    photograph (the rear camera is level: its roofs read 4 cm high; rows in the mirror's height read the mirror).
+  - **Z9 rear bumper and the Denza emblem, second pass (2026-11-15).** The black car hides what the white (c1_0046), purple (c1_0014)
+    and grey (c1_0070) cars show: the lower VALANCE is body colour, framed by gloss-black WINGS that run from the tailgate's lower
+    edge round both corners down to the chin as fins, with the plate pocket dished into them, a thin slot under the valance and a
+    black chin strip (silver tips at its lower corners). `z9_rear` builds `Z9_Bumper_Upper` (wings, `wing_lo(y)`, `pocket_mask`),
+    `Z9_Bumper_Valance` (paint, W-shaped top edge `VALANCE_TOP`, convex `swell`), `Z9_Bumper_Lower` (chin), the slot, `Z9_Chin_Tip` and
+    a small boot-pictogram label; the lamp bar is body colour. Zones are read off c1_0038 through `rear_black` (z of pixel row v at
+    the tail: 0.968 - (v - 1440) * 0.000995). The emblem is `z9_logo.build` (black ring, silver disc with the hourglass opening, navy
+    enamel), traced from the 6x close-up of the real badge, NOT the brand artwork's curves: straight 45 degree hand edges, a sharp
+    beak at the neck. Same module for the tail (93 mm) and the nose (100 mm). The viewer's lamp switch drives `M_LED_Red`.
 
 **Infotainment skins.** `vehicle.cockpit.skin` picks them in `HmiSurface.tsx`: `'dilink'` (Z9, `components/hmi/dilink/`: the
 DiLink home with the car on a stage and a dock of cards, the controls menu, climate, seats, media, navigation, the 360

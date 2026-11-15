@@ -79,11 +79,48 @@ def build_library():
                   emission=(0.95, 0.97, 1.00), emission_strength=1.6)
     lib["led_white"] = m
 
-    # Time Hourglass tail light & rear fog LED emission
+    # Time Hourglass tail light & rear fog LED emission. As built the cells are DIM (0.45): the photographed lamp (c1_0038)
+    # reads as a smoked burgundy lens with muted salmon-red cells, not pink bars; the viewer's lamp switch (lights.ts) takes
+    # this material's strength up to 2.4 when the lamps are on, 3.5 braking.
     m, nt, b = _M.mat("M_LED_Red")
-    _M.set_inputs(b, base=(0.90, 0.02, 0.03), metallic=0.0, roughness=0.12,
-                  emission=(0.95, 0.02, 0.03), emission_strength=1.5)
+    _M.set_inputs(b, base=(0.20, 0.012, 0.018), metallic=0.0, roughness=0.30,
+                  emission=(0.95, 0.045, 0.06), emission_strength=0.30)
     lib["led_red"] = m
+
+    # The tail lamp's smoked lens (translucent dark red over the reflector, opaque here) and the grey bar that splits it
+    m, nt, b = _M.mat("M_Z9_Lamp_Smoke")
+    _M.set_inputs(b, base=(0.070, 0.004, 0.008), metallic=0.0, roughness=0.22,
+                  coat=0.30, coat_rough=0.08, ior=1.52, specular=0.35)
+    lib["lamp_smoke"] = m
+    m, nt, b = _M.mat("M_Z9_Lamp_Bar")
+    _M.set_inputs(b, base=(0.030, 0.032, 0.036), metallic=0.0, roughness=0.40)
+    lib["lamp_bar"] = m
+    # the Denza emblem (z9_logo): a thin black ring, a satin silver disc, deep-blue enamel in the opening (c1_0046: it
+    # photographs near-black navy)
+    m, nt, b = _M.mat("M_Z9_Badge_Black")
+    _M.set_inputs(b, base=(0.006, 0.006, 0.007), metallic=0.0, roughness=0.38, coat=0.10, coat_rough=0.20)
+    lib["badge_black"] = m
+    m, nt, b = _M.mat("M_Z9_Badge_Silver")
+    _M.set_inputs(b, base=(0.36, 0.37, 0.385), metallic=1.0, roughness=0.42)
+    lib["badge_silver"] = m
+    # (a mirror-gloss enamel reflected the white studio and read pale lilac; the photographed enamel is dark navy: satin, little coat)
+    m, nt, b = _M.mat("M_Z9_Badge_Blue")
+    _M.set_inputs(b, base=(0.008, 0.014, 0.115), metallic=0.0, roughness=0.50, coat=0.0, specular=0.25)
+    lib["badge_blue"] = m
+    # the reversing lamp's clear lens (white-grey) beside the red reflector in the bumper
+    m, nt, b = _M.mat("M_Z9_Lamp_ClearWhite")
+    _M.set_inputs(b, base=(0.62, 0.64, 0.66), metallic=0.0, roughness=0.14, coat=0.6, coat_rough=0.05)
+    lib["lamp_white"] = m
+    # the rear diffuser: gloss black (c1_0038: it mirrors the white floor in soft bands), a touch rougher than piano black so
+    # it does not turn mirror-grey under the showroom's white studio (see M_Black_Trim's note)
+    # the bumper's gloss-black wings (c1_0046: deep, glossy black framing the body-colour valance): a little rougher than piano
+    # black so the white studio does not turn them grey
+    m, nt, b = _M.mat("M_Z9_Wing")
+    _M.set_inputs(b, base=(0.004, 0.004, 0.005), metallic=0.0, roughness=0.15, coat=0.45, coat_rough=0.06)
+    lib["wing"] = m
+    m, nt, b = _M.mat("M_Z9_Diffuser")
+    _M.set_inputs(b, base=(0.005, 0.005, 0.006), metallic=0.0, roughness=0.20, coat=0.25, coat_rough=0.08)
+    lib["diffuser"] = m
 
     # Bright anodized chrome / satin silver trim (window surround, fender blade, rocker strip)
     m, nt, b = _M.mat("M_Trim_Chrome")
