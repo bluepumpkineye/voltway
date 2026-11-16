@@ -193,6 +193,50 @@ def open_hull(hulls=("Z9_Shell_Shadow",), reach=0.5, x_max=-1.6):
     return total
 
 
+def cut_underlay(under="Z9_Roof_Rear_Black", pane="Z9_Glass_Rear", inset=0.014):
+    """Cut the backlight opening out of the rear roof's black underlay, leaving a crisp ~14 mm
+    black perimeter border so the tinted M_Glass_Privacy rear windshield shows into the cabin."""
+    import z9_openings as OP
+    from carkit import cut as C
+    from carkit import mesh as M
+    ob = bpy.data.objects.get(under)
+    src = bpy.data.objects.get(pane)
+    if ob is None or src is None:
+        return 0, 0, 0
+    M.apply_modifiers(ob)
+    sheet = C.sheet_bvh(ob)
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(src.evaluated_get(dg))
+    me.transform(src.matrix_world)
+    cutters = []
+    for loop in OP._loops(me):
+        if len(loop) < 8:
+            continue
+        n = Vector()
+        for p in me.polygons:
+            n += p.normal * p.area
+        n.normalize()
+        centre = sum(loop, Vector()) / len(loop)
+        if n.dot(centre - Vector((-0.6, 0.0, 0.9))) < 0.0:
+            n = -n
+        m = len(loop)
+        pts = []
+        for i, p in enumerate(loop):
+            t = (loop[(i + 1) % m] - loop[i - 1]).normalized()
+            w = n.cross(t).normalized()
+            if w.dot(centre - p) < 0.0:
+                w = -w
+            pts.append(tuple(p + w * inset))
+        cutters.append(C.prism_dir("_glasscut_%s_%d" % (pane, len(cutters)), pts, tuple(n),
+                                   back=0.06, front=0.04))
+    bpy.data.meshes.remove(me)
+    before, after = C.difference(ob, cutters, "bw_")
+    pruned = C.prune_off_sheet(ob, sheet)
+    for poly in ob.data.polygons:
+        poly.use_smooth = True
+    return before, after, pruned
+
+
 # ---------------------------------------------------------------- the lid's inside (the cabin's int_tailgate)
 LINER_DEPTH = 0.014
 LINER_SHEETS = ("Z9_Decklid", "Z9_Ducktail_Lip", "Z9_Tail_Upper", "Z9_Tailgate")

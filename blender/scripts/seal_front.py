@@ -406,17 +406,36 @@ def _font(fn):
 
 
 def build_emblem(collection, lib):
-    """The wide-spaced chrome BYD wordmark on the nose, under the bonnet's leading edge: 267 px wide
-    (0.26 m) and 24 px high (0.023 m) at z 0.632 in the photograph."""
+    """The wide horizontal streamlined chrome BYD wordmark on the nose under the bonnet lip."""
+    from carkit.interior.sweep import smooth_path
     made = []
-    inter = _font("Inter.woff2")
-    y0, z_c = _px_yz(1927, 1669)
-    for i, (ch, dy) in enumerate((("B", -0.093), ("Y", 0.0), ("D", 0.093))):
-        p, n = _face(abs(dy), z_c, d=0.0016)
+    _y0, z_c = _px_yz(1927, 1669)
+    H, W = 0.030, 0.072
+    stroke = 0.0044
+
+    def _s(pts):
+        sm = smooth_path([(x, y, 0.0) for (x, y) in pts], max(6, len(pts) * 3))
+        return [(p[0] * W - 0.5 * W, p[1] * H - 0.5 * H) for p in sm]
+
+    # Open-left wide B (upper & lower loops), swooping Y, open-left wide D (c1_0511.jpg)
+    b_top = _s([(0.0, 0.98), (0.72, 0.98), (0.95, 0.90), (0.98, 0.78), (0.95, 0.66), (0.72, 0.58), (0.0, 0.58)])
+    b_bot = _s([(0.0, 0.42), (0.76, 0.42), (0.98, 0.34), (1.00, 0.21), (0.98, 0.08), (0.76, 0.00), (0.0, 0.00)])
+    y_l = _s([(0.00, 0.98), (0.04, 0.76), (0.16, 0.58), (0.34, 0.52), (0.43, 0.40), (0.45, 0.20), (0.45, 0.00)])
+    y_r = _s([(1.00, 0.98), (0.96, 0.76), (0.84, 0.58), (0.62, 0.54)])
+    d_loop = _s([(0.0, 0.98), (0.64, 0.98), (0.92, 0.84), (1.00, 0.50), (0.92, 0.16), (0.64, 0.02), (0.0, 0.02)])
+
+    specs = (
+        ("B", (b_top, b_bot), -0.100),
+        ("Y", (y_l, y_r), 0.000),
+        ("D", (d_loop,), 0.100),
+    )
+    for ch, paths, dy in specs:
+        loops = [fittings.miter_strip(pt, stroke) for pt in paths]
+        emb = fittings.emblem_poly("Seal_Emblem_Front_%s" % ch, loops, 0.0024, collection,
+                                   lib["logo_chrome"], bevel=0.0004)
+        p, n = _face(abs(dy), z_c, d=0.0018)
         if dy < 0.0:
             p, n = (p[0], -p[1], p[2]), (n[0], -n[1], n[2])
-        emb = M.text_mesh("Seal_Emblem_Front_%s" % ch, ch, 0.026, collection, lib["logo_chrome"],
-                          extrude=0.0016, font=inter, resolution=4)
         P.on_surface(emb, p, n)
         made.append(emb)
     return made

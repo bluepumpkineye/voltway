@@ -187,8 +187,8 @@ PANELS = [
          v=(V_HOOD, 1.0), nx=20, nv=24, gap=dict(v1=False), mat="black_gloss",
          offset=-0.004, thickness=0.0),
     dict(name="Z9_Roof_Rear_Black", x=(X_BACKLIGHT, X_ROOF_R),
-         v=(V_REARGLASS, 1.0), nx=24, nv=22, gap=dict(v1=False),
-         mat="frit", offset=-0.003, thickness=0.0),
+         v=(V_REARGLASS, 1.0), nx=40, nv=32, gap=dict(v1=False),
+         mat="black_gloss", offset=-0.003, thickness=0.0),
 
     # ---- flush glazing
     dict(name="Z9_Glass_Windshield", x=(X_ROOF_F, X_COWL - 0.012),

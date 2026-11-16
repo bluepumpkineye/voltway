@@ -20,7 +20,7 @@ const isPane = (m: THREE.Material) => {
 };
 
 /** how far behind a clear pane, m, a layer's triangle is taken for the pane's backing */
-const REACH = { m_black_gloss: 0.05, m_shadow: 0.07 } as const;
+const REACH = { m_black_gloss: 0.05, m_black_trim: 0.05, m_shadow: 0.07 } as const;
 
 /**
  * The black gloss underlay is also the paint-black of the pillars between the panes (the B-pillar, the frame round every
@@ -159,8 +159,9 @@ export function cullBehindClearGlass(model: THREE.Object3D, blackout: THREE.Obje
         const cx = (a.x + b.x + c.x) / 3;
         const cy = (a.y + b.y + c.y) / 3;
         const cz = (a.z + b.z + c.z) / 3;
+        const matName = mesh.material.name.toLowerCase();
         const behind =
-          mesh.material.name.toLowerCase() === 'm_black_gloss'
+          matName === 'm_black_gloss' || matName === 'm_black_trim'
             ? onPane(cx, cy, cz, reach) && onPane(a.x, a.y, a.z, reach) && onPane(b.x, b.y, b.z, reach) && onPane(c.x, c.y, c.z, reach)
             : nearest(cx, cy, cz, reach) !== Infinity;
         if (!behind) keep.push(ia, ib, ic);

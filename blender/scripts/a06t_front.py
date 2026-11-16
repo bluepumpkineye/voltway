@@ -721,26 +721,11 @@ def _font(fn):
 
 
 def build_emblem(collection, lib):
-    """The Avatr prism badge: a tall kite with a vertical centre bar, ~35 x 42 mm."""
-    y, z = _px_yz(*CAM.EMBLEM_PX)
-    p, n = _face(0.0, z, 0.002)
-    hw, hh, t = 0.0175, 0.021, 0.0035
-    ring = [(0.0, hh), (hw, hh * 0.15), (0.0, -hh), (-hw, hh * 0.15)]
-    verts, faces = [], []
-
-    def bar(a, b, w):
-        dx, dy = b[0] - a[0], b[1] - a[1]
-        L = math.hypot(dx, dy) or 1.0
-        ox, oy = -dy / L * w * 0.5, dx / L * w * 0.5
-        k = len(verts)
-        for q in ((a[0] + ox, a[1] + oy), (b[0] + ox, b[1] + oy), (b[0] - ox, b[1] - oy), (a[0] - ox, a[1] - oy)):
-            verts.append((q[0], q[1], 0.0))
-        faces.append([k, k + 1, k + 2, k + 3])
-    for i in range(len(ring)):
-        bar(ring[i], ring[(i + 1) % len(ring)], t)
-    bar(ring[0], ring[2], t * 0.8)
-    ob = M.obj("A06T_Emblem", verts, faces, collection, lib["chrome"])
-    M.solidify(ob, 0.0020)
+    """The Avatr upright rectangular prism badge with interior V-prism apertures."""
+    _y, z = _px_yz(*CAM.EMBLEM_PX)
+    p, n = _face(0.0, z, 0.0020)
+    ob = fittings.emblem_avatr("A06T_Emblem", collection, lib["chrome"],
+                               w=0.035, h=0.044, bar=0.0022, thick=0.0024, bevel=0.0004)
     P.on_surface(ob, p, n)
     return [ob]
 

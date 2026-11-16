@@ -395,3 +395,209 @@ def plate(prefix, p, n, collection, lib, w=0.440, h=0.140, depth=0.006,
         ob.location = ob.matrix_world.translation + xv * dx
         made.append(ob)
     return made
+
+
+# ------------------------------------------------------------------ emblems
+def _inset_tri(pts, insets):
+    """Inset each CCW edge i->i+1 of a 2D polygon by insets[i] and intersect adjacent lines."""
+    n = len(pts)
+    lines = []
+    for i in range(n):
+        ax, ay = pts[i]
+        bx, by = pts[(i + 1) % n]
+        dx, dy = bx - ax, by - ay
+        ln = math.hypot(dx, dy) or 1.0
+        # CCW inward normal = (-dy, dx) / ln
+        nx, ny = -dy / ln, dx / ln
+        d = insets[i]
+        lines.append((ax + nx * d, ay + ny * d, dx / ln, dy / ln))
+    out = []
+    for i in range(n):
+        x1, y1, ux1, uy1 = lines[(i - 1) % n]
+        x2, y2, ux2, uy2 = lines[i]
+        det = ux1 * uy2 - uy1 * ux2
+        if abs(det) < 1e-9:
+            out.append((x2, y2))
+        else:
+            t = ((x2 - x1) * uy2 - (y2 - y1) * ux2) / det
+            out.append((x1 + t * ux1, y1 + t * uy1))
+    return out
+
+
+def _tessellate_extrude(bm, loops, thick, mat_idx=0):
+    """Tessellate 2D loops (outer CCW + inner CW holes) at z=0 and extrude along +Z."""
+    import bmesh
+    from mathutils.geometry import tessellate_polygon
+    vloops = [[Vector((x, y, 0.0)) for (x, y) in lp] for lp in loops]
+    tris = tessellate_polygon(vloops)
+    all_pts = [p for lp in loops for p in lp]
+    verts = [bm.verts.new((x, y, 0.0)) for (x, y) in all_pts]
+    bm.verts.ensure_lookup_table()
+    faces = []
+    for tri in tris:
+        try:
+            f = bm.faces.new([verts[i] for i in tri])
+            f.material_index = mat_idx
+            faces.append(f)
+        except ValueError:
+            pass
+    if thick > 0.0 and faces:
+        res = bmesh.ops.extrude_face_region(bm, geom=faces)
+        ext_verts = [g for g in res["geom"] if isinstance(g, bmesh.types.BMVert)]
+        bmesh.ops.translate(bm, verts=ext_verts, vec=(0.0, 0.0, thick))
+        for g in res["geom"]:
+            if isinstance(g, bmesh.types.BMFace):
+                g.material_index = mat_idx
+    return faces
+
+
+def _build_bmesh_obj(name, build_fn, collection, mats, bevel=0.0):
+    import bmesh
+    import bpy
+    bm = bmesh.new()
+    build_fn(bm)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-6)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    if bevel > 0.0:
+        edges = [e for e in bm.edges if e.is_manifold and e.calc_face_angle(0.0) > 0.4]
+        if edges:
+            bmesh.ops.bevel(bm, geom=edges, offset=bevel, segments=2, affect='EDGES', clamp_overlap=True)
+    for f in bm.faces:
+        f.smooth = False
+    me = bpy.data.meshes.new(name + "_mesh")
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(name, me)
+    for m in mats:
+        ob.data.materials.append(m)
+    collection.objects.link(ob)
+    return ob
+
+
+def miter_strip(pts, width):
+    """Return a closed CCW 2D polygon wrapping an open polyline `pts` at total thickness `width`."""
+    hw = 0.5 * width
+    n = len(pts)
+    dirs = []
+    for i in range(n - 1):
+        dx, dy = pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]
+        ln = math.hypot(dx, dy) or 1.0
+        dirs.append((dx / ln, dy / ln))
+    left, right = [], []
+    for i in range(n):
+        if i == 0:
+            nx, ny = -dirs[0][1], dirs[0][0]
+            ox, oy = nx * hw, ny * hw
+        elif i == n - 1:
+            nx, ny = -dirs[-1][1], dirs[-1][0]
+            ox, oy = nx * hw, ny * hw
+        else:
+            n0 = (-dirs[i - 1][1], dirs[i - 1][0])
+            n1 = (-dirs[i][1], dirs[i][0])
+            bx, by = n0[0] + n1[0], n0[1] + n1[1]
+            bl = math.hypot(bx, by)
+            if bl < 1e-6:
+                ox, oy = n0[0] * hw, n0[1] * hw
+            else:
+                bx, by = bx / bl, by / bl
+                dot = max(0.35, bx * n0[0] + by * n0[1])
+                s = min(2.5 * hw, hw / dot)
+                ox, oy = bx * s, by * s
+        left.append((pts[i][0] + ox, pts[i][1] + oy))
+        right.append((pts[i][0] - ox, pts[i][1] - oy))
+    return left + list(reversed(right))
+
+
+def emblem_zeekr(name, collection, mat, w=0.042, h=0.034, bar=0.0036, step=0.0046, thick=0.0020, bevel=0.0004):
+    """Build the Zeekr mark in local XY (Z=0..thick): outer rectangle with inner stepped diagonal bar."""
+    hw, hh = 0.5 * w, 0.5 * h
+    hb = 0.5 * bar
+    outer = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+    left_hole = [
+        (-hw + bar, hh - bar),
+        (-hw + bar, -hh + bar),
+        (step - hb, -hh + bar),
+        (step - hb, -step - 0.4142 * hb),
+        (-step - hb, step - 0.4142 * hb),
+        (-step - hb, hh - bar),
+    ]
+    right_hole = [(-x, -y) for (x, y) in left_hole]
+    loops = [outer, list(reversed(left_hole)), list(reversed(right_hole))]
+    return _build_bmesh_obj(name, lambda bm: _tessellate_extrude(bm, loops, thick), collection, [mat], bevel=bevel)
+
+
+def emblem_avatr(name, collection, mat, w=0.035, h=0.044, bar=0.0022, thick=0.0022, bevel=0.0004):
+    """Build the Avatr upright rectangular prism emblem with four crisp interior V-prism apertures."""
+    hw, hh = 0.5 * w, 0.5 * h
+    ym = -0.46 * hh
+    outer = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+    ht = 0.5 * bar
+    tris = [
+        ([(-hw, hh), (0.0, ym), (hw, hh)], (ht, ht, bar)),
+        ([(hw, -hh), (0.0, ym), (-hw, -hh)], (ht, ht, bar)),
+        ([(-hw, hh), (-hw, -hh), (0.0, ym)], (bar, ht, ht)),
+        ([(hw, -hh), (hw, hh), (0.0, ym)], (bar, ht, ht)),
+    ]
+    holes = [list(reversed(_inset_tri(tri, ins))) for tri, ins in tris]
+    return _build_bmesh_obj(name, lambda bm: _tessellate_extrude(bm, [outer] + holes, thick),
+                            collection, [mat], bevel=bevel)
+
+
+def emblem_nio(name, collection, chrome_mat, back_mat=None, r=0.030, thick=0.0032, bevel=0.0008, n_arc=36):
+    """Build the NIO Sky-and-Earth 3D emblem in local XY (optionally with recessed dark backing disc)."""
+    y_sky = 0.105 * r
+    r_in = 0.44 * r
+    cy_in = 0.08 * r
+    a0 = math.asin(y_sky / r)
+    a1 = math.pi - a0
+    sky_out = [(r * math.cos(a0 + (a1 - a0) * k / n_arc), r * math.sin(a0 + (a1 - a0) * k / n_arc))
+               for k in range(n_arc + 1)]
+    dy_in = max(-0.98 * r_in, min(0.98 * r_in, y_sky - cy_in))
+    b0 = math.asin(dy_in / r_in)
+    b1 = math.pi - b0
+    sky_in = [(r_in * math.cos(b1 - (b1 - b0) * k / (n_arc // 2)),
+               cy_in + r_in * math.sin(b1 - (b1 - b0) * k / (n_arc // 2)))
+              for k in range(n_arc // 2 + 1)]
+    sky = sky_out + sky_in
+
+    y_earth = -0.04 * r
+    e_top = math.asin(y_earth / r)          # negative angle on right
+    e_bot = math.radians(-46.0)             # lower leg termination on outer circle
+    n_leg = n_arc // 3
+    arc_r = [(r * math.cos(e_bot + (e_top - e_bot) * k / n_leg),
+              r * math.sin(e_bot + (e_top - e_bot) * k / n_leg)) for k in range(n_leg + 1)]
+    arc_l = [(r * math.cos(math.pi - e_top + (e_top - e_bot) * k / n_leg),
+              r * math.sin(math.pi - e_top + (e_top - e_bot) * k / n_leg)) for k in range(n_leg + 1)]
+    earth = arc_r + [(0.025 * r, 0.115 * r), (-0.025 * r, 0.115 * r)] + arc_l + [(0.0, -0.22 * r)]
+
+    def build(bm):
+        _tessellate_extrude(bm, [sky], thick, mat_idx=0)
+        _tessellate_extrude(bm, [earth], thick, mat_idx=0)
+        if back_mat is not None:
+            r_bg = 0.94 * r
+            bg = [(r_bg * math.cos(2.0 * math.pi * k / n_arc), r_bg * math.sin(2.0 * math.pi * k / n_arc))
+                  for k in range(n_arc)]
+            res_f = _tessellate_extrude(bm, [bg], 0.0010, mat_idx=1)
+            # drop backing disc slightly so it sits behind z=0..thick chrome face
+            bg_verts = list({v for f in bm.faces if f.material_index == 1 for v in f.verts})
+            import bmesh as _bm
+            _bm.ops.translate(bm, verts=bg_verts, vec=(0.0, 0.0, -0.0008))
+
+    mats = [chrome_mat, back_mat] if back_mat is not None else [chrome_mat]
+    return _build_bmesh_obj(name, build, collection, mats, bevel=bevel)
+
+
+def emblem_poly(name, loops, thick, collection, mat, bevel=0.0003, has_holes=False):
+    """Extrude 2D polygon loops (CCW) along +Z in local XY.
+
+    When `has_holes` is True, `loops` is `[outer, hole0, ...]`; otherwise each loop in `loops`
+    is tessellated as an independent stroke/island so multi-stroke glyphs never drop parts.
+    """
+    def build(bm):
+        if has_holes:
+            _tessellate_extrude(bm, loops, thick)
+        else:
+            for lp in loops:
+                _tessellate_extrude(bm, [lp], thick)
+    return _build_bmesh_obj(name, build, collection, [mat], bevel=bevel)
+

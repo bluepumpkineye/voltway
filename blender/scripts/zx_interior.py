@@ -33,7 +33,7 @@ the millimetre: see zx_cabinsolve) and are checked by overlay against c10_0002.
 import math
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 import zx_surface as S
 import zx_panels as PN
@@ -396,14 +396,15 @@ def build_wheel(col, lib):
     from carkit.interior import fittings as F
     made, fr = ST.wheel(col, lib, ZEEKR_7X_WHEEL, WHEEL_C, WHEEL_TILT)
     pitch = WHEEL_TILT
+    from carkit import place as P
+    from carkit.parts import fittings as PF
     dome = ZEEKR_7X_WHEEL["hub"]["dome"]
     lift = 0.0215 + dome * 0.97
-    # the maker's mark on the hub: a silver block-letter frame with the Z-step inside (c10_0006)
-    hw, hh = 0.025, 0.031
-    frame = [(-hw, hh), (hw, hh), (hw, -hh), (-hw, -hh), (-hw, hh)]
-    made.append(_tube_path(fr, frame, lift, "int_wheel_mark", col, lib["chrome"], 0.0021))
-    zz = [(-0.013, 0.018), (0.014, 0.018), (-0.014, -0.018), (0.013, -0.018)]
-    made.append(_tube_path(fr, zz, lift, "int_wheel_mark_Z", col, lib["chrome"], 0.0017))
+    # the maker's mark on the hub: crisp chrome rectangular frame with stepped vertical divider (c10_0001)
+    mark = PF.emblem_zeekr("int_wheel_mark", col, lib["chrome"],
+                           w=0.045, h=0.048, bar=0.0034, step=0.0052, thick=0.0022, bevel=0.0005)
+    P.on_surface(mark, fr.p(0.0, 0.0, lift - 0.0004), tuple(fr.A), up_hint=tuple(fr.V))
+    made.append(mark)
     # the pods: a dark recess in the bezel, the rocker plate with its knurled roller nearest the
     # hub, two small keys toward the rim (c10_0006, c10_0007)
     for s, tag in ((1.0, "R"), (-1.0, "L")):
@@ -488,6 +489,8 @@ def _seat_spec(k=1.0):
 # the front backrest's height against the SU7-drawn spine: the headrest's top then stands 0.89 m above the bight
 # (z 1.473), 8 cm under the headliner (1.553) as a real seat's does, instead of 0.98 m through it
 FRONT_BACK_K = 0.88
+# 10% overall size reduction on the front seats so they read less prominent in the cabin
+FRONT_SEAT_SCALE = 0.90
 
 
 def _rear_spec():
@@ -571,11 +574,16 @@ def build_seats(col, lib):
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
         front = _seat_spec(FRONT_BACK_K)
-        parts, cush, back = SE.seat(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
+        origin = Vector((FRONT_BIGHT_X, y, FRONT_BIGHT_Z))
+        parts, cush, back = SE.seat(col, lib, front, tuple(origin),
                                     name="int_seat_" + tag)
-        made += parts
-        made += _headrest(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
-        made += _seat_shroud(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_%s_base" % tag)
+        head_parts = _headrest(col, lib, front, tuple(origin), "int_seat_" + tag)
+        seat_xf = Matrix.Translation(origin) @ Matrix.Scale(FRONT_SEAT_SCALE, 4) @ Matrix.Translation(-origin)
+        for ob in parts + head_parts:
+            ob.data.transform(seat_xf)
+            ob.data.update()
+        made += parts + head_parts
+        made += _seat_shroud(col, lib, tuple(origin), "int_seat_%s_base" % tag, scale=FRONT_SEAT_SCALE)
     rear = _rear_spec()
     for tag, y in (("RL", REAR_Y), ("RR", -REAR_Y)):
         parts, cush, back = SE.seat(col, lib, rear, (REAR_BIGHT_X, y, REAR_BIGHT_Z),
@@ -598,15 +606,16 @@ def build_seats(col, lib):
     return made
 
 
-def _seat_shroud(col, lib, origin, name):
+def _seat_shroud(col, lib, origin, name, scale=1.0):
     """The taupe shroud and rails under a front cushion, with its oval switch panel on the
     door side (c3_0002)."""
     x0, y0, z0 = origin
-    made = [F.box(col, name, (x0 + 0.25, y0, 0.5 * (FLOOR_Z + z0 - 0.07)),
-                  (0.56, 0.42, z0 - 0.07 - FLOOR_Z), lib["leather_taupe"], r=0.04)]
+    top_z = z0 - 0.07 * scale
+    made = [F.box(col, name, (x0 + 0.25 * scale, y0, 0.5 * (FLOOR_Z + top_z)),
+                  (0.56 * scale, 0.42 * scale, top_z - FLOOR_Z), lib["leather_taupe"], r=0.04 * scale)]
     side = 1.0 if y0 > 0 else -1.0
-    made.append(F.box(col, name + "_sw", (x0 + 0.20, y0 + side * 0.212, z0 - 0.055),
-                      (0.130, 0.012, 0.045), lib["piano"], r=0.014))
+    made.append(F.box(col, name + "_sw", (x0 + 0.20 * scale, y0 + side * 0.212 * scale, z0 - 0.055 * scale),
+                      (0.130 * scale, 0.012, 0.045 * scale), lib["piano"], r=0.014 * scale))
     return made
 
 

@@ -142,6 +142,7 @@ def prepare_exterior():
     BY.split_bonnet()
     BY.open_hull()
     OP.cut_underlay()
+    RG.cut_underlay()
     RG.build_seal()
     OP.split_trim()
     OP.split_belt()

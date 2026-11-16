@@ -30,7 +30,8 @@ from carkit.interior.sweep import grid_mesh, tube, ellipse, smooth_path
 # glass back to the backlight.
 X_OPEN_F, X_OPEN_R = 0.040, -1.060
 Y_OPEN = 0.440                           # the opening's half-width
-X_HEADLINER_R = -1.935                   # the headliner runs back to the backlight's top
+X_HEADLINER_R = -1.935                   # parcel shelf / C-pillar rear reach at backlight's base
+X_HEADER_R = PN.X_ROOF_R - 0.006         # backlight header (stop headliner above rear glass)
 X_A_FOOT = 1.000
 
 
@@ -60,7 +61,7 @@ def build_headliner(col, lib):
     centre = lambda x: 0.9995
     open_v = lambda x: S.v_at_y_upper(x, Y_OPEN)
     bands = (("int_headliner_F", PN.X_ROOF_F + 0.030, X_OPEN_F, 16),
-             ("int_headliner_R", X_OPEN_R, X_HEADLINER_R, 60))
+             ("int_headliner_R", X_OPEN_R, X_HEADER_R, 16))
     for name, x0, x1, nx in bands:
         rows = _head_rows(x0, x1, nx, centre)
         for r in rows:
@@ -96,6 +97,17 @@ def build_headliner(col, lib):
         M.orient(ev.data, lambda c, s=(-1.0 if nm == "F" else 1.0): (s, 0.0, 0.0))
         M.mirror_y(ev)
         made.append(ev)
+    # close the backlight header edge cleanly up to the glass
+    rows = []
+    v0 = v_head_edge(X_HEADER_R)
+    for j in range(13):
+        v = v0 + (0.9995 - v0) * j / 12.0
+        rows.append([S.surface_offset(X_HEADER_R, v, -0.045), S.surface_offset(X_HEADER_R, v, -0.004)])
+    rows[-1] = [(p[0], 0.0, p[2]) for p in rows[-1]]
+    ev = grid_mesh("int_headliner_revealB", rows, col, lib["headliner"])
+    M.orient(ev.data, lambda c: (-1.0, 0.0, 0.0))
+    M.mirror_y(ev)
+    made.append(ev)
     return made
 
 

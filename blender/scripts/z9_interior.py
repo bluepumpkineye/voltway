@@ -35,7 +35,7 @@ x = 0. They are first-pass readings checked by overlay (blender/scripts/z9_cabin
 import math
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 import z9_surface as S
 import z9_panels as PN
@@ -491,6 +491,7 @@ def _seat_spec(k=1.0):
 # (2026-11-15: the roof is 3-5 cm lower now (z9_surface.Z_ROOF): 0.86 -> 0.83 and 0.76 -> 0.74 keep the headrests the same few cm
 # under the headliner as before)
 FRONT_BACK_K = 0.83
+FRONT_SEAT_SCALE = 0.90
 REAR_BACK_K = 0.74
 
 
@@ -510,12 +511,17 @@ def build_seats(col, lib):
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
         front = _seat_spec(FRONT_BACK_K)
-        parts, cush, back = SE.seat(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
+        origin = Vector((FRONT_BIGHT_X, y, FRONT_BIGHT_Z))
+        parts, cush, back = SE.seat(col, lib, front, tuple(origin),
                                     name="int_seat_" + tag)
-        made += parts
-        made += CP.headrest(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
-        made += CP.seat_shroud(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_%s_base" % tag,
-                               FLOOR_Z)
+        head_parts = CP.headrest(col, lib, front, tuple(origin), "int_seat_" + tag)
+        seat_xf = Matrix.Translation(origin) @ Matrix.Scale(FRONT_SEAT_SCALE, 4) @ Matrix.Translation(-origin)
+        for ob in parts + head_parts:
+            ob.data.transform(seat_xf)
+            ob.data.update()
+        made += parts + head_parts
+        made += CP.seat_shroud(col, lib, tuple(origin), "int_seat_%s_base" % tag,
+                               FLOOR_Z, scale=FRONT_SEAT_SCALE)
     rear = _rear_spec()
     for tag, y in (("RL", REAR_Y), ("RR", -REAR_Y)):
         parts, cush, back = SE.seat(col, lib, rear, (REAR_BIGHT_X, y, REAR_BIGHT_Z),

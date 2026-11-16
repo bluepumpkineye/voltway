@@ -146,6 +146,7 @@ def prepare_exterior():
     BY.split_bonnet()
     BY.open_hull()
     OP.cut_underlay()         # the door windows out of the black underlay: it must not stay behind
+    RG.cut_underlay()         # the backlight opening out of the rear roof's black underlay
     RG.build_seal()           # a black bead behind the lid's shut line
     OP.split_trim()           # the Z-line's stretch across each door goes with the door
     OP.split_belt()           # and the window's lower chrome, the doors' top edge: it must not stay across the doorway

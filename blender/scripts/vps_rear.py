@@ -310,12 +310,35 @@ def build_lightbar(collection, lib):
                                lib["lamp_red_lens"], 5, crown, out, thickness=0.003,
                                bevel=(0.0010, 2, 30)))
 
-    # Illuminated 'V O Y A H' script inside the centre smoked taillight bar
-    inter = _font("Inter.woff2")
-    for ch, yy in (("V", 0.180), ("O", 0.090), ("Y", 0.000), ("A", -0.090), ("H", -0.180)):
-        p, n = on_rear(yy, 1.114, 0.0024)
-        t = M.text_mesh("VPS_Lightbar_Script_" + ch, ch, 0.024, collection, lib["lamp_white_bar"],
-                        extrude=0.0012, font=inter, resolution=4, weight=0.0005)
+    # Wide geometric 'V O Y A H' script mounted proud on the front face of the smoked centre taillight bar
+    w_ch, h_ch, st_ch = 0.036, 0.023, 0.0038
+
+    def _vp(pts):
+        return [(x * w_ch - 0.5 * w_ch, y * h_ch - 0.5 * h_ch) for (x, y) in pts]
+
+    def _vp_ring(inset=0.0):
+        # CCW outer octagon / CW inner octagon for seamless 'O'
+        kx = inset / w_ch
+        ky = inset / h_ch
+        pts = [(0.18 + kx, 1.0 - ky), (0.82 - kx, 1.0 - ky), (0.96 - kx, 0.78 - ky),
+               (0.96 - kx, 0.22 + ky), (0.82 - kx, 0.0 + ky), (0.18 + kx, 0.0 + ky),
+               (0.04 + kx, 0.22 + ky), (0.04 + kx, 0.78 - ky)]
+        return _vp(pts)
+
+    voyah_loops = {
+        "V": [fittings.miter_strip(_vp([(0.04, 1.0), (0.50, 0.02), (0.96, 1.0)]), st_ch)],
+        "O": [_vp_ring(0.0), list(reversed(_vp_ring(st_ch)))],
+        "Y": [fittings.miter_strip(_vp([(0.04, 1.0), (0.50, 0.48), (0.96, 1.0)]), st_ch),
+              fittings.miter_strip(_vp([(0.50, 0.48), (0.50, 0.0)]), st_ch)],
+        "A": [fittings.miter_strip(_vp([(0.04, 0.0), (0.50, 0.98), (0.96, 0.0)]), st_ch)],
+        "H": [fittings.miter_strip(_vp([(0.08, 0.0), (0.08, 1.0)]), st_ch),
+              fittings.miter_strip(_vp([(0.92, 0.0), (0.92, 1.0)]), st_ch),
+              fittings.miter_strip(_vp([(0.08 + 0.5 * st_ch / w_ch, 0.50), (0.92 - 0.5 * st_ch / w_ch, 0.50)]), st_ch)],
+    }
+    for ch, yy in (("V", 0.210), ("O", 0.105), ("Y", 0.000), ("A", -0.105), ("H", -0.210)):
+        p, n = on_rear(yy, 1.113, 0.0054)
+        t = fittings.emblem_poly("VPS_Lightbar_Script_" + ch, voyah_loops[ch], 0.0022, collection,
+                                 lib["lamp_white_bar"], bevel=0.0004, has_holes=(ch == "O"))
         P.on_surface(t, p, n)
         made.append(t)
 

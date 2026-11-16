@@ -82,14 +82,15 @@ def headrest(col, lib, spec, origin, name, role="leather_seat", post_role="piano
     return made
 
 
-def seat_shroud(col, lib, origin, name, floor_z, role="leather_seat"):
+def seat_shroud(col, lib, origin, name, floor_z, role="leather_seat", scale=1.0):
     """The shroud and rails under a front cushion, with its oval switch panel on the door side."""
     x0, y0, z0 = origin
-    made = [F.box(col, name, (x0 + 0.25, y0, 0.5 * (floor_z + z0 - 0.07)),
-                  (0.56, 0.42, z0 - 0.07 - floor_z), lib[role], r=0.04)]
+    top_z = z0 - 0.07 * scale
+    made = [F.box(col, name, (x0 + 0.25 * scale, y0, 0.5 * (floor_z + top_z)),
+                  (0.56 * scale, 0.42 * scale, top_z - floor_z), lib[role], r=0.04 * scale)]
     side = 1.0 if y0 > 0 else -1.0
-    made.append(F.box(col, name + "_sw", (x0 + 0.20, y0 + side * 0.212, z0 - 0.055),
-                      (0.130, 0.012, 0.045), lib["piano"], r=0.014))
+    made.append(F.box(col, name + "_sw", (x0 + 0.20 * scale, y0 + side * 0.212 * scale, z0 - 0.055 * scale),
+                      (0.130 * scale, 0.012, 0.045 * scale), lib["piano"], r=0.014 * scale))
     return made
 
 

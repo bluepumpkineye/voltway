@@ -441,12 +441,10 @@ def smooth_corner(names=("ES8_Fascia", "ES8_Fender_Front", "ES8_Hood"), centre=C
 def build_emblem_and_plate(collection, lib):
     made = []
     # Nio Sky & Earth emblem on sloped upper Shark-Nose panel between DRLs
-    emb = fittings.rounded_panel(
-        "ES8_Emblem", (S.X_FRONT, 0.0, 0.902), 0.026, 0.019, 0.005,
-        lambda p, d: face(p[1], p[2], d),
-        S.X_FRONT, collection, lib["chrome"], d=0.0025, ny=14,
-        outward=(0.82, 0.0, 0.57),
-    )
+    p_emb, n_emb = face(0.0, 0.902, 0.0020)
+    emb = fittings.emblem_nio("ES8_Emblem", collection, lib["chrome"],
+                              back_mat=lib["black_gloss"], r=0.032, thick=0.0028, bevel=0.0006)
+    P.on_surface(emb, p_emb, n_emb)
     made.append(emb)
 
     # Front show plate aligned with the top of the trapezoidal lower grille

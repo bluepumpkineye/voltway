@@ -157,11 +157,6 @@ export const xpengG9l: Vehicle = {
     driverEye: [0.18, 0.40, 1.28],
     proxyUrl: '/models/xpeng-g9l-proxy.glb',
   },
-  // The maker's photographs (Autohome 8659) show dark, smoky glass all round, windscreen included: the X-ray's pale
-  // ghost (the default for a front pane seen from outside) read as an open greenhouse, and made the body look taller. The
-  // windscreen of c1_0002 reads 48,58,72 on a sampled box and the backlight of c1_0006 28,34,38; the viewer's read 125,120,122
-  // and 119,117,118, mostly the white studio mirrored in the panes (more opacity alone made it brighter), so they mirror less
-  glass: { color: '#0C1116', opacity: 0.85, privacy: 0.92, reflect: 0.28, privacyReflect: 0.16 },
   configurator: {
     paintMaterial: 'M_Paint_G9L_Purple',
     paints: [

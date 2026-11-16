@@ -377,26 +377,17 @@ def _flat(name, poly, collection, mat):
 
 
 def build_emblem(collection, lib):
-    made = []
-    x0, y0, x1, y1 = _EMB_PLATE
-    plate = [_emb_local(p) for p in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
+    """Zeekr badge centered on the nose light bar: gloss-black housing + crisp chrome Zeekr mark."""
     p, n = face(EMBLEM[0], EMBLEM[1], 0.0)
-    # the black housing it sits in, then the chrome plate and the two dark blocks
-    parts = []
-    k = 1.0
-    hous = [(c[0] * 1.30, c[1] * 1.42) for c in plate]
-    # 2026-11-16: the badge stands over the LED line (which no longer stops short of it), 9 mm up
-    for name, poly, mat, lift, th in (("ZX_Emblem_Back", hous, lib["visor"], 0.0126, 0.0016),
-                                      ("ZX_Emblem_Plate", plate, lib["chrome"], 0.0146, 0.0018),
-                                      ("ZX_Emblem_BlockL", [_emb_local(q) for q in _EMB_LEFT],
-                                       lib["black_gloss"], 0.0166, 0.0006),
-                                      ("ZX_Emblem_BlockR", [_emb_local(q) for q in _EMB_RIGHT],
-                                       lib["black_gloss"], 0.0166, 0.0006)):
-        ob = _flat(name, poly, collection, mat)
-        M.solidify(ob, th)
-        P.on_surface(ob, tuple(p[i] + n[i] * lift for i in range(3)), n)
-        parts.append(ob)
-    return parts
+    hw, hh = 0.028, 0.022
+    back_loop = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+    back = fittings.emblem_poly("ZX_Emblem_Back", [back_loop], 0.0032, collection, lib["black_gloss"],
+                                bevel=0.0010)
+    P.on_surface(back, tuple(p[i] + n[i] * 0.0126 for i in range(3)), n)
+    mark = fittings.emblem_zeekr("ZX_Emblem_Mark", collection, lib["chrome"],
+                                  w=0.042, h=0.034, bar=0.0036, step=0.0046, thick=0.0020, bevel=0.0004)
+    P.on_surface(mark, tuple(p[i] + n[i] * 0.0156 for i in range(3)), n)
+    return [back, mark]
 
 
 def build_plate(collection, lib):

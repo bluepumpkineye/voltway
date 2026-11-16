@@ -16,6 +16,7 @@ from carkit import geom
 from carkit.geom import Curve
 from carkit import mesh as M
 from carkit import cut as C
+from carkit import place as P
 from carkit.body import fascia as FA
 from carkit.body import panels as BP
 from carkit.parts import aero, fittings, lamps
@@ -288,11 +289,10 @@ def _badge_text(name, text, y_c, z_c, size, collection, mat):
 def build_badges_and_plate(collection, lib):
     made = []
     # Rear NIO Sky & Earth chrome emblem centered above the illumiBlade
-    emb = fittings.rounded_panel(
-        "ES8_Rear_Emblem", (-S.HALF_L, 0.0, 1.110), 0.028, 0.020, 0.006,
-        lambda p, d: on_rear(p[1], p[2], d), -S.HALF_L, collection, lib["chrome"],
-        d=0.003, ny=14, outward=(-1.0, 0.0, 0.0),
-    )
+    p_emb, n_emb = on_rear(0.0, 1.110, 0.0022)
+    emb = fittings.emblem_nio("ES8_Rear_Emblem", collection, lib["chrome"],
+                              back_mat=lib["black_gloss"], r=0.030, thick=0.0028, bevel=0.0006)
+    P.on_surface(emb, p_emb, n_emb)
     made.append(emb)
 
     # ES8 badge on right tailgate (y = -0.54, z = 0.965)

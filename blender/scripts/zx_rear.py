@@ -373,9 +373,19 @@ def build_badges(collection, lib):
 
 
 def build_plate(collection, lib):
-    """Rear show plate on the tailgate with ZEEKR 7X model name."""
-    p, n = on_rear(0.0, 0.740, 0.005)
-    return fittings.plate("ZX_Plate_Rear", p, n, collection, lib, w=0.440, h=0.140, depth=0.008,
+    """Rear show plate on the tailgate with ZEEKR 7X model name.
+
+    The tailgate has a concave license-plate pocket around z 0.75 and its lower shut line sits at
+    z ~0.696, so the plate is centered at z 0.780 (h=0.136 -> bottom at 0.712, cleanly above the
+    shut line), aligned to the chord across [0.712, 0.848], proud of the entire recess and deep
+    enough to embed cleanly at the edges."""
+    p_bot = Vector(on_rear(0.0, 0.712)[0])
+    p_top = Vector(on_rear(0.0, 0.848)[0])
+    chord = (p_top - p_bot).normalized()
+    n = (-chord.z, 0.0, chord.x)
+    mid = 0.5 * (p_bot + p_top)
+    p = (mid.x + n[0] * 0.008, 0.0, mid.z + n[2] * 0.008)
+    return fittings.plate("ZX_Plate_Rear", p, n, collection, lib, w=0.440, h=0.136, depth=0.026,
                           texts=[("ZEEKR 7X", 0.0, 0.038, False, True)],
                           mat="black_gloss", text_mat="machined")
 
