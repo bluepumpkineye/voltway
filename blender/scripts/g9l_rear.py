@@ -218,14 +218,18 @@ def edge_y(z):
 
 
 def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, y_max=None,
-         off_fn=None, ymin=0.0, bevel=0.0, cut=False):
+         off_fn=None, ymin=0.0, bevel=0.0, cut=False, end_above=None):
     """A strip of the tail cap between z-limits that depend on |y|: zlo(y), zhi(y), the upper limit
     held under the cap's own top edge (z_reach).
 
     y_max None: a full-width band, whose side edge follows the cap's join ring (the quarter panel's
     edge) at every height, the columns sliding in where the cap is narrower. Otherwise the band ends
     at the constant y_max.
-    off_fn(y, k) overrides `offset` (a shelf that stands proud by a varying amount)."""
+    off_fn(y, k) overrides `offset` (a shelf that stands proud by a varying amount).
+    cut: the band ends where the cap's top edge leaves SHELF_NEED of room over its lower limit; `end_above` replaces that
+    for a thin strip near the cap's top (the tail lamp's LED band, whose lower limit is only 3 cm under the edge, was cut
+    down to its middle 3 cm by SHELF_NEED, so the lit lamp was missing): it ends where the edge is `end_above` over the
+    strip's UPPER limit."""
     cols = []
     if y_max is None:
         zs = [zlo(0.4) + (zhi(0.4) - zlo(0.4)) * k / 12.0 for k in range(13)]
@@ -237,7 +241,8 @@ def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, 
         # edge falls below its lower limit (round the corner, with the join ring), instead of sliding
         # down the corner as a sliver
         y_cut = ymax
-        while y_cut > ymin + 0.02 and z_reach(y_cut) - 0.002 < zlo(y_cut) + SHELF_NEED:
+        while y_cut > ymin + 0.02 and z_reach(y_cut) - 0.002 < (
+                zhi(y_cut) + end_above if end_above is not None else zlo(y_cut) + SHELF_NEED):
             y_cut -= 0.005
         ymax = min(ymax, y_cut)
 
@@ -324,23 +329,32 @@ def _shelf(y, z):
     return (0.045 - 0.033 * k) * _taper(y) + 0.002
 
 
+LENS_BOT = Z_CAP_BOT + 0.010           # the smoked lens' lower and upper limits (build_lamps)
+LENS_TOP = CAP_HIGH - 0.012
+
+
 def build_lamps(collection, lib):
     made = []
 
-    def strip(name, z0, z1, mat, lift, ny=60, y_end=CAP_END - 0.024, thickness=0.0020):
+    def strip(name, z0, z1, mat, lift, ny=60, y_end=CAP_END - 0.024, thickness=0.0020, ymin=0.0):
         zm = 0.5 * (z0 + z1)
         return band(name, lambda y: z0, lambda y: z1, ny, 2, collection, mat,
-                    off_fn=lambda y, k: _shelf(y, zm) + lift, y_max=y_end, thickness=thickness, cut=True)
+                    off_fn=lambda y, k: _shelf(y, zm) + lift, ymin=ymin, y_max=y_end, thickness=thickness, cut=True,
+                    end_above=0.003)
 
     # a dark smoked lens over the cap's face: the housing of the light
     made.append(band("G9L_Tail_Lens", lambda y: Z_CAP_BOT + 0.010, lambda y: CAP_HIGH - 0.012, 56, 4,
                      collection, lib["lamp_clear"],
                      off_fn=lambda y, k: _shelf(y, Z_CAP_BOT + 0.010 + 0.110 * k) + 0.0035,
                      y_max=CAP_END - 0.020, thickness=0.002, cut=True))      # a lens band running to the shelf's very end ended as a dark wedge
-    # thin, precise light lines (c1_0030: a 3-4 mm red line near the top of the dark lens, a fainter one below it)
-    made.append(strip("G9L_Tail_Strip_Main", Z_LAMP_RED[0] - 0.0025, Z_LAMP_RED[0] + 0.0015, lib["led_red"], 0.0052))
-    made.append(strip("G9L_Tail_Strip_Low", Z_LAMP_RED[1] - 0.0015, Z_LAMP_RED[1] + 0.0015, lib["lamp_red_lens"],
-                      0.0052))
+    # The lamp, read off c1_0006 (the purple car straight from behind; 0.91 mm per pixel across the lens): a red LED band about 24 mm
+    # tall, 14 mm under the lens' top edge, from end to end of the shelf (the lit tail and brake light); under it two light grey-white
+    # bars at the ends (|y| 0.46 to the end, 12 mm tall: the signal lamps, unlit here); and along the lens' lower edge a long satin
+    # strip. The first build had a 4 mm red line and a fainter one, and band()'s cut rule (SHELF_NEED) shortened the red one to its
+    # middle 3 cm, so the lit lamp was a dot (2026-11-16).
+    made.append(strip("G9L_Tail_Strip_Main", LENS_TOP - 0.038, LENS_TOP - 0.014, lib["led_red"], 0.0052, ny=90))
+    made.append(strip("G9L_Tail_Signal", LENS_TOP - 0.060, LENS_TOP - 0.048, lib["lamp_pale"], 0.0052, ymin=0.46, ny=30))
+    made.append(strip("G9L_Tail_Strip_Low", LENS_BOT + 0.006, LENS_BOT + 0.018, lib["diffuser_satin"], 0.0052, y_end=0.70))
     return made
 
 
@@ -379,6 +393,21 @@ def build_details(collection, lib):
     ob = _flat("G9L_Reflector_R", _loop3(REFLECTOR, 0.0035), collection, lib["lamp_red_lens"], 0.002)
     M.mirror_y(ob)
     made.append(ob)
+    # three segments inside each lamp (c1_0006: the kidney's red rim round three pale rectangles in its inner half, from 41 to 89 %
+    # of its length from the outer end): lit red with the tail and the brake light (which lamp does what is not published)
+    ys = [p[0] for p in REFLECTOR]
+    zs = [p[1] for p in REFLECTOR]
+    y_in, y_out = min(ys), max(ys)
+    z_c, z_h = 0.5 * (min(zs) + max(zs)), 0.55 * (max(zs) - min(zs))
+    seg_y0, seg_y1 = y_in + 0.11 * (y_out - y_in), y_in + 0.59 * (y_out - y_in)
+    gap = 0.003
+    seg_w = (seg_y1 - seg_y0 - 2 * gap) / 3.0
+    for k in range(3):
+        a = seg_y0 + k * (seg_w + gap)
+        loop = [(a, z_c - 0.5 * z_h), (a + seg_w, z_c - 0.5 * z_h), (a + seg_w, z_c + 0.5 * z_h), (a, z_c + 0.5 * z_h)]
+        seg = _flat("G9L_Reflector_Seg_%d" % k, _loop3(loop, 0.0048), collection, lib["led_red"], 0.0015)
+        M.mirror_y(seg)
+        made.append(seg)
     # corner vents (c1_0030: a slotted oval at each end of the black bumper, |y| 0.73-0.79, z 0.49-0.58): a grey slotted patch standing 3 mm
     # off the black sheet with dark vertical slats (the pocket and slats the old build tunnelled behind the sheet were never seen)
     made.append(band("G9L_Rear_Vent", lambda y: 0.490, lambda y: 0.579, 6, 4, collection, lib["black_panel"], offset=0.003,

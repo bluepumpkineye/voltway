@@ -41,7 +41,7 @@ PARTS = (
 # the bands the shut line cuts: only the middle (|y| < Y_SHUT) goes with the hatch, the swept ends stay on the
 # quarter panels
 CUT = ("G9L_Tailgate", "G9L_Tail_Lamp_Cap", "G9L_Tail_Lamp_Lip", "G9L_Tail_Lens",
-       "G9L_Tail_Strip_Main", "G9L_Tail_Strip_Low")
+       "G9L_Tail_Strip_Main", "G9L_Tail_Signal", "G9L_Tail_Strip_Low")
 Y_SHUT = 0.775
 UNDERLAY = "G9L_Roof_Rear_Black"
 

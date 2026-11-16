@@ -138,6 +138,11 @@ def build_library():
                   coat=1.0, coat_rough=0.02, ior=1.52, specular=0.5)
     lib["lamp_red_lens"] = m
 
+    # The signal bars and the bumper lamps' pale lens of the rear lamp (c1_0006: light grey-pink plastic)
+    m, nt, b = _M.mat("M_Lamp_Pale")
+    _M.set_inputs(b, base=(0.55, 0.52, 0.55), metallic=0.0, roughness=0.22, coat=0.6, coat_rough=0.05, specular=0.5)
+    lib["lamp_pale"] = m
+
     # Full-width Robot Face continuous LED light strip
     m, nt, b = _M.mat("M_LED_White")
     _M.set_inputs(b, base=(0.95, 0.96, 1.00), metallic=0.0, roughness=0.15)
@@ -147,8 +152,9 @@ def build_library():
     lib["bar_film"] = _bar_film()
 
     # Horizon full-width tail light bar LED emission
+    # (unlit it is the photograph's dark magenta-red, c1_0006: the lit state is the viewer's emissive, src/lib/lights.ts)
     m, nt, b = _M.mat("M_LED_Red")
-    _M.set_inputs(b, base=(1.00, 0.02, 0.02), metallic=0.0, roughness=0.15)
+    _M.set_inputs(b, base=(0.20, 0.008, 0.025), metallic=0.0, roughness=0.18)
     lib["led_red"] = m
 
     # Chrome / Satin Silver trim (window frames, floating D-pillar blade)

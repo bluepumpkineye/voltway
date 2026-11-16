@@ -1728,6 +1728,20 @@ Side-by-side crops of the photograph and the model at the same pixels found, in 
   reflections still wobble where the fender flare meets the door (zebra of the bare surface: `surfzeb.py`). The tail's shoulders, mirrors
   included, still stand ~4 cm wider per side than the rear photograph's at z 1.25 (c1_0006 through its camera).
 
+
+**The G9L's rear lamp (2026-11-16, owner: "the rear headlight is missing").** In the exported GLB the red LED strip (`M_LED_Red`,
+`G9L_Tail_Strip_Main`) was 3 cm wide, not full width: `g9l_rear.band(cut=True)` ends a band where the tail cap's top edge leaves
+`SHELF_NEED` (6 cm) of room over the band's LOWER limit, and a strip 3 cm under the cap's top edge never has that, so the cut walked in to
+|y| 0.02 and left a dot. The 4 mm line (and a fainter one) was also far thinner than the photographs'. Rebuilt from c1_0006 (the purple car
+straight from behind, 0.91 mm per pixel across the lens): `band(..., end_above=)` ends a thin strip where the cap's edge meets its UPPER
+limit; the LED is a band 24 mm tall, 14 mm under the lens' top edge, full width (|y| to 0.756); two light grey-white signal bars under it
+at the ends (`G9L_Tail_Signal`, new `M_Lamp_Pale`, |y| 0.46 to the end, 12 mm); a satin strip along the lens' lower edge
+(`G9L_Tail_Strip_Low`, was a red line the photographs do not show); and three segments inside each bumper-corner lamp (`G9L_Reflector_Seg_*`,
+`M_LED_Red`, lit with the tail and the brake light; which lamp does what is not published). `g9l_gate.CUT` lists the new band so the hatch
+takes it (the swung-open check). `M_LED_Red` unlit is now the photograph's dark magenta-red (base 0.20, 0.008, 0.025); the lit state is
+the viewer's emissive. Run `export_g9l.web()` (280 s here, headless, no cabin re-bake needed: the cabin is untouched). The proxy ignores
+lamps and was left alone. Backup of the previous exterior: `blender/backup_g9l_lamps/` (gitignored).
+
 ### The SU7 Ultra's headlamp, hood and nose (2026-11-03)
 
 The owner (the yellow Ultra's photograph beside a viewer screenshot): "the real car has its headlight like an almond shape, while our
