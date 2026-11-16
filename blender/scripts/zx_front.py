@@ -51,18 +51,21 @@ def _yz(px, x=2.38):
 HOOD_EDGE_PX = [(1921, 1497), (1700, 1498), (1500, 1498), (1300, 1498), (1171, 1497),
                 (1128, 1490), (1086, 1473)]
 # Light bar (chrome): top v 1498, bottom 1548, its outer end rounded off downward.
-BAR_UP_PX = [(1860, 1500), (1700, 1500), (1500, 1500), (1300, 1500), (1215, 1500),
-             (1185, 1506), (1171, 1516)]
-BAR_LO_PX = [(1860, 1547), (1700, 1548), (1500, 1548), (1300, 1548), (1239, 1546),
-             (1203, 1536), (1178, 1524)]
+# 2026-11-16: a thin continuous LED line (2.2 cm, it was a 5.8 cm bar) across the whole visor, centre to end
+BAR_UP_PX = [(1921, 1517), (1700, 1517), (1500, 1517), (1300, 1517), (1230, 1518),
+             (1197, 1522), (1178, 1530)]
+BAR_LO_PX = [(1921, 1539), (1700, 1539), (1500, 1539), (1300, 1539), (1240, 1540),
+             (1207, 1542), (1182, 1541)]
 # Black housing: from the lip to the lens strip; it wraps the corner (extended in y).
-HOUSE_UP_PX = [(1860, 1498), (1500, 1498), (1300, 1498), (1171, 1497), (1128, 1490),
-               (1086, 1473)]
-HOUSE_LO_PX = [(1860, 1597), (1700, 1597), (1450, 1596), (1300, 1594), (1170, 1588),
+# the top edge runs 4-5 mm UNDER the hood's front edge (it ran on it: slivers of the cap showed between the two
+# along the whole lip, the jagged edge the owner pointed at)
+HOUSE_UP_PX = [(1921, 1502), (1500, 1502), (1300, 1502), (1171, 1503), (1128, 1507),
+               (1100, 1512), (1086, 1519)]
+HOUSE_LO_PX = [(1921, 1597), (1700, 1597), (1450, 1596), (1300, 1594), (1170, 1588),
                (1124, 1580), (1090, 1572)]
 # The grey lens strip, and its lower edge: swelling into the headlamp's lobe.
 LENS_UP_PX = HOUSE_LO_PX
-LENS_LO_PX = [(1860, 1623), (1700, 1625), (1545, 1627), (1432, 1632), (1405, 1641),
+LENS_LO_PX = [(1921, 1623), (1700, 1625), (1545, 1627), (1432, 1632), (1405, 1641),
               (1374, 1660), (1320, 1664), (1239, 1663), (1198, 1659), (1153, 1645),
               (1131, 1605), (1124, 1580)]
 # Corner intake (fn_L crop): a rounded triangle, wide at the top, pointed at the bottom.
@@ -216,21 +219,102 @@ def _strip(name, lo_px, up_px, dist, collection, mat, extend_lo=(), extend_up=()
 
 def build_lightbar(collection, lib):
     made = []
-    # the black housing under the hood's lip, wrapping the corner
-    ext = [(0.905, 0.867), (0.930, 0.862)]
-    ext_lo = [(0.905, 0.775), (0.930, 0.770)]
+    # 2026-11-16: the visor. One continuous dark smoked-glass housing from end to end under the hood's lip
+    # (the old one ran on round the corner as two thin wedges: the spike on the hood's corner)
     made.append(_strip("ZX_Lamp_House", HOUSE_LO_PX, HOUSE_UP_PX,
                        lambda k, nk: 0.0030 + 0.0010 * math.sin(math.pi * k / nk),
-                       collection, lib["black_gloss"], extend_lo=ext_lo, extend_up=ext))
-    # the grey lens strip, swelling into the headlamp lobe
+                       collection, lib["visor"]))
+    # the smoked lens strip under the LED line, swelling into the headlamp lobe (the lower matrix lamp)
     made.append(_strip("ZX_Lamp_Lens", LENS_LO_PX, LENS_UP_PX,
                        lambda k, nk: 0.0040 + 0.0012 * math.sin(math.pi * k / nk),
-                       collection, lib["lamp_clear"]))
+                       collection, lib["visor_glass"]))
     # the light bar over the housing: a pale satin light guide (a flat silver-white band in
     # the photographs, lit white with the headlamps on - the viewer lights "led_white")
     made.append(_strip("ZX_Lightbar", BAR_LO_PX, BAR_UP_PX,
                        lambda k, nk: 0.0062 + 0.0018 * math.sin(math.pi * k / nk),
                        collection, lib["led_white"], bevel=(0.0010, 2, 30)))
+    return made
+
+
+# ------------------------------------------------------------ grille detail
+GRILLE_SLATS = 4
+RADAR_HW, RADAR_HH = 0.092, 0.080          # the central radar module, ~18 x 16 cm (front photo)
+MATRIX_PX = [(1186, 1631), (1213, 1631), (1240, 1631), (1267, 1631), (1294, 1631), (1321, 1631),
+             (1348, 1631)]
+
+
+def _grille_edges():
+    ol = _grille_outline()
+    return ol[:-2], ol[-1][1]        # the top edge [(y, z)] centre -> outer foot, the bottom height
+
+
+def _edge_y(top, z):
+    """|y| where the opening's top edge has fallen to height z."""
+    y = 0.0
+    while y < top[-1][0] and _lerp_y(top, y) > z:
+        y += 0.004
+    return y
+
+
+def build_grille_detail(collection, lib):
+    """The lower grille's furniture (the photographs): horizontal slats on both sides of a square radar
+    module in the middle, and a thin bright edge along the opening's top (it runs down the diagonals)."""
+    made = []
+    top, z_bot = _grille_edges()
+    z_top_c = _lerp_y(top, 0.0)
+    y_out = top[-1][0]
+    # the radar module fills the opening's middle (it was 16 cm tall in an opening ~14 cm high at the centre and
+    # stood out below the grille's lower edge)
+    rh = 0.5 * (z_top_c - z_bot) - 0.014
+    rw = 1.10 * rh
+    zc = 0.5 * (z_top_c + z_bot)
+    inside = -GRILLE_RECESS
+    for k in range(GRILLE_SLATS):
+        z = z_bot + 0.030 + (z_top_c - z_bot - 0.058) * k / float(GRILLE_SLATS - 1)
+        y_hi = _edge_y(top, z + 0.004) - 0.040
+        y_lo = rw + 0.006
+        if y_hi <= y_lo + 0.05:
+            continue
+        rows = []
+        for i in range(15):
+            y = y_lo + (y_hi - y_lo) * i / 14.0
+            rows.append([face(y, z - 0.0035, inside + 0.012)[0], face(y, z + 0.0035, inside + 0.012)[0]])
+        ob = M.grid("ZX_Grille_Slat%d" % k, rows, collection, lib["radar"], geom.axial(1.0))
+        M.solidify(ob, 0.010)
+        M.mirror_y(ob, clip=False)
+        made.append(ob)
+
+    def place(q, d):
+        return face(q[1], q[2], inside + d)
+
+    made.append(fittings.rounded_panel("ZX_Grille_Radar", (S.HALF_L, 0.0, zc), rw, rh, 0.018,
+                                       place, S.HALF_L, collection, lib["radar"], d=0.014, ny=24,
+                                       outward=(1.0, 0.0, 0.0)))
+    made.append(fittings.rounded_panel("ZX_Grille_RadarLens", (S.HALF_L, 0.0, zc), rw - 0.017,
+                                       rh - 0.017, 0.012, place, S.HALF_L, collection,
+                                       lib["lamp_smoked"], d=0.0158, ny=24, outward=(1.0, 0.0, 0.0)))
+    rows = []
+    for i in range(61):
+        y = y_out * i / 60.0
+        z = _lerp_y(top, y)
+        rows.append([face(y, z + 0.0004, 0.0025)[0], face(y, z + 0.0074, 0.0025)[0]])
+    edge = M.grid("ZX_Grille_Edge", rows, collection, lib["trim_silver"], geom.axial(1.0))
+    M.solidify(edge, 0.002)
+    M.mirror_y(edge)
+    made.append(edge)
+    return made
+
+
+def build_matrix(collection, lib):
+    """The matrix headlamp's LED elements: a row of small light cells in each lens lobe."""
+    made = []
+    for i, (u, v) in enumerate(MATRIX_PX):
+        (y, z) = _yz([(u, v)])[0]
+        ob = fittings.rounded_panel("ZX_Lamp_Cell%d" % i, (S.HALF_L, y, z), 0.0095, 0.0036, 0.0026,
+                                    lambda q, d: face(q[1], q[2], d), S.HALF_L, collection,
+                                    lib["led_white"], d=0.0062, ny=8, outward=(1.0, 0.0, 0.0))
+        M.mirror_y(ob, clip=False)
+        made.append(ob)
     return made
 
 
@@ -301,12 +385,13 @@ def build_emblem(collection, lib):
     parts = []
     k = 1.0
     hous = [(c[0] * 1.30, c[1] * 1.42) for c in plate]
-    for name, poly, mat, lift, th in (("ZX_Emblem_Back", hous, lib["black_gloss"], 0.0036, 0.0016),
-                                      ("ZX_Emblem_Plate", plate, lib["chrome"], 0.0056, 0.0018),
+    # 2026-11-16: the badge stands over the LED line (which no longer stops short of it), 9 mm up
+    for name, poly, mat, lift, th in (("ZX_Emblem_Back", hous, lib["visor"], 0.0126, 0.0016),
+                                      ("ZX_Emblem_Plate", plate, lib["chrome"], 0.0146, 0.0018),
                                       ("ZX_Emblem_BlockL", [_emb_local(q) for q in _EMB_LEFT],
-                                       lib["black_gloss"], 0.0076, 0.0006),
+                                       lib["black_gloss"], 0.0166, 0.0006),
                                       ("ZX_Emblem_BlockR", [_emb_local(q) for q in _EMB_RIGHT],
-                                       lib["black_gloss"], 0.0076, 0.0006)):
+                                       lib["black_gloss"], 0.0166, 0.0006)):
         ob = _flat(name, poly, collection, mat)
         M.solidify(ob, th)
         P.on_surface(ob, tuple(p[i] + n[i] * lift for i in range(3)), n)
@@ -328,6 +413,8 @@ def build_all(collection, lib):
     made += build_fascia(collection, lib)
     PLACER.reset()
     made += build_lightbar(collection, lib)
+    made += build_matrix(collection, lib)
+    made += build_grille_detail(collection, lib)
     made += build_chin(collection, lib)
     made += build_emblem(collection, lib)
     made += build_plate(collection, lib)

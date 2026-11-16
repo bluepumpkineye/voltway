@@ -317,13 +317,13 @@ def glb_json(path):
 
 
 def check_paint(path):
-    """Paint must ship as a dielectric. A metallicFactor the exporter left out
+    """Paint must ship as a (mostly) dielectric: <= 0.7 (the 7X ships 0.6, 2026-11-16; it was 0.2). A metallicFactor the exporter left out
     (a procedural Metallic input) reads as 1.0 in glTF: the RX's flaked paint
     came out solid dark metal in three.js. materials.export_safe() fixes it."""
     bad = []
     for m in glb_json(path).get("materials", []):
         if m.get("name", "").startswith("M_Paint"):
-            if m.get("pbrMetallicRoughness", {}).get("metallicFactor", 1.0) > 0.2:
+            if m.get("pbrMetallicRoughness", {}).get("metallicFactor", 1.0) > 0.7:
                 bad.append(m["name"])
     if bad:
         raise RuntimeError("paint exported as metal (run materials.export_safe first): %s" % bad)

@@ -84,13 +84,16 @@ export const zeekr7x: Vehicle = {
     },
     // its shadow on the studio floor: export_zx.bake_ground_shadow() prints the size and
     // centre (the build's axes, metres)
-    studioShadow: { url: '/models/zeekr-7x-shadow.webp', size: [7.846, 5.05], centre: [0, 0] },
+    studioShadow: { url: '/models/zeekr-7x-shadow.webp', size: [7.858, 5.05], centre: [-0.006, 0] },
     // scripts/make-proxy.mjs: the neighbour in another car's parking stage
     proxyUrl: '/models/zeekr-7x-proxy.glb',
     heroColor: '#49749C',
     // over the driver's seat (the cabin's H-point (0.22, 0.37, 0.585) + 0.64 up, a little back)
     driverEye: [0.16, 0.385, 1.22],
   },
+  // The glazing as the maker's photographs show it (Autohome 7777, the studio car): the windscreen and the front door glass are
+  // a pale green tint with the cabin plain behind them, the rear door glass, quarter glass, backlight and roof glass dark smoked
+  glass: { color: '#8fbfae', opacity: 0.3, privacy: 0.9, reflect: 0.8, privacyReflect: 0.4 },
   // The maker's palette (Autohome's colour list for the 2026 car): six paints and four cabin
   // colourways. The build is Gorge Stone Blue (涧石蓝, the car of the studio photographs);
   // every other value is matched by eye to Autohome's swatches under our studio rig (hence
@@ -98,7 +101,15 @@ export const zeekr7x: Vehicle = {
   configurator: {
     paintMaterial: 'M_Paint_ZX_Blue',
     paints: [
-      { id: 'gorge-stone-blue', name: 'Gorge Stone Blue', nameZh: '涧石蓝', swatch: '#49749C' },
+      {
+        id: 'gorge-stone-blue',
+        name: 'Gorge Stone Blue',
+        nameZh: '涧石蓝',
+        swatch: '#49749C',
+        // 2026-11-16 (the owner's brief): a metallic slate blue, metalness 0.6, roughness 0.2, a full clear coat. The colour is
+        // calibrated against the studio photographs (door mid-tones ~sRGB 80/97/110) under the showroom's rig
+        finish: { color: '#5b6f80', roughness: 0.2, metalness: 0.6, clearcoat: 1, clearcoatRoughness: 0.05 },
+      },
       {
         id: 'forest-green',
         name: 'Forest Green',

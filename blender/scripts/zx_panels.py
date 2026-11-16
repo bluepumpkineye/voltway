@@ -255,7 +255,9 @@ def V_WEDGE_TOP(x):
 # The clamshell hood: its side edge runs along the fender crowns from the cowl to
 # the lamp (sA: the hood/fender line, z 0.956 at x 1.40, 0.89 at the lamp).
 def _hood_front(v):
-    return N.JOIN_F(v) + 0.015 * geom.smoothstep((v - 0.93) / 0.06)
+    # 2026-11-16: no overhang. The hood ran 15 mm past the nose cap's join over its top, a lip standing proud of
+    # the fascia with a fold of slivers at each corner; it butts the cap now
+    return N.JOIN_F(v)
 
 
 Y_HOOD = Curve([(X_COWL, 0.800), (1.40, 0.835), (1.60, 0.850), (1.80, 0.855),
@@ -344,13 +346,13 @@ PANELS = [
     # rear end, from the quarter's top edge up to V_Q_TOP. A panel of its own, so no limit jumps
     # inside one grid (see V_QBASE); it butts the quarter (v0), the rail (x1) and the roof paint.
     dict(name="ZX_Quarter_Pillar", x=(X_CTIP + 0.002, X_DLO_TIP), v=(V_QBASE, V_Q_TOP),
-         nx=12, nv=24, gap=dict(v0=False, x1=False), mat="paint"),
+         nx=12, nv=24, gap=dict(v0=False, x1=False), mat="roof_silver"),
     dict(name="ZX_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=60, nv=34, gap=dict(v1=False, x1=False), mat="paint", offset=0.0005),
     # Body-colour A-pillar and roof rail, butted to the quarter's C-pillar
     dict(name="ZX_Roof_Rail", x=(X_DLO_TIP, X_COWL),
          v=(lambda x: V_GT(x) + 0.006, V_RAIL_TOP),
-         nx=140, nv=10, gap=dict(x0=False), mat="paint"),
+         nx=140, nv=10, gap=dict(x0=False), mat="roof_silver"),
     # The A-pillar's foot: in front of the front door's leading edge the fender's top (V_HOOD) sits
     # 2-6 cm under the belt and the pillar's line (V_GT) 10 cm over it, and nothing covered the
     # gap but the black underlay: a black triangle left standing beside an open door. It is paint
@@ -358,7 +360,7 @@ PANELS = [
     # Ends at x 1.12: beyond 1.14 the loft has no surface at the pillar's height (V_GT jumps).
     dict(name="ZX_Pillar_Foot", x=(X_DOOR_TOP_F + 0.004, X_FOOT_END),
          v=(lambda x: V_HOOD(x) + 0.0005, lambda x: V_GT(x) + 0.006),
-         nx=14, nv=12, gap=dict(v0=False, v1=False), mat="paint"),
+         nx=14, nv=12, gap=dict(v0=False, v1=False), mat="roof_silver"),
 
     # ---- greenhouse underlay: glass surround, B-pillar, under the roof glass
     dict(name="ZX_Greenhouse_Black", x=(X_DLO_TIP - 0.030, X_COWL),
@@ -412,9 +414,30 @@ def _cut_arches(ob):
 CUTTERS = {"arch": _cut_arches}
 
 
+ROOF_BLACK_Y = 0.50          # the roof panel behind the B-pillar: black glass inboard of this, silver outboard (a 4-8 cm rail)
+ROOF_BLACK_X = -1.84         # ... and ahead of the roof spoiler's wing (the wing is silver, as in the rear photographs)
+
+
+def _split_roof(made, lib):
+    """ZX_Roof_Paint is one sheet. The photographs show the whole roof as a black glass panel between
+    two silver rails, and the spoiler's wing silver: assign the sheet's faces by where they lie."""
+    for ob in made:
+        if ob.name != "ZX_Roof_Paint":
+            continue
+        me = ob.data
+        me.materials.clear()
+        me.materials.append(lib["roof_silver"])
+        me.materials.append(lib["roof_black"])
+        for f in me.polygons:
+            c = f.center
+            f.material_index = 1 if (abs(c.y) < ROOF_BLACK_Y and c.x > ROOF_BLACK_X) else 0
+
+
 def build_panels(collection, lib):
-    return BP.build_panels(PANELS, S.BODY, collection, lib, cutters=CUTTERS,
+    made = BP.build_panels(PANELS, S.BODY, collection, lib, cutters=CUTTERS,
                            core_z=0.72, butt_bevel=False)
+    _split_roof(made, lib)
+    return made
 
 
 # ------------------------------------------------------------------ hidden

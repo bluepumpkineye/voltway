@@ -69,18 +69,29 @@ HANDLES = (("F", -0.021, 0.203, 0.961), ("R", -1.107, -0.881, 1.001))
 def build_handles(collection, lib):
     made = []
     for nm, x0, x1, zc in HANDLES:
+        # 2026-11-16: body colour, as in the photographs (a pill of the door's own paint standing 3 mm
+        # proud in a thin dark outline), not a black pill in a chrome ring
         made.append(fittings.flush_handle("ZX_Handle_" + nm, x0, x1, zc, proud, collection,
-                                          lib["black_gloss"], h=0.019, d=0.0012, y_ref=0.90))
+                                          lib["paint"], h=0.019, d=0.0030, y_ref=0.93))
         made.append(fittings.outline_ring("ZX_Handle_Rim_" + nm, x0 - 0.002, x1 + 0.002,
                                           zc - 0.0235, zc + 0.0235, 0.0235, proud, collection,
-                                          lib["chrome"], width=0.0012, d=0.0010, y_ref=0.90,
+                                          lib["shadow"], width=0.0014, d=0.0008, y_ref=0.93,
                                           mirror=True))
     return made
 
 
 # ------------------------------------------------------------- the fender gill
+def _front_arch_z(x, r):
+    """Height of the circle of radius r round the front hub at station x."""
+    dx = x - S.FRONT_AXLE
+    return S.WHEEL_R + math.sqrt(max(r * r - dx * dx, 0.0))
+
+
 GILL_UP = [(1.403, 0.923), (1.255, 0.934), (1.107, 0.921), (1.053, 0.910)]
-GILL_LO = [(1.403, 0.923), (1.344, 0.861), (1.256, 0.813), (1.137, 0.788), (1.053, 0.792)]
+# 2026-11-16: the panel's lower edge now runs ON the arch trim's outer edge (it stood 2-4 cm above it, a strip of
+# paint between the two: the photographs show the gloss black fender piece running straight into the trim)
+GILL_LO = ([(1.403, 0.923), (1.385, 0.890)] +
+           [(x, _front_arch_z(x, S.ARCH_R + 0.010) - 0.003) for x in (1.340, 1.290, 1.240, 1.190, 1.140, 1.105, 1.085)])
 
 
 def build_gill(collection, lib):
@@ -112,8 +123,10 @@ def build_charge_door(collection, lib):
 # ~0.89 (front) / 0.85 (rear) from the centreline, the tyres' walls are at 0.957, and the
 # cladding's inner edge stands out to ~0.945 over the top and ~0.962 down the legs (the
 # front and rear photographs: body and tyre outlines are flush at the arches).
-CLAD = (("F", S.FRONT_AXLE, 0.080, 0.300, 0.962, 0.946),
-        ("R", S.REAR_AXLE, 0.082, 0.300, 0.962, 0.946))      # tag, axle, width, z_bot, y_leg, y_top
+CLAD = (("F", S.FRONT_AXLE, 0.062, 0.300, 0.962, 0.946),
+        ("R", S.REAR_AXLE, 0.062, 0.300, 0.962, 0.946))      # tag, axle, width, z_bot, y_leg, y_top
+STEP = 0.007               # the trim's inner edge over the paint
+LIP_DEPTH = 0.040          # its return into the wheelhouse
 
 
 def _arch_path(axle, r, z_bot, n_arc=48, n_leg=6):
@@ -137,14 +150,13 @@ def build_cladding(collection, lib):
         rows = []
         m = len(outer)
         for i in range(m):
-            s = i / float(m - 1)
+            # 2026-11-16: flush. The body's flank now reaches the tyre (zx_surface Y_HIP / Y_ROCKER), so
+            # the trim lies on it: its outer edge 2.5 mm proud of the paint, its inner edge STEP proud (a
+            # thin raised moulding, as in the photographs), then the return into the wheelhouse. It was a
+            # 6-7 cm shelf of black plastic standing off a body that was too narrow.
             po, _ = _on_flank(outer[i][0], outer[i][1], 0.0025)
-            pb, _ = _on_flank(inner[i][0], inner[i][1], 0.0)
-            # the inner edge stands out to its target width: full over the top, wider down the legs
-            k = (1.0 - math.sin(math.pi * s)) ** 1.3
-            yt = y_top + (y_leg - y_top) * k
-            pi = (pb[0], max(pb[1] + 0.02, yt), pb[2])
-            lip = (pi[0], pi[1] - 0.050, pi[2])
+            pi, _ = _on_flank(inner[i][0], inner[i][1], STEP)
+            lip = (pi[0], pi[1] - LIP_DEPTH, pi[2])
             rows.append([po, pi, lip])
         ob = M.grid("ZX_Clad_" + tag, rows, collection, lib["cladding"], geom.const((0.0, 1.0, 0.0)))
         M.solidify(ob, 0.003)

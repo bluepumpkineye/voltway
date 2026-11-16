@@ -30,13 +30,13 @@ PAINT = "M_Paint_ZX_Blue"
 # whole objects that live in the hatch (each holds both sides)
 PARTS = (
     "ZX_Glass_Rear", "ZX_Glass_Wedge_Rear",
-    "ZX_Lightbar_Lens_C", "ZX_Lightbar_Edge_C", "ZX_Lightbar_SealLow_C", "ZX_Lightbar_SealUp_C",
+    "ZX_Lightbar_Lens_C", "ZX_Lightbar_Casing_C", "ZX_Lightbar_SealLow_C", "ZX_Lightbar_SealUp_C",
     "ZX_Lightbar_Pod", "ZX_Rear_Camera", "ZX_Badge_Maker", "ZX_Badge_Model",
     "ZX_Plate_Rear", "ZX_Plate_Rear_ZEEKR7X",
 )
 # the lamp bar's pieces: it sweeps round each corner onto the quarter panel, beyond the hatch's
 # side edge (y 0.795): only its middle goes with the hatch
-LAMP = ("ZX_Lightbar_Lens", "ZX_Lightbar_Edge", "ZX_Lightbar_SealLow", "ZX_Lightbar_SealUp")
+LAMP = ("ZX_Lightbar_Lens", "ZX_Lightbar_Casing", "ZX_Lightbar_SealLow", "ZX_Lightbar_SealUp")
 Y_SHUT = 0.795
 
 

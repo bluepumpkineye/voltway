@@ -216,21 +216,42 @@ def _edge3(px, n=60):
     return [on_rear(y, z)[0] for (_x, y, z) in pts]
 
 
+def _vshift(px, dv):
+    return [(u, v + dv) for (u, v) in px]
+
+
+def _shrink(up_px, lo_px, half_max):
+    """The middle band of two aligned edge lists, at most 2 * half_max px tall."""
+    new_up, new_lo = [], []
+    for (u0, v0), (u1, v1) in zip(up_px, lo_px):
+        mid, half = 0.5 * (v0 + v1), 0.5 * (v1 - v0)
+        h = min(half, half_max)
+        new_up.append((u0, mid - h))
+        new_lo.append((u1, mid + h))
+    return new_up, new_lo
+
+
 def build_lightbar(collection, lib):
     made = []
     out = geom.away_from((-2.10, 0.30, 1.00))
-    lo = _edge3(BAR_LO_PX)
-    up = _edge3(BAR_UP_PX)
+    # 2026-11-16: the lamp as the photographs show it - one black smoked casing the width of the car (its ends
+    # sweeping round the corners), flush with the tail, and the lit red line inside it. It was a wine-red lens
+    # with a chrome edge line: the photographs' casing is black and the red is a thin line in it.
+    case_up = _edge3(_vshift(BAR_UP_PX, -9))
+    case_lo = _edge3(_vshift(BAR_LO_PX, +9))
+    flush = (lambda k, n: 0.0018 + 0.0008 * math.sin(math.pi * k / n))
+    made.append(lamps.lens("ZX_Lightbar_Casing", case_lo, case_up, lamp_place, collection,
+                           lib["lamp_smoked"], 5, flush, out, thickness=0.003,
+                           bevel=(0.0010, 2, 30)))
+    lens_up, lens_lo = _shrink(BAR_UP_PX, BAR_LO_PX, 8)
+    lo = _edge3(lens_lo)
+    up = _edge3(lens_up)
     crown = (lambda k, n: 0.0030 + 0.0010 * math.sin(math.pi * k / n))
     made.append(lamps.lens("ZX_Lightbar_Lens", lo, up, lamp_place, collection,
-                           lib["lamp_red_lens"], 5, crown, out, thickness=0.003,
-                           bevel=(0.0010, 2, 30)))
-    made += lamps.seals("ZX_Lightbar_Seal", lo, up, lamp_place, collection,
-                        lib["black_gloss"], out, width=0.0045, d=0.0008)
-    # the bright line along the lens' top edge (the chrome highlight in the photographs)
-    made.append(lamps.band_between("ZX_Lightbar_Edge", lo, up, range(len(lo)),
-                                   (0.90, 0.95, 1.00), lamp_place, lambda k: 0.0050,
-                                   collection, lib["chrome"], out))
+                           lib["lamp_red_lens"], 3, crown, out, thickness=0.003,
+                           bevel=(0.0008, 2, 30)))
+    made += lamps.seals("ZX_Lightbar_Seal", case_lo, case_up, lamp_place, collection,
+                        lib["black_gloss"], out, width=0.0040, d=0.0006)
     # the rear camera's pod in the middle of the bar
     u0, v0, u1, v1 = POD_BOX
     (y0, z1), (y1, z0) = _yz([(u0, v0)])[0], _yz([(u1, v1)])[0]
@@ -270,7 +291,7 @@ def build_bumper_details(collection, lib):
     # the chrome band, hooking down the corner
     lo = _edge3(CHROME_LO_PX, 50)
     up = _edge3(CHROME_UP_PX, 50)
-    made.append(lamps.lens("ZX_Chrome_Band", lo, up, lamp_place, collection, lib["chrome"], 3,
+    made.append(lamps.lens("ZX_Chrome_Band", lo, up, lamp_place, collection, lib["trim_silver"], 3,
                            (lambda k, n: 0.0045 + 0.0008 * math.sin(math.pi * k / n)),
                            geom.away_from((-2.10, 0.30, 0.45)), thickness=0.003,
                            bevel=(0.0008, 2, 30)))
@@ -305,16 +326,29 @@ def build_diffuser(collection, lib):
     u0, v0, u1, v1 = DIFFUSER_PX
     y_half = abs(CS.rear_yz(u0, v0)[0])
     z_top, z_bot = CS.rear_yz(1921, v0)[1], CS.rear_yz(1921, v1)[1]
+    zc, hh = 0.5 * (z_top + z_bot), 0.5 * (z_top - z_bot)
     n = 6
+
+    # 2026-11-16: every piece lies ON the bumper (rounded_panel through on_rear). The old boxes stood at the
+    # centre line's depth, inside the bumper's skin at the ends, and their "back" was the grey M_Shadow: the
+    # photographs' diffuser is a dark recess with vertical fins across it
+    def sheet(name, cy, hw, h, r, d, mat, ny, thick=0.0):
+        ob = fittings.rounded_panel(name, (-S.HALF_L, cy, zc if h == hh else h[0]), hw,
+                                    h if h == hh else h[1], r,
+                                    lambda q, dd: on_rear(q[1], q[2], dd), -S.HALF_L, collection, mat,
+                                    d=d, ny=ny, outward=(-1.0, 0.0, 0.0))
+        if thick:
+            M.solidify(ob, thick)
+        return ob
+
+    made.append(sheet("ZX_Diffuser_Back", 0.0, y_half, hh, 0.022, 0.0035, lib["diff_back"], 40))
+    for nm, z in (("Top", z_top), ("Bot", z_bot)):
+        made.append(sheet("ZX_Diffuser_Rail" + nm, 0.0, y_half + 0.006, (z, 0.0055), 0.004, 0.018,
+                          lib["cladding"], 40, thick=0.012))
     for i in range(n):
         y = -y_half + 2.0 * y_half * i / float(n - 1)
-        p, nrm = on_rear(y, 0.5 * (z_top + z_bot), 0.0)
-        made.append(_box("ZX_Diffuser_Fin%d" % i, (p[0] + 0.012, y, 0.5 * (z_top + z_bot)),
-                         (0.030, 0.007, z_top - z_bot), collection, lib["black_gloss"]))
-    # the opening's dark back, between the fins
-    p, nrm = on_rear(0.0, 0.5 * (z_top + z_bot), 0.0)
-    made.append(_box("ZX_Diffuser_Back", (p[0] + 0.004, 0.0, 0.5 * (z_top + z_bot)),
-                     (0.008, 2.0 * y_half, z_top - z_bot), collection, lib["shadow"]))
+        made.append(sheet("ZX_Diffuser_Fin%d" % i, y, 0.0060, hh, 0.002, 0.018, lib["cladding"], 4,
+                          thick=0.012))
     return made
 
 

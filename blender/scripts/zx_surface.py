@@ -56,11 +56,25 @@ BACKLIGHT_X = KNEE_X
 # Top centreline (the side photograph's top outline cast onto the plane y = 0.05,
 # the camera solved in zx_camsolve; the roof peaks at 1.649 there, 1.656
 # published). The lidar pod (x 0.25-0.37) is left out.
+def _smooth_z(pts, x_lo, x_hi, passes=3):
+    """[1 2 1]/4 filter on the heights of the samples strictly inside (x_lo, x_hi): the photograph's
+    outline was read a pixel at a time and its noise (a few mm) became ripples along the roof's
+    paint, rail and glass. The ends and the steep parts are kept as read."""
+    pts = [tuple(p) for p in pts]
+    for _ in range(passes):
+        out = list(pts)
+        for i in range(1, len(pts) - 1):
+            if x_lo < pts[i][0] < x_hi:
+                out[i] = (pts[i][0], 0.25 * pts[i - 1][1] + 0.5 * pts[i][1] + 0.25 * pts[i + 1][1])
+        pts = out
+    return pts
+
+
 Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve([
     # the backlight, spoiler lip to the tail: a 29-degree slope (rear glass)
     (-HALF_L, 1.118), (-2.342, 1.150), (-2.250, 1.196), (-2.157, 1.249),
     (-2.065, 1.302), (-1.990, 1.345), (KNEE_X, 1.395),
-]), Curve([
+]), Curve(_smooth_z([
     # the roof, spoiler lip to windscreen header
     (KNEE_X, 1.395), (-1.905, 1.480), (-1.881, 1.514), (-1.789, 1.530),
     (-1.696, 1.546), (-1.603, 1.561), (-1.511, 1.584), (-1.418, 1.600),
@@ -70,7 +84,7 @@ Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve([
     (0.251, 1.572), (0.344, 1.545), (0.437, 1.525), (0.530, 1.484),
     (0.623, 1.438), (0.716, 1.388), (0.810, 1.336), (0.903, 1.283),
     (0.996, 1.225), (1.089, 1.168), (1.182, 1.110), (COWL_X, 1.098),
-])), Curve([
+], -1.84, 0.30, passes=9))), Curve([
     # the hood: nearly flat at 1.085, then over the nose
     (COWL_X, 1.098), (1.275, 1.089), (1.368, 1.090), (1.460, 1.086),
     (1.553, 1.085), (1.646, 1.079), (1.739, 1.069), (1.831, 1.053),
@@ -108,16 +122,24 @@ Z_SHOULDER = Curve([
 # Rail height relative to the centreline: the roof is strongly crowned (the side
 # glass's top edge at 1.55 under a 1.649 centre); the hood's fender crowns sit
 # a little under the centre.
+# 2026-11-16: the rear roof's crown was -0.09 over the whole length behind the B-pillar and the roof, seen from
+# behind, was a gable (a peak 25 px over its edges where the photograph's is flat to within 6). Half of it
+# behind x -1.3, blending back to the old value by x -0.5.
 Z_CREST = Curve([
-    (-HALF_L, -0.050), (-2.20, -0.065), (-1.93, -0.090), (-1.40, -0.090),
-    (-0.50, -0.095), (0.40, -0.100), (0.80, -0.080), (COWL_X, -0.030),
+    (-HALF_L, -0.040), (-2.20, -0.045), (-1.93, -0.050), (-1.40, -0.055),
+    (-0.90, -0.075), (-0.50, -0.095), (0.40, -0.100), (0.80, -0.080), (COWL_X, -0.030),
     (1.60, -0.030), (2.00, -0.040), (2.30, -0.030), (HALF_L, 0.0),
 ])
 
+# 2026-11-16 refit: the painted flank was 0.85-0.89 from the centreline (a 1.80 m wide car, the
+# published width 1.93) and black flares stood 6-7 cm proud of it to carry the car out to the
+# tyres' walls (0.957). The front and rear photographs' outlines put the painted fender flush with
+# the tyre, so the hips now reach 0.955 over the axles and 0.94 between them, and the flares
+# (zx_side) became a flush trim. The nose and tail ends are as they were.
 Y_HIP = Curve([
-    (-HALF_L, 0.720), (-2.30, 0.815), (-2.00, 0.875), (-1.38, 0.885), (-0.70, 0.890),
-    (0.0, 0.895), (0.80, 0.885), (1.20, 0.870), (1.54, 0.850), (2.00, 0.890),
-    (2.25, 0.885), (HALF_L, 0.800),
+    (-HALF_L, 0.775), (-2.30, 0.860), (-2.00, 0.915), (-1.70, 0.942), (-1.38, 0.955),
+    (-0.70, 0.945), (0.0, 0.940), (0.80, 0.945), (1.20, 0.950), (1.54, 0.955),
+    (2.00, 0.935), (2.25, 0.895), (HALF_L, 0.800),
 ])
 Y_SHOULDER = Curve([
     (-HALF_L, 0.640), (-2.30, 0.730), (-2.00, 0.775), (-1.40, 0.810), (-0.70, 0.850),
@@ -125,14 +147,17 @@ Y_SHOULDER = Curve([
     (2.25, 0.760), (HALF_L, 0.690),
 ])
 # Roof rail half-width: the side glass's top edge; ahead of the cowl the fender crowns.
+# 2026-11-16: the rear roof is +/-0.62 (rear photograph: the roof's silver edge to edge ~1.27 m), it was 0.54-0.585,
+# so the silver C-pillars sloped in at 45 degrees where the photograph's are nearly upright
 Y_ROOF = Curve([
-    (-HALF_L, 0.540), (-2.20, 0.540), (-1.90, 0.550), (-1.40, 0.585), (-0.50, 0.610),
+    (-HALF_L, 0.560), (-2.20, 0.610), (-1.90, 0.620), (-1.40, 0.618), (-0.50, 0.612),
     (0.30, 0.625), (0.80, 0.680), (COWL_X, 0.790), (1.50, 0.830), (2.00, 0.810),
     (2.30, 0.760), (HALF_L, 0.680),
 ])
 Y_ROCKER = Curve([
-    (-HALF_L, 0.700), (-2.20, 0.790), (-1.60, 0.855), (-0.70, 0.880), (0.00, 0.885),
-    (0.80, 0.885), (1.54, 0.880), (2.10, 0.860), (2.30, 0.830), (HALF_L, 0.740),
+    (-HALF_L, 0.700), (-2.20, 0.800), (-1.75, 0.900), (-1.38, 0.950), (-1.00, 0.925),
+    (-0.70, 0.895), (0.00, 0.885), (0.80, 0.890), (1.20, 0.915), (1.54, 0.950),
+    (1.95, 0.925), (2.10, 0.885), (2.30, 0.830), (HALF_L, 0.740),
 ], mode="pchip")
 
 UNDERCUT = Curve([

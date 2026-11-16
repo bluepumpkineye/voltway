@@ -600,7 +600,7 @@ def trim_neighbours():
     opening is cut out of it too (the same outline, a little larger)."""
     lo = Vector((X0 - 0.01, 0.45, Z0 - 0.01))
     hi = Vector((X1 + 0.01, 1.1, Z1 + 0.01))
-    for name in ("ZX_Lightbar_Edge", "ZX_Lightbar_Lens", "ZX_Lightbar_SealLow", "ZX_Lightbar_SealUp"):
+    for name in ("ZX_Lightbar_Casing", "ZX_Lightbar_Lens", "ZX_Lightbar_SealLow", "ZX_Lightbar_SealUp"):
         ob = bpy.data.objects.get(name)
         if ob is None:
             continue

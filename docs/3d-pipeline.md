@@ -1135,6 +1135,42 @@ the memory notes. What is different from the RX:
   9876) answered; each call starts a fresh Python namespace, so helpers live in a module
   (`zx_leakqa.py`, `zx_lookdev.py`).
 
+### The Zeekr 7X refit (2026-11-16): the viewer against the photographs, body width first
+
+The owner's brief ("looks unfinished, unpolished, inaccurate") was checked against the studio photographs through the solved cameras
+before any change (`zx_ref_match.CAMERAS`, composed photo | viewer; the same method as the G9L's second pass). Almost every complaint
+was real, and the biggest one was not on the brief's list: **the painted body was 1.80 m wide (published 1.93)** and 6-7 cm black
+flares stood off it to reach the tyres' walls, which read as black blobs bolted to a narrow car. What changed:
+
+- **Width** (`zx_surface`): `Y_HIP` 0.955 over the axles / 0.94 between them (was 0.85-0.895), `Y_ROCKER` 0.95 at the axles; the arch
+  cladding (`zx_side.build_cladding`) is a flush trim now (`STEP` 7 mm over the paint, `LIP_DEPTH` 4 cm), the fender's black piece
+  (`ZX_Gill`) runs on the trim's outer edge. Check with `RM.overlay("front"|"rear", tag)` on the built blend: the magenta outline must
+  follow the photograph's. **Do not widen `Y_SHOULDER` at the tail**: the lamp bar's end (y 0.762) is then outside the surface and
+  `zx_rear.on_rear` raises "rear view: nothing at ...".
+- **Roof** (`zx_surface`, `zx_panels`): the rear crown halved (`Z_CREST` -0.09 -> -0.055 behind x -1.3: seen from behind the roof was a
+  gable), `Y_ROOF` 0.61-0.62 at the rear (was 0.54-0.585), the roof's samples smoothed (`_smooth_z`, 9 passes of [1 2 1]/4 over x -1.84..0.30).
+  The silver arch is `ZX_Roof_Rail`, `ZX_Quarter_Pillar`, `ZX_Pillar_Foot` (`M_Roof_Silver`) and the outer 4-8 cm of `ZX_Roof_Paint`, which
+  `zx_panels._split_roof` divides by face centroid (`ROOF_BLACK_Y` 0.50, `ROOF_BLACK_X` -1.84): inboard is `M_Roof_Glass`, black.
+- **Front** (`zx_front`): the visor is one continuous smoked housing (`M_Visor`, `M_Visor_Glass`) from end to end, its top edge 4-5 mm UNDER the
+  hood's front edge (it ran on it: splinters of cap showed along the whole lip), the LED line (`M_LED_White`) 2.2 cm tall and continuous, the
+  badge 9 mm over it, a row of matrix cells in each lens lobe, and the grille's furniture (`build_grille_detail`: slats, the square radar
+  module sized from the opening, a silver edge along the top). `zx_panels._hood_front` no longer overhangs the cap by 15 mm.
+- **Rear** (`zx_rear`): one black smoked casing the width of the car with the red lit line inside it (`ZX_Lightbar_Casing`, `ZX_Lightbar_Lens`;
+  `zx_gate.LAMP`/`PARTS` and `zx_charge.trim_neighbours` name the casing, not the old `ZX_Lightbar_Edge`), the diffuser as sheets ON the bumper
+  (`rounded_panel` through `on_rear`) over a near-black recess (`M_Diffuser_Back`) with six fins; the tail's `Y_HIP` is 0.775-0.86 (was 0.72-0.83).
+- **Materials** (`zx_materials`): paint metalness 0.60, roughness 0.20, full clear coat (the owner's numbers; `carkit.export.check_paint` allows
+  <= 0.7 now), base sRGB ~#5b6f80; `M_Cladding` and the shared `M_Black_Gloss` as the 7X builds them are rougher (0.30-0.34, no coat, specular
+  0.25): carkit's piano black mirrors the white studio and read chrome on the fender piece, the sill and the bumper. The viewer's finish for the
+  first paint (`zeekr-7x.ts`) carries the same values, and `glass` (green tint 0.3 on the front panes, privacy 0.9) is the per-car glazing.
+- **Known and left:** a small dark notch where the hood's front corner meets the fender (the shut-line slot ends there; trimming sliver faces did
+  not remove it), the quarter panel's lower crease is wavy under the silver's highlights (the loft's shoulder samples), the X-ray GLB still has the
+  old body (the 7X is not wired into the X-ray tab).
+- **Order of work that held:** `export_zx.web(ao=False)` (about 160 s) after each change and the viewer's matched cameras, not Blender renders
+  (Blender's glass is transparent, so its backlight reads white and the roof looks like a bun); then the final `web(ao=True, ao_samples=512)`
+  (about 230 s), `web_cabin(look="hall")` (about 310 s, the roof and pillars moved), `node scripts/make-proxy.mjs zeekr-7x`, and
+  `porting/door_probe.py -- zx` (0 standing). The generated `blender/textures/t_perf_leather_white.png` differs after a cabin export: restore it
+  from git.
+
 ### The Denza Z9 and XPeng G9L cabins (`z9_interior*.py`, `g9l_interior*.py`, `cabin_tools.py`, `cabin_hmi.py`)
 
 Both cars have a cabin built from Autohome's photographs (since 2026-10-17 their four doors, bonnet and tailgate or boot lid open, so each bakes two light sets, `_BAKEDLIGHT` and `_BAKEDLIGHT_OPEN`; see below)

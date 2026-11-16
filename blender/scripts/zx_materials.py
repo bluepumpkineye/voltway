@@ -18,10 +18,14 @@ TAIL_LIGHTS = 1.3
 # sRGB ~80/97/110), and under the showroom's dark rig a dielectric paint of the same hue
 # came out a deep saturated blue. A constant metallic 0.2 (the export gate's ceiling), a
 # lighter, greyer base and a thin satin coat match it: base sRGB ~#4f6579.
-ZX_BLUE = dict(name="M_Paint_ZX_Blue", base=(0.082, 0.136, 0.198),
-               roughness=0.42, specular=0.20, coat_rough=0.25, peel=0.010, flake=None)
-PAINT_METALLIC = 0.19            # under the export gate's 0.2 (carkit.export.check_paint)
-PAINT_COAT = 0.35
+# 2026-11-16 refit (the owner's brief): a metallic slate-blue with metalness 0.6, roughness 0.2 and a
+# full clear coat. The old dielectric-with-a-thin-satin-coat recipe above was a workaround for the
+# showroom's dark rig; the base is lighter and greyer now, to carry a real metal under it, and the
+# viewer's finish for this paint (zeekr-7x.ts) is calibrated against the photographs from these values.
+ZX_BLUE = dict(name="M_Paint_ZX_Blue", base=(0.105, 0.159, 0.216),
+               roughness=0.20, specular=0.50, coat_rough=0.05, peel=0.004, flake=None)
+PAINT_METALLIC = 0.60            # carkit.export.check_paint's ceiling is 0.7 now
+PAINT_COAT = 1.0
 SHEEN = dict(weight=0.0, tint=(0.72, 0.52, 1.0), roughness=0.35)
 
 _M.CALIPERS.setdefault("orange", dict(base=(0.780, 0.160, 0.012), metallic=0.0,
@@ -44,6 +48,11 @@ def build_library():
     lib = _M.build_library(paint=ZX_BLUE, rim="dark_grey", caliper="orange",
                            lights_on=LIGHTS_ON, tail_lights=TAIL_LIGHTS)
     _sheen(lib["paint"])
+    # 2026-11-16: the showroom's white studio turned carkit's piano-black (roughness 0.09, a full clear coat, a
+    # full specular) into a mirror: the fender piece, the bumper, the sill and the wheels' faces read chrome-white.
+    # The 7X's black is gloss but not a mirror: rougher, no coat, half the specular (calibrated live in the viewer)
+    bg = next(n for n in lib["black_gloss"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    _M.set_inputs(bg, roughness=0.30, coat=0.0, specular=0.25)
     pb = next(n for n in lib["paint"].node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
     _M.set_inputs(pb, metallic=PAINT_METALLIC, coat=PAINT_COAT)
     # the headlamp lens strip: a dark smoked grey under clear glass (front photograph:
@@ -127,9 +136,36 @@ def build_library():
     lib["iron"] = m
     # the arch cladding and flares: satin black plastic, a shade lighter than the gloss
     # black round it (side photograph: charcoal where it faces the light)
+    # 2026-11-16: gloss black, as the brief asks (it was satin: roughness 0.52)
     m, nt, b = _M.mat("M_Cladding")
-    _M.set_inputs(b, base=(0.020, 0.021, 0.024), metallic=0.0, roughness=0.52, specular=0.35)
+    _M.set_inputs(b, base=(0.012, 0.013, 0.015), metallic=0.0, roughness=0.34, specular=0.25,
+                  coat=0.0, coat_rough=0.05)
     lib["cladding"] = m
+    # the roof's arch (A-pillar, rail, C-pillar and the roof spoiler's wing): a matte silver, clearly
+    # lighter than the blue under it (side and rear photographs: pale silver grey, satin)
+    m, nt, b = _M.mat("M_Roof_Silver")
+    # (it read white in the viewer at base 0.52 / metal 0.70: the white studio does the rest; the photographs' silver is
+    # sRGB ~150-205)
+    _M.set_inputs(b, base=(0.34, 0.355, 0.385), metallic=0.55, roughness=0.45, specular=0.5,
+                  coat=0.25, coat_rough=0.25)
+    lib["roof_silver"] = m
+    # the roof's glass panel between the rails: black glass, a faint blue cast (front 3/4 photograph)
+    m, nt, b = _M.mat("M_Roof_Glass")
+    _M.set_inputs(b, base=(0.006, 0.008, 0.012), metallic=0.0, roughness=0.06, specular=0.5,
+                  coat=1.0, coat_rough=0.02)
+    lib["roof_black"] = m
+    # the visor (2026-11-16): black smoked glass over the lamp housing; roughness 0.10 and a low specular so
+    # the white studio does not wash it grey (a piano-black coat mirrored the whole cove)
+    m, nt, b = _M.mat("M_Visor")
+    _M.set_inputs(b, base=(0.004, 0.004, 0.005), metallic=0.0, roughness=0.10, specular=0.30, coat=0.0)
+    lib["visor"] = m
+    m, nt, b = _M.mat("M_Visor_Glass")
+    _M.set_inputs(b, base=(0.010, 0.011, 0.013), metallic=0.0, roughness=0.08, specular=0.35, coat=0.0)
+    lib["visor_glass"] = m
+    # the diffuser's recess: the darkest thing on the car, so its fins read (they were black on grey)
+    m, nt, b = _M.mat("M_Diffuser_Back")
+    _M.set_inputs(b, base=(0.003, 0.003, 0.004), metallic=0.0, roughness=0.90, specular=0.05, coat=0.0)
+    lib["diff_back"] = m
     return lib
 
 
