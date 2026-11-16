@@ -17,6 +17,7 @@ import {
 } from '@/lib/lights';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { motionOk } from './configurator';
+import { LINE_FRAG, LINE_VERT, lineGeometry, ribbonsOf, type RibbonPack } from './lampLines';
 
 /**
  * The car's lamps in the viewer (docs/lights.md).
@@ -41,7 +42,7 @@ export const LIGHT_LAYER = 2;
 /** Tunable from the console in development (window.__lights): call __viewer.invalidate() to redraw. */
 const U = {
   /** half-size of a glow quad at full level, m */
-  size: { value: 0.04 },
+  size: { value: 0.05 },
   /** how far the quad is pulled toward the camera, so a lens in front of the LED does not hide it, m */
   bias: { value: 0.02 },
   /** the glow's wide halo and its tight bloom, display values per quad */
@@ -50,12 +51,24 @@ const U = {
   /** the beam and the tail wash on the floor */
   beam: { value: 0.62 },
   wash: { value: 0.9 },
+  /**
+   * the line glow (lampLines.ts): the widths of its inner glow and halo (sigma, m), their strengths (display values),
+   * and how far the ribbon reaches sideways and beyond a line's ends, m
+   */
+  line: {
+    sigIn: { value: 0.0055 },
+    sigHalo: { value: 0.024 },
+    peakIn: { value: 0.85 },
+    peakHalo: { value: 0.42 },
+    reach: { value: 0.07 },
+    cap: { value: 0.02 },
+  },
   /** how far the room goes toward dusk (1 = as dark as it is set to go) and how far the reflections dim */
   dusk: { value: 1 },
   envDim: { value: 0.58 },
 };
 if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
-  (window as unknown as { __lights?: unknown }).__lights = { rig: lightsRig, ...U };
+  (window as unknown as { __lights?: unknown }).__lights = { rig: lightsRig, ...U, ribbonsOf };
 }
 
 // ---------------------------------------------------------------------------- the driver
@@ -143,6 +156,8 @@ interface LampPart {
   local: Float32Array;
   /** the same in the model's space, which is where the beam on the floor is worked out */
   car: Float32Array;
+  /** the lamp's light pipes as lines, for a lamp whose glow is drawn as lines (lampLines.ts) */
+  lines?: RibbonPack | null;
 }
 
 interface LampSet {
@@ -160,7 +175,7 @@ const MAX_POINTS = 1500;
  * edges (a long straight strip is two vertices), merged into cells `cell` metres across. A glow at
  * every vertex would be dense where the lamp is modelled finely and gappy where it is not.
  */
-function thin(mesh: THREE.Mesh, toModel: THREE.Matrix4, cell: number): LampPart | null {
+function thin(mesh: THREE.Mesh, toModel: THREE.Matrix4, cell: number, keep?: (p: THREE.Vector3) => boolean): LampPart | null {
   const geo = mesh.geometry as THREE.BufferGeometry;
   const pos = geo.getAttribute('position');
   if (!pos) return null;
@@ -193,6 +208,7 @@ function thin(mesh: THREE.Mesh, toModel: THREE.Matrix4, cell: number): LampPart 
       pl[k].set(pos.getX(i), pos.getY(i), pos.getZ(i));
       pc[k].copy(pl[k]).applyMatrix4(toModel);
     }
+    if (keep && !(keep(pc[0]) && keep(pc[1]) && keep(pc[2]))) continue;
     for (let k = 0; k < 3; k++) {
       const a = k;
       const b = (k + 1) % 3;
@@ -228,6 +244,13 @@ function thin(mesh: THREE.Mesh, toModel: THREE.Matrix4, cell: number): LampPart 
 /** The meshes of `model` that wear the lamp's material, thinned, and the materials themselves. */
 function findLamp(model: THREE.Object3D, look: LampLook): LampSet | null {
   model.updateMatrixWorld(true);
+  const r = look.region;
+  const keep = r
+    ? (p: THREE.Vector3) => {
+        const z = Math.abs(p.z);
+        return p.x >= r[0] && p.y >= r[1] && z >= r[2] && p.x <= r[3] && p.y <= r[4] && z <= r[5];
+      }
+    : undefined;
   const inverse = new THREE.Matrix4().copy(model.matrixWorld).invert();
   const mats = new Map<THREE.Material, number>();
   const parts: LampPart[] = [];
@@ -237,18 +260,20 @@ function findLamp(model: THREE.Object3D, look: LampLook): LampSet | null {
       (m): m is THREE.MeshStandardMaterial => m instanceof THREE.MeshStandardMaterial && isLampMaterial(look, m.name),
     );
     if (!own.length) return;
-    for (const m of own) if (!mats.has(m)) mats.set(m, m.emissiveIntensity * (m.emissive.getHex() > 0 ? 1 : 0));
+    // a region of a shared material is lit by its glow alone: the material is the badges' and the trim's too
+    if (!r) for (const m of own) if (!mats.has(m)) mats.set(m, m.emissiveIntensity * (m.emissive.getHex() > 0 ? 1 : 0));
     const toModel = new THREE.Matrix4().multiplyMatrices(inverse, o.matrixWorld);
     for (let cell = CELL; cell < 0.2; cell *= 1.5) {
-      const part = thin(o, toModel, cell);
+      const part = thin(o, toModel, cell, keep);
       if (!part) break;
       if (part.local.length / 3 <= MAX_POINTS) {
+        if (look.glow === 'line') part.lines = ribbonsOf(o, toModel, keep);
         parts.push(part);
         break;
       }
     }
   });
-  if (!mats.size) return null;
+  if (!mats.size && !(r && parts.length)) return null;
   return {
     look,
     mats: [...mats].map(([m, built]) => ({ m: m as THREE.MeshStandardMaterial, built, color: (m as THREE.MeshStandardMaterial).emissive.clone() })),
@@ -295,20 +320,27 @@ const GLOW_FRAG = /* glsl */ `
   }
 `;
 
-type Kind = 'front' | 'projector' | 'rear';
+type Kind = 'front' | 'projector' | 'rear' | 'fog';
 
 /** How much of the default glow each kind of lamp has: the projector lenses are small points. */
-const GLOW_GAIN: Record<Kind, number> = { front: 1, projector: 0.8, rear: 0.9 };
+const GLOW_GAIN: Record<Kind, number> = { front: 1, projector: 0.8, rear: 0.9, fog: 0.9 };
 /** How far the hot centre of the glow goes toward white: a red lamp stays red, a white one clips to white. */
-const GLOW_WHITE: Record<Kind, number> = { front: 0.55, projector: 0.55, rear: 0.1 };
+const GLOW_WHITE: Record<Kind, number> = { front: 0.55, projector: 0.55, rear: 0.1, fog: 0.55 };
 /** How strong the glow is, against the default. */
-const GLOW_STRENGTH: Record<Kind, number> = { front: 1, projector: 1, rear: 0.75 };
+const GLOW_STRENGTH: Record<Kind, number> = { front: 1, projector: 1, rear: 0.95, fog: 0.9 };
+/** A line's colours: how far its core and its inner glow go toward white (a red tail keeps a red inner glow: a saturated red rolls to pink). */
+const LINE_CORE_WHITE: Record<Kind, number> = { front: 0, projector: 0, rear: 0.3, fog: 0 };
+const LINE_INNER_WHITE: Record<Kind, number> = { front: 0.6, projector: 0.6, rear: 0.12, fog: 0.6 };
 
 interface Glow {
   kind: Kind;
   set: LampSet;
   material: THREE.ShaderMaterial;
   meshes: THREE.Mesh[];
+  /** drawn as lines along the light pipes (lampLines.ts), not as blooms at points */
+  line?: boolean;
+  /** how wide a line glow is, against the default */
+  scale?: number;
 }
 
 /** An sRGB colour as the display numbers it is made of (the glow is blended in the framebuffer). */
@@ -316,7 +348,47 @@ const display = (hex: string) => new THREE.Color(hex).convertLinearToSRGB();
 
 const noRaycast = () => {};
 
+/** The glow as lines: one ribbon per light pipe of the lamp, a sharp core, a tight glow and a faint halo. */
+function makeLineGlow(kind: Kind, set: LampSet): Glow {
+  const scale = set.look.glowScale ?? 1;
+  const halo = display(set.look.halo);
+  const material = new THREE.ShaderMaterial({
+    vertexShader: LINE_VERT,
+    fragmentShader: LINE_FRAG,
+    uniforms: {
+      uCore: { value: display(set.look.color).lerp(new THREE.Color(1, 1, 1), LINE_CORE_WHITE[kind]) },
+      uInner: { value: halo.clone().lerp(new THREE.Color(1, 1, 1), LINE_INNER_WHITE[kind]) },
+      uHalo: { value: halo },
+      uLevel: { value: 0 },
+      uCoreK: { value: 0 },
+      uSigIn: { value: U.line.sigIn.value },
+      uSigHalo: { value: U.line.sigHalo.value },
+      uPeakIn: U.line.peakIn,
+      uPeakHalo: U.line.peakHalo,
+      uCoreMax: { value: 0.003 },
+      uReach: { value: U.line.reach.value * scale },
+      uCap: { value: U.line.cap.value * scale },
+      uBias: U.bias,
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+  const meshes = set.parts.map((part) => {
+    const mesh = new THREE.Mesh(lineGeometry(part.lines as RibbonPack, (U.line.reach.value + U.line.cap.value) * 2), material);
+    mesh.layers.set(LIGHT_LAYER);
+    mesh.renderOrder = 30;
+    mesh.raycast = noRaycast;
+    mesh.visible = false;
+    return mesh;
+  });
+  return { kind, set, material, meshes, line: true, scale };
+}
+
 function makeGlow(kind: Kind, set: LampSet): Glow {
+  if (set.look.glow === 'line' && set.parts.length > 0 && set.parts.every((p) => p.lines)) return makeLineGlow(kind, set);
   const halo = display(set.look.halo);
   const core = halo.clone().lerp(new THREE.Color(1, 1, 1), GLOW_WHITE[kind]);
   const material = new THREE.ShaderMaterial({
@@ -362,8 +434,21 @@ function makeGlow(kind: Kind, set: LampSet): Glow {
 }
 
 function driveGlow(g: Glow, level: number) {
-  const size = U.size.value * GLOW_GAIN[g.kind] * (0.8 + 0.2 * Math.min(level, 1));
   const u = g.material.uniforms;
+  if (g.line) {
+    // a line keeps its white core at any lamp level and lets the glow round it come up with the light
+    const k = (0.8 + 0.2 * Math.min(level, 1)) * (g.scale ?? 1);
+    u.uSigIn.value = U.line.sigIn.value * k;
+    u.uSigHalo.value = U.line.sigHalo.value * k;
+    u.uReach.value = U.line.reach.value * (g.scale ?? 1);
+    u.uCap.value = U.line.cap.value * (g.scale ?? 1);
+    u.uLevel.value = level * GLOW_STRENGTH[g.kind];
+    u.uCoreK.value = Math.min(1, level * 1.6);
+    const on = level > 0.004;
+    for (const m of g.meshes) m.visible = on;
+    return;
+  }
+  const size = U.size.value * GLOW_GAIN[g.kind] * (0.8 + 0.2 * Math.min(level, 1));
   u.uSize.value = size;
   u.uSigmaW.value = size / 1.9;
   u.uSigmaT.value = size * 0.4;
@@ -468,6 +553,7 @@ interface Built {
   look: ResolvedLights;
   front: LampSet | null;
   projector: LampSet | null;
+  fog: LampSet | null;
   rear: LampSet | null;
 }
 
@@ -477,6 +563,7 @@ function buildLamps(model: THREE.Object3D, look: ResolvedLights): Built {
     look,
     front: findLamp(model, look.front),
     projector: look.projector ? findLamp(model, look.projector) : null,
+    fog: look.fog ? findLamp(model, look.fog) : null,
     rear: findLamp(model, look.rear),
   };
   if (process.env.NODE_ENV !== 'production') {
@@ -484,6 +571,12 @@ function buildLamps(model: THREE.Object3D, look: ResolvedLights): Built {
     console.debug(
       `[lights] glow points front ${n(built.front)}, projector ${n(built.projector)}, rear ${n(built.rear)} in ${(performance.now() - t0).toFixed(0)} ms`,
     );
+    for (const [name, set] of [['front', built.front], ['projector', built.projector], ['fog', built.fog], ['rear', built.rear]] as const) {
+      const packs = set?.parts.flatMap((p) => (p.lines ? [p.lines] : [])) ?? [];
+      if (packs.length) {
+        console.debug(`[lights] ${name} lines ${packs.reduce((a, p) => a + p.lines, 0)}, ${packs.reduce((a, p) => a + p.length, 0).toFixed(2)} m of light pipe`);
+      }
+    }
   }
   return built;
 }
@@ -559,7 +652,8 @@ export function CarLights({ model, vehicle }: { model: THREE.Object3D; vehicle: 
         }
       }
     }
-    for (const g of l.glows) driveGlow(g, g.kind === 'front' ? n.front : g.kind === 'projector' ? n.projector : n.rear);
+    // the fog lamps come on with the low beam, as the projector lenses do
+    for (const g of l.glows) driveGlow(g, g.kind === 'front' ? n.front : g.kind === 'rear' ? n.rear : n.projector);
     if (l.beam) {
       l.beam.mesh.visible = n.beam > 0.004;
       l.beam.material.uniforms.uLevel.value = n.beam;
@@ -573,7 +667,7 @@ export function CarLights({ model, vehicle }: { model: THREE.Object3D; vehicle: 
 
   React.useEffect(() => {
     const glows: Glow[] = [];
-    for (const [kind, set] of [['front', built.front], ['projector', built.projector], ['rear', built.rear]] as const) {
+    for (const [kind, set] of [['front', built.front], ['projector', built.projector], ['fog', built.fog], ['rear', built.rear]] as const) {
       if (!set) continue;
       // the front LEDs are never tone-mapped: they are lit light, not a lit surface (the projector lenses and
       // the tail lamp are, until they are lit: see apply)
@@ -647,7 +741,8 @@ export function CarLights({ model, vehicle }: { model: THREE.Object3D; vehicle: 
 
   useFrame(() => {
     // the glow's size is part of what is drawn: a change made from the console in development counts too
-    const stamp = lightsRig.version * 1000 + U.size.value;
+    const stamp =
+      lightsRig.version * 1000 + U.size.value + U.line.sigIn.value * 1e4 + U.line.sigHalo.value * 1e3 + U.line.peakIn.value + U.line.peakHalo.value * 3;
     if (seen.current === stamp) return;
     seen.current = stamp;
     apply();

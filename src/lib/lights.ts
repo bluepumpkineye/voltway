@@ -189,22 +189,29 @@ export interface LampLook {
   on: number;
   /** other names the same lit part goes by in other exports (the match is case-insensitive) */
   aliases?: string[];
+  /** how the glow is drawn: a sharp line along each light pipe (the default for the LED lines), or soft blooms at points of the lamp */
+  glow?: 'sprite' | 'line';
+  /** only the triangles inside this box are the lamp, see LampSpec.region */
+  region?: [number, number, number, number, number, number];
+  /** how wide a line glow is, against the default (1) */
+  glowScale?: number;
 }
 
 export const DEFAULT_LIGHTS: { front: LampLook; rear: LampLook; projector?: LampLook } = {
   // cool white, as photographed: a pure white core, a blue-white halo
-  front: { material: 'M_LED_White', color: '#eaf2ff', halo: '#8fb6ff', off: 0.15, on: 1.7 },
+  front: { material: 'M_LED_White', color: '#eaf2ff', halo: '#8fb6ff', off: 0.15, on: 1.7, glow: 'line' },
   // a deep red: the more it is driven, the more a saturated red rolls toward pink, so the core stays red
   // and the halo carries the light
   // the tail LED is `M_LED_Red_Tail` in the RX, SU7 and 06T exports and `M_LED_Red` in the Seal, Z9, ES8 and G9L ones:
   // matching only the first meant the brake button did nothing on those four (2026-10-22)
-  rear: { material: 'M_LED_Red_Tail', aliases: ['M_LED_Red'], color: '#ff1a0f', halo: '#ff1608', on: 2.4 },
+  rear: { material: 'M_LED_Red_Tail', aliases: ['M_LED_Red'], color: '#ff1a0f', halo: '#ff1608', on: 2.4, glow: 'line' },
 };
 
 export interface ResolvedLights {
   front: LampLook;
   rear: LampLook;
   projector?: LampLook;
+  fog?: LampLook;
 }
 
 /** A car's override of a lamp. Naming another material drops the default's aliases (they belong to the default name). */
@@ -225,9 +232,11 @@ export function lightsOf(spec: LightsSpec | undefined): ResolvedLights {
   return {
     front: merge(DEFAULT_LIGHTS.front, spec?.front),
     rear: merge(DEFAULT_LIGHTS.rear, spec?.rear),
+    // the projector lenses are round: they keep the soft bloom
     projector: spec?.projector
-      ? merge({ material: 'M_Lamp_Reflector', color: '#eaf2ff', halo: '#8fb6ff', on: 2.6 }, spec.projector)
+      ? merge({ material: 'M_Lamp_Reflector', color: '#eaf2ff', halo: '#8fb6ff', on: 2.6, glow: 'sprite' }, spec.projector)
       : undefined,
+    fog: spec?.fog ? merge({ material: 'M_LED_White', color: '#eaf2ff', halo: '#8fb6ff', on: 1.7, glow: 'line' }, spec.fog) : undefined,
   };
 }
 

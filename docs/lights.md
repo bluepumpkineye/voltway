@@ -80,7 +80,8 @@ colours and the strengths per lamp.
 | Luxeed RX | `M_LED_White`: the line and its dots | `M_Lamp_Reflector` (`projector: {}`): the two lenses, lit with the low beam | `M_LED_Red_Tail` |
 | Zeekr 7X | `M_LED_White`: the twin bars | none | `M_Lamp_RedLens`, dark as built (`off: 0`): the tail is one red lens bar with no LED under it, so the lens is the lit part |
 | Avatr 06T | `M_LED_White` | `M_Lamp_Reflector` (`projector: {}`) | `M_LED_Red_Tail` |
-| BYD Seal, Denza Z9, XPeng G9L | `M_LED_White` | none | `M_LED_Red` (the default's alias, see below): the tail light guide |
+| BYD Seal | `M_LED_White` | none; `fog`: the chevron ribs of the two lower intakes, a `region` of `M_Logo_Chrome` (see "Line glow") | `M_LED_Red` (the default's alias, see below): the tail light guide |
+| Denza Z9, XPeng G9L | `M_LED_White` | none | `M_LED_Red` (alias) |
 | NIO ES8 | `M_LED_White` | `M_Lamp_Reflector` (`projector: {}`) | `M_LED_Red` (alias) |
 
 **The tail LED has two names.** The RX, SU7 and 06T exports call it `M_LED_Red_Tail`; the Seal, Z9, ES8 and G9L builds
@@ -93,9 +94,44 @@ tab, view Rear, hold Brake lights: the tail bar must glow red with a wash on the
 `[lights] glow points front N, projector N, rear N` with the rear N above 0. Never rely on the material name matching by luck:
 list the exterior GLB's materials (`M_LED_*`, `M_Lamp_*`) when a car is first exported.
 
+**Line glow (`glow: 'line'`, the default for the front and rear LED; `src/components/viewer/lampLines.ts`).** The first glow was a chain of
+soft blooms at points thinned out of the lamp's triangles, which on an LED that is a 3 mm light pipe drew a 4 cm fat brush stroke ("it
+feels like the lights are drawn by hand", 2026-11-16). That is still what `glow: 'sprite'` does, and the projector lenses (round
+points) keep it. A line-glow lamp is drawn the way a lit light pipe looks in a photograph instead: a razor-sharp white core exactly as wide as the
+pipe, a tight inner glow and a faint cool halo, all the same along the whole length, with rounded ends. The lines come from the
+lamp's own mesh: its triangles are welded into a graph (long edges get nodes about 3 mm apart, so a two-triangle strip has points
+along it), each connected piece is one pipe, and its centreline is found by walking the graph (the node farthest from anywhere is
+one end, the node farthest from that is the other; nodes are binned by their distance along the path, a bin's centre is a point of
+the line and how far its nodes lie from it is the half-width). Each line is a camera-facing ribbon (the vertex shader pushes it
+sideways in view space) and the fragment shader draws the profile from the distance to the line, in display values, added in the
+framebuffer like the rest of the glow. `fwidth` gives the metres a pixel covers, so the core is never thinner than a pixel and its
+edge is anti-aliased at any distance. A piece shorter than a bin (a round LED dot) becomes a short capsule. A lamp whose pieces are
+not strips (a cluster, a branched pattern) should stay on sprites: the walk finds one path per piece. The white core is never wider than
+3 mm (`uCoreMax`): a wide band (the SU7's tail-lamp corners are 3-4 cm tall) is lit by the mesh's own emissive and gets the bloom
+round its edge with a thin hot line down its middle, and the more a piece's width the more its centreline and width are smoothed
+(a band's bins are cut diagonally at its ends and zigzag). The Seal's front LED is eight lines (per lamp: the eyebrow, the lower
+line and two dashes, 1.58 m of pipe in all); the debug console prints `[lights] front|fog|rear lines N`; check it is above 0 on a
+new car. Size, 2026-11-16: the owner found the first tuning "a bit shy", so the bloom was widened (inner glow sigma 5.5 mm, halo
+24 mm, ribbon reach 7 cm) and the projector sprites enlarged (4 cm to 5 cm). Knobs, in development: `__lights.line` (`sigIn`, `sigHalo`
+in metres, `peakIn`, `peakHalo`, `reach`, `cap`), then `__viewer.invalidate()`.
+
+**Fog lamps and a region of a shared material (`Vehicle.lights.fog`, `LampSpec.region`).** A lit part that is not a material of its
+own can be picked out by where it is: `region` is a box `[xMin, yMin, zMin, xMax, yMax, zMax]` in the exterior's space (z is |z|, so one
+box serves both sides) and only the triangles of `material` inside it are the lamp. The material itself is then not driven (it is the
+badges' and the trim's too): only the glow is drawn, over the unlit part. The fog lamp comes on with the low beam, like the projector
+lenses (the `projector` level). The Seal's six nested chevron ribs per intake (`Seal_Intake_Rib_0-5` in `seal_front.py`, "white LED
+lines when lit, where fog lamps would stand") wear `M_Logo_Chrome` and are the one use: `region: [2.0, 0.28, 0.4, 2.5, 0.56, 0.8]`,
+`glowScale: 0.3` (the ribs are 30 mm apart, so a default-width bloom merges them into a lattice; `glowScale` multiplies the line glow's
+widths per lamp). To find a box, dump the primitive's triangles from the GLB and plot them from the front.
+
 **No whole-lamp emission.** Only the light pipes emit; the housings, lenses and reflectors around them stay
 inert, which is what stops a lamp reading as a glowing blob. The 7X's red lens is a 4 cm bar, not a lamp
 body.
+
+**Check on every new car (2026-11-16):** the front and rear lamps are drawn as lines, so open the Dashboard at Front and Rear with the
+low beam and look at the lamps close up (a lamp that is a wide band, a cluster of dots or a thin line gives a different picture:
+the SU7's tail needed the 3 mm core cap, and the G9L's tail was a dot until its lamp was rebuilt on 2026-11-16: see docs/3d-pipeline.md). A lamp that looks wrong takes
+`glow: 'sprite'` or a `glowScale` in `Vehicle.lights`.
 
 **Not modelled, so not lit:** the RX's blue upper lamp bar as seen in the maker's lit photographs, the 7X's
 dotted matrix pattern (its bars light as plain lines), and the amber turn-signal lamps (there is no amber

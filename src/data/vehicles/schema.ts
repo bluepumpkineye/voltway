@@ -705,6 +705,21 @@ export interface LampSpec {
   /** emissive strength with the lamp off, when that is not what the build gave the material; fully lit */
   off?: number;
   on?: number;
+  /**
+   * How the glow round the lit part is drawn. 'line' (the default for the front and rear LED): a continuous sharp
+   * line along each light pipe, found from the lamp's own mesh (components/viewer/lampLines.ts). 'sprite': soft round
+   * blooms at points of the lamp, for a lit part that is not a strip (a round lens, a cluster of dots).
+   */
+  glow?: 'sprite' | 'line';
+  /**
+   * Only the triangles of `material` inside this box are the lamp: [xMin, yMin, zMin, xMax, yMax, zMax] in the
+   * exterior's space (x forward, y up), with z taken as |z| so one box serves both sides. For a lit part that shares
+   * its material with unlit ones (the Seal's chevron ribs wear the badges' chrome). The material itself is then not
+   * driven: only the glow is drawn.
+   */
+  region?: [number, number, number, number, number, number];
+  /** how wide a line glow is, against the default (1): light pipes packed close together (the Seal's chevron ribs, 30 mm apart) need a tighter bloom */
+  glowScale?: number;
 }
 
 /**
@@ -716,6 +731,8 @@ export interface LightsSpec {
   front?: LampSpec;
   /** the projector lenses, when they are a material of their own that is at the front only */
   projector?: LampSpec;
+  /** the fog lamps' light, when they are lit parts of their own (a `region` of a shared material, say); it comes on with the low beam */
+  fog?: LampSpec;
   rear?: LampSpec;
 }
 

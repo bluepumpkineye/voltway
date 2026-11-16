@@ -632,6 +632,10 @@ export const bydSeal: Vehicle = {
     simulated:
       'The 80–160 run, the modes’ times, the frontal area (0.85 of width times height), the split between the two motors and the energy are ours.',
   },
+  // The chevron ribs of the lower intakes (Seal_Intake_Rib_0-5: "white LED lines when lit", where fog lamps would stand) wear the
+  // badges' chrome, so they are picked out by where they are: x 2.0-2.5, y 0.28-0.56, |z| 0.40-0.80 holds the six ribs of each side
+  // and nothing else of that material. They light with the low beam.
+  lights: { fog: { material: 'M_Logo_Chrome', region: [2.0, 0.28, 0.4, 2.5, 0.56, 0.8], glowScale: 0.3 } },
   sources: [
     { label: 'Autohome — 比亚迪 海豹 EV Specifications & Gallery (Series 6394)', url: 'https://www.autohome.com.cn/6394/' },
     { label: 'BYD Official — 海豹 EV Ocean Network Sports Sedan', url: 'https://www.byd.com/' },
