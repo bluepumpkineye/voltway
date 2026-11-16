@@ -24,7 +24,7 @@ mkdirSync(out, { recursive: true });
 // The fan faces outward: the cars on the left of it have their noses to the left, the ones on the right to the right, and the hero in front
 // faces the camera.
 const SHOTS = [
-  { slug: 'xiaomi-su7-ultra', yaw: 0, pitch: 12, paint: 'lightning-yellow' },
+  { slug: 'xiaomi-su7-ultra', yaw: -24, paint: 'lightning-yellow' },
   { slug: 'nio-es8', yaw: -36, paint: 'southern-star-blue' },
   { slug: 'xpeng-g9l', yaw: -28, paint: 'fjord-grey' },
   { slug: 'voyah-passion-s', yaw: 28, paint: 'sunleap-red' },

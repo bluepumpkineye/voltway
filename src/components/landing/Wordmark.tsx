@@ -95,7 +95,17 @@ const Y = (() => {
 
 const LETTERS: Letter[] = [V, O, L, T, W, A, Y];
 
-export function Wordmark({ className, label = 'Voltway' }: { className?: string; label?: string }) {
+export function Wordmark({
+  className,
+  label = 'Voltway',
+  idPrefix = 'wm',
+  staticMark = false,
+}: {
+  className?: string;
+  label?: string;
+  idPrefix?: string;
+  staticMark?: boolean;
+}) {
   let x = 0;
   const placed = LETTERS.map((l) => {
     const at = x;
@@ -104,28 +114,37 @@ export function Wordmark({ className, label = 'Voltway' }: { className?: string;
   });
   const width = x - LETTERS[LETTERS.length - 1].gap;
   return (
-    <svg role="img" aria-label={label} viewBox={`0 0 ${width} ${CAP}`} className={className} data-wordmark fill="none">
+    <svg
+      role="img"
+      aria-label={label}
+      viewBox={`0 0 ${width} ${CAP}`}
+      className={className}
+      data-wordmark={staticMark ? 'static' : 'animated'}
+      fill="none"
+    >
       <defs>
         {/* one gradient across the whole word: each letter's own copy is shifted back by where the letter stands */}
         {placed.map((l, i) => (
-          <linearGradient key={i} id={`wm-ink-${i}`} gradientUnits="userSpaceOnUse" x1={-l.at} y1="0" x2={width - l.at} y2="0">
+          <linearGradient key={i} id={`${idPrefix}-ink-${i}`} gradientUnits="userSpaceOnUse" x1={-l.at} y1="0" x2={width - l.at} y2="0">
             <stop offset="0" stopColor="#0a1120" />
             <stop offset="0.55" stopColor="#13294f" />
             <stop offset="1" stopColor="#2a64a6" />
           </linearGradient>
         ))}
-        <linearGradient id="wm-pulse" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ff8a3d" />
-          <stop offset="1" stopColor="#ff5a1f" />
+        <linearGradient id={`${idPrefix}-pulse`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ff7a33" />
+          <stop offset="1" stopColor="#ff5500" />
         </linearGradient>
       </defs>
       {placed.map((l, i) => (
         <g key={i} transform={`translate(${f(l.at)} 0)`}>
           <g data-letter style={{ ['--i' as string]: i }}>
-            {l.d && <path d={l.d} fill={`url(#wm-ink-${i})`} />}
-            {l.ring && <circle cx={l.w / 2} cy={CAP / 2} r={l.ring.r} stroke={`url(#wm-ink-${i})`} strokeWidth={S} />}
-            {l.pulse && <path d={l.pulse} pathLength={1} data-pulse stroke="url(#wm-pulse)" strokeWidth={10} strokeLinejoin="miter" strokeLinecap="butt" />}
-            {l.pulse && <path d={l.pulse} pathLength={1} data-spark stroke="#fff4d6" strokeWidth={10} strokeLinejoin="miter" strokeLinecap="butt" />}
+            {l.d && <path d={l.d} fill={`url(#${idPrefix}-ink-${i})`} />}
+            {l.ring && <circle cx={l.w / 2} cy={CAP / 2} r={l.ring.r} stroke={`url(#${idPrefix}-ink-${i})`} strokeWidth={S} />}
+            {l.pulse && <path d={l.pulse} pathLength={1} data-pulse stroke={`url(#${idPrefix}-pulse)`} strokeWidth={10} strokeLinejoin="miter" strokeLinecap="butt" />}
+            {l.pulse && !staticMark && (
+              <path d={l.pulse} pathLength={1} data-spark stroke="#fff4d6" strokeWidth={10} strokeLinejoin="miter" strokeLinecap="butt" />
+            )}
           </g>
         </g>
       ))}

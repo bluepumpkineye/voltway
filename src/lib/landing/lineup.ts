@@ -28,6 +28,6 @@ export const LINEUP: Place[] = [
   { slug: 'xpeng-g9l', row: 'mid', x: 0.285, ground: 0.685, k: 0.172, w: 990, h: 606 },
   { slug: 'voyah-passion-s', row: 'mid', x: 0.715, ground: 0.685, k: 0.172, w: 995, h: 564 },
   { slug: 'zeekr-7x', row: 'mid', x: 0.895, ground: 0.725, k: 0.18, w: 1023, h: 555 },
-  // the hero, facing the camera
-  { slug: 'xiaomi-su7-ultra', row: 'front', x: 0.5, ground: 0.855, k: 0.225, w: 718, h: 671 },
+  // the hero, 3/4 angle matching the rest of the orbital showcase
+  { slug: 'xiaomi-su7-ultra', row: 'front', x: 0.5, ground: 0.855, k: 0.225, w: 961, h: 549 },
 ];
