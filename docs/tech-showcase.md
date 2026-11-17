@@ -1450,3 +1450,31 @@ integrates in about 120 ms; `table`: rms and peak by mode and speed). Run with `
 
 Checked 2026-11-17: tsc and eslint (the four files) clean, drive-test.mjs 51 passes; in the Browser pane the body moved at every sampled second on all ten cars (the RX on Autonomous Drive, the others on the Drive tab;
 the Z9's run, with its stand and its exit, decays to nothing while the car stands and starts again as it sets off). Not done: a production build, a look at it playing by the owner.
+
+### Follow-up (2026-11-17, later): camera shake
+
+**Request.** "Let's add some camera shakes too ... x rotation noise strength 0.03, z rotation noise strength 0.08 (from Blender) ... Let the car move a bit before the camera shakes."
+
+**What it is** (first version, at the owner's full strengths; the revision below turned it down to 0.3 of that). src/lib/tech/drive-shake.ts: a Blender Noise modifier on the camera's rotation, adapted. Blender adds (noise - 0.5) x strength to the curve in its own unit, the radian for a rotation, so the
+strengths are peak to peak: the tilt (X rotation, up and down) wanders at most 0.015 rad (0.86 degrees) either way and the pan (Z rotation, side to side) at most 0.04 rad (2.3 degrees); a typical moment is a third
+of that (rms 0.33 and 0.90 degrees). The noise is smooth lattice noise, two octaves (Blender's depth 1), a wander of 0.55 s with a 0.23 s ripple, the two axes on different seeds (correlation about 0.1); the scale,
+the seeds and the octaves are ours, the modifier does not say them. If the owner meant the strengths in degrees the shake would be 57 times smaller (barely a pixel): say so before changing it.
+
+**When it is on.** Only the Drive tab (not the X-ray Play, which has its own camera work). `shakeAmount(t, tMove, speed)`: nothing until `delayS` (1.2 s) after the car's first move (`firstMove`: the first 0.3 m of the
+run's distance, the exit's included), then a smooth rise over `rampS` (1.6 s), and in proportion to the speed, none under 8 km/h and all from 70 km/h: the platform a camera stands on is what shakes it, so the shake
+dies where the car stands (the Z9's stand at 20 to 28 s) and returns as it sets off (no new delay). A standing start therefore moves first and shakes about 2.4 s in; a run that begins at speed waits only the delay.
+Reduced motion: none.
+
+**How it is drawn.** Not by turning the camera (the orbit controls own its pose): `cameraShake` ({tilt, pan} rad) is written each frame by TechDirector, and the camera rig's projection frame shifts the picture
+by the pixels such a turn would move it (`focal * tan(angle)`, in the view offset beside the lift and the slide), so the shake follows the lens: the same angle is a smaller shift in the cabin's 60 degree lens than
+in the hero shot's 30. On a 1567 x 978 window at 30 degrees: pan up to 57 px, tilt up to 20 px, about 0.9 degrees of pan rms (27 px). Every Drive camera has it, the seat's too. A scrub or a pause draws the shake
+at the playhead (the director asks for one more frame when it changes while the clock is not running).
+
+**Knobs.** `SHAKE` in drive-shake.ts: `tilt` and `pan` (Blender's strengths), `delayS`, `rampS`, `periodS`, `rippleS`, `fullKmh`, `noneKmh`. Test: `scripts/tech-tools/shake-test.mjs` (15 checks).
+Checked in the pane: 7X (the view offset is zero until 2.5 s, the car moving from 1.2 s; at 3.5 s 57 px, then within +-60 px), Z9 (zero while it stands, back as it sets off), the Z9's seat camera.
+
+**Revision, the same day (owner: "feels exaggerated (and nauseous) ... more subtle, and stop the shakes when the car disappears").** (1) `SHAKE.gain` = 0.3: the same noise and the same Blender strengths, drawn at 0.3
+of their size, so the pan wanders at most 0.69 degrees (rms 0.27) and the tilt 0.26 (rms 0.10): on the 1567 x 978 window at 30 degrees, at most 20 px of pan and 6 px of tilt (it was 57 and 20), and a frame never
+moves it more than 0.07 degrees (about 2 px). Timing, delay and the speed rule are as before. (2) The shake goes with the car: `shakeLeave(x)` fades it out as the car drives off in the exit, from 10 m to 80 m from
+where the run ended (the haze has the car by about 110 m), so nothing shakes over an empty road; read in the pane on the 7X: 18 px at 17 m, 0.1 px at 50 m, 0 from 83 m. `shake-test.mjs` has 19 checks. If it is
+still too much, lower `gain`; 0.15 is about a third of a pixel per frame and still shows.

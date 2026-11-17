@@ -19,6 +19,7 @@ import { setStarRingRun } from '@/lib/tech/starring';
 import { CORNERS } from '@/lib/tech/kinematics';
 import { DRIVE_CARRY_MS, DRIVE_REST_EXIT_S, driveExitS, exitAt, exitInfo, exitPull } from '@/lib/tech/drive-exit';
 import { simulateSuspension, tuneOf, type Suspension } from '@/lib/tech/drive-suspension';
+import { cameraShake, firstMove, shakeAmount, shakeAt, shakeLeave } from '@/lib/tech/drive-shake';
 import { SHOW_EXIT_S, SHOW_RUN_S } from '@/lib/xray/show';
 import { bendFor } from '@/lib/tech/drive-bend';
 import { motionOk } from './configurator';
@@ -84,6 +85,8 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
 
   // the body on its springs over the road (src/lib/tech/drive-suspension.ts), built with the run and read by the clock
   const suspension = React.useRef<Suspension | null>(null);
+  // the camera shake (src/lib/tech/drive-shake.ts): when the car first moves, on the Drive tab; null where there is none
+  const shakeFrom = React.useRef<number | null>(null);
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
   const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
@@ -164,12 +167,13 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     // exit's metres after it. A visitor who asks for less motion gets none.
     const tm0 = built.treadmill;
     const lay0 = rig.layout;
+    const runEnd = track.duration;
+    const atEnd = tm0 ? tm0.scroll(runEnd) : 0;
+    // how far the car has gone along the road at t: the run's scroll, then the exit's metres
+    const distance = (t: number) => (!tm0 ? 0 : t <= runEnd || exitS <= 0 ? tm0.scroll(Math.min(t, runEnd)) : atEnd + exitAt(exitInfo, t, exitPull.a0, v0, exitInfo.accel ? undefined : v0).x);
     suspension.current = null;
     if (tm0 && !tm0.ride && lay0 && motionOk()) {
       const own = built.spec.driver === 'drive' ? driveSetup(vehicle, { variantId, modeId: driveSelection.modeId, loadId: driveSelection.loadId }).input : null;
-      const runEnd = track.duration;
-      const atEnd = tm0.scroll(runEnd);
-      const distance = (t: number) => (t <= runEnd || exitS <= 0 ? tm0.scroll(Math.min(t, runEnd)) : atEnd + exitAt(exitInfo, t, exitPull.a0, v0, exitInfo.accel ? undefined : v0).x);
       suspension.current = simulateSuspension(
         { wheelbase: lay0.wheelbase, track: Math.abs(lay0.wheels.FL.y - lay0.wheels.FR.y) },
         distance,
@@ -177,6 +181,8 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
         tuneOf(own?.squatScale, own ? own.massKg / own.refMassKg : 1),
       );
     }
+    // the camera shakes a little after the car has first moved (the Drive tab's: not Play, which has its own camera work)
+    shakeFrom.current = tm0 && st.tab === 'drive' && !xrayShow && motionOk() ? firstMove(distance, track.duration + exitS) : null;
 
     const { bounds } = stage ?? track.stats;
     const reach = stage ? 1.0 : Math.max(vehicle.dimensions.lengthMm / 1000, 4) * 0.6;
@@ -251,6 +257,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     return () => {
       techClock.load(0, false);
       suspension.current = null;
+      shakeFrom.current = null;
+      cameraShake.tilt = 0;
+      cameraShake.pan = 0;
       Object.assign(exitInfo, { duration: 0, exit: 0, v0: 0, show: false, accel: false });
       techSession.set(null);
       const s = useVehicleStore.getState();
@@ -337,6 +346,10 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     const tRun = Math.min(techClock.t, runDur);
     const s = built.track.sample(tRun);
     const tm = built.treadmill;
+    // the car's speed now, km/h, which the camera's shake follows
+    let speedKmh = tm?.launch?.drive ? tm.launch.drive.telemetry(tRun).speed : 0;
+    // and how much of it is left as the car drives off in the exit (none when the haze has the car)
+    let leaving = 1;
     if (tm) {
       // the car stays on the spot and the road rolls under it
       // (a demo whose car changes lane keeps its sideways place and heading: Autonomous Drive's)
@@ -358,6 +371,8 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
           spin: CORNERS.map((c, i) => s.spin[i] + (lay ? ex.x / lay.radius[c] : 0)) as [number, number, number, number],
         });
         if (exitInfo.accel) rig.setChassis({ heave: 0, pitch: 0.022 * ex.pull, roll: 0, lift: [0, 0, 0, 0] });
+        speedKmh = ex.v * 3.6;
+        leaving = shakeLeave(ex.x);
       }
       // the body on its springs: the road's swells and joints, met by the front axle and then the rear one, on top of the squat and the lean
       const sus = suspension.current;
@@ -392,6 +407,17 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     } else {
       rig.setSample(s);
       rig.setChassis(null);
+    }
+    // the camera's shake: a function of the playhead and the speed, drawn by the camera rig as a shift of the picture (the rig asks for a frame itself
+    // while the clock runs; a scrub or a pause needs one more)
+    const from = shakeFrom.current;
+    const shake = from === null ? null : shakeAt(techClock.t, shakeAmount(techClock.t, from, speedKmh) * leaving);
+    const tilt = shake?.tilt ?? 0;
+    const pan = shake?.pan ?? 0;
+    if (cameraShake.tilt !== tilt || cameraShake.pan !== pan) {
+      cameraShake.tilt = tilt;
+      cameraShake.pan = pan;
+      if (!techClock.playing) invalidate();
     }
     // 35 mm in about a second, easing in and out of it
     const goal = rideGoal / 1000;

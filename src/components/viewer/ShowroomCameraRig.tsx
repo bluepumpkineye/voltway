@@ -8,6 +8,7 @@ import type { Vehicle } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { resolveAnchor, type CarFrame, type V3 } from '@/lib/showroom/anchors';
 import { rigOf } from '@/lib/tech/rig';
+import { cameraShake } from '@/lib/tech/drive-shake';
 import { DRACO_PATH } from './CarModel';
 import { motionOk } from './configurator';
 import { FX } from './cabinfx/settings';
@@ -115,7 +116,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const fovGoal = React.useRef(pose.fov);
   const lift = React.useRef(liftOf(pose, size.height));
   const shift = React.useRef(shiftOf(pose, size.width));
-  const shown = React.useRef({ fov: NaN, lift: NaN, shift: NaN, w: 0, h: 0, near: NaN });
+  const shown = React.useRef({ fov: NaN, lift: NaN, shift: NaN, w: 0, h: 0, near: NaN, sx: NaN, sy: NaN });
   const flight = React.useRef(0);
   const first = React.useRef(true);
   const moved = React.useRef(false);
@@ -301,6 +302,12 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     // (the cabin's nearest surface, the A-pillar, is 35 cm away)
     const near = poseRef.current.id === 'driveSeat' ? 0.1 : Math.min(0.5, Math.max(0.02, Math.round(dist / 0.6) / 100));
 
+    // The Drive tab's camera shake (drive-shake.ts): a small turn of the camera, drawn as a shift of the picture by the pixels it would move it
+    // (the focal length in pixels times the tangent of the angle), so that the orbit controls, which own the camera's pose, are left alone
+    const focal = size.height / 2 / Math.tan((cam.fov * Math.PI) / 360);
+    const sx = focal * Math.tan(cameraShake.pan);
+    const sy = focal * Math.tan(cameraShake.tilt);
+
     const s = shown.current;
     if (
       cam.fov !== s.fov ||
@@ -308,16 +315,18 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       shift.current !== s.shift ||
       size.width !== s.w ||
       size.height !== s.h ||
-      near !== s.near
+      near !== s.near ||
+      sx !== s.sx ||
+      sy !== s.sy
     ) {
       cam.near = near;
-      // a view offset moves the picture (up by the lift, left by the slide) without turning the camera:
+      // a view offset moves the picture (up by the lift, left by the slide, and by the shake) without turning the camera:
       // the perspective and the orbit's centre are the car's
-      if (lift.current > 0.01 || Math.abs(shift.current) > 0.01) {
-        cam.setViewOffset(size.width, size.height, shift.current, lift.current, size.width, size.height);
+      if (lift.current > 0.01 || Math.abs(shift.current) > 0.01 || Math.abs(sx) + Math.abs(sy) > 0.01) {
+        cam.setViewOffset(size.width, size.height, shift.current + sx, lift.current + sy, size.width, size.height);
       } else cam.clearViewOffset();
       cam.updateProjectionMatrix();
-      shown.current = { fov: cam.fov, lift: lift.current, shift: shift.current, w: size.width, h: size.height, near };
+      shown.current = { fov: cam.fov, lift: lift.current, shift: shift.current, w: size.width, h: size.height, near, sx, sy };
     }
     if (busy) invalidate();
   });
