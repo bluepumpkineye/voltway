@@ -102,8 +102,8 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
   const inCar = React.useCallback(
     (p: V3, mode: string): V3 => {
       if (mode !== 'interior' || useVehicleStore.getState().tab !== 'drive') return p;
-      // the car's own transform: where it is, its heading and the tilt of a hill
-      const v = _seat.set(p[0], p[1], p[2]).applyMatrix4(rigOf(vehicle).carMatrix(_carNow));
+      // the car's own transform: where it is, its heading and the tilt of a hill, and the body's motion on its springs
+      const v = _seat.set(p[0], p[1], p[2]).applyMatrix4(rigOf(vehicle).bodyMatrix(_carNow));
       return [v.x, v.y, v.z];
     },
     [vehicle],
@@ -207,7 +207,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     const target = inCar(pose.target, pose.mode);
     // the pose has been put where the car is now: the seat is carried by the car's moves from this transform on (a hill that comes or goes
     // at the same moment as a pose would otherwise be counted twice)
-    carAt.current = pose.mode === 'interior' && useVehicleStore.getState().tab === 'drive' ? rigOf(vehicle).carMatrix(new THREE.Matrix4()) : null;
+    carAt.current = pose.mode === 'interior' && useVehicleStore.getState().tab === 'drive' ? rigOf(vehicle).bodyMatrix(new THREE.Matrix4()) : null;
     if (first.current) {
       first.current = false;
       const cam = camera as THREE.PerspectiveCamera;
@@ -239,7 +239,8 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
     invalidate();
   }, [pose, tick, stage, camera, invalidate, inCar, vehicle]);
 
-  // The Drive tab's seat rides with the car: what it does along the road and sideways, in heading and up a hill, the camera does with it (a drag still looks about)
+  // The Drive tab's seat rides with the car: what it does along the road and sideways, in heading and up a hill, and what its body does on the springs (the squat, the lean, the road's
+  // swells and joints), the camera does with it (a drag still looks about)
   useFrame(() => {
     const c = controls.current;
     const st = useVehicleStore.getState();
@@ -247,7 +248,7 @@ export function ShowroomCameraRig({ vehicle }: { vehicle: Vehicle }) {
       carAt.current = null;
       return;
     }
-    const now = rigOf(vehicle).carMatrix(_carNow);
+    const now = rigOf(vehicle).bodyMatrix(_carNow);
     const was = carAt.current;
     if (!was) {
       carAt.current = now.clone();

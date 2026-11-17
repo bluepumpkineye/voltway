@@ -1408,3 +1408,45 @@ button and chips (`showroom/Beats.tsx`, used by NOMI and the Star Ring) now read
 
 Checked 2026-11-14: tsc and eslint (src) clean; each demo played in the Browser pane (Z9 at 3 s and 16.5 s, Seal at 9 s, ES8 U-turn at 10.5 s, NOMI at 5 and 11.8 s with the faces drawn out large, the 06T ring at
 2, 7, 12, 19 and 23 s). Not done: a production build in a copy; the owner's look.
+
+## 31. The suspension at work: the body rides the road (2026-11-17)
+
+**Request.** "In the Drive mode, the cars only have their wheels animated (and when the car turns), which makes the drive scene too static. Can we add some car animation by using the suspensions ... in Blender (bone
+properties, 6, 4, 3 frames looped, Bezier) or in three.js? Do it for all cars and for their drive sequence."
+
+**What was missing.** The rig (src/lib/tech/rig.ts) already carries a sprung body and four unsprung wheels on every car, and the Drive run already pitched it under the pedal (squat, dive) and rolled it in a corner. At
+a steady speed, between those, the body stood dead still on a road that rolled under it.
+
+**Why three.js and not Blender bones.** A hand-keyed bone loop is one fixed cycle per car: it cannot know the speed, the mode or the load, and it means keying and re-exporting every car. The rig already does the
+job a bone would, so the body is moved from a small model (src/lib/tech/drive-suspension.ts): one file for every car, nothing re-exported. The "6, 4, 3 frames, Bezier" idea is what its layered road stands in for:
+eight swells of 1.5 to 31 m that never fall into step (a loop that repeats only every 12 units would), smooth between their peaks, with the joints on top.
+
+**The model.** A body (heave, pitch, roll) on four springs and four dampers, the four tyres following a road, integrated at 600 Hz over the whole clock (the run and the exit) when the demo is built, sampled at 60 Hz, a
+pure function of the playhead (scrub it and the ride is the same). The road is a sum of swells (amplitude grows with the root of the wavelength, a rough ISO 8608), a left and a right profile that differ (the roll) and an
+expansion joint every 16 to 40 m (the front wheels hit it, then the rear ones: the thump-thump). The wheels stay on the flat road we draw, so what is shown is the body's travel against them. It starts level on its
+wheels `PRE_S` = 2.5 s before the clock, at the speed it has at its start, so a run that begins at speed (Autonomous Drive) begins with the body already moving; a car that stands still does not ride (the road does
+not move under it), and the motion fades as it slows. Added in TechDirector's frame on top of the squat and the lean (`rig.state.heave/pitch/roll +=`).
+
+**What follows the car's set-up.** `tuneOf(squatScale, massRatio)`: bounce 1.25 Hz, pitch 1.55, roll 1.75, damping 0.28 for Comfort; Sport (`squatScale` 0.85) and Track are firmer (higher frequencies, more damping), Eco about
+the same as Comfort, a heavier load (the Drive tab's +100 kg) rides lower on the same springs. Where the demo is not the Drive tab (Autonomous Drive, the launch) Comfort is used.
+
+**Where it is on.** Every demo where the road rolls under the car (`treadmill`) except the Magic Carpet, whose whole point is the ride it compares (it has `treadmill.ride`): the Drive tab, the X-ray tab's Play, the launch
+demo and Autonomous Drive, on all ten cars. Not on the parking and street demos (`park`, `chassis`, `uturn`), where the car crawls. `prefers-reduced-motion` turns it off (the build skips it).
+
+**What is ours.** Nothing here is published: no maker gives ride frequencies. The numbers are textbook, and the motion is DRAWN LARGER than a real car's (`DRAWN` = 2.0: about 8 mm rms of heave and 0.2 degrees of pitch
+and roll at 100 km/h, joints up to about 20 mm; the model's own is 3.7 mm). The first version drew it 3.4 times (12 mm, 0.3 degrees, joints 35 mm) and the owner found it exaggerated, so it was turned down the same day, as the corner's lean and the S-curve's steering are, since a real car's few millimetres are not seen from a camera beside it. Each
+corner is held between bump stops (18 mm down into the arch, 32 mm up: the plane that fits the four corners is scaled down until none is past them); the corner's own lean (4 degrees to the g) already takes a corner
+further than that, so the tyre is never nearer its arch than it has been.
+
+**The seat camera rides the body.** The Drive tab's cabin camera was carried by the car's place and heading (`carMatrix`); the cabin and the exterior bobbed around a fixed eye. It is now carried by `CarRig.bodyMatrix`
+(the car's place and the body's own heave, pitch and roll), so the dash stays put in the picture and it is the road that shakes. In a corner the view now leans with the body (4 degrees at most, as the exterior does).
+Checked in the pane: the camera's position in the body's frame is the same to a millimetre from 6 s to 14 s while it moves 25 mm in the car's.
+
+**Not done.** The suspension card (X-ray tab) still reads the spring travel from the run's own pitch and roll, so its corner figures do not show the road's ride; a baked Blender version (an armature per car) was not
+made, and the exterior's baked shadow and the Autonomous Drive sensors' fans stay on the floor (a few millimetres). The Rival car (dead code) does not ride.
+
+**Tools.** `scripts/tech-tools/suspension-test.mjs` (`check`: 14 tests, a standing car is still, more speed more ride, Sport firmer than Comfort, deterministic and scrub-safe, no jump at the start, bump stops, 60 s
+integrates in about 120 ms; `table`: rms and peak by mode and speed). Run with `node --no-warnings --import ./scripts/tech-tools/register.mjs scripts/tech-tools/suspension-test.mjs table`.
+
+Checked 2026-11-17: tsc and eslint (the four files) clean, drive-test.mjs 51 passes; in the Browser pane the body moved at every sampled second on all ten cars (the RX on Autonomous Drive, the others on the Drive tab;
+the Z9's run, with its stand and its exit, decays to nothing while the car stands and starts again as it sets off). Not done: a production build, a look at it playing by the owner.

@@ -180,6 +180,9 @@ const _qPitch = new THREE.Quaternion();
 const _qRoll = new THREE.Quaternion();
 const _off = new THREE.Vector3();
 const _scratch = new THREE.Object3D();
+const _bodyPos = new THREE.Vector3();
+const _bodyLocal = new THREE.Matrix4();
+const _unit = new THREE.Vector3(1, 1, 1);
 
 /** One car's rig, shared by everything that draws it (the exterior, the shadow). */
 export class CarRig {
@@ -375,6 +378,26 @@ export class CarRig {
     this.place(_scratch, st.x, st.z, st.yaw);
     _scratch.updateMatrix();
     return out.copy(_scratch.matrix);
+  }
+
+  /**
+   * `carMatrix` and the body's own motion on its springs after it (heave, pitch and roll about the pivot, and the ride height): where a point fixed to the
+   * body stands now, as the cabin and the exterior's Sprung group are carried. The Drive tab's seat camera rides on it: the driver's eye moves with the
+   * body, so the dash stays put in the picture and it is the road that shakes. Read from the state, not from the scene, so that it is as fresh as the
+   * director's last write whichever of them runs first in a frame.
+   */
+  bodyMatrix(out: THREE.Matrix4): THREE.Matrix4 {
+    this.carMatrix(out);
+    const p = this.prepared;
+    if (!p) return out;
+    const st = this.state;
+    _qPitch.setFromAxisAngle(AXLE, st.pitch);
+    _qRoll.setFromAxisAngle(FORWARD, st.roll);
+    _qBody.copy(_qRoll).multiply(_qPitch);
+    _off.copy(p.pivot).applyQuaternion(_qBody);
+    _bodyPos.copy(p.pivot).sub(_off);
+    _bodyPos.y += st.heave + st.ride;
+    return out.multiply(_bodyLocal.compose(_bodyPos, _qBody, _unit));
   }
 
   /** Write the state to the scene. */

@@ -18,6 +18,7 @@ import { setNomiRun } from '@/lib/tech/nomi';
 import { setStarRingRun } from '@/lib/tech/starring';
 import { CORNERS } from '@/lib/tech/kinematics';
 import { DRIVE_CARRY_MS, DRIVE_REST_EXIT_S, driveExitS, exitAt, exitInfo, exitPull } from '@/lib/tech/drive-exit';
+import { simulateSuspension, tuneOf, type Suspension } from '@/lib/tech/drive-suspension';
 import { SHOW_EXIT_S, SHOW_RUN_S } from '@/lib/xray/show';
 import { bendFor } from '@/lib/tech/drive-bend';
 import { motionOk } from './configurator';
@@ -80,6 +81,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
         : { runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake, surface: driveSurface, grade: driveGrade, rival: rivalSlug || null },
     [xrayShow, showRun, driveRun, driveMode, driveLoad, driveBrake, driveSurface, driveGrade, rivalSlug],
   );
+
+  // the body on its springs over the road (src/lib/tech/drive-suspension.ts), built with the run and read by the clock
+  const suspension = React.useRef<Suspension | null>(null);
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
   const charging = React.useMemo(() => chargeDemo(vehicle), [vehicle]);
@@ -155,6 +159,25 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     techClock.load(track.duration + exitS, { play: intent || (built.autoplay && motionOk()), stops: built.stops });
     if (intent) st.clearTechIntent();
 
+    // the suspension at work: every demo where the car drives on a road that rolls under it (the Drive tab, Play, the launch, Autonomous Drive) has the
+    // body answer the road, apart from the Magic Carpet's, whose whole point is the ride it compares; the run's own distance is the road's pace, the
+    // exit's metres after it. A visitor who asks for less motion gets none.
+    const tm0 = built.treadmill;
+    const lay0 = rig.layout;
+    suspension.current = null;
+    if (tm0 && !tm0.ride && lay0 && motionOk()) {
+      const own = built.spec.driver === 'drive' ? driveSetup(vehicle, { variantId, modeId: driveSelection.modeId, loadId: driveSelection.loadId }).input : null;
+      const runEnd = track.duration;
+      const atEnd = tm0.scroll(runEnd);
+      const distance = (t: number) => (t <= runEnd || exitS <= 0 ? tm0.scroll(Math.min(t, runEnd)) : atEnd + exitAt(exitInfo, t, exitPull.a0, v0, exitInfo.accel ? undefined : v0).x);
+      suspension.current = simulateSuspension(
+        { wheelbase: lay0.wheelbase, track: Math.abs(lay0.wheels.FL.y - lay0.wheels.FR.y) },
+        distance,
+        track.duration + exitS,
+        tuneOf(own?.squatScale, own ? own.massKg / own.refMassKg : 1),
+      );
+    }
+
     const { bounds } = stage ?? track.stats;
     const reach = stage ? 1.0 : Math.max(vehicle.dimensions.lengthMm / 1000, 4) * 0.6;
     const cx = (bounds.min.x + bounds.max.x) / 2;
@@ -227,6 +250,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     invalidate();
     return () => {
       techClock.load(0, false);
+      suspension.current = null;
       Object.assign(exitInfo, { duration: 0, exit: 0, v0: 0, show: false, accel: false });
       techSession.set(null);
       const s = useVehicleStore.getState();
@@ -334,6 +358,14 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
           spin: CORNERS.map((c, i) => s.spin[i] + (lay ? ex.x / lay.radius[c] : 0)) as [number, number, number, number],
         });
         if (exitInfo.accel) rig.setChassis({ heave: 0, pitch: 0.022 * ex.pull, roll: 0, lift: [0, 0, 0, 0] });
+      }
+      // the body on its springs: the road's swells and joints, met by the front axle and then the rear one, on top of the squat and the lean
+      const sus = suspension.current;
+      if (sus) {
+        const m = sus.sample(techClock.t);
+        rig.state.heave += m.heave;
+        rig.state.pitch += m.pitch;
+        rig.state.roll += m.roll;
       }
       // the Drive tab's corner: the car is `carS` metres along the road (the road rolled under it, and what it has driven since the run's end), the arc lies
       // `sa - carS` to `sb - carS` metres from it, ahead (positive) or behind. Far up the road the arc is out of the strip's sight and the road is left as it is.
