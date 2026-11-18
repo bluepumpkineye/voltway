@@ -93,3 +93,44 @@ Built from the audit, in `blender/scripts/mona_interior.py` (each change is one 
 Not done yet: door-pod slits, seat-back pockets, pleated door fabric, the two-panel glass roof, the rear-vent console's detail, the
 3-seat rear bench, per-material light (the viewer's light is flatter than the panorama's: dash top 2.5x its face there), the
 outside plate, the per-car Cabin FX preset, glow on the slits.
+
+### Verification (same day)
+
+- **Viewer colour check**, a per-material ID pass at the back camera, all five trims (what the viewer displays / the panorama's patch):
+  Light Grey (as built) leather 1.00, wheel 1.00-1.08, shells 1.00-1.08, console leather 1.02-1.06, dash 1.22 (from the rear the top
+  pad dominates), headliner 1.2-1.3 (the alcantara's sheen). The first pass of the other four trims was off by up to 1.5x (dark
+  seats too light, dark shells too dark); after one correction by the measured ratios Iris reads 0.89-1.05, Dark Grey's dash and
+  console leather 1.02-1.09, Titanium Green's dash and wheel within 1.07-1.27 and 0.94-1.11. A last small pull-back on the dark
+  shells and the Dark Grey seat leather was applied from the same model and not re-measured.
+- **Same-camera A/B (12 views, Cycles hall render):** the back-row views now match the target's tonal profile (seats median 64 vs 70,
+  deepest shadows 25 vs 23, door cards 67 vs 56-68, floor 133 vs 147); fine-detail energy is still about 0.5x; the console view is
+  brighter than the target (median 211 vs 149) because our light is flatter.
+- Cabin export: 1.70 MB GLB, one AO atlas, 536 s. Interior tab checked in the viewer; type-check and eslint clean on the vehicle data.
+- The dev server on port 3000 returned 500 during the check (two servers share `.next`); 3001 served the page.
+
+Another session committed the Mona (abbc961) while this ran; that commit holds the harness files and an earlier `mona_interior.py` /
+vehicle file, and the later edits of this phase (palette corrections, headrest, FRONT_DX, console profile, trim values) are
+uncommitted on top of it.
+
+## Phase 2, second slice: geometry (2026-11-18)
+
+All in `blender/scripts/mona_interior.py` (one export, 410 s, 1.78 MB) and the trim table in `xpeng-mona-l05.ts`. Targets read from
+close-ups of the Cabin 360 panoramas (`pano.cjs rect`), checked with the same-camera sheets (`blender/renders/pano_ab/p3/`).
+
+- **Console pockets (the default view's centre):** the cup pocket's bezel is now a thick satin-metal frame (about 14 mm, was a 3 mm
+  tube) and its outline overlays the target's almost exactly; a pill pull tab sits on the lid behind it; the tray has a slim satin
+  bezel and one dark slit along its pad (as in the photograph), and its pad is darker (albedo 0.46 -> 0.27: it displayed 225 against 175).
+- **Rear console:** the rear block is 17% narrower (`_hw`) and floats 0.165 m above the carpet (`_console_bottom`); its bottom edge now
+  lands on the target's to the pixel. The rear vent panel is a black pill with four silver pill buttons.
+- **Door cards:** the upper cloth is a new material `INT_Door_Pleat` (the band's colour plus a fine vertical pleat normal map, 8 mm
+  pitch, `pleat_map`; every trim recolours it with the band), and each armrest carries the dark slot with the thin lime line on its
+  inboard face (`_door_armrest`). Door fine-detail energy 0.97 -> 1.48 (target 2.27).
+- **Seats:** front backrests taper to the shoulders (half width 0.276 -> 0.212 over the height; they were a slab), raised rounded pockets
+  on the front seat backs (`_seatback_pocket`, in the band's colour so they read against the shell), a middle headrest on the rear
+  bench, bevels on the backrest's shell and top.
+- Checked in the viewer: pockets, door pleats, seat. NOT checked in the viewer: the rear console and seat-back pockets (both dev servers
+  returned 500 when another session's rebuilds collided with the shared `.next`); they are checked in the Cycles harness only.
+
+Still open: the seats' overall form (the pale face is still two flat panels with a quilted look missing), the two-panel glass roof (needs
+the exterior glass), pleats are a little strong/regular in the viewer (the normal strength is 1.0; 0.6 would be softer), glow on the lime
+slits, per-material light, outside plate, the wheel's spoke pods and silver clamp, the screen's mount.

@@ -159,6 +159,19 @@ def perforation_maps(size=512, pitch_px=32, radius=0.14, strength=10.0):
     return nrm, msk
 
 
+def pleat_map(size=512, n=22, strength=16.0):
+    """Fine vertical pleats for the door cards' upper fabric (Cabin 360: dark pleated cloth between the sill and the pale pod):
+    a soft ridge every 8 mm (0.18 m tile / 22), faded slowly down the panel so it is not a comb."""
+    import numpy as np
+    from carkit import surfacemaps as SM
+    u = np.arange(size, dtype=np.float32) / size
+    v = np.arange(size, dtype=np.float32) / size
+    ridge = (0.5 - 0.5 * np.cos(2.0 * math.pi * n * u)) ** 0.8
+    h = ridge[None, :] * (0.80 + 0.20 * np.sin(2.0 * math.pi * 2.0 * v))[:, None]
+    return SM._image("T_PleatMONA_Normal", SM.height_to_normal(h.astype(np.float32), strength / size * 60.0),
+                     filename="t_pleat_mona_normal.png")
+
+
 def perforated(name, color, maps, tile=0.064):
     m, nt, b = MB.mat(name)
     MB.set_inputs(b, base=color, metallic=0.0, roughness=0.44, specular=0.5, coat=0.10,
@@ -172,9 +185,15 @@ def build_library():
     from carkit import surfacemaps as SM
     maps = SM.build_all()
     maps["perf_vps"], maps["perf_mona_mask"] = perforation_maps()
+    maps["pleat_mona"] = pleat_map()
     lib = IM.build_library(accent=ACCENT_TAN, maps=maps)
     lib["leather_white"] = perforated("INT_Leather_White", CLOUD_BEIGE, maps)
     lib["band_fabric"] = IM.alcantara("INT_Band_Fabric", PERIWINKLE, maps, sheen=0.7)
+    # the door cards' upper cloth: the band's colour with fine vertical pleats (its own name so a trim recolours it with the band)
+    m, nt, b = MB.mat("INT_Door_Pleat")
+    MB.set_inputs(b, base=PERIWINKLE, metallic=0.0, roughness=0.90, specular=0.25, coat=0.0, sheen=0.55)
+    IM._textured(nt, b, maps["pleat_mona"], 0.18, 1.0)
+    lib["door_pleat"] = m
     # smooth (unperforated) pale grey: the console lid, the door pods, the cup recess (c3_0011, c10_0002)
     lib["leather_smooth"] = IM.leather("INT_Leather_Smooth", CLOUD_BEIGE, maps, roughness=0.52, coat=0.04, strength=0.45)
     # the lavender-grey dash and its lower face: soft-touch, one colour from the windscreen to the console (c10_0002/0004)
@@ -193,7 +212,7 @@ def build_library():
     lib["piping_accent"] = m
 
     m, nt, b = MB.mat("INT_Charge_Grey")                # the wireless-charging tray pad: a light rubbery plastic (c10_0002)
-    MB.set_inputs(b, base=(0.46, 0.47, 0.51), metallic=0.0, roughness=0.62, specular=0.35)
+    MB.set_inputs(b, base=(0.27, 0.275, 0.30), metallic=0.0, roughness=0.62, specular=0.35)     # (displayed 225 vs 175 in the panorama)
     lib["charge"] = m
     m, nt, b = MB.mat("INT_Thread_Pale")                # the seats' fine tone-on-tone stitching
     MB.set_inputs(b, base=(0.34, 0.35, 0.40), metallic=0.0, roughness=0.6, sheen=0.3)
@@ -472,7 +491,8 @@ def _front_spec():
     sp["backrest"] = dict(
         # (15 degrees back at the top, as c3_0042/0063 show it; the backrest's rear face then stands at the B-pillar)
         spine=[(0.00, 0.00), (-0.020, 0.092), (-0.058, 0.275), (-0.105, 0.440), (-0.128, 0.505)],
-        half_w=Curve([(0.0, 0.268), (0.42, 0.278), (0.80, 0.268), (1.0, 0.252)], mode="pchip"),
+        # (the first build ran 0.25-0.28 all the way up: a slab. The Cabin 360 seat narrows to the shoulders, half width ~0.215)
+        half_w=Curve([(0.0, 0.268), (0.42, 0.276), (0.68, 0.258), (0.86, 0.232), (1.0, 0.212)], mode="pchip"),
         bolster=Curve([(0.0, 0.55), (0.30, 1.0), (0.62, 0.72), (0.88, 0.30), (1.0, 0.12)], mode="pchip"),
         bolster_h=0.070,
         centre_half=Curve([(0.0, 0.170), (0.55, 0.165), (1.0, 0.150)], mode="pchip"),
@@ -516,6 +536,23 @@ def _backrest_top(spec, origin, y):
     return top, lean
 
 
+def _seatback_pocket(col, lib, spec, org, y, tag, z_rel=0.30, w=0.28, h=0.30):
+    """A raised rounded pocket panel on the backrest's rear face (Cabin 360 back view: a big rounded pocket in the dark shell,
+    its top about 2 cm under the shoulder piping). The shell's rear face stands 0.097 behind the spine."""
+    sp = spec["backrest"]["spine"]
+    sx, lean = sp[-1][0], 0.0
+    for i in range(len(sp) - 1):
+        if sp[i][1] <= z_rel <= sp[i + 1][1]:
+            t = (z_rel - sp[i][1]) / (sp[i + 1][1] - sp[i][1])
+            sx = sp[i][0] + t * (sp[i + 1][0] - sp[i][0])
+            lean = math.atan2(sp[i + 1][0] - sp[i][0], sp[i + 1][1] - sp[i][1])
+            break
+    x_rear = org[0] + sx - 0.097
+    # (a step lighter than the shell, the band's dark steel: the same colour vanished into the shell in the renders)
+    return [F.box(col, "int_seat_%s_Pocket" % tag, (x_rear - 0.002, y, org[2] + z_rel), (0.014, w, h),
+                  lib["band_fabric"], r=0.045, pitch=lean)]
+
+
 def build_seats(col, lib):
     from carkit.interior import seat as SE
     made = []
@@ -524,9 +561,13 @@ def build_seats(col, lib):
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
         org = (FRONT_BIGHT_X, y, FRONT_BIGHT_Z)
         parts, _cush, _back = SE.seat(col, lib, front, org, name="int_seat_" + tag)
+        for ob in parts:                                  # soften the backrest's hard planar edges (the Cabin 360 seat is all curves)
+            if ob.name.endswith(("_Back_Top", "_Back_Shell")):
+                M.bevel(ob, 0.012, 3, 40.0)
         made += parts
         top, lean = _backrest_top(front, org, y)
         made += _headrest(col, lib, "int_seat_%s_Head" % tag, top, lean)
+        made += _seatback_pocket(col, lib, front, org, y, tag)
         made.append(SE.base(col, shroud, org, FLOOR_Z, name="int_seat_%s_base" % tag))
     rear = _rear_spec()
     for tag, y in (("RL", REAR_Y), ("RR", -REAR_Y)):
@@ -540,6 +581,10 @@ def build_seats(col, lib):
     made.append(F.box(col, "int_rear_centre_back",
                       (REAR_BIGHT_X - 0.16, 0.0, REAR_BIGHT_Z + 0.27), (0.12, 0.21, 0.50),
                       lib["leather_white"], r=0.03, pitch=math.radians(-18)))
+    # the real rear seat is a three-seat bench: the middle place gets its own headrest (Cabin 360 rear view)
+    lean_c = math.radians(-18)
+    top_c = Vector((REAR_BIGHT_X - 0.16 + math.sin(lean_c) * 0.25, 0.0, REAR_BIGHT_Z + 0.27 + math.cos(lean_c) * 0.25))
+    made += _headrest(col, lib, "int_seat_RC_Head", top_c, lean_c, w=0.200, h=0.120, t=0.076, r=0.034, gap=0.020)
     made.append(F.box(col, "int_rear_bench_base",
                       (REAR_BIGHT_X + 0.15, 0.0, 0.5 * (FLOOR_Z + REAR_BIGHT_Z - 0.08)),
                       (0.56, 1.32, REAR_BIGHT_Z - 0.08 - FLOOR_Z), lib["satin"], r=0.02))
@@ -578,10 +623,22 @@ def _console_stations():
     return xs
 
 
+def _hw(x):
+    """The console's half width: 0.130 under the lid and the pockets, narrowing to 0.108 at the rear end (Cabin 360 rear
+    view: the rear block is about 20 % narrower than the lid)."""
+    return CONSOLE_HW * (1.0 - 0.17 * _smooth((0.0 - x) / 0.25))
+
+
+def _console_bottom(x):
+    """The console floats: its rear block ends 0.165 m above the floor (the first build ran it down to the carpet)."""
+    return FLOOR_Z + (0.585 - FLOOR_Z) * _smooth((0.06 - x) / 0.18)
+
+
 def _console_section(x, n_arc=5):
     zt = CONSOLE_TOP(x)
-    hw, r = CONSOLE_HW, 0.016
-    pts = [(-hw, FLOOR_Z), (-hw, zt - 0.10), (-hw, zt - r)]
+    hw, r = _hw(x), 0.016
+    zb = _console_bottom(x)
+    pts = [(-hw, zb), (-hw, zt - 0.10), (-hw, zt - r)]
     for k in range(1, n_arc):
         a = math.pi - 0.5 * math.pi * k / n_arc
         pts.append((-hw + r + r * math.cos(a), zt - r + r * math.sin(a)))
@@ -592,7 +649,7 @@ def _console_section(x, n_arc=5):
     for k in range(1, n_arc):
         a = 0.5 * math.pi - 0.5 * math.pi * k / n_arc
         pts.append((hw - r + r * math.cos(a), zt - r + r * math.sin(a)))
-    pts += [(hw, zt - r), (hw, zt - 0.10), (hw, FLOOR_Z)]
+    pts += [(hw, zt - r), (hw, zt - 0.10), (hw, zb)]
     return pts
 
 
@@ -640,8 +697,12 @@ def build_console(col, lib):
     rr = _console_section(xs[0])
     made.append(F.ngon_cap(col, "int_console_rear", [(xs[0] - 0.0005, y, z) for (y, z) in rr],
                            lib["leather_smooth"], (-1.0, 0.0, 0.0)))
+    # the rear vent panel (Cabin 360 rear close-up): a black pill slot with four silver pill buttons in it
     made.append(F.box(col, "int_console_rear_screen", (xs[0] - 0.004, 0.0, 0.790),
-                      (0.006, 0.150, 0.046), lib["satin"], r=0.012))
+                      (0.006, 0.170, 0.050), lib["satin"], r=0.022))
+    for k, yb in enumerate((-0.054, -0.018, 0.018, 0.054)):
+        made.append(F.box(col, "int_console_rear_btn%d" % k, (xs[0] - 0.0075, yb, 0.790),
+                          (0.004, 0.030, 0.014), lib["brushed"], r=0.0055))
     made.append(F.box(col, "int_console_rear_usb", (xs[0] - 0.0045, 0.0, 0.738),
                       (0.006, 0.040, 0.016), lib["satin"], r=0.006))
 
@@ -655,10 +716,13 @@ def build_console(col, lib):
     pn = grid_mesh("int_console_charge", rows, col, lib["charge"])
     M.orient(pn.data, lambda c: (0.0, 0.0, 1.0))
     made.append(pn)
-    rim = [top(x, y, 0.0030) for (x, y) in _rr_pts(0.5 * (tx0 + tx1), 0.0, 0.5 * (tx1 - tx0) + 0.003, thy + 0.003, tr)]
+    rim = [top(x, y, 0.0030) for (x, y) in _rr_pts(0.5 * (tx0 + tx1), 0.0, 0.5 * (tx1 - tx0) + 0.0046, thy + 0.0046, tr)]
     rim.append(rim[0])
-    made.append(tube("int_console_frame", rim, ellipse(0.0030, 0.0030, 8), col, lib["brushed"],
+    # Cabin 360 close-up: the tray's bezel is a slim satin-metal frame (about 5 mm), the pad has one dark slit along its length
+    made.append(tube("int_console_frame", rim, ellipse(0.0046, 0.0026, 10), col, lib["brushed"],
                      lateral=(0.0, 0.0, 1.0)))
+    made.append(F.box(col, "int_console_charge_slit", top(0.5 * (tx0 + tx1) - 0.010, 0.016, 0.0016),
+                      (0.100, 0.0020, 0.0012), lib["satin"], r=0.0005))
     lip = [top(tx1 + 0.004, y, 0.0050) for y in [thy - 2 * thy * k / 14.0 for k in range(15)]]
     made.append(tube("int_console_lip", lip, ellipse(0.0050, 0.0060, 8), col, lib["brushed"],
                      lateral=(0.0, 0.0, 1.0)))
@@ -671,14 +735,19 @@ def build_console(col, lib):
     well = grid_mesh("int_console_cup0", rings, col, lib["leather_smooth"], wrap_t=True)
     M.orient(well.data, lambda c: (cx0 - c[0], cy0 - c[1], 0.5))
     made.append(well)
-    ring = [(x, y, CUP_Z + 0.001) for (x, y) in _rr_pts(cx0, cy0, hx0 + 0.0005, hy0 + 0.0005, r0)]
+    # the cup pocket's bezel is a thick satin-metal frame (about 14 mm wide, chamfered) round the opening, with a pill pull tab
+    # on the lid just behind it (Cabin 360 front panorama, close-up)
+    ring = [(x, y, CUP_Z + 0.001) for (x, y) in _rr_pts(cx0, cy0, hx0 + 0.0050, hy0 + 0.0050, r0 + 0.005)]
     ring.append(ring[0])
-    made.append(tube("int_console_cup_rim0", ring, ellipse(0.0030, 0.0024, 8), col, lib["brushed"],
+    made.append(tube("int_console_cup_rim0", ring, ellipse(0.0075, 0.0030, 10), col, lib["brushed"],
                      lateral=(0.0, 0.0, 1.0)))
+    made.append(F.box(col, "int_console_cup_tab", top(cx0 - hx0 - 0.030, 0.0, 0.0018), (0.014, 0.046, 0.0036),
+                      lib["brushed"], r=0.0055))
 
     # the black gloss strip down each side of the lid
     for side, tag in ((1.0, "L"), (-1.0, "R")):
-        path = [(-0.170 + 0.200 * k / 14.0, side * (CONSOLE_HW + 0.0006), 0.832 - 0.030 * k / 14.0) for k in range(15)]
+        path = [(-0.170 + 0.200 * k / 14.0, side * (_hw(-0.170 + 0.200 * k / 14.0) + 0.0006), 0.832 - 0.030 * k / 14.0)
+                for k in range(15)]
         made.append(tube("int_console_strip" + tag, path, ellipse(0.0068, 0.0026, 8), col, lib["piping_accent"],
                          lateral=(0.0, 0.0, 1.0)))
     # the console belongs to the front cockpit group (see FRONT_DX); every part is baked in model coordinates
@@ -740,7 +809,18 @@ def _door_armrest(dc, name, col, lib, side, path_xz, width=0.068, height=0.048, 
     M.orient(ob.data, lambda c: (0.0, -side, 0.4))
     nrm = [(0.0, 0.0, 1.0)] * len(edge)
     st = stitches(name + "Stitch", edge[3:-3], nrm[3:-3], col, lib["thread_accent"])
-    return [ob, st]
+    # the lit slit on the pod's inboard face (Cabin 360: a long dark slot with a thin lime line in it): a black tube, a lime
+    # tube on it, over the straight middle of the armrest (its ends taper), in the piping accent so a trim recolours it
+    i0, i1 = int(0.18 * n), int(0.80 * n)
+    slot, line = [], []
+    for k in range(i0, i1 + 1):
+        x, z = path[k][0], path[k][2]
+        y0 = dc.skin_y(x, z) - dc.th(z)
+        slot.append((x, side * (y0 - width * 0.985), z - 0.020))
+        line.append((x, side * (y0 - width * 0.985 - 0.0020), z - 0.020))
+    sl = tube(name + "Slot", slot, ellipse(0.0042, 0.0042, 8), col, lib["satin"], lateral=(0.0, 0.0, 1.0))
+    li = tube(name + "Slit", line, ellipse(0.0016, 0.0016, 6), col, lib["piping_accent"], lateral=(0.0, 0.0, 1.0))
+    return [ob, st, sl, li]
 
 
 def build_doors(col, lib):
@@ -760,7 +840,7 @@ def build_doors(col, lib):
                                lambda x: _belt_z(x) - 0.002, x0=xr, x1=xf, mirror=False))
         made.append(dc.band(pre + "Lower", col, lib["leather_smooth"], lambda x: 0.495, pod_bot,
                             x0=xr, x1=xf, nx=52, nz=18, mirror=False))
-        made.append(dc.band(pre + "Rail", col, lib["band_fabric"], pod_top,
+        made.append(dc.band(pre + "Rail", col, lib["door_pleat"], pod_top,
                             lambda x: _belt_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nz=10,
                             edge_round=0.006, mirror=False))
         made.append(dc.band(pre + "White", col, lib["leather_smooth"], pod_bot,
@@ -795,7 +875,7 @@ def build_doors(col, lib):
                                lambda x: _rear_top_z(x) - 0.002, x0=xr, x1=xf, mirror=False))
         made.append(dc.band(pre + "Lower", col, lib["leather_smooth"], lambda x: 0.495, wb,
                             x0=xr, x1=xf, nz=16, mirror=False))
-        made.append(dc.band(pre + "Rail", col, lib["band_fabric"], rb,
+        made.append(dc.band(pre + "Rail", col, lib["door_pleat"], rb,
                             lambda x: _rear_top_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nz=8,
                             edge_round=0.006, mirror=False))
         made.append(dc.band(pre + "White", col, lib["leather_smooth"], wb,
