@@ -14,7 +14,6 @@ import type { ChargeReadout, ChargeRun } from './charge';
 import type { LaunchRun } from './launch';
 import type { SensorsRun } from './sensors';
 import type { RideMode, RideRun } from './ride';
-import type { Suspension } from './drive-suspension';
 import type { Sample } from './kinematics';
 import type { BodyBox, ParkStage } from './park';
 import type { StreetRun, StreetStage } from './street';
@@ -31,8 +30,6 @@ export interface Runtime {
   road?: RoadStage | null;
   /** the ride of a treadmill demo with each suspension (for the chart), and the one on show */
   ride?: { modes: Record<RideMode, RideRun>; mode: RideMode } | null;
-  /** the body's ride on the road (drive-suspension.ts), which the X-ray tab's Suspension card adds to the run's own pitch and roll */
-  suspension?: Suspension | null;
   /** the launch's speed, pull and stopwatch at time t, and the published times it is checked against (its readout) */
   launch?: LaunchRun['launch'] | null;
   /** the fast-charge demo: the gun, the readout and the curve (the car's charging page, the pedestal, the chart) */

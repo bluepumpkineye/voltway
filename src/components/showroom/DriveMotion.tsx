@@ -8,7 +8,6 @@ import { planFor, SHOW_EXIT_S, showBeats, showCards } from '@/lib/xray/show';
 import { driveAnchors, targetsOf } from '@/lib/tech/drive-anchors';
 import { layoutCards, type Placed, type Slot } from '@/lib/tech/drive-layout';
 import { clamp, countTo, Easing, fmt, progress, spring, SPRINGS } from '@/lib/tech/motion';
-import { withRide } from '@/lib/tech/drive-suspension';
 import { useRuntime } from '@/lib/tech/session';
 import { BELOW_TOP } from './Chrome';
 import { useDriveSetup } from './Drive';
@@ -189,8 +188,6 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
   const setup = useDriveSetup(vehicle);
   const runtime = useRuntime();
   const facts = runtime?.launch?.drive ?? null;
-  // the body's ride on the road, which the Suspension card shows on top of the run's own squat and lean
-  const suspension = runtime?.suspension ?? null;
   const reduced = useReducedMotion();
   const vh = useViewportHeight();
   // the show is the run and the exit (the car driving away): the run's own telemetry ends where the exit begins
@@ -222,8 +219,7 @@ export function DriveMotion({ vehicle, column }: { vehicle: Vehicle; column: boo
   const raw = openAt(plan, overlays, t);
   // reduced motion: a card is open or shut, with no in-between to watch
   const open = (o: DriveOverlay) => (reduced ? (raw[o] > 0.5 ? 1 : 0) : raw[o]);
-  const run = facts.telemetry(Math.min(t, runDur));
-  const tel = suspension ? withRide(run, suspension, t) : run;
+  const tel = facts.telemetry(Math.min(t, runDur));
 
   const introExit = column && vh >= 800 ? Easing.inOutQuad(progress(t, shape.launch + 2.4, 0.5)) : 1;
   const introShown = introExit < 1;

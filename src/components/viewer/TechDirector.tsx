@@ -85,9 +85,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     [xrayShow, showRun, driveRun, driveMode, driveLoad, driveBrake, driveSurface, driveGrade, rivalSlug],
   );
 
-  // the body on its springs over the road (src/lib/tech/drive-suspension.ts), built with the run and read by the clock
+  // the body on its springs over the road (src/lib/tech/drive-suspension.ts), built with the run and read by the clock; null on the X-ray tab's Play
   const suspension = React.useRef<Suspension | null>(null);
-  // the camera shake (src/lib/tech/drive-shake.ts): when the car first moves, on the Drive tab; null where there is none
+  // the camera shake (src/lib/tech/drive-shake.ts): when the car first moves, on the Drive tab; null where there is none (never on the X-ray tab)
   const shakeFrom = React.useRef<number | null>(null);
 
   const demos = React.useMemo(() => visibleDemos(vehicle), [vehicle]);
@@ -164,9 +164,10 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     techClock.load(track.duration + exitS, { play: intent || (built.autoplay && motionOk()), stops: built.stops });
     if (intent) st.clearTechIntent();
 
-    // the suspension at work: every demo where the car drives on a road that rolls under it (the Drive tab, Play, the launch, Autonomous Drive) has the
+    // the suspension at work: every demo where the car drives on a road that rolls under it (the Drive tab, the launch, Autonomous Drive) has the
     // body answer the road, apart from the Magic Carpet's, whose whole point is the ride it compares; the run's own distance is the road's pace, the
-    // exit's metres after it. A visitor who asks for less motion gets none.
+    // exit's metres after it. A visitor who asks for less motion gets none. Not the X-ray tab's Play: it is there to show how steady these cars are, so
+    // the body holds level on the salt flat (only the run's own squat and lean move it)
     const tm0 = built.treadmill;
     const lay0 = rig.layout;
     const runEnd = track.duration;
@@ -174,7 +175,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
     // how far the car has gone along the road at t: the run's scroll, then the exit's metres
     const distance = (t: number) => (!tm0 ? 0 : t <= runEnd || exitS <= 0 ? tm0.scroll(Math.min(t, runEnd)) : atEnd + exitAt(exitInfo, t, exitPull.a0, v0, exitInfo.accel ? undefined : v0).x);
     suspension.current = null;
-    if (tm0 && !tm0.ride && lay0 && motionOk()) {
+    if (tm0 && !tm0.ride && lay0 && !xrayShow && motionOk()) {
       const own = built.spec.driver === 'drive' ? driveSetup(vehicle, { variantId, modeId: driveSelection.modeId, loadId: driveSelection.loadId }).input : null;
       suspension.current = simulateSuspension(
         { wheelbase: lay0.wheelbase, track: Math.abs(lay0.wheels.FL.y - lay0.wheels.FR.y) },
@@ -183,7 +184,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
         tuneOf(own?.squatScale, own ? own.massKg / own.refMassKg : 1),
       );
     }
-    // the camera shakes a little after the car has first moved (the Drive tab's: not Play, which has its own camera work)
+    // the camera shakes a little after the car has first moved (the Drive tab's only: the X-ray tab's Play is steady, and has its own camera work)
     shakeFrom.current = tm0 && st.tab === 'drive' && !xrayShow && motionOk() ? firstMove(distance, track.duration + exitS) : null;
 
     const { bounds } = stage ?? track.stats;
@@ -239,7 +240,6 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       body: built.body,
       road: built.treadmill?.road ?? null,
       ride: built.treadmill?.ride ?? null,
-      suspension: suspension.current,
       launch: built.treadmill?.launch ?? null,
       charge: built.charge ?? null,
       sensors: built.sensors ? built.sensors.scenario : null,

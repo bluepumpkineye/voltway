@@ -1430,8 +1430,8 @@ not move under it), and the motion fades as it slows. Added in TechDirector's fr
 **What follows the car's set-up.** `tuneOf(squatScale, massRatio)`: bounce 1.25 Hz, pitch 1.55, roll 1.75, damping 0.28 for Comfort; Sport (`squatScale` 0.85) and Track are firmer (higher frequencies, more damping), Eco about
 the same as Comfort, a heavier load (the Drive tab's +100 kg) rides lower on the same springs. Where the demo is not the Drive tab (Autonomous Drive, the launch) Comfort is used.
 
-**Where it is on.** Every demo where the road rolls under the car (`treadmill`) except the Magic Carpet, whose whole point is the ride it compares (it has `treadmill.ride`): the Drive tab, the X-ray tab's Play, the launch
-demo and Autonomous Drive, on all ten cars. Not on the parking and street demos (`park`, `chassis`, `uturn`), where the car crawls. `prefers-reduced-motion` turns it off (the build skips it).
+**Where it is on.** Every demo where the road rolls under the car (`treadmill`) except the Magic Carpet, whose whole point is the ride it compares (it has `treadmill.ride`): the Drive tab, the launch
+demo and Autonomous Drive, on all ten cars (the X-ray tab's Play had it for a day and has not since 2026-11-18: see the last follow-up). Not on the parking and street demos (`park`, `chassis`, `uturn`), where the car crawls. `prefers-reduced-motion` turns it off (the build skips it).
 
 **What is ours.** Nothing here is published: no maker gives ride frequencies. The numbers are textbook, and the motion is DRAWN LARGER than a real car's (`DRAWN` = 2.0: about 8 mm rms of heave and 0.2 degrees of pitch
 and roll at 100 km/h, joints up to about 20 mm; the model's own is 3.7 mm). The first version drew it 3.4 times (12 mm, 0.3 degrees, joints 35 mm) and the owner found it exaggerated, so it was turned down the same day, as the corner's lean and the S-curve's steering are, since a real car's few millimetres are not seen from a camera beside it. Each
@@ -1491,6 +1491,17 @@ agrees with drive-run's `[-pm - rm, -pm + rm, pm - rm, pm + rm]` for pitch and r
 card they are ours, not the maker's. The chip's "+-N mm" is the largest of the four. A pure function of the playhead like the rest, so a scrub draws the same springs; with reduced motion, where the body does not ride, the card
 does not either. Only the X-ray tab's Play shows the cards (the Drive tab has none). Checked in the pane on the 7X's Play: the card is up from 18 s to 23 s (the stop), its roll now reads +-0.2 degrees where it read 0.0, and its
 four springs change from frame to frame with the body (for example +15 +17 +7 +8 mm at 18 s, +44 +49 -31 -27 mm at 20 s, in the stop's dive). `suspension-test.mjs` has seven more checks (signs, the agreement, `withRide`).
+**Taken out again on 2026-11-18** with the ride itself (next follow-up): `withRide`, `cornerTravel`, `Runtime.suspension` and their checks are gone; the card reads the run's own readout again.
+
+### Follow-up (2026-11-18): the X-ray tab is steady
+
+**Request.** "The suspension and the shaky animation on the X-ray scene are not good: we are promoting the steadiness of Chinese EV suspension. Remove them from the X-ray scene for all cars."
+
+**What changed.** The X-ray tab's Play (`xrayShow`) no longer builds the ride: `TechDirector` skips `simulateSuspension` for it, so `rig.state.heave/pitch/roll` carry only the run's own squat and lean (the nose lifting
+under the pedal, the exit's pull), and the body holds level on the salt flat at a steady speed. The camera shake was never on in Play (`shakeFrom` is set for the Drive tab only), and it stays that way. The Suspension card's
+hookup to the ride (`withRide`) went with it, since Play was the only place that card was shown: it reads the run's own corner travel again. The exploded view's Suspension *system* clip (a wheel travelling on its
+solved wishbone, fx.ts `suspensionClip`) is a different thing, an anatomy demo from the X-ray tab's first version, and is untouched. The Drive tab, the launch demo and Autonomous Drive keep the ride and the Drive tab
+keeps the shake.
 
 ## 32. The Drive road in the Shanghai HDRI (2026-11-17, a test on the SU7 Ultra)
 
