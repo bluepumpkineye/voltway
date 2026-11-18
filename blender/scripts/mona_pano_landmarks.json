@@ -1,0 +1,98 @@
+{
+  "_doc": "Mona L05 interior landmarks read from XPENG's Cabin 360 panoramas (xpeng.guru, light-grey trim; front = camera at the driver's head, back = camera at the rear-seat centre). yaw/pitch in degrees, yaw 0 = forward, yaw > 0 = right, pitch up (scripts/photo-tools/pano.cjs). model = the landmark in OUR cabin (x forward, y left, z up) where our model has it; omitted when only the photo is read. See scripts/photo-tools/pano_solve.cjs. Our screen leans back by 12 deg (top further FORWARD): glass top x 0.5692, bottom x 0.5245. 2026-11-18 (Phase 2): the screen and wheel now stand FRONT_DX = 0.17 further forward in mona_interior.py, and the wheel is at y 0.366, so their model coordinates here moved with them.",
+  "scr_TL": {
+    "model": [
+      0.7392,
+      0.1915,
+      1.2404
+    ],
+    "front": {
+      "yaw": 13.318,
+      "pitch": -4.683
+    },
+    "back": {
+      "yaw": -6.413,
+      "pitch": -3.469
+    }
+  },
+  "scr_TR": {
+    "model": [
+      0.7392,
+      -0.1915,
+      1.2404
+    ],
+    "front": {
+      "yaw": 36.611,
+      "pitch": -3.88
+    },
+    "back": {
+      "yaw": 6.463,
+      "pitch": -3.468
+    }
+  },
+  "scr_BR": {
+    "model": [
+      0.6945,
+      -0.1915,
+      1.0301
+    ],
+    "front": {
+      "yaw": 39.472,
+      "pitch": -17.662
+    },
+    "back": {
+      "yaw": 6.58,
+      "pitch": -10.771
+    }
+  },
+  "wheel_logo": {
+    "model": [
+      0.496,
+      0.366,
+      1.1103
+    ],
+    "front": {
+      "yaw": -0.063,
+      "pitch": -20.997
+    },
+    "back": {
+      "yaw": -14.208,
+      "pitch": -9.04
+    }
+  },
+  "rim_left": {
+    "front": {
+      "yaw": -17.825,
+      "pitch": -18.844
+    }
+  },
+  "rim_right": {
+    "front": {
+      "yaw": 17.825,
+      "pitch": -18.437
+    }
+  },
+  "rim_top": {
+    "front": {
+      "yaw": -0.093,
+      "pitch": -6.656
+    }
+  },
+  "rim_bottom": {
+    "front": {
+      "yaw": 0.621,
+      "pitch": -34.896
+    }
+  },
+  "scr_BL": {
+    "model": [
+      0.6945,
+      0.1915,
+      1.0301
+    ],
+    "back": {
+      "yaw": -6.58,
+      "pitch": -10.771
+    }
+  }
+}

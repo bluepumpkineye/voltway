@@ -138,6 +138,12 @@ export interface OutsideWorld {
   /** Where the HDRI was shot from, and the dome its ground is projected on, m. */
   ground: { height: number; radius: number };
   /**
+   * The Drive tab's road in this world (City scene): the HDRI stands far behind the road instead of at the studio's 45 m. `radius` is where the dome
+   * stands, m (the strip of road is 280 m long); `haze` is the colour the scenery, the verges and the exit's fog go into at a distance, the
+   * horizon of the photograph (the studio's white is the haze of the studio). Left out, the road keeps the near dome.
+   */
+  road?: { radius: number; haze: string };
+  /**
    * false: the world is only the view out of the cabin (and the light the
    * cabin was baked under); outside, the car stays in the studio. Default true.
    */

@@ -217,6 +217,17 @@ FAILURES = {
         fix="Cut every object that runs across a door width at the door's shut lines (at the strip's own height) with "
             "_split_off, add the pieces to the door's ROWS entry and call the split before split_doors(); verify with "
             "blender/scripts/porting/door_probe.py -- <car> (must report 0) and by opening all four doors in the viewer."),
+    "seats_behind_b_pillar": dict(
+        looks_like="With a front door open (or from the side) the front seat cushion sits in the REAR half of the door opening "
+                   "and the front headrests show through the REAR door glass; the Interior tab's camera is inside a headrest "
+                   "(a full-screen wall of perforated leather). Reported on most new cars (06T, ES8, Mona).",
+        cause="FRONT_BIGHT_X / REAR_BIGHT_X, the console's rear end and assets.driverEye are copied from the donor car's cabin "
+              "module, whose B-pillar was elsewhere (Voyah -0.24; the Mona's door split is -0.16); the straight-on cabin photo "
+              "cannot pin seat depth.",
+        fix="Read the door lines (<car>_panels._DOOR_F_EDGE/_DOOR_SPLIT_EDGE/_DOOR_R_EDGE at z 1.0), set front bight = split + "
+            "0.19, rear bight = front bight - 0.97, driverEye.x = bight + 0.03 (+ assets.driverView out -0.41 so the "
+            "Interior tab looks from between the seats), shorten the console to end about 0.28 behind the bight, "
+            "re-export the cabin and hmi_cabin(); docs/3d-pipeline.md section 3.1 rule 4."),
     "next_chunk_locked": dict(
         looks_like="Next.js dev server errno -4094 or a locked .next chunk on Windows.",
         cause="A wedged dev server holding the .next folder.",

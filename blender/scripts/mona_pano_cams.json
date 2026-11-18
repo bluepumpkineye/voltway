@@ -1,0 +1,19 @@
+{
+  "_doc": "Where the XPENG Cabin 360 cameras stand in OUR Mona cabin frame (x forward, y left, z up), solved by scripts/photo-tools/pano_solve.cjs from the SCREEN corners alone (mona_pano_landmarks.json; our screen_main, 17.3 in, 0.383 x 0.215, top leaning forward 12 deg, is the only anchor, so every other part reads RELATIVE to the screen). front = the driver's head: rms 0.51 deg over 3 corners; back = rear-seat centre, rms 0.05 deg over 4 corners, on the centre line (y 0.001). The wheel logo is held out of both solves: it lands 41-52 mm further toward the driver in our model in BOTH panos. Both panos look along +x (yaw offset 0). The first solve (front -0.215 0.400 1.316, back -1.205 0.005 1.357) also used our wheel logo and was biased by our own wheel position. Phase 2: both x values moved +0.17 with the screen (FRONT_DX in mona_interior.py); the front camera now stands AHEAD of our driver headrest face, 0.13 m, where a render camera at the driver eye should.",
+  "front": {
+    "pos": [
+      0.012,
+      0.361,
+      1.304
+    ],
+    "yaw_offset_deg": 0
+  },
+  "back": {
+    "pos": [
+      -0.957,
+      0.001,
+      1.345
+    ],
+    "yaw_offset_deg": 0
+  }
+}

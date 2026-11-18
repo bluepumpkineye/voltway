@@ -170,7 +170,7 @@ function Stage({
       {show ? (
         <XrayWorld vehicle={vehicle} reflections={reflections} />
       ) : city && outside ? (
-        <OutsideWorld world={outside} inside={inside} eye={eye} />
+        <OutsideWorld world={outside} inside={inside} eye={eye} road={driving ? outside.road : undefined} />
       ) : (
         <StudioShowroom reflections={reflections && !hill} inside={inside} hill={hill} rig={rigOf(vehicle)} />
       )}

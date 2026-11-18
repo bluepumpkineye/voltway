@@ -3,7 +3,8 @@
  *
  * The art direction is taken from a recording of a maker's showroom wall (its chassis film): a slow, low camera that stays on the hardware,
  * hard flies between shots (a whip, about a second), the wheels and the pack seen from the side as the ground streams past, then a long
- * pulled-back chase and a last three-quarter view as the car stops. Then the camera freezes, behind the car, and the car drives off and is lost in the haze. The pictures are our own 3D, drawn live for whichever car is open; nothing
+ * pulled-back chase and a last three-quarter view as the car goes on. Then the camera freezes, behind the car, and the car pulls away and is lost in the haze. The drive does not stop on the way:
+ * the Play's run has no brake (TechDirector), so the stop shot below is for a run that has one. The pictures are our own 3D, drawn live for whichever car is open; nothing
  * here is the maker's footage.
  *
  * The shots are timed on the run's own moments (the pull, the pace it then holds, the brake: `DriveFacts.events`), so the camera is on the
@@ -90,14 +91,14 @@ const STOP: Shot[] = [
 ];
 /** The last shot of a run that does not end in a stop (its scenario ends in a manoeuvre of its own): the same view, named for what is on screen. */
 const FINISH: Shot = { id: 'finish', kicker: 'Drive', title: 'On the move', system: null, share: 1, from: P(30, 8, 1.55, 0.0, 0.28), to: P(52, 10, 1.65, 0.0, 0.28) };
-/** The last shot: the camera flies behind the stopped car, freezes there (it is the world's, it does not follow the car) and the car drives away from it. */
+/** The last shot: the camera flies behind the car, freezes there (it is the world's, it does not follow the car) and the car drives away from it. */
 const EXIT: Shot = { id: 'exit', kicker: '', title: '', system: null, share: 1, from: P(171, 6, 1.2, 0.0, 0.24), to: P(171, 6, 1.2, 0.0, 0.24) };
 
-/** The run's least length (`DriveSelection.minRunS`) when it is played on the X-ray tab, s: the longer run gives each shot and each card time to be read (a run is about 3 s longer than this, and with the exit the show is about 30 s) */
-export const SHOW_RUN_S = 22;
-/** The drive-away that ends the show, s, after the run's own stop */
+/** The run's length (`DriveSelection.minRunS`) when it is played on the X-ray tab, s: the longer run gives each shot and each card time to be read (the run holds its pace to this length and does not stop, and with the exit the show is about 30 s) */
+export const SHOW_RUN_S = 25;
+/** The drive-away that ends the show, s, after the end of the run */
 export const SHOW_EXIT_S = 5.5;
-/** the exit's camera starts to fly this long before the run's end, while the car is still stopped, s */
+/** the exit's camera starts to fly this long before the run's end, while the car is still at its place on the road, s */
 const EXIT_LEAD = 1.3;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));

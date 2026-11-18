@@ -86,6 +86,8 @@ export const xiaomiSu7Ultra: Vehicle = {
       exteriorTurnDeg: 147.6,
       sun: { direction: [0.6959, 0.3477, 0.6284], color: '#ffdfae', intensity: 1.96 },
       ground: { height: 1.7, radius: 45 },
+      // the Drive tab's road: the Shanghai riverside seen from far off, the scenery going into the photograph's horizon (sampled off the view, tuned in the pane)
+      road: { radius: 600, haze: '#8d9296' },
     },
     // its shadow on the studio floor: blender/scripts/export_gltf.py bake_ground_shadow(),
     // which prints the size and centre (the build's axes, metres)

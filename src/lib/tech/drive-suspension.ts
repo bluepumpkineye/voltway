@@ -27,6 +27,8 @@
  * body's motion against its wheels, to be added to the squat and the lean that are already there.
  */
 
+import type { DriveTelemetry } from './drive-run';
+
 export interface SuspensionCar {
   /** m */
   wheelbase: number;
@@ -50,6 +52,8 @@ export interface Motion {
 }
 
 export interface Suspension {
+  /** the car it was run for: the card turns the body's motion into each corner's travel with its wheelbase and track */
+  car: SuspensionCar;
   sample: (t: number) => Motion;
   /** the largest the run draws: heave m, pitch and roll rad */
   peak: Motion;
@@ -292,8 +296,40 @@ export function simulateSuspension(car: SuspensionCar, distance: (t: number) => 
   };
   const mean = (sum: number) => Math.sqrt(sum / Math.max(1, count));
   return {
+    car,
     sample: (t) => ({ heave: at(H, t), pitch: at(P, t), roll: at(R, t) }),
     peak: { heave: peakH, pitch: peakP, roll: peakR },
     rms: { heave: mean(sumH), pitch: mean(sumP), roll: mean(sumR) },
+  };
+}
+
+// ----------------------------------------------------------------------------------------------- the readout
+
+const DEG = Math.PI / 180;
+
+/**
+ * What each spring is doing, in mm, for a body motion: FL, FR, RL, RR, positive where the spring is compressed (the body has come down on its wheel) and
+ * negative where it has extended, the sign the X-ray tab's Suspension card uses (`DriveTelemetry.corner`). A corner of the body stands `heave + x pitch - z roll`
+ * above its wheel (x forward, z to the right: nose up lifts the front, leaning right lowers the right side), and the spring is compressed by the opposite.
+ */
+export function cornerTravel(car: SuspensionCar, m: Motion): [number, number, number, number] {
+  const a = car.wheelbase / 2;
+  const hw = car.track / 2;
+  const travel = (x: number, z: number) => -(m.heave + x * m.pitch - z * m.roll) * 1000;
+  return [travel(a, -hw), travel(a, hw), travel(-a, -hw), travel(-a, hw)];
+}
+
+/**
+ * The run's own readout with the road's ride on it at `t`: the springs' travel, the body's pitch and its roll, so that the card shows the body that is on the
+ * screen (the run's squat and lean, and the ride drawn on top of them). The figures are the drawn motion (`DRAWN`), as the picture is.
+ */
+export function withRide(tel: DriveTelemetry, sus: Suspension, t: number): DriveTelemetry {
+  const m = sus.sample(t);
+  const ride = cornerTravel(sus.car, m);
+  return {
+    ...tel,
+    pitchDeg: tel.pitchDeg + m.pitch / DEG,
+    rollDeg: tel.rollDeg + m.roll / DEG,
+    corner: [tel.corner[0] + ride[0], tel.corner[1] + ride[1], tel.corner[2] + ride[2], tel.corner[3] + ride[3]],
   };
 }

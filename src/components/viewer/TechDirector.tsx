@@ -66,7 +66,9 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   // the rival beside the car is the one the chart sets against it: the visitor's pick, else the scenario's
   const rivalSlug = driveRival ? (driveGhost ?? vehicle.drive?.ghost?.slug ?? '') : '';
   // the X-ray tab's Play drives the same engine: the car's longest standing start that takes ten seconds or less (0-200 where it has a time for it, else 0-100) at its
-  // standard power, the driver alone, the pace it then holds and a stop at the end, on the salt flat (level and dry)
+  // standard power, the driver alone and the pace it then holds, on the salt flat (level and dry). It does not stop: the drive is continuous into the exit, where the
+  // car carries on and pulls away (the owner found the stop and the set-off again strange); `hold` keeps the speed the pull reached to the run's end, where the scenario's
+  // own finish would have the car slow down to a cruise of its own
   const xrayShow = useVehicleStore((s) => s.tab === 'xray' && s.xrayShow);
   const showRun = React.useMemo(() => {
     const runs = driveSetup(vehicle, { variantId }).runs.filter((r) => r.from === 0);
@@ -78,7 +80,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
   const driveSelection = React.useMemo(
     () =>
       xrayShow
-        ? { runId: showRun, modeId: null, loadId: null, brake: true, surface: null, grade: null, rival: null, minRunS: SHOW_RUN_S }
+        ? { runId: showRun, modeId: null, loadId: null, brake: false, hold: true, surface: null, grade: null, rival: null, minRunS: SHOW_RUN_S }
         : { runId: driveRun, modeId: driveMode, loadId: driveLoad, brake: driveBrake, surface: driveSurface, grade: driveGrade, rival: rivalSlug || null },
     [xrayShow, showRun, driveRun, driveMode, driveLoad, driveBrake, driveSurface, driveGrade, rivalSlug],
   );
@@ -237,6 +239,7 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
       body: built.body,
       road: built.treadmill?.road ?? null,
       ride: built.treadmill?.ride ?? null,
+      suspension: suspension.current,
       launch: built.treadmill?.launch ?? null,
       charge: built.charge ?? null,
       sensors: built.sensors ? built.sensors.scenario : null,

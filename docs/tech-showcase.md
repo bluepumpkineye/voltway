@@ -1442,7 +1442,7 @@ further than that, so the tyre is never nearer its arch than it has been.
 (the car's place and the body's own heave, pitch and roll), so the dash stays put in the picture and it is the road that shakes. In a corner the view now leans with the body (4 degrees at most, as the exterior does).
 Checked in the pane: the camera's position in the body's frame is the same to a millimetre from 6 s to 14 s while it moves 25 mm in the car's.
 
-**Not done.** The suspension card (X-ray tab) still reads the spring travel from the run's own pitch and roll, so its corner figures do not show the road's ride; a baked Blender version (an armature per car) was not
+**Not done.** (The X-ray tab's Suspension card, left out at first, was added later the same day: see the last follow-up below.) A baked Blender version (an armature per car) was not
 made, and the exterior's baked shadow and the Autonomous Drive sensors' fans stay on the floor (a few millimetres). The Rival car (dead code) does not ride.
 
 **Tools.** `scripts/tech-tools/suspension-test.mjs` (`check`: 14 tests, a standing car is still, more speed more ride, Sport firmer than Comfort, deterministic and scrub-safe, no jump at the start, bump stops, 60 s
@@ -1478,3 +1478,37 @@ of their size, so the pan wanders at most 0.69 degrees (rms 0.27) and the tilt 0
 moves it more than 0.07 degrees (about 2 px). Timing, delay and the speed rule are as before. (2) The shake goes with the car: `shakeLeave(x)` fades it out as the car drives off in the exit, from 10 m to 80 m from
 where the run ended (the haze has the car by about 110 m), so nothing shakes over an empty road; read in the pane on the 7X: 18 px at 17 m, 0.1 px at 50 m, 0 from 83 m. `shake-test.mjs` has 19 checks. If it is
 still too much, lower `gain`; 0.15 is about a third of a pixel per frame and still shows.
+
+### Follow-up (2026-11-17, later still): the ride on the X-ray Suspension card
+
+**Request.** "Add the suspension to the X-ray suspension card."
+
+The card (showroom/driveTiles.tsx `SuspensionBody`: four springs, each drawn as long as its travel, the figure in mm, a note with the roll) read `DriveTelemetry.corner`, which drive-run.ts makes from the run's own pitch and
+roll only: during a cruise the springs stood still while the car on the screen bobbed. Now the card shows the body that is on the screen. `techSession`'s `Runtime` carries the director's `suspension` (the same sampler
+that moves the body); `DriveMotion` passes the run's readout through `withRide(tel, suspension, t)` (drive-suspension.ts) before it builds each card's context, which adds `cornerTravel(car, motion)` to the four corners and the
+ride's pitch and roll to `pitchDeg` and `rollDeg`. `cornerTravel` is the card's own sign (+ compressed, - extended): a corner stands `heave + x pitch - z roll` above its wheel, the spring is compressed by the opposite, and it
+agrees with drive-run's `[-pm - rm, -pm + rm, pm - rm, pm + rm]` for pitch and roll alone (tested). The figures are the DRAWN motion (`DRAWN` = 2.0), as the picture is, so the numbers and the arches agree; like the rest of the
+card they are ours, not the maker's. The chip's "+-N mm" is the largest of the four. A pure function of the playhead like the rest, so a scrub draws the same springs; with reduced motion, where the body does not ride, the card
+does not either. Only the X-ray tab's Play shows the cards (the Drive tab has none). Checked in the pane on the 7X's Play: the card is up from 18 s to 23 s (the stop), its roll now reads +-0.2 degrees where it read 0.0, and its
+four springs change from frame to frame with the body (for example +15 +17 +7 +8 mm at 18 s, +44 +49 -31 -27 mm at 20 s, in the stop's dive). `suspension-test.mjs` has seven more checks (signs, the agreement, `withRide`).
+
+## 32. The Drive road in the Shanghai HDRI (2026-11-17, a test on the SU7 Ultra)
+
+**Request.** "Let's try to use the HDRI asset (Poly Haven) for our drive scene. Can you wire the roads to the Shanghai city HDRI? Let's try with one model first, test and adjust."
+
+**The asset.** Poly Haven's Shanghai Riverside (CC0, sunrise-sunset, clear sky, a plaza and a river with a skyline across it). It was already the SU7's world (`outside` in xiaomi-su7-ultra.ts; `blender/textures/hdri/shanghai_riverside_4k.hdr` is the 4k source, `public/models/su7-ultra-outside.jpg` the tone-mapped
+view and `su7-ultra-outside-light.hdr` the light derived from it), so nothing was downloaded. The other Shanghai HDRI on Poly Haven is Shanghai Bund (night, neon; 24 MB at 4k, 6 MB at 2k, by Greg Zaal); it is not in the project.
+
+**What the City scene did on the Drive tab before.** It put the studio's near dome (the photo projected on a ground 45 m away) behind a road that is 280 m long and whose haze went into the studio's WHITE: the skyline stood a few dozen metres off, the road ran through it, and the horizon was a white band. Lighting and the car's reflections were
+already the HDRI's.
+
+**What it does now (the Drive tab, City scene, cars whose `outside` has a `road`: the SU7 only).** `OutsideWorld.road = { radius, haze }` (schema.ts):
+- **The dome stands `radius` m off** (600 for the SU7, the strip is 280 m long): the skyline, the bridge, the sky and the plaza are behind the road, at the angular size the photograph has. The dome is not in the exit's fog (a dome 600 m off would turn to the fog's colour as it closes in).
+- **The camera sees that far.** The canvas's far plane is 180 m, which clipped the dome; while the road world is up OutsideWorld raises it to 1.35 x the radius (810) and puts it back on leaving. Near is unchanged, so the depth buffer's precision at the road is too.
+- **The haze is the horizon's.** `STAGE_HAZE` (StudioShowroom.tsx, the studio's white by default) is the colour the far scenery (`useHaze`, the kit's `uHazeColor`), the verges' fade and the exit's fog (`DriveFog`) go into; the road world sets it to `road.haze` (the SU7: `#8d9296`, from `scripts/tech-tools/hdri-horizon.mjs`, the sky just above the skyline on the side the road looks toward)
+  and the Studio scene puts the white back. It follows the dusk like the white did.
+- Not changed: the Studio scene (checked: far 180, white haze), the cabin camera (the seat's view already had the photograph as its background; the road now runs into the same horizon), the wet road (its mirror now shows the skyline, the bridge and the sky: much better than the studio's), the hills (the road tilts against a flat dome, as before).
+
+**Looked at in the pane (SU7).** Dry, wet, and a hill, in the hero, chase and cabin cameras, and the low cameras that look down the road (the stage's own cameras look down at the car, so the horizon is out of the picture: it is seen from the cabin, from a camera the visitor lowers, and in the wet road's mirror). The skyline is behind the road in the four directions the road can be seen toward, the sun is low and warm.
+
+**To roll it out to another car:** add `road: { radius: 600, haze: '#......' }` to its `outside`, with the haze from `node scripts/tech-tools/hdri-horizon.mjs public/models/<car>-outside.jpg`; look at it from the chase, the cabin and the wet road. A car with no `road` keeps the near dome. **Tune** in the pane: `road.haze` (the seam where the strip ends), `radius` (how large the skyline is behind the road; its ground is a few pixel rows stretched, hidden by the haze past about 300 m), and the world's turn (`exteriorTurnDeg`, shared with the exterior view).

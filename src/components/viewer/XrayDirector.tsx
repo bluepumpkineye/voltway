@@ -176,7 +176,7 @@ export function XrayDirector({ vehicle }: { vehicle: Vehicle }) {
         let power = Math.abs(tel.powerKw) / peak;
         let regen = tel.powerKw < 0;
         if (techClock.t > techClock.duration - SHOW_EXIT_S) {
-          // the exit: the car sets off again, the motors take the load of the pull and let go as it settles to its pace
+          // the exit: the car pulls away from the pace it was holding, the motors take the load of the pull and let go as it settles to its top speed
           const ex = exitAt(exitSpec, techClock.t, exitPull.a0, f.telemetry(techClock.duration - SHOW_EXIT_S).speed / 3.6);
           speed = ex.v * 3.6;
           power = 0.12 + 0.6 * ex.pull * (ex.v > 0 ? 1 : 0);

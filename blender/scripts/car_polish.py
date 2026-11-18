@@ -20,6 +20,7 @@ SMOOTH = r"int_wheel_(rim|stalk|mark|X\d|U)"
 
 CARS = {
     "vps": ("vps_interior", "VOYAH_PASSION_S_WHEEL", ()),
+    "mona": ("mona_interior", "MONA_WHEEL", ()),
     "rx": ("rx_interior", "LUXEED_RX", ("mode",)),                  # the BOOST button
     "es8": ("es8_interior", "NIO_ES8_WHEEL", ()),
     "z9": ("z9_interior", "DENZA_WHEEL", ()),

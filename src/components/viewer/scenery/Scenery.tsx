@@ -4,7 +4,7 @@ import React from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useDusk } from '../Lights';
-import { STAGE_LAYER, STUDIO_WHITE } from '../StudioShowroom';
+import { STAGE_HAZE, STAGE_LAYER } from '../StudioShowroom';
 import { buildRow, type RowSpec } from './buildings';
 import { hazeUniforms, rng, setHaze, withBend, withHaze } from './kit';
 import { propGeometry, signFaces, type PropKind } from './props';
@@ -21,16 +21,15 @@ export function onStage(o: THREE.Object3D | null) {
   o?.layers.set(STAGE_LAYER);
 }
 
-const WHITE = new THREE.Color(STUDIO_WHITE);
 const WARM_LIFT = new THREE.Color('#7a8c72');
 
-/** Keeps the haze's colour the room's white at its dusk. Call once in any scenery that uses `withHaze`. */
+/** Keeps the haze's colour the stage's (the room's white, or the horizon of the world the road is in) at its dusk. Call once in any scenery that uses `withHaze`. */
 export function useHaze(height?: [number, number], amount = 1) {
   React.useEffect(() => {
     if (height) hazeUniforms.uHazeY.value.set(height[0], height[1]);
     hazeUniforms.uHazeAmount.value = amount;
   }, [height, amount]);
-  useDusk((d) => setHaze(d.room, WHITE));
+  useDusk((d) => setHaze(d.room, STAGE_HAZE));
 }
 
 export interface Spot {

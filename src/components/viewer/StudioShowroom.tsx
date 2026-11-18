@@ -30,6 +30,11 @@ const onStage = (o: THREE.Object3D | null) => {
 
 /** The renderer's clear colour (alpha 0): what the mirror shows where nothing is. */
 export const STUDIO_WHITE = '#f1f2f4';
+/**
+ * The colour the stage's far scenery, its verges and the Drive tab's exit fog go into: the studio's white, or the horizon of the world the road is
+ * drawn in (OutsideWorld's `road`). One colour for all of them, set by the world that is up and read every frame by `useHaze` and `DriveFog`.
+ */
+export const STAGE_HAZE = new THREE.Color(STUDIO_WHITE);
 const FLOOR = '#e9eaed';
 const FLOOR_RADIUS = 22;
 /** How much of the floor colour the reflection replaces. */

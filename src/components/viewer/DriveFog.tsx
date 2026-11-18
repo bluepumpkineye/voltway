@@ -6,7 +6,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { techClock } from '@/lib/tech/clock';
 import { exitFog, exitInfo } from '@/lib/tech/drive-exit';
 import { useDusk } from './Lights';
-import { STUDIO_WHITE } from './StudioShowroom';
+import { STAGE_HAZE, STUDIO_WHITE } from './StudioShowroom';
 
 /** where the fog stands while it is out of the way, m (far past the road's end and the camera's far plane) */
 const FAR_AWAY = 4000;
@@ -25,8 +25,8 @@ const DEPTH = 70;
 export function DriveFog() {
   const fog = React.useMemo(() => new THREE.Fog(STUDIO_WHITE, FAR_AWAY, FAR_AWAY + DEPTH), []);
   const invalidate = useThree((s) => s.invalidate);
-  // the lamps' dusk darkens the room, and its white with it
-  useDusk((d) => fog.color.set(STUDIO_WHITE).multiply(d.room));
+  // the lamps' dusk darkens the room, and its white (or the horizon of the world the road is in) with it
+  useDusk((d) => fog.color.copy(STAGE_HAZE).multiply(d.room));
   useFrame(() => {
     const k = exitFog(exitInfo, techClock.t);
     // it closes in smoothly: far = the end distance plus what is left of the way, cubed

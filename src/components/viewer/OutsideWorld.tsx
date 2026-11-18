@@ -8,6 +8,7 @@ import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import type { OutsideWorld as World } from '@/data/vehicles/schema';
 import { lightsRig } from '@/lib/lights';
 import { duskOf } from './Lights';
+import { STAGE_HAZE, STUDIO_WHITE } from './StudioShowroom';
 
 type V3 = [number, number, number];
 
@@ -53,11 +54,14 @@ export function OutsideWorld({
   inside,
   eye,
   cabinOnly = false,
+  road,
 }: {
   world: World;
   inside: boolean;
   eye: V3;
   cabinOnly?: boolean;
+  /** the Drive tab's road is drawn in this world (`OutsideWorld.road`): the dome stands far behind it and the scenery goes into the photograph's horizon */
+  road?: World['road'];
 }) {
   const view = useLoader(THREE.TextureLoader, world.view);
   const hdr = useLoader(HDRLoader, world.light);
@@ -77,7 +81,9 @@ export function OutsideWorld({
   }, [hdr, gl]);
 
   const turn = THREE.MathUtils.degToRad(world.exteriorTurnDeg);
-  const { height, radius } = world.ground;
+  const { height } = world.ground;
+  // the Drive tab's road is 280 m long: the dome stands beyond its end, not at the studio's 45 m
+  const radius = road?.radius ?? world.ground.radius;
   const dome = React.useMemo(() => {
     view.colorSpace = THREE.SRGBColorSpace;
     view.mapping = THREE.EquirectangularReflectionMapping;
@@ -87,6 +93,8 @@ export function OutsideWorld({
     d.renderOrder = -1;
     d.layers.set(BACKDROP_LAYER);
     (d.material as THREE.MeshBasicMaterial).toneMapped = false;
+    // the world is not in the Drive tab's exit fog: a dome 400 m off would turn to the fog's colour the moment it closes in
+    (d.material as THREE.MeshBasicMaterial).fog = false;
     return d;
   }, [view, height, radius, turn]);
   React.useEffect(() => {
@@ -99,6 +107,22 @@ export function OutsideWorld({
     },
     [dome],
   );
+
+  // the scenery of the road, its verges and the exit's fog go into this world's horizon, not the studio's white; and the camera sees as far as the dome
+  // (the canvas's far plane is 180 m, which would cut a dome standing 600 m off: nothing but the clear colour would be behind the road)
+  React.useEffect(() => {
+    if (!road) return;
+    const cam = camera as THREE.PerspectiveCamera;
+    const far = cam.far;
+    STAGE_HAZE.set(road.haze);
+    cam.far = Math.max(far, road.radius * 1.35);
+    cam.updateProjectionMatrix();
+    return () => {
+      STAGE_HAZE.set(STUDIO_WHITE);
+      cam.far = far;
+      cam.updateProjectionMatrix();
+    };
+  }, [road, camera]);
 
   const sun = React.useRef<THREE.DirectionalLight>(null);
   const seat = React.useMemo(() => new THREE.Vector3(...eye), [eye[0], eye[1], eye[2]]); // eslint-disable-line react-hooks/exhaustive-deps

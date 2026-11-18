@@ -53,6 +53,8 @@ export interface DriveSelection {
   rival?: string | null;
   /** the least the run lasts, s (the X-ray tab's Play asks for more than the Drive tab's `MIN_RUN_S`) */
   minRunS?: number | null;
+  /** the run ends on the speed it reached, held to its length, instead of the scenario's own coast or cruise speed (the X-ray tab's Play: no stop, no slowing, a pace to film) */
+  hold?: boolean | null;
 }
 
 export interface DriveLoad {
@@ -175,7 +177,10 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
   const d = vehicle.dimensions;
   const area = spec.aero?.areaM2 ?? 0.85 * (d.widthMm / 1000) * (d.heightMm / 1000);
   const cdA = (spec.aero?.cd ?? 0.27) * area;
-  const manoeuvres = spec.manoeuvres?.length ? spec.manoeuvres : undefined;
+  // the X-ray Play holds its pace to the end, so the manoeuvres that slow the car to a crawl (the slalom, the crab walk) are left out of it: the drive is continuous,
+  // and the S-curve, which the car takes at speed, stays
+  const kept = sel.hold === true ? spec.manoeuvres?.filter((m) => m === 'sweep') : spec.manoeuvres;
+  const manoeuvres = kept?.length ? kept : undefined;
 
   const base: Omit<DriveInput, 'from' | 'to'> = {
     zeroTo100: t100,
@@ -218,6 +223,7 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
   // (src/lib/tech/drive-exit.ts) and the car does not stop and set off again
   const canBrake = !(manoeuvres && run.to <= 150);
   const brake = canBrake && (sel.brake ?? false);
+  const hold = !brake && sel.hold === true;
 
   return {
     spec,
@@ -229,7 +235,13 @@ export function driveSetup(vehicle: Vehicle, sel: DriveSelection = {}): DriveSet
     load,
     runs,
     run,
-    input: { ...base, from: run.from, to: run.to, finish: brake ? 'brake' : spec.finish === 'brake' ? 'coast' : spec.finish },
+    input: {
+      ...base,
+      from: run.from,
+      to: run.to,
+      finish: brake ? 'brake' : hold ? 'cruise' : spec.finish === 'brake' ? 'coast' : spec.finish,
+      cruiseKmh: hold ? run.to : base.cruiseKmh,
+    },
     brake,
     canBrake,
     camera: spec.camera ?? 'hero',
