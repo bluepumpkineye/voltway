@@ -184,6 +184,12 @@ def build_library():
                   coat=1.0, coat_rough=0.03, ior=1.45)
     lib["accent"] = m
 
+    # Low-sheen satin black aero wheel cover panels (roam20 & aero18 molded inserts)
+    m, nt, b = _M.mat("M_Wheel_Aero_Satin")
+    _M.set_inputs(b, base=(0.014, 0.015, 0.017), metallic=0.0, roughness=0.54,
+                  specular=0.18, coat=0.0)
+    lib["aero_satin"] = m
+
     # Satin black trim (undertrays, aprons, active grille louvers)
     m, nt, b = _M.mat("M_Black_Trim")
     _M.set_inputs(b, base=(0.012, 0.012, 0.013), metallic=0.0, roughness=0.30, coat=0.0)

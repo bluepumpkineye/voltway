@@ -25,7 +25,7 @@ if _HERE not in sys.path:
 
 def _fresh():
     bpy.ops.wm.read_homefile(use_empty=True)
-    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials", "seal_wheels", "seal_materials", "a06t_wheels", "a06t_materials", "es8_wheels", "es8_materials")
+    for name in [m for m in sys.modules if m in ("rx_wheels", "rx_materials", "su7_wheels", "su7_materials", "zx_wheels", "zx_materials", "z9_wheels", "z9_materials", "g9l_wheels", "g9l_materials", "seal_wheels", "seal_materials", "a06t_wheels", "a06t_materials", "es8_wheels", "es8_materials", "mona_wheels", "mona_materials", "mona_surface")
                  or m == "carkit" or m.startswith("carkit.")]:
         sys.modules.pop(name, None)
 
@@ -111,6 +111,19 @@ def build_one(design="yufeng", side="left", tag="T", front=True):
         col = B.fresh_collection("Wheels_" + design)
         spec.pop("_faces", None)
         empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 180.0)
+        empty.matrix_world = Matrix.Identity(4)
+        return spec, col, empty, parts, lib
+    if design == "mona" or design.startswith("mona:"):
+        import mona_materials as MT
+        import mona_surface as S
+        import mona_wheels as MW
+        lib = MT.build_library()
+        col = B.fresh_collection("MONA_Wheels")
+        key = design.split(":")[1] if ":" in design else MW.DEFAULT
+        prefix, spec = MW.DESIGNS[key]
+        spec.pop("_faces", None)
+        _, _, _, w, r, dr, _, _ = next(c for c in MW.corners(S, key) if (c[0].startswith("F")) == front)
+        empty, parts = W.build_wheel(col, prefix, tag, (0.0, 0.0, 0.0), sign, lib, spec, w, r, dr, 350.0 if side == "left" else 10.0)
         empty.matrix_world = Matrix.Identity(4)
         return spec, col, empty, parts, lib
     if design == "zx" or design.startswith("zx:"):

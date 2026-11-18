@@ -61,7 +61,12 @@ GROUPS = [
     ("XpengMonaL05_Details", "MONA_Details"),
     ("XpengMonaL05_Blackout", "MONA_Blackout"),
 ]
-WHEEL_GROUPS = []
+# Optional wheel designs exported as extra corner nodes beside the default set.
+# Order MUST stay aligned with `[n for n in mona_wheels.DESIGNS if n != mona_wheels.DEFAULT]`.
+WHEEL_GROUPS = [
+    ("XpengMonaL05_Roam_Wheels", "MONA_Wheels_Roam"),
+    ("XpengMonaL05_Aero_Wheels", "MONA_Wheels_Aero"),
+]
 
 CORNERS = ("FL", "FR", "RL", "RR")
 
