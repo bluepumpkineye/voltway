@@ -340,7 +340,11 @@ export function TechDirector({ vehicle }: { vehicle: Vehicle }) {
 
   useFrame((_, dt) => {
     if (!built) return;
-    if (techClock.playing) {
+    // A demo that is played from inside the cabin (NOMI, the Star Ring, the swivel screen) waits for the cabin: on the Tech tab it is only fetched once the demo
+    // has put the camera in the seat, so the demo is built, and a press of Start (or an intent to play) can land, a few seconds, on a slow connection a good
+    // many, before there is a head, a ring or a screen to look at. The clock holds where it is until the cabin is in the scene, and plays from there.
+    const waitsForCabin = built.spec.view === 'cabin' && !!vehicle.assets.interiorModelUrl && !useVehicleStore.getState().cabinReady;
+    if (techClock.playing && !waitsForCabin) {
       const speed = useVehicleStore.getState().techSpeed;
       techClock.advance(Math.min(techClock.duration, techClock.t + Math.min(dt, 0.1) * speed), performance.now());
     }

@@ -1354,6 +1354,14 @@ sphere's centre passes 5 cm under the screen's top edge). NIO's own photograph (
 - Not done: the Blender source (`es8_interior.py`) still has NOMI low (the lift is a browser fix: if the cabin is re-exported, raise `z_base` by about 0.075 and drop `lift`); idle blinking on the Interior tab
   (it would keep the viewer drawing); NOMI's reaction to a hand reaching for the screen (generation one only).
 
+**Follow-up (2026-11-18): "NOMI is not reacting when the scene plays".** The head and the door answer the clock correctly (checked on the Colour-tab route, after a round trip through the Interior tab, from a
+deep link and on a phone-sized window), so the fault was in the timing of the start. On the Tech tab the cabin is not fetched until a cabin demo has put the camera in the driver's seat (`useCabinWanted`,
+Openings.tsx), but the demo is built, and Start is enabled, as soon as the exterior's wheels are in: a press in that gap (or an intent to play, `techIntent`) ran the demo with no head on the dashboard, and the
+cabin appeared seconds later (locally 3 s; on a real connection, the 1.9 MB cabin and its probe, a good deal more) with the door beat already gone. Fix: a demo with `view: 'cabin'` holds its clock until the
+cabin is in the scene (`cabinReady`, `TechDirector`'s frame: the clock stays where it is, play stays on, and it runs on from there), and the Beats panel (NOMI, the Star Ring) keeps its button on "Loading the
+cabin…" until then. The RX's swivel and boost demos (also `view: 'cabin'`) get the hold too. Checked in the pane: with `cabinReady` forced off during play the clock stood at 3.49 s for 1.5 s and the panel read
+"Loading the cabin…", then ran on from 3.49 s; the RX's swivel demo still plays. Not tried: a throttled network (the pane cannot throttle), so the long gap itself was not watched.
+
 ## 29. The 06T's Star Ring (2026-11-14)
 
 **Owner report:** "when I play the panoramic star ring display, nothing happens."

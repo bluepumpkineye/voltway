@@ -39,9 +39,11 @@ function BeatTools({
   const clock = useTechClock();
   const run = runPhase(clock);
   const beat = beatAt(clock.t);
-  // the demo is not built until the car's wheels and cabin have loaded (the clock has no length until then): a press before that would be
-  // ignored, and only the next one would play. The controls wait for it, as the sensors' panel's do.
-  const ready = clock.duration > 0;
+  // the demo is not built until the car's wheels have loaded (the clock has no length until then): a press before that would be ignored, and only the
+  // next one would play. The cabin comes later still (the Tech tab only fetches it once the demo has put the camera in the seat), and these demos are
+  // about what is in it: the controls wait for both, as the sensors' panel's do, so that nothing plays with no head or ring on screen.
+  const cabinReady = useVehicleStore((s) => s.cabinReady);
+  const ready = clock.duration > 0 && cabinReady;
   // the subject is the top of the dashboard: the picture is not lifted clear of this panel, as the others' are (it would take the subject up
   // under the menu); the foot of the dash goes behind the panel instead
   const setInset = useVehicleStore((s) => s.setDeviceInset);
@@ -75,7 +77,7 @@ function BeatTools({
           {ready ? action.label : 'Loading…'}
         </button>
         <div className="min-w-0 flex-1 text-[12px] leading-snug text-neutral-700" aria-live="polite">
-          <span className="font-medium text-neutral-900">{!ready ? 'Loading the car…' : beat ? beat.line : run === 'ready' ? waiting : idle}</span>
+          <span className="font-medium text-neutral-900">{!ready ? (clock.duration > 0 ? 'Loading the cabin…' : 'Loading the car…') : beat ? beat.line : run === 'ready' ? waiting : idle}</span>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
