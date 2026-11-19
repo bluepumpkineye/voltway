@@ -673,6 +673,9 @@ layers behind them are the `*_Blackout` node's `M_Black_Gloss` (underlay) and `M
   leading edge), so with every part shut (`shut`, kept by `OpeningsDriver` from `hinges.lift.cabin`) the cabin is drawn only where a pane is in
   front of it: each pane has a stencil writer (a copy of its mesh: no colour, no depth, render order 1) and the cabin's materials test the stencil
   (render order 2). The canvas asks for a stencil buffer. With a door open the mask is off and the cabin shows as before.
+- 2026-11-19: the underlay's black gloss is also masked by the same stencil (`useUnderlayMask`: drawn after the writers, refused where a pane is in
+  front), because the triangle cull above left a row of teeth along every pane outline the underlay's grid does not follow (see docs/3d-pipeline.md,
+  "Saw teeth along the glass outlines"). The writers are on whenever the panes are see-through from outside, shut or not; the cabin's mask still needs `shut`.
 - Not covered: the cabins of the five cars were never checked from outside, so anything visible through a pane (a gap above a dash, the
   G9L's slit at the windscreen base) is now seen; the capture routes (`VehicleViewer`) get the same glass.
 

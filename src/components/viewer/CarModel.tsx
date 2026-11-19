@@ -11,7 +11,7 @@ import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
-import { cullBehindClearGlass, useCabinStencil, useGlassStencil } from './clearGlass';
+import { cullBehindClearGlass, useCabinStencil, useGlassStencil, useUnderlayMask } from './clearGlass';
 import { useXray, useXrayCabin, useXrayCabinPlan, useXrayShell } from './Xray';
 import { ghostable } from './xrayGhost';
 import { xrayOf } from '@/lib/xray/rig';
@@ -226,9 +226,11 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   const isCabinReady = forceClearGlass !== undefined ? forceClearGlass : cabinReady;
   // not on the Tech tab: its demos move the car, and the cabin does not move with it
   const clearTab = useVehicleStore((s) => s.tab !== 'tech');
-  const shut = useVehicleStore((s) => s.shut);
   useGlass(model, vehicle, inside, hasCabin, xray, isCabinReady && clearTab);
-  useGlassStencil(model, hasCabin && isCabinReady && clearTab && !inside && !xray && shut);
+  // the clear panes write the stencil whenever they are see-through from outside: the cabin is drawn through it while every part
+  // is shut, and the black underlay behind the glass refuses it always (useUnderlayMask below), so its edge is the pane's edge
+  const paneMask = hasCabin && isCabinReady && clearTab && !inside && !xray;
+  useGlassStencil(model, paneMask);
   // a car without an exploded view keeps the X-ray it always had (the greenhouse a ghost, the doors gone); one with it ghosts the whole shell
   // through the rig (xrayGhost.ts), in the X-ray tab and on its Play alike
   const anatomy = Boolean(vehicle.xray?.anatomy);
@@ -299,7 +301,12 @@ export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass
   }, [setExteriorUp]);
 
   // the black layers behind the windscreen and the front windows are cut away, so the cabin shows through them (clearGlass.ts)
-  React.useEffect(() => (hasCabin ? cullBehindClearGlass(model, refs.blackout) : undefined), [model, refs, hasCabin]);
+  React.useEffect(
+    () => (hasCabin ? cullBehindClearGlass(model, refs.blackout, paneMask) : undefined),
+    [model, refs, hasCabin, paneMask],
+  );
+  // ...and what is left of the underlay is cut at the pane's exact outline, pixel by pixel, not triangle by triangle
+  useUnderlayMask(refs.blackout, paneMask);
 
   // Inside the cabin: drop the blackout layer and see out through the glass
   // (useGlass tints it: ~80 % through the windscreen and front door glass,

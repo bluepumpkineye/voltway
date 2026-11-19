@@ -33,7 +33,7 @@ const OUTLINE = 0.006;
 
 const CELL = 0.05;
 
-export function cullBehindClearGlass(model: THREE.Object3D, blackout: THREE.Object3D[]): () => void {
+export function cullBehindClearGlass(model: THREE.Object3D, blackout: THREE.Object3D[], stencilled = false): () => void {
   model.updateWorldMatrix(true, true);
   const inverse = new THREE.Matrix4().copy(model.matrixWorld).invert();
   const toModel = (mesh: THREE.Mesh) => new THREE.Matrix4().multiplyMatrices(inverse, mesh.matrixWorld);
@@ -144,6 +144,9 @@ export function cullBehindClearGlass(model: THREE.Object3D, blackout: THREE.Obje
       const reach = REACH[mesh.material.name.toLowerCase() as keyof typeof REACH];
       const g = mesh.geometry;
       if (!reach || g.groups.length) return;
+      // the black gloss is refused over the panes by the stencil (useUnderlayMask), to the pixel: taking its triangles out as
+      // well leaves every other triangle of a strip between two panes standing, a row of teeth along the header
+      if (stencilled && mesh.material.name.toLowerCase() === 'm_black_gloss') return;
       const pos = g.getAttribute('position');
       const index = g.index;
       const count = index ? index.count : pos.count;
@@ -188,6 +191,7 @@ export function cullBehindClearGlass(model: THREE.Object3D, blackout: THREE.Obje
  */
 const WRITER_ORDER = 1;
 const CABIN_ORDER = 2;
+const UNDERLAY_ORDER = 2;
 
 /** Over each clear pane (M_Glass), a copy of its mesh that writes the stencil; on while `on`. */
 export function useGlassStencil(model: THREE.Object3D, on: boolean) {
@@ -232,6 +236,48 @@ export function useGlassStencil(model: THREE.Object3D, on: boolean) {
     for (const w of writers.current) w.visible = on;
     invalidate();
   }, [on, invalidate, model]);
+}
+
+/**
+ * The black gloss underlay (the car's `*_Blackout` node), drawn only where NO clear pane is in front of it while `on`.
+ *
+ * `cullBehindClearGlass` takes the underlay's triangles out of the panes' footprint, but the underlay is a grid that does not
+ * follow a pane's outline (a curved header, a raked A-pillar), so the triangles that STRADDLE the outline stay and stand out
+ * over the glass as a row of black teeth against the cabin. Whatever the tessellation, the stencil the panes write says
+ * exactly which pixels are glass, so the underlay is drawn after the writers and refuses those pixels: the edge of the black
+ * frame is the pane's own edge, a straight line. While this is on the cull above leaves the gloss whole (`stencilled`): a
+ * strip between two panes, a header bar, then stays one solid piece. (The underlay's black gloss is the greenhouse's own
+ * clone, see `pushBehindPaint`, so the car's other black gloss is not touched.)
+ */
+export function useUnderlayMask(blackout: THREE.Object3D[], on: boolean) {
+  const invalidate = useThree((s) => s.invalidate);
+  React.useEffect(() => {
+    const meshes: THREE.Mesh[] = [];
+    for (const root of blackout) {
+      root.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+        if (mesh.material.name.toLowerCase() === 'm_black_gloss') meshes.push(mesh);
+      });
+    }
+    for (const mesh of meshes) {
+      const m = mesh.material as THREE.Material;
+      m.stencilWrite = on;
+      m.stencilRef = 1;
+      m.stencilFunc = THREE.NotEqualStencilFunc;
+      m.stencilFail = THREE.KeepStencilOp;
+      m.stencilZFail = THREE.KeepStencilOp;
+      m.stencilZPass = THREE.KeepStencilOp;
+      mesh.renderOrder = on ? UNDERLAY_ORDER : 0;
+    }
+    invalidate();
+    return () => {
+      for (const mesh of meshes) {
+        (mesh.material as THREE.Material).stencilWrite = false;
+        mesh.renderOrder = 0;
+      }
+    };
+  }, [blackout, on, invalidate]);
 }
 
 /** The cabin's meshes, drawn only where the stencil is 1 while `masked` (after the writers), as usual otherwise. */
