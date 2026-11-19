@@ -1661,6 +1661,58 @@ Hood and upper front fender cavity (the owner, 2026-11-14: circled the rear half
 Not done: the lamp's inside (two rows of LED chips, the lens' rainbow sheen), the mesh patches in the cavity, the grille's angled frame
 and its two small grey windows, the hood's side shut line (visible across the bonnet from the lamp; the photographs show none).
 
+### The Denza Z9's front end and rear plate (2026-11-19): lamp, bumper opening, wings, radiator
+
+The owner (viewer screenshot beside the Autohome photographs): the front "basic and unclear", the white stripes "unpolished,
+unfinished and not accurate", the headlamps "reversed", and the rear plate "not even and detached from the body". Two things were wrong at
+the root: the first build had been read off the wide-lens showroom photograph (the emblem stood 10 cm too high and 25 % too large, the
+lamp was a leaf with both ends pointed and its tip HIGH, the bumper a black wedge with four chrome slats), and nothing on the car had
+been placed through a photograph's own rays.
+
+- Source and camera: the black car straight on, `c1_0034.jpg` (3840 x 2880), `z9_ref_match` "front_black" (8.107 m ahead, 0.516 m up,
+  pitched up 3.67 deg, f 5561 px). The nose's centre line is at column **1937**, not 1920 (the camera stands a little off the axis and the
+  nose is the nearest part of the car: the silhouette is centred at 1923): `z9_frontdata.UC`, applied by mirroring the picture's LEFT
+  half onto the +y half sheet in pixel space (`z9_front._ray`). Compare against the photograph with `RM._R.PP["front_black"] = (17, 0)`.
+- Reading a black car: the dark shapes hide against each other, so the crops were CLAHE-equalised with a labelled 25 px grid
+  (`scripts/photo-tools/gridcrop-clahe.cjs`: `node gridcrop-clahe.cjs photo out.png x y w h outW clahe 25 [overlay.json]`, the overlay
+  draws polylines and dots in original pixels so a read outline can be checked before anything is built) and the WHITE car (`c1_0042`)
+  and the grey one (`c1_0066`) told what each dark shape is. `z9_frontdata.py` is the result (outlines in pixels, with what each IS).
+- What the car has: ONE swept lamp blade, tall and blunt at the fender's crown and running down to a sharp tip beside the emblem
+  (top edge a straight diagonal, lower edge a long convex curve; the first build had it mirrored top-to-bottom); under it the eyebrow DRL
+  (a pale glass wedge that goes on as a black spear to a point below the lamp's tip); a painted fascia with two parking sensors a side, the
+  washer jet's cap and a hairline-outlined body-colour bar above the plate; under the fascia's swept lower edge ONE dark opening (a pocket
+  in each outer corner holding a sensor module and a square cover, and the four-row radiator with its radar pod between them); the
+  body-colour **wing** across each pocket's foot is fixed at the outer end only and points at the centre with a sharp tip.
+- `z9_front.py`: `_cut_fascia` cuts the spline-smoothed opening (`_cavity_px`, sharp only at the corners) out of the fascia along x;
+  `build_cavity` fills it with a back wall (4.5 cm behind the skin in the pockets, 13 cm behind the radiator: `_depth`), a wall round the
+  cut, the radiator (rows x ribs x 5 gunmetal bars, `M_Z9_Radiator`: chrome strips read as white stripes), the pod, the lens that hangs
+  under the plate, and the pocket's module and cover; `build_lamps` lays the rim, the lens (a CONVEX shell: `_lens_grid`, columns across the
+  blade), three LED pads (`M_Z9_Lamp_Module`, lit with the low beam: `lights.projector` in `denza-z9.ts`), the light guide and hairline,
+  and the eyebrow with the usual `M_LED_White` lines. The emblem went to z 0.587 and 72 mm.
+- Lessons: (1) a glossy lens made of a Delaunay fill zigzags in the studio's reflections (skinny triangles): build it as a quad grid by
+  scanning columns across the outline; (2) rays that graze the model's limb (the corner is a few mm narrower than the photographed car's)
+  must be moved inboard until they hit (`_on_surface`), not left to a closest-approach guess; (3) the lamp's top outer corner lies where the
+  model's hood, fender and nose panels do not meet as one skin, and a lens laid across them bridged a 12 cm step as a flap: the corner is cut
+  off round and 15 px low in `LAMP_OUT`; (4) a prism cut on a coarse polygon shows its facets, so the outline is smoothed first; (5) the
+  hood/nose shut line crosses the nose 11 cm higher than the photograph's smile above the emblem: NOT changed (it is the hood's front edge,
+  `JOIN_F`, and the bonnet, frunk and ridges hang on it).
+- Budget: the new front is 51k triangles against 56k (the apron, the 8k lens and the chrome slats are gone); the exterior is 396.9k.
+- Fast loop (about 25 s): `blender -b <full build>.blend --python porting/z9_front_trace/dev_front.py` removes the front objects, rebuilds
+  them with the current `z9_front` and saves a blend; `dev_render.py` takes stills through named cameras (the photo's, close-ups) and
+  `dev_overlay.py` draws the model's panel lines over the photograph. See the README there.
+
+The rear plate (`z9_rear.py`): the tail cap's normal on the centre line is one-sided, 10 deg off the car's axis (n.y 0.17) and 16 deg
+down, and the plate was a flat board standing on it: yawed, with its ends floating up to 10 cm off the body and a dark tray beside
+it. The tail's plan is also strongly convex at the plate (a radius of about 0.44 m: the centre stands 6 cm behind the plate's ends), so
+no flat board can touch it everywhere. Now the plate pocket in the wing band is dished to a FLAT floor (`floor_plane`: a plane through the
+cap at |y| 0.22, square to the car and pitched like the cap; `pocket_off` moves the cap forward to it, weighted by `pocket_mask`) and the
+plate lies on that floor on a thin black mount block (`Z9_Plate_Mount_Rear`) that fills the 1 cm behind its ends. The band's column on the
+centre plane is held on it (an offset along the one-sided normal slid it 8 mm off and the mirrored halves met in a crease).
+
+Exporting: `export_z9.web()` writes an uncompressed 18 MB GLB and then re-exports with Draco over the SAME path; with the app's dev server
+running, the second `open(path, "wb")` failed (Errno 22) and left the 18 MB file in `public/models`. Set `export_z9.DEST` (and
+`DEST_SHADOW`) to a scratch folder, run `web()`, copy the GLB.
+
 ### The BYD Seal (`seal_*`): rebuilt from camera-matched photographs (2026-10-22)
 
 The first Seal was a Z9-derived guess; this is the real 2022-24 sedan (4800 x 1875 x 1460 mm, wheelbase 2920, 235/45 R19).

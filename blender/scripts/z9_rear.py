@@ -100,7 +100,7 @@ VALANCE_TOP = sorted(_yz([(1921, 2040), (1700, 2040), (1682, 2040), (1655, 2037)
                           (1497, 1981), (1366, 1981), (1224, 1987), (1187, 1993), (1150, 2014), (1129, 2035)]))
 Z_VAL_BOT = _at(1500, 2083)[1]          # the slot between the valance and the chin strip (z ~ 0.323)
 Y_VAL_END = 0.772                       # the valance and the chin stop here; the wing's fin carries on to the corner
-POCKET_Z = (0.372, 0.592)               # the plate pocket's floor and top (the tailgate's lower edge)
+POCKET_Z = (0.400, 0.592)               # the plate pocket's floor and top (the tailgate's lower edge)
 POCKET_Y = (0.268, 0.345)               # its half width at the floor and at the top (the sides slope in, c1_0014)
 
 
@@ -118,7 +118,59 @@ def pocket_mask(y, z):
     """1 inside the plate pocket (a trapezoid narrowing downward), 0 outside, eased over 2.5 cm."""
     f = max(0.0, min(1.0, (z - POCKET_Z[0]) / (POCKET_Z[1] - POCKET_Z[0])))
     half = POCKET_Y[0] + (POCKET_Y[1] - POCKET_Y[0]) * f
-    return geom.smoothstep((half - abs(y)) / 0.025 + 0.5) if z > POCKET_Z[0] - 0.004 else 0.0
+    if z <= POCKET_Z[0] - 0.004:
+        return 0.0
+    # (the dish eases in over 3 cm above the floor's lower edge: a hard edge there was a 5 cm cliff, and the floor under the plate
+    # showed as a pale bowl in the viewer)
+    return geom.smoothstep((half - abs(y)) / 0.025 + 0.5) * geom.smoothstep((z - (POCKET_Z[0] - 0.004)) / 0.030)
+
+
+# 2026-11-19, the plate. The tail cap bulges backwards at the plate's height (its plan has a radius of about 0.44 m: the centre
+# stands 6 cm behind the plate's ends), and the plate was a flat board standing on the cap's centre normal, which is 10 deg off the
+# car's axis (n.y 0.17): it was yawed, its ends floated up to 10 cm off the body and a dark tray showed beside it. Now the pocket
+# is dished to a FLAT floor, a plane through the cap at |y| 0.22 (the plate's own edge is 0.24), square to the car and pitched like
+# the cap, and the plate lies on it.
+PLATE_Y_REF = 0.22
+_FLOOR = {}
+
+
+def floor_plane():
+    """x = a + b z: the plate pocket's flat floor (a line fitted to the cap's x at |y| PLATE_Y_REF over the pocket's height)."""
+    if not _FLOOR:
+        zs = (0.40, 0.46, 0.52, 0.58)
+        xs = [face(PLATE_Y_REF, z)[0][0] for z in zs]
+        mz, mx = sum(zs) / len(zs), sum(xs) / len(xs)
+        b = sum((z - mz) * (x - mx) for z, x in zip(zs, xs)) / sum((z - mz) ** 2 for z in zs)
+        _FLOOR.update(a=mx - b * mz, b=b)
+    return _FLOOR
+
+
+def floor_x(z):
+    f = floor_plane()
+    return f["a"] + f["b"] * z
+
+
+def floor_normal():
+    """The floor's outward normal: back (-x) and a little down, no yaw."""
+    b = floor_plane()["b"]
+    L = math.sqrt(1.0 + b * b)
+    return (-1.0 / L, 0.0, b / L)
+
+
+def pocket_off(y, z):
+    """The wing band's offset along the cap normal (negative = into the body) that dishes the pocket to the flat floor: the cap
+    moves forward to the floor's x by the pocket mask's weight (1 in the pocket, easing out over 2.5 cm). Where the cap is already
+    at or inside the floor (the pocket's outer ends) nothing moves."""
+    m = pocket_mask(y, z)
+    if m <= 0.0:
+        return 0.0
+    p, n = face(y, z)
+    dx = floor_x(z) - p[0]
+    if dx <= 0.0 or n[0] > -0.2:
+        return 0.0
+    return m * dx / n[0]
+
+
 Z_LAMP_TOP, Z_LAMP_BOT = 0.971, 0.860
 Z_ROUNDEL = _at(1924, 1495)[1]
 Z_PLATE = 0.515
@@ -269,7 +321,12 @@ def band(name, zlo, zhi, ny, nz, collection, mat, offset=0.0, thickness=M.SKIN, 
                     z = row_z(y, fr)
             w, v = wv(y, z) if (cut or hold) else TAIL.wv_at(y, z)
             d = off_fn(y, fr) if off_fn else offset
-            col.append(TAIL.offset(w, v, d) if d else TAIL.point(w, v))
+            pt = TAIL.offset(w, v, d) if d else TAIL.point(w, v)
+            if i == 0 and ymin == 0.0 and d:
+                # the cap's normal on the centre line is one-sided (n.y 0.17): an offset there slid the column off the
+                # centre plane and the mirrored halves met in a crease down the dished pocket
+                pt = (pt[0], 0.0, pt[2])
+            col.append(pt)
         cols.append(col)
     ob = M.mesh_from_rows(name, cols, collection)
     M.orient(ob.data, geom.axial(-1.0))
@@ -331,7 +388,7 @@ def build_tail(collection, lib):
     # down the corner as a fin; the plate pocket is dished into them (12 mm, a trapezoid narrowing downward)
     made.append(band("Z9_Bumper_Upper", wing_lo, lambda y: bumper_top(y) + 0.001, 64, 8, collection,
                      lib["wing"], thickness=0.004,
-                     off_fn=lambda y, fr: -0.012 * pocket_mask(y, wing_lo(y) + fr * (bumper_top(y) + 0.001 - wing_lo(y)))))
+                     off_fn=lambda y, fr: pocket_off(y, wing_lo(y) + fr * (bumper_top(y) + 0.001 - wing_lo(y)))))
     # the BODY-COLOUR valance under the plate and across the tail, with its convex belly
     made.append(band("Z9_Bumper_Valance", lambda y: Z_VAL_BOT + 0.003, val_top, 44, 7, collection, lib["paint"],
                      thickness=0.004, y_max=Y_VAL_END,
@@ -442,15 +499,18 @@ def build_badges(collection, lib):
 def build_plate_tray(collection, lib):
     from carkit.parts import fittings
     made = []
-    # (the black trapezoid pocket is dished into the bumper's wing band now: z9_rear.pocket_mask)
+    # (the black trapezoid pocket is dished into the bumper's wing band now, to a flat floor: pocket_off)
     half = _yz(TRAY_PX)
     zt, zb = half[0][1], half[-1][1]
-    yt, yb = half[0][0], half[-2][0]
-    # (the plate is a flat board on a curved face: it has to stand 4 mm clear at the centre or the bumper bands bury its ends
-    # ("DENZA Z9" read "A Z9" when it was sunk 10 mm into the dished tray: the tray is under those bands, not cut through them))
-    p, n = face(0.0, Z_PLATE, -0.004)
-    made += fittings.plate("Z9_Plate_Rear", tuple(p[i] + n[i] * 0.004 for i in range(3)), n, collection, lib,
-                           w=0.480, h=0.148, depth=0.008,
+    # the plate: a flat board square to the car, lying on the floor (7 mm proud of it, its 8 mm body sunk 1 mm into the skin), on a
+    # black mount block that fills the 1 cm between its back and the cap where the cap is inside the floor (the plate's ends)
+    n = floor_normal()
+    p_floor = (floor_x(Z_PLATE), 0.0, Z_PLATE)
+    p_front = tuple(p_floor[i] + n[i] * 0.007 for i in range(3))
+    p_mount = tuple(p_floor[i] + n[i] * 0.001 for i in range(3))
+    made += fittings.plate("Z9_Plate_Mount_Rear", p_mount, n, collection, lib, w=0.490, h=0.156, depth=0.022,
+                           mat="black_gloss", bevel=(0.003, 2, 30))
+    made += fittings.plate("Z9_Plate_Rear", p_front, n, collection, lib, w=0.480, h=0.148, depth=0.008,
                            texts=[("DENZA Z9", 0.0, 0.038, False, True)],
                            mat="black_gloss", text_mat="machined")
     # the reversing camera: a small black pod at the tray's top edge with two lenses

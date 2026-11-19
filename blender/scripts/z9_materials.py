@@ -122,6 +122,53 @@ def build_library():
     _M.set_inputs(b, base=(0.005, 0.005, 0.006), metallic=0.0, roughness=0.20, coat=0.25, coat_rough=0.08)
     lib["diffuser"] = m
 
+    # The front end (z9_front, 2026-11-19). The headlamp's black rim and the eyebrow's: a deep gloss black a little rougher than
+    # piano black (the white studio turns a mirror-black panel grey). The silver hairline under the lens. The eyebrow's pale
+    # glass (c1_0034: a blue-grey wedge). The radiator's fin stacks: gunmetal, not chrome (four chrome strips read as white
+    # stripes). The radar pod and its neighbours: a satin dark grey.
+    m, nt, b = _M.mat("M_Z9_Lamp_Frame")
+    _M.set_inputs(b, base=(0.005, 0.005, 0.006), metallic=0.0, roughness=0.20, coat=0.5, coat_rough=0.06)
+    lib["lamp_frame"] = m
+    m, nt, b = _M.mat("M_Z9_Lamp_Hair")
+    _M.set_inputs(b, base=(0.55, 0.57, 0.60), metallic=1.0, roughness=0.28)
+    lib["lamp_hair"] = m
+    m, nt, b = _M.mat("M_Z9_Lamp_Glass")
+    _M.set_inputs(b, base=(0.060, 0.072, 0.095), metallic=0.0, roughness=0.08, coat=1.0, coat_rough=0.02, ior=1.52,
+                  specular=0.5)
+    lib["lamp_glass"] = m
+    # the smoked lens over the lamp (a darker reflection than M_Lamp_Clear: the photographed lamp is a dark interior), the LED
+    # modules' pads (silver-grey, unlit), the module window in the pocket (a pale grey cylinder)
+    # (2026-11-19, the owner: "instead of black headlamps, normal glass") the lens is clear glass over a real inside: a pale tint,
+    # alpha-blended, so the units, the reflector and the light guide show through and the studio still glints on it
+    m, nt, b = _M.mat("M_Z9_Lamp_Lens")
+    _M.set_inputs(b, base=(0.035, 0.040, 0.050), metallic=0.0, roughness=0.03, coat=0.6, coat_rough=0.02, ior=1.5, specular=0.5,
+                  alpha=0.20)
+    for attr, val in (("surface_render_method", "BLENDED"), ("blend_method", "BLEND")):
+        try:
+            setattr(m, attr, val)
+        except Exception:
+            pass
+    lib["lamp_lens"] = m
+    # the lamp's floor (a dark satin) and its reflector (silver-grey metal: the photographed inside is dark with pale metal)
+    m, nt, b = _M.mat("M_Z9_Lamp_Floor")
+    _M.set_inputs(b, base=(0.012, 0.013, 0.017), metallic=0.0, roughness=0.55)
+    lib["lamp_floor"] = m
+    m, nt, b = _M.mat("M_Z9_Lamp_Reflector")
+    _M.set_inputs(b, base=(0.27, 0.29, 0.33), metallic=0.9, roughness=0.40)
+    lib["lamp_reflector"] = m
+    m, nt, b = _M.mat("M_Z9_Lamp_Module")
+    _M.set_inputs(b, base=(0.11, 0.12, 0.14), metallic=0.5, roughness=0.35)
+    lib["lamp_module"] = m
+    m, nt, b = _M.mat("M_Z9_Module_Window")
+    _M.set_inputs(b, base=(0.30, 0.31, 0.33), metallic=0.0, roughness=0.30, coat=0.4, coat_rough=0.1)
+    lib["lamp_window"] = m
+    m, nt, b = _M.mat("M_Z9_Radiator")
+    _M.set_inputs(b, base=(0.050, 0.055, 0.064), metallic=0.55, roughness=0.50)
+    lib["radiator"] = m
+    m, nt, b = _M.mat("M_Z9_Radar")
+    _M.set_inputs(b, base=(0.016, 0.017, 0.020), metallic=0.0, roughness=0.34, coat=0.25, coat_rough=0.15)
+    lib["radar"] = m
+
     # Bright anodized chrome / satin silver trim (window surround, fender blade, rocker strip)
     m, nt, b = _M.mat("M_Trim_Chrome")
     _M.set_inputs(b, base=(0.86, 0.87, 0.90), metallic=0.95, roughness=0.12)

@@ -544,16 +544,23 @@ export const denzaZ9: Vehicle = {
   // two lidars: the front photographs show a dark module in each outer bumper pocket, where the model has them, but no source says
   // that is where the lidars are, and the car has no roof lidar (the 2026 Z9 GT's is on the roof: another car). Only the sensors the
   // model shows are placed; the counts the table gives are in `notes`.
+  // the three LED modules in each headlamp (M_Z9_Lamp_Module, blender/scripts/z9_front.py) light with the low beam; the DRL light guides and
+  // the eyebrow's line are the usual M_LED_White
+  lights: { projector: { material: 'M_Z9_Lamp_Module' } },
   sensors: {
-    frontLidar: [2.329, 0.35, 0.68],
+    // re-measured on the rebuilt front end (2026-11-19): the module's window in the pocket, and the two parking sensors each side
+    frontLidar: [2.31, 0.335, 0.71],
     lidarFov: 120,
     cameras: [{ at: [0.62, 1.19, 0] }],
-    ultrasonic: [{ at: [2.48, 0.385, 0.36], mirror: true }],
+    ultrasonic: [
+      { at: [2.5, 0.407, 0.33], mirror: true },
+      { at: [2.27, 0.414, 0.8], mirror: true },
+    ],
     surround: true,
     notes: {
       front: 'Two lidars (Autohome). Drawn from the dark module in each outer bumper pocket, which the front photographs show; no source says that is where they sit. The 120° fan is ours.',
       cameras: 'Fourteen outside, with a three-lens unit at the windscreen, and one or two in the cabin (Autohome); only the windscreen unit is marked',
-      ultrasonic: 'Twelve (Autohome); the pair beside the plate is marked',
+      ultrasonic: 'Twelve (Autohome); the two on each side of the front bumper are marked',
       surround: 'The surround cameras, drawn as four diagonal beams (ours)',
     },
   },
