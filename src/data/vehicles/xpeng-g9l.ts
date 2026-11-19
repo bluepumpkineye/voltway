@@ -131,8 +131,8 @@ export const xpengG9l: Vehicle = {
     showroomOnly: true,
     studioShadow: {
       url: '/models/xpeng-g9l-shadow.webp',
-      size: [8.14, 5.195],
-      centre: [0.008, 0.0],
+      size: [8.138, 5.187],
+      centre: [0.003, 0.006],
     },
     // the cabin (blender/scripts/g9l_interior*.py, the Bordeaux Red interior) with its Cycles light baked in:
     // export_g9l.web_cabin()
@@ -294,8 +294,8 @@ export const xpengG9l: Vehicle = {
       axis: 'z',
       deg: 62,
       struts: [
-        { body: [1.27, 1.10, -0.86], moving: [1.56, 1.215, -0.86] },
-        { body: [1.27, 1.10, 0.86], moving: [1.56, 1.215, 0.86] },
+        { body: [1.27, 1.065, -0.85], moving: [1.56, 1.175, -0.85] },
+        { body: [1.27, 1.065, 0.85], moving: [1.56, 1.175, 0.85] },
       ],
     },
     // The tailgate is the whole rear above its smile shut line: the backlight with the spoiler, the lamp bar's

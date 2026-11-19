@@ -26,7 +26,7 @@ import bmesh
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-HINGE = Vector((-1.970, 0.0, 1.700))     # the roof's trailing edge (g9l_surface.KNEE_X), on the centreline
+HINGE = Vector((-2.010, 0.0, 1.715))     # the roof's trailing edge (g9l_surface.KNEE_X), on the centreline
 OPEN_DEG = 82.0
 GROUP = ("XpengG9L_Tailgate", "G9L_GateGrp")
 PAINT = "M_Paint_G9L_Purple"
@@ -42,7 +42,7 @@ PARTS = (
 # quarter panels
 CUT = ("G9L_Tailgate", "G9L_Tail_Lamp_Cap", "G9L_Tail_Lamp_Lip", "G9L_Tail_Lens",
        "G9L_Tail_Strip_Main", "G9L_Tail_Signal", "G9L_Tail_Strip_Low")
-Y_SHUT = 0.775
+Y_SHUT = 0.742
 UNDERLAY = "G9L_Roof_Rear_Black"
 
 
@@ -269,9 +269,9 @@ def build_liner(col=None, depth=LINER_DEPTH):
         w = n.cross(t).normalized()
         if w.dot(p - centre) < 0.0:
             w = -w                                       # out of the pane, in its plane
-        # no flange where the glass meets the lamp bar (z < 1.22): it would stand out behind the lamp's lens
-        k = max(0.0, min(1.0, (p.z - 1.22) / 0.10))
-        verts += [tuple(p + w * 0.070 * k - n * depth), tuple(p - n * depth), tuple(p - n * 0.004)]
+        # no flange where the glass meets the lamp bar (z < 1.38): prevents any bezel from poking out behind the taillight
+        k = max(0.0, min(1.0, (p.z - 1.38) / 0.10))
+        verts += [tuple(p + w * 0.045 * k - n * depth), tuple(p - n * depth), tuple(p - n * 0.004)]
     for i in range(m):
         j = (i + 1) % m
         for r in (0, 1):
@@ -296,13 +296,13 @@ def build_seal(collection="G9L_Details"):
     n_low = 30
     for i in range(n_low + 1):
         y = Y_SHUT * i / float(n_low)
-        p, nn = RR.face(y, RR.gate_low(y) + 0.020, -0.011)
+        p, nn = RR.face(y, RR.gate_low(y) + 0.020, -0.018)
         path.append(tuple(p))
     n_side = 8
     z0 = RR.gate_low(Y_SHUT) + 0.020
     for k in range(1, n_side + 1):
-        z = z0 + (RR.CAP_HIGH - 0.010 - z0) * k / float(n_side)
-        p, nn = RR.face(Y_SHUT - 0.004, z, -0.011)
+        z = z0 + (RR.CAP_HIGH - 0.012 - z0) * k / float(n_side)
+        p, nn = RR.face(Y_SHUT - 0.008, z, -0.018)
         path.append(tuple(p))
     satin = bpy.data.materials["M_Black_Satin"]
     half = tube("G9L_Boot_SealHalf", path, ellipse(0.0075, 0.0075, 10), col, satin, closed=False,

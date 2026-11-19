@@ -74,8 +74,8 @@ def _rail_pts(px):
 # ----------------------------------------------------------------- stations
 X_COWL = S.COWL_X            # 1.200: windscreen base
 X_ROOF_F = 0.440             # windscreen header (the glass meets the roof)
-X_KNEE = S.KNEE_X            # -1.970: the roof spoiler's trailing edge
-X_TIP = -1.885               # the quarter glass's rear tip (side photo)
+X_KNEE = S.KNEE_X            # -2.010: the roof spoiler's join / roofline trailing edge
+X_TIP = -1.945               # sleek elongated quarter glass rear tip
 X_ROOF_GLASS_R = -0.480      # the roof is paint ahead of this, black glass behind it
 X_VENT_R = -1.150            # the vent glass's rear edge at the belt
 
@@ -101,14 +101,13 @@ def X_DOOR_R(v):
 # the flank panels' lower edge: the door's foot sits above the side step; ahead of the front arch
 # and behind the rear one the bumpers' black lower parts take over
 def Z_FLANK_LOW(x):
-    """Ahead of the front arch the fender stops on the black bumper band at z 0.40; behind the rear
-    arch the quarter's lower edge is the diagonal that runs from the arch's rear foot (z 0.29) up
-    to the tail corner (z 0.585) - below it the bumper's black corner (c1_0028)."""
-    if x >= 2.0:
-        return 0.258 + 0.142 * _smooth((x - 2.0) / 0.12)
-    if x <= -1.895:
-        return min(0.60, 0.29 + 0.49 * (-1.895 - x))
-    return 0.258
+    """Athletic stance lower flank edge: clean 268 mm sill line along doors; rises smoothly at
+    the front chin and sweeps sharply upward behind the rear arch for a crisp departure angle."""
+    if x >= 2.02:
+        return 0.268 + 0.128 * _smooth((x - 2.02) / 0.14)
+    if x <= -1.86:
+        return min(0.565, 0.305 + 0.56 * (-1.86 - x))
+    return 0.268
 
 
 def V_SILL(x):
@@ -121,16 +120,18 @@ def v_up(x, z):
 
 
 # ------------------------------------------------------------ window lines
-# the belt (lower edge of the side glass, top of the doors): 1.196 at the cowl rising to 1.353
-BELT_Z = Curve(_by_x(CAM.BELT_PX, 0.97))
+# Lowered beltline (-44 mm doors -> -56 mm rear quarter tip) to slim the body slab and open up the greenhouse
+_BELT_RAW = _by_x(CAM.BELT_PX, 0.97)
+BELT_Z = Curve([(x, z - (0.044 + 0.012 * _smooth((-0.8 - x) / 1.1))) for (x, z) in _BELT_RAW])
 
 
 def V_BELT(x):
-    return v_up(x, BELT_Z(max(-1.95, min(1.20, x))))
+    return v_up(x, BELT_Z(max(-2.02, min(1.20, x))))
 
 
-# the greenhouse's dark region: its upper boundary along the A-pillar's inner edge and the roof
-DLO_Z = Curve(_rail_pts(CAM.DLO_TOP_PX))
+# Raised side DLO (+14 mm roof -> +22 mm quarter arch) and sleeker roof/A-pillar rails
+_DLO_RAW = _rail_pts(CAM.DLO_TOP_PX)
+DLO_Z = Curve([(x, z + (0.014 + 0.010 * _smooth((-0.9 - x) / 0.9))) for (x, z) in _DLO_RAW])
 
 
 def V_DLO(x):
@@ -138,14 +139,14 @@ def V_DLO(x):
     from its OUTBOARD side: never above 6 mm under the rail point, so the line cannot jump inboard onto the crowned roof's flat top."""
     if x > X_COWL:
         return V_BELT(x)
-    z = max(BELT_Z(max(-1.95, x)) + 0.004, DLO_Z(max(X_TIP, x)))
+    z = max(BELT_Z(max(-2.02, x)) + 0.004, DLO_Z(max(X_TIP, x)))
     return v_up(x, min(z, S.Z_ROOF(x) + S.Z_CREST(x) - 0.006))
 
 
 def _rail_w(x):
-    """Width of the body-colour rail beyond the side glass: 40 mm along the roof, widening into the
-    95 mm A-pillar ahead of the header."""
-    return 0.040 + 0.055 * _ramp(x, 0.40, 0.25)
+    """Width of the body-colour rail beyond the side glass: sleek 30 mm along the roof, widening into
+    a crisp 74 mm A-pillar ahead of the header."""
+    return 0.030 + 0.044 * _ramp(x, 0.40, 0.25)
 
 
 def _wtop(x):
@@ -217,7 +218,7 @@ X_SAIL_OPEN = -2.20
 
 def V_SAIL_FOOT(x):
     """The sail's lower edge behind the join: where the section stands at the cap's top edge."""
-    return S.v_at_z(x, 1.255, S.V_SHOULDER, 1.0)
+    return S.v_at_z(x, 1.246, S.V_SHOULDER, 1.0)
 
 
 # glass divisions as x of the line at the height of v (raked lines)
@@ -241,8 +242,8 @@ def _hood_front(v):
     return N.JOIN_F(v) + 0.012 * geom.smoothstep((v - 0.93) / 0.06)
 
 
-# The hood's side edge runs along the fender crown from the cowl to the lamp bar's end
-Z_HOODSIDE = Curve(_by_x(CAM.HOOD_SIDE_PX, 0.85))
+# The hood's side edge runs along the lowered fender crown from the cowl to the lamp bar's end
+Z_HOODSIDE = Curve([(x, z - 0.038) for (x, z) in _by_x(CAM.HOOD_SIDE_PX, 0.85)])
 
 
 def V_HOOD(x):

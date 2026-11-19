@@ -27,7 +27,7 @@ from carkit.body import LoftBody
 from carkit.body.loft import Section
 
 # --------------------------------------------------------------- dimensions
-LENGTH, WIDTH, HEIGHT = 5.120, 1.999, 1.795
+LENGTH, WIDTH, HEIGHT = 5.120, 1.999, 1.782
 HALF_L = LENGTH / 2.0
 HALF_W = WIDTH / 2.0
 WHEELBASE = 3.100
@@ -35,69 +35,56 @@ FRONT_OVERHANG = 0.910
 REAR_OVERHANG = LENGTH - WHEELBASE - FRONT_OVERHANG  # 1.110
 FRONT_AXLE = HALF_L - FRONT_OVERHANG                 # 1.650
 REAR_AXLE = FRONT_AXLE - WHEELBASE                   # -1.450
-WHEEL_R = 0.377                                      # loaded hub height: 265/40 R22 (0.3854 free), 8 mm of sag
-# Tracks (2026-10-27): the end photographs' tyres stand 2.5-3.5 cm per side INSIDE where the model's did (front c1_0002 and rear c1_0006
-# through their cameras, row scans of the tyre equator: 1117-1124 px against the model's 1151-1155 front, 1115 against 1157 rear, the bodies'
-# own widths equal; the white cars' c1_0026 / c1_0030 through their solved cameras agree, 1.3-1.8 cm per side more after the first
-# narrowing), so the tyres poked out past the fender and the bottom of the tail read wider than the body above it.
-TRACK_F, TRACK_R = 1.640, 1.646
-ARCH_R = 0.445                                       # painted opening radius (c1_0028: the arch crown at z 0.82)
+WHEEL_R = 0.380                                      # loaded hub height: 265/40 R22 (0.3854 free), ~5 mm sag
+TRACK_F, TRACK_R = 1.662, 1.672
+ARCH_R = 0.428                                       # taut painted arch opening (~48 mm clearance over 22 in tyre)
 
 V_SHOULDER = 0.520
 
 COWL_X = 1.200                                       # windscreen base
-KNEE_X = -1.970                                      # roof spoiler's trailing edge
+KNEE_X = -2.010                                      # roof spoiler's leading join / roofline trailing edge
 BACKLIGHT_X = KNEE_X
 
 # ------------------------------------------------------- longitudinal profile
 # fit:roof  (x, z) of the top centreline: tail, roof + windscreen, bonnet
 TAIL_PTS = [
-    (-2.560, 1.180), (-2.545, 1.265), (-2.480, 1.320), (-2.400, 1.385), (-2.320, 1.445),
-    (-2.240, 1.505), (-2.160, 1.565), (-2.080, 1.620), (-2.020, 1.665), (KNEE_X, 1.705),
+    (-2.555, 1.242), (-2.520, 1.275), (-2.460, 1.330), (-2.380, 1.402), (-2.300, 1.474),
+    (-2.220, 1.545), (-2.140, 1.615), (-2.065, 1.678), (KNEE_X, 1.722),
 ]
 ROOF_PTS = [
-    (KNEE_X, 1.705), (-1.900, 1.714), (-1.700, 1.735), (-1.500, 1.753), (-1.300, 1.767),
-    (-1.100, 1.778), (-0.900, 1.786), (-0.700, 1.791), (-0.500, 1.794), (-0.300, 1.794),
-    (-0.100, 1.790), (0.100, 1.782), (0.250, 1.769), (0.400, 1.739), (0.600, 1.640),
-    (0.800, 1.508), (1.000, 1.372), (1.100, 1.300), (COWL_X, 1.262),
+    (KNEE_X, 1.722), (-1.900, 1.734), (-1.700, 1.751), (-1.500, 1.764), (-1.300, 1.773),
+    (-1.100, 1.779), (-0.900, 1.782), (-0.700, 1.782), (-0.500, 1.782), (-0.300, 1.780),
+    (-0.100, 1.776), (0.100, 1.768), (0.250, 1.755), (0.400, 1.726), (0.600, 1.622),
+    (0.800, 1.486), (1.000, 1.348), (1.100, 1.276), (COWL_X, 1.224),
 ]
 HOOD_PTS = [
-    (COWL_X, 1.255), (1.400, 1.240), (1.600, 1.232), (1.800, 1.216), (2.000, 1.190),
-    (2.100, 1.176), (2.200, 1.158), (2.300, 1.135), (2.400, 1.100), (2.480, 1.040),
-    (2.540, 0.960), (HALF_L, 0.900),
+    (COWL_X, 1.218), (1.400, 1.202), (1.600, 1.192), (1.800, 1.176), (2.000, 1.150),
+    (2.100, 1.135), (2.200, 1.116), (2.300, 1.092), (2.400, 1.055), (2.480, 1.000),
+    (2.540, 0.935), (HALF_L, 0.885),
 ]
 # /fit:roof
-Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve(TAIL_PTS), Curve(ROOF_PTS)), Curve(HOOD_PTS))
+Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve(TAIL_PTS, mode="pchip"), Curve(ROOF_PTS)), Curve(HOOD_PTS))
 
-# Underbody centreline:
+# Underbody centreline: athletic ground clearance + crisp upward rear departure sweep & tucked front chin
 Z_FLOOR = Curve([
-    (-HALF_L, 0.296), (-2.439, 0.269), (-2.223, 0.239), (-2.008, 0.221),
-    (-1.447, 0.215), (0.015, 0.213), (1.647, 0.215), (2.076, 0.224),
-    (2.338, 0.239), (2.505, 0.258), (HALF_L, 0.282),
+    (-HALF_L, 0.405), (-2.440, 0.365), (-2.240, 0.305), (-2.020, 0.258),
+    (-1.850, 0.238), (-1.447, 0.232), (0.015, 0.230), (1.647, 0.232),
+    (2.076, 0.245), (2.338, 0.268), (2.505, 0.295), (HALF_L, 0.312),
 ])
 
 # Hip / widest point height:
 Z_HIP = Curve([
-    (-HALF_L, 0.640), (-2.331, 0.720), (-2.008, 0.760), (-1.447, 0.770),
-    (-0.727, 0.770), (0.015, 0.765), (0.863, 0.760), (1.287, 0.750),
-    (1.647, 0.730), (2.128, 0.690), (2.390, 0.640), (HALF_L, 0.580),
+    (-HALF_L, 0.710), (-2.331, 0.740), (-2.008, 0.760), (-1.447, 0.765),
+    (-0.727, 0.765), (0.015, 0.760), (0.863, 0.755), (1.287, 0.745),
+    (1.647, 0.725), (2.128, 0.685), (2.390, 0.640), (HALF_L, 0.595),
 ])
 
-# Shoulder / beltline height: the belt (the glass's lower edge and the doors' top, read in
-# g9l_cam.BELT_PX: 1.196 at the cowl, 1.235 at the split, 1.293 at the rear door's edge, 1.353 at
-# the quarter glass's tip) less 40 mm for the crease under the step. Ahead of the cowl it is the
-# fender's top (the hood's side line: z 1.13 at x 1.5, 1.054 at 2.03, 1.03 at the lamp's end).
-#
-# Ahead of x 1.25 the "shoulder" is the FENDER'S TOP CORNER, where the hood's shut line runs. Its 3-D positions were read off the
-# purple car's left front three-quarter photograph (c1_0001, camera f34_purple in g9l_ref_match; each pixel of the thin dark line
-# meets the side photograph's hood-line height: g9l_panels.Z_HOODSIDE): (1.42, 0.965, 1.083) (1.556, 0.976, 1.075)
-# (1.769, 0.969, 1.063) (1.949, 0.928, 1.051) (2.081, 0.862, 1.044). It sits 8-9 cm lower than the old values and the hood
-# crowns down to it from the centreline (see HOOD_CROWN and SECTION_AT).
+# Shoulder / beltline height: lowered ~42-55 mm to slim the painted flank slab and open the greenhouse
 Z_SHOULDER = Curve([
-    (-HALF_L, 1.150), (-2.400, 1.225), (-2.040, 1.322), (-1.820, 1.313), (-1.570, 1.284),
-    (-1.200, 1.250), (-0.810, 1.222), (-0.030, 1.195), (0.590, 1.171), (1.100, 1.156),
-    (1.250, 1.122), (1.420, 1.082), (1.556, 1.074), (1.769, 1.062), (1.949, 1.050), (2.081, 1.042),
-    (2.200, 1.028), (2.300, 1.008), (2.400, 0.982), (2.500, 0.945), (HALF_L, 0.895),
+    (-HALF_L, 1.140), (-2.400, 1.198), (-2.040, 1.268), (-1.820, 1.258), (-1.570, 1.232),
+    (-1.200, 1.200), (-0.810, 1.174), (-0.030, 1.150), (0.590, 1.128), (1.100, 1.114),
+    (1.250, 1.084), (1.420, 1.046), (1.556, 1.038), (1.769, 1.026), (1.949, 1.014), (2.081, 1.006),
+    (2.200, 0.992), (2.300, 0.972), (2.400, 0.946), (2.500, 0.912), (HALF_L, 0.875),
 ])
 
 # Roof crest offset (rail height under the centreline):
@@ -130,49 +117,38 @@ Z_CREST = Curve([
 # (a hump 1.4 cm wide of the published 0.9995 over the rear doors). Knots every 0.1 m behind -2.1 and a mild end (0.76 at the tail's tip) keep the
 # spline from ringing at the join with the tail cap (x -2.35): a first set wobbled +/-1 cm there, a plan kink in every reflection.
 Y_HIP = Curve([
-    (-2.600, 0.790), (-2.500, 0.826), (-2.400, 0.848), (-2.300, 0.869), (-2.200, 0.889), (-2.100, 0.912),
-    (-1.900, 0.942), (-1.700, 0.970), (-1.500, 0.990), (-1.300, 0.9985), (-1.100, 0.9995), (-0.727, 0.9995), (0.015, 0.9995), (0.863, 0.9970),
-    (1.287, 0.9900), (1.647, 0.9800), (1.950, 0.9700), (2.100, 0.9550), (2.200, 0.9350),
-    (2.300, 0.9100), (2.400, 0.8700), (2.500, 0.8000), (HALF_L, 0.620),
+    (-2.600, 0.775), (-2.500, 0.810), (-2.400, 0.835), (-2.300, 0.858), (-2.200, 0.880), (-2.100, 0.905),
+    (-1.900, 0.938), (-1.700, 0.970), (-1.500, 0.992), (-1.300, 0.9980), (-1.100, 0.9950), (-0.727, 0.9880), (0.015, 0.9850), (0.863, 0.9860),
+    (1.287, 0.9850), (1.647, 0.9840), (1.950, 0.9680), (2.100, 0.9500), (2.200, 0.9280),
+    (2.300, 0.9000), (2.400, 0.8580), (2.500, 0.7880), (HALF_L, 0.610),
 ])
 
-# The shoulder / greenhouse base is far narrower than the hip. Read in 3-D from two solved cameras (the right rear
-# three-quarter photograph c1_0031 and the left front one c1_0025: ray / plane intersections with the door lines whose x
-# the side photograph gives) and from the rear photograph's silhouette: the belt's half-width is 0.86 at the front door's
-# leading edge, 0.82 at the B-pillar, 0.79 at the rear door's edge and 0.71 at the quarter glass's rear tip - the
-# slab-sided body this module used to describe (0.93 at the B-pillar) was 11-12 cm too wide per side, which is what made
-# the G9L read as a van. The crease sits ~3 cm outboard of the belt (Section.step_in).
+# Sleeker shoulder & greenhouse base inside muscular wheel-arch haunches
 Y_SHOULDER = Curve([
-    (-HALF_L, 0.765), (-2.500, 0.780), (-2.400, 0.785), (-2.200, 0.775), (-2.000, 0.756),
-    (-1.800, 0.765), (-1.500, 0.800), (-1.200, 0.822), (-0.800, 0.836), (-0.030, 0.852),
-    (0.500, 0.870), (0.863, 0.890), (1.100, 0.915), (1.250, 0.945), (1.420, 0.965), (1.556, 0.974),
-    (1.769, 0.967), (1.949, 0.930), (2.081, 0.866), (2.200, 0.815), (2.300, 0.770), (2.400, 0.720),
-    (2.500, 0.660), (HALF_L, 0.580),
+    (-HALF_L, 0.755), (-2.500, 0.770), (-2.400, 0.775), (-2.200, 0.766), (-2.000, 0.748),
+    (-1.800, 0.758), (-1.500, 0.790), (-1.200, 0.812), (-0.800, 0.826), (-0.030, 0.842),
+    (0.500, 0.862), (0.863, 0.882), (1.100, 0.908), (1.250, 0.938), (1.420, 0.956), (1.556, 0.965),
+    (1.769, 0.958), (1.949, 0.922), (2.081, 0.858), (2.200, 0.808), (2.300, 0.762), (2.400, 0.712),
+    (2.500, 0.652), (HALF_L, 0.575),
 ])
 
-# The roof rail's half-width. The rear photograph's silhouette gives 0.55 at the spoiler's tips (x -2.0, z 1.71), 0.58 at
-# z 1.64, 0.62 at z 1.55 and 0.70 at z 1.35; the front photograph's windscreen header corner is 0.68 (rail 0.77). A teardrop
-# greenhouse: widest at the header, tapering in plan towards the tail over leaning glass.
+# Roof rail half-width: sleek teardrop greenhouse
 Y_ROOF = Curve([
-    (-HALF_L, 0.700), (-2.500, 0.690), (-2.330, 0.640), (-2.200, 0.600), (-2.040, 0.555), (-1.450, 0.590),
-    # over the header the greenhouse widens to the A-pillar's line: the front photograph's black frit band (c1_0026 through its camera,
-    # its height against the side photograph's pillar line) stands at |y| 0.73 at x 0.45, 0.78 at x 0.7 and 0.82 at x 1.0 - the roof's own
-    # silhouette (c1_0002) is 6-8 cm narrower than that at the same height, so the corner is where the glass starts, not a straight rail
-    (-1.000, 0.600), (-0.500, 0.620), (0.000, 0.640), (0.150, 0.646), (0.300, 0.655), (0.450, 0.720), (0.550, 0.745),
-    (0.700, 0.775), (0.900, 0.800), (COWL_X, 0.850),
-    # ahead of the cowl it is the hood's rail point: 60 degrees round the quarter-ellipse roll that runs from the flat
-    # top (at the fender corner's y less HOOD_ROLL) down to the corner
+    (-HALF_L, 0.690), (-2.500, 0.680), (-2.330, 0.630), (-2.200, 0.592), (-2.040, 0.550), (-1.450, 0.585),
+    (-1.000, 0.598), (-0.500, 0.618), (0.000, 0.636), (0.150, 0.642), (0.300, 0.652), (0.450, 0.715), (0.550, 0.740),
+    (0.700, 0.770), (0.900, 0.795), (COWL_X, 0.845),
 ] + [(x, Y_SHOULDER(x) - 0.5 * HOOD_ROLL) for x in (1.450, 1.600, 1.800, 2.000, 2.200, 2.400, 2.500, HALF_L)])
 
+# Tucked rocker sill & deeper athletic lower-door undercut
 Y_ROCKER = Curve([
-    (-HALF_L, 0.650), (-2.500, 0.790), (-2.331, 0.885), (-1.684, 0.950), (-0.727, 0.965),
-    (0.015, 0.970), (0.863, 0.970), (1.647, 0.965), (2.233, 0.925),
-    (2.442, 0.850), (HALF_L, 0.640),
+    (-HALF_L, 0.640), (-2.500, 0.770), (-2.331, 0.855), (-1.684, 0.922), (-0.727, 0.932),
+    (0.015, 0.934), (0.863, 0.934), (1.647, 0.935), (2.233, 0.895),
+    (2.442, 0.825), (HALF_L, 0.625),
 ], mode="pchip")
 
 UNDERCUT = Curve([
-    (-HALF_L, 0.0), (-2.062, 0.0), (-1.257, 0.015), (-0.727, 0.025),
-    (0.439, 0.025), (0.916, 0.012), (1.393, 0.0), (HALF_L, 0.0),
+    (-HALF_L, 0.0), (-2.062, 0.0), (-1.350, 0.022), (-0.800, 0.040),
+    (0.450, 0.040), (0.950, 0.022), (1.420, 0.0), (HALF_L, 0.0),
 ], mode="pchip")
 
 # ------------------------------------------------------------------ the loft
@@ -195,8 +171,8 @@ TUMBLE_CABIN = (0.58, 0.42, 0.50, 0.38)    # over the cabin: the tumble point st
 # the shoulder rolls in (c1_0006 through its camera, row scans of the silhouette); the recipe's upper-door point (y blend, tuck, z fraction
 # hip -> shoulder) sat at 45 % of the way out, a straight taper that stood 3-6 cm per side inside the photograph at z 0.95-1.15: the
 # tail read as a funnel, thin on top and wide at the bumper.
-UPPER_DOOR_FRONT = (0.45, 0.008, 0.62)
-UPPER_DOOR_REAR = (0.84, 0.008, 0.60)
+UPPER_DOOR_FRONT = (0.42, 0.010, 0.62)
+UPPER_DOOR_REAR = (0.62, 0.010, 0.60)
 
 
 def SECTION_AT(x):

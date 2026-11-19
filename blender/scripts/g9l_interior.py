@@ -64,7 +64,7 @@ WHEEL_C = (0.870, WHEEL_Y, 1.040)
 WHEEL_TILT = math.radians(22.0)
 
 # the dash: the pad's height and the faces' x
-Z_TOP = 1.150
+Z_TOP = 1.132
 FACE_X = 1.120
 CLUSTER_C = (FACE_X - 0.003, WHEEL_Y, 1.085)
 CLUSTER_W, CLUSTER_H = 0.330, 0.062
@@ -437,6 +437,7 @@ def _seat_spec(k=1.0):
 # the backrest's height against the SU7-drawn spine. Measured 2026-10-19: the front headrests' tops (z 1.687) stand 5.6 cm
 # under the headliner (1.743) and the rear ones (z 1.566) 18 cm under the glass roof, so the spine is used as drawn.
 FRONT_BACK_K = 1.0
+FRONT_SEAT_SCALE = 0.85              # reduce front seat size by 15% so they sit cleanly proportioned in the greenhouse
 REAR_BACK_K = 0.86
 
 
@@ -451,17 +452,32 @@ def _rear_spec():
     return sp
 
 
+def _scale_about(objs, origin, factor):
+    """Uniformly scale mesh objects about world-space `origin` by `factor` (baked into vertex coords)."""
+    o = Vector(origin)
+    for ob in objs:
+        if ob is None or ob.type != 'MESH':
+            continue
+        mw = ob.matrix_world
+        mwi = mw.inverted()
+        for v in ob.data.vertices:
+            wp = mw @ v.co
+            v.co = mwi @ (o + (wp - o) * factor)
+        ob.data.update()
+
+
 def build_seats(col, lib):
     from carkit.interior import seat as SE
     made = []
     for tag, y in (("FL", DRIVER_Y), ("FR", PASS_Y)):
         front = _seat_spec(FRONT_BACK_K)
-        parts, cush, back = SE.seat(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z),
-                                    name="int_seat_" + tag)
-        made += parts
-        made += CP.headrest(col, lib, front, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_" + tag)
-        made += CP.seat_shroud(col, lib, (FRONT_BIGHT_X, y, FRONT_BIGHT_Z), "int_seat_%s_base" % tag,
-                               FLOOR_Z, role="lower_card")
+        origin = (FRONT_BIGHT_X, y, FRONT_BIGHT_Z)
+        parts, cush, back = SE.seat(col, lib, front, origin, name="int_seat_" + tag)
+        hr_parts = CP.headrest(col, lib, front, origin, "int_seat_" + tag)
+        _scale_about(parts + hr_parts, origin, FRONT_SEAT_SCALE)
+        made += parts + hr_parts
+        made += CP.seat_shroud(col, lib, origin, "int_seat_%s_base" % tag,
+                               FLOOR_Z, role="lower_card", scale=FRONT_SEAT_SCALE)
     rear = _rear_spec()
     for tag, y in (("RL", REAR_Y), ("RR", -REAR_Y)):
         parts, cush, back = SE.seat(col, lib, rear, (REAR_BIGHT_X, y, REAR_BIGHT_Z),

@@ -31,21 +31,21 @@ JOIN_R = Curve([
 # ------------------------------------------- centreline profiles, x given z
 # fit:nose  (z, x)
 NOSE_PTS = [
-    (0.282, 2.500), (0.400, 2.540), (0.550, 2.563), (0.750, 2.575), (0.860, 2.575),
-    (0.930, 2.550), (0.990, 2.505), (1.050, 2.455), (1.090, 2.420), (1.120, 2.370),
-    (1.138, 2.300),
+    (0.312, 2.455), (0.400, 2.508), (0.550, 2.548), (0.750, 2.568), (0.880, 2.572),
+    (0.940, 2.548), (0.990, 2.502), (1.035, 2.455), (1.068, 2.415), (1.088, 2.365),
+    (1.098, 2.300),
 ]
 # /fit:nose
 NOSE_X_OF_Z = Curve(NOSE_PTS, mode="pchip")
 NOSE_Z_LO, NOSE_Z_HI = NOSE_PTS[0][0], NOSE_PTS[-1][0]
 
 # fit:tail  (z, x)
-# the side photographs' centreline silhouette (c1_0004, read through camera side_left): the lamp shelf and the bumper reach -2.55,
-# the tailgate between them tucks in to -2.46 at z 0.82 (the sign hangs there)
+# Sporty forward-undercut Kamm-tail: furthest aft at the taillight crest (x -2.550, z 1.195),
+# sloping cleanly forward toward the plate and sweeping upward/inward at the lower diffuser (z 0.390, x -2.375)
 TAIL_PTS = [
-    (0.296, -2.440), (0.380, -2.480), (0.500, -2.510), (0.600, -2.520), (0.700, -2.510),
-    (0.780, -2.485), (0.830, -2.470), (0.900, -2.480), (1.000, -2.500), (1.100, -2.512), (1.190, -2.515),
-    (1.270, -2.505),
+    (0.405, -2.330), (0.495, -2.405), (0.600, -2.448), (0.720, -2.462),
+    (0.850, -2.478), (0.980, -2.512), (1.100, -2.542),
+    (1.195, -2.556), (1.258, -2.544),
 ]
 # /fit:tail
 TAIL_X_OF_Z = Curve(TAIL_PTS, mode="pchip")

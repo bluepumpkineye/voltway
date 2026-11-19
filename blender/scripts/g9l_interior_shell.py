@@ -30,7 +30,7 @@ from carkit.interior.sweep import grid_mesh, tube, ellipse, smooth_path
 # half (visors, overhead console, mirror) and a thin one behind the glass to the roof's end.
 X_OPEN_F, X_OPEN_R = PN.X_ROOF_GLASS_R - 0.020, PN.X_KNEE + 0.040
 X_HEADLINER_R = -2.040                   # the roof's trailing edge
-X_A_FOOT = 1.280
+X_A_FOOT = 1.210
 Z_CARGO = GT.Z_CARGO                     # the cargo floor, flush with the sill plate (c3_0157)
 
 
@@ -251,17 +251,17 @@ def build_closures(col, lib):
 
 def build_cowl_side(col, lib):
     """The A-pillar's foot: a wall from the dash's end out to the skin ahead of the front door, floor of
-    the pillar band to the footwell, so the fender's inside does not show between them."""
-    xs = [1.04 + 0.27 * k / 12.0 for k in range(13)]
-    pts = [(x, CB.skin_offset_y(S.BODY, x, 1.05, 0.050, 0.99)) for x in xs]
-    made = [CB.wall(col, lib["leather_dash"], pts, lambda x, y: 0.90, lambda x, y: 1.22,
+    the pillar band to the footwell, kept cleanly under the lowered fender shoulder."""
+    xs = [1.04 + 0.20 * k / 12.0 for k in range(13)]
+    pts = [(x, CB.skin_offset_y(S.BODY, x, 1.02, 0.055, 0.99)) for x in xs]
+    made = [CB.wall(col, lib["leather_dash"], pts, lambda x, y: 0.90, lambda x, y: min(1.12, S.Z_SHOULDER(x) - 0.020),
                     nz=8, name="int_cowl_side", facing=(0.0, -1.0, 0.0))]
-    # the A-pillar's foot: a band under the body's upper surface from the windscreen's corner out over the fender's
-    # crown, or the fender's top shows between the pillar band and that wall (seen from the seat at z 1.25)
-    xs_c = [1.00 + 0.31 * k / 24.0 for k in range(25)]
+    # the A-pillar's foot: strictly at the lower cowl corner (x >= 1.165) and bounded by the A-pillar's
+    # own edges (_a_door .. _a_screen), so it never sticks inboard into the windscreen or outboard past the pillar
+    xs_c = [1.165 + 0.048 * k / 10.0 for k in range(11)]
     made.append(CB.edge_band(S.BODY, col, lib["headliner"], xs_c,
-                             lambda x: (x, S.v_at_y_upper(x, 0.69)), lambda x: (x, S.v_at_y_upper(x, 0.86)),
-                             depth=0.012, bulge=0.0, nt=8, name="int_cowl_top"))
+                             _a_door, _a_screen,
+                             depth=0.022, bulge=0.0, nt=6, name="int_cowl_top"))
     # and the slit between the dash's front end and the windscreen's lower edge: a plate on the pad's end up to the glass
     x_c = PN.X_COWL - 0.004                  # the windscreen's base (the first fit, 1.2815, stood 9 cm ahead of the glass)
     rows = []

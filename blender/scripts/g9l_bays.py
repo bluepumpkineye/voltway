@@ -27,7 +27,7 @@ from carkit.bay import (smooth, inset_poly, radial, finish as _finish, prism as 
 # plan half-width of the hood by x, measured on the built panel (G9L_Hood)
 HOOD_HALF = [(1.20, 0.919), (1.25, 0.951), (1.5, 0.942), (1.9, 0.912), (2.15, 0.862),
              (2.20, 0.866), (2.25, 0.706), (2.30, 0.212), (2.312, 0.0)]
-HOOD_HINGE = (1.215, 1.247)    # (x, z) of the hinge axis, along y, under the rear edge
+HOOD_HINGE = (1.215, 1.205)    # (x, z) of the hinge axis, along y, under the rear edge
 HOOD_DEG = 62.0
 APRON_DROP = 0.080             # the tray's height under the hood's top surface
 TUB_DEPTH = 0.225
@@ -199,13 +199,14 @@ def build_frunk(collection="G9L_Details"):
 def _build_cowl(col, hood, zA, satin, rubber, shadow):
     from carkit.interior.sweep import grid_mesh, tube, ellipse
     made = []
-    hw = 0.880
-    # the well's sloping back wall, from the windscreen's foot down to the tray
+    hw = 0.840
+    z_cowl = 1.206
+    # the well's sloping back wall, from the lowered windscreen foot down to the tray
     rows = []
     for i in range(7):
         t = i / 6.0
         x = 1.192 + 0.046 * t
-        z = 1.255 + (zA(1.238, 0.0) - 1.255) * (t ** 1.3)
+        z = z_cowl + (zA(1.238, 0.0) - z_cowl) * (t ** 1.3)
         rows.append([(x, -hw + 2 * hw * j / 36.0, z) for j in range(37)])
     well = grid_mesh("G9L_Frunk_Cowl", rows, col, satin)
     from carkit import mesh as M
@@ -214,21 +215,21 @@ def _build_cowl(col, hood, zA, satin, rubber, shadow):
     # ribs of the vent strip: thin bars across the well
     for k in range(7):
         x = 1.204 + 0.006 * k
-        z = 1.255 + (zA(1.238, 0.0) - 1.255) * (((x - 1.192) / 0.046) ** 1.3) + 0.0035
+        z = z_cowl + (zA(1.238, 0.0) - z_cowl) * (((x - 1.192) / 0.046) ** 1.3) + 0.0035
         made.append(tube("G9L_Frunk_Rib%d" % k, [(x, -0.74 + 1.48 * j / 12.0, z) for j in range(13)],
                          ellipse(0.0022, 0.0022, 6), col, shadow, lateral=(1.0, 0.0, 0.0)))
     # the rubber seal along the tray's rear edge
     made.append(tube("G9L_Frunk_CowlSeal", [(1.244, -hw + 2 * hw * j / 36.0, zA(1.244, 0.0) + 0.006)
                                            for j in range(37)],
                      ellipse(0.0100, 0.0080, 8), col, rubber, lateral=(1.0, 0.0, 0.0)))
-    # the two wipers parked along the glass (c12_0002): an arm and a blade each
-    for nm, y0, y1, yp in (("L", 0.800, 0.260, 0.820), ("R", 0.110, -0.740, -0.770)):
-        z = 1.262
-        made.append(tube("G9L_Wiper_Blade" + nm, [(1.172, y0 + (y1 - y0) * j / 8.0, z) for j in range(9)],
+    # the two wipers parked neatly in the lowered cowl well along the glass foot
+    for nm, y0, y1, yp in (("L", 0.760, 0.260, 0.780), ("R", 0.110, -0.720, -0.750)):
+        z = 1.214
+        made.append(tube("G9L_Wiper_Blade" + nm, [(1.186, y0 + (y1 - y0) * j / 8.0, z) for j in range(9)],
                          [(a * 0.0035, b * 0.011) for (a, b) in ellipse(1, 1, 8)], col, satin,
                          lateral=(1.0, 0.0, 0.0)))
-        made.append(tube("G9L_Wiper_Arm" + nm, [(1.168, y1 + (y0 - y1) * 0.18 + 0.0 * j, z + 0.006 + 0.0)
-                                               for j in range(2)] + [(1.17, yp, z + 0.004)],
+        made.append(tube("G9L_Wiper_Arm" + nm, [(1.182, y1 + (y0 - y1) * 0.18 + 0.0 * j, z + 0.006 + 0.0)
+                                               for j in range(2)] + [(1.184, yp, z + 0.004)],
                          ellipse(0.0050, 0.0050, 6), col, satin, lateral=(1.0, 0.0, 0.0)))
     return made
 

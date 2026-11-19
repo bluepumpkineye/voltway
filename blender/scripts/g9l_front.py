@@ -87,13 +87,13 @@ def _smooth(pts, n=56):
     return [(y, cv(y)) for y in ys]
 
 
-FASCIA_LOW = sorted([(0.0, 0.5385)] + _smooth(_yz(CAM.SMILE_PX)))                  # centre -> outer corner
-BAND_LOW = sorted([(0.0, 0.3635)] + _smooth(_yz(CAM.BAND_BOT_PX)))
+FASCIA_LOW = sorted([(0.0, 0.5420)] + [(y, z + 0.004) for (y, z) in _smooth(_yz(CAM.SMILE_PX))])
+BAND_LOW = sorted([(0.0, 0.3800)] + [(y, z + 0.017) for (y, z) in _smooth(_yz(CAM.BAND_BOT_PX))])
 # the headlamp lens: bottom edge, top edge (slanting up toward the corner), y from the car's
 # centre outward
-LENS_BOT = [(0.700, 0.475), (0.802, 0.471)]
-LENS_TOP = [(0.700, 0.629), (0.802, 0.696)]
-SLIT_Y, SLIT_Z = (0.826, 0.857), (0.435, 0.790)
+LENS_BOT = [(0.700, 0.482), (0.800, 0.478)]
+LENS_TOP = [(0.700, 0.632), (0.800, 0.696)]
+SLIT_Y, SLIT_Z = (0.822, 0.840), (0.440, 0.765)
 
 
 # ------------------------------------------------------------------ cuts
@@ -187,7 +187,7 @@ MODULE_U = (1820, 2033)
 
 
 def _zv(v):
-    return CAM.front_yz(1920, v)[1]
+    return CAM.front_yz(1920, v)[1] + 0.014
 
 
 def _patch(name, za, zb, y0, y1, off, mat, collection, nz=4, nw=18, thickness=0.0025):
@@ -288,12 +288,10 @@ def build_headlamps(collection, lib):
 
 # --------------------------------------------------------------- light bar
 def _bar_edges():
-    top = _yz(CAM.BAR_TOP_PX)[::-1]                 # centre -> corner
-    bot = _yz(CAM.BAR_BOT_PX)[::-1]
-    # the photograph's bar ends at |y| 0.803-0.807, where the fender's top corner begins (the cap's seam is at y 0.80-0.81 there):
-    # it used to curl on to |y| 0.915 across the seam, a bracket standing off the fender; it now closes to a short rounded tip
-    top += [(0.815, 1.052)]
-    bot += [(0.815, 1.016)]
+    top = [(y, z - 0.036) for (y, z) in _yz(CAM.BAR_TOP_PX)[::-1]]                 # centre -> corner
+    bot = [(y, z - 0.036) for (y, z) in _yz(CAM.BAR_BOT_PX)[::-1]]
+    top += [(0.805, 1.016)]
+    bot += [(0.805, 0.980)]
     return top, bot
 
 
@@ -326,7 +324,7 @@ _CHEV = [(0.006, 0.0), (0.061, 0.021), (0.043, 0.0), (0.061, -0.021)]
 def build_emblem(collection, lib):
     from mathutils import Vector
     made = []
-    p, n = face(0.0, 1.050, 0.0)
+    p, n = face(0.0, 1.012, 0.0)
     nv = Vector(n).normalized()
     t1 = Vector((0.0, 1.0, 0.0))
     t2 = nv.cross(t1).normalized()
