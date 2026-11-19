@@ -104,10 +104,14 @@ Z_SHOULDER = Curve([
     (2.500, 0.860), (HALF_L, 0.800),
 ])
 
+# Roof edge below the centreline. Greenhouse pass (2026-11-19): it was -0.085..-0.092 over the whole roof, a 9 cm sag from the
+# centre to the rail over 0.65 m (a 2.3 m arch): the roof read as a gable from behind (the spoiler blade, which follows the
+# edge, peaked at the middle) and the windscreen's rail point stood 9 cm under its centre. The real roof (the maker's rear and
+# front photographs) is a flat plate with a few centimetres of crown: -0.04 to -0.045, one smooth value from the tail to the cowl.
 Z_CREST = FC([
-    (-HALF_L, -0.045), (-2.350, -0.065), (KNEE_X, -0.085),
-    (-1.400, -0.090), (-0.400, -0.092), (0.450, -0.088),
-    (0.900, -0.068), (COWL_X, -0.032), (1.800, -0.030),
+    (-HALF_L, -0.030), (-2.350, -0.036), (KNEE_X, -0.040),
+    (-1.400, -0.042), (-0.400, -0.043), (0.450, -0.045),
+    (0.900, -0.042), (COWL_X, -0.032), (1.800, -0.030),
     (2.300, -0.025), (HALF_L, 0.000),
 ])
 
@@ -125,10 +129,19 @@ Y_SHOULDER = FC([
     (2.100, 0.805), (2.420, 0.765), (HALF_L, 0.690),
 ])
 
+# The roof rail's half-width. Greenhouse pass (2026-11-19): the windscreen's part of this curve (0.350 -> 0.660, 0.850 -> 0.715,
+# COWL_X -> 0.815) grew slowly at the roof and fast at the cowl (slope 0.03 to 0.33 per metre): the A-pillar's line, which is
+# where the screen's height meets this edge, bowed INWARD between its ends and flared out at the foot, the S the owner circled.
+# Solved so the pillar's outer edge (a straight line in side view, es8_panels.z_a) is one convex arc in plan, y = 0.698 at the
+# roof corner (x 0.42), 0.797 at x 0.80, about 0.84 at x 1.12, its slope falling steadily from 0.32 to 0.07 (an outward bulge,
+# taut, no inflection; the last 6 cm run into the shoulder crease, 0.85): the knots from 0.42 to 1.10 are the half-widths that make the section pass through that arc at the
+# pillar's height (bisection on the loft's own section, Z_CREST as set below).
 Y_ROOF = FC([
     (-HALF_L, 0.570), (-2.400, 0.580), (KNEE_X, 0.595),
-    (-1.600, 0.625), (-0.600, 0.650), (0.350, 0.660),
-    (0.850, 0.715), (COWL_X, 0.815), (1.650, 0.800),
+    (-1.600, 0.625), (-0.600, 0.650), (0.000, 0.648),
+    (0.300, 0.640), (0.420, 0.649), (0.500, 0.681), (0.580, 0.708), (0.660, 0.730), (0.740, 0.752),
+    (0.820, 0.772), (0.900, 0.791), (0.980, 0.808), (1.060, 0.822), (1.120, 0.830),
+    (COWL_X, 0.834), (1.650, 0.800),
     (2.150, 0.760), (2.350, 0.710), (2.450, 0.650), (HALF_L, 0.580),
 ])
 
@@ -180,6 +193,9 @@ BODY = LoftBody(
     sill_height=0.135, core_z=0.75, crease="soft",
     section=Section(step_in=0.008, step_max=0.015, tumble=(0.50, 0.50, 0.50, 0.38)),
     section_at=SECTION_AT,
+    # greenhouse pass (2026-11-19): the A-pillars' glossy ribbons lay on the section's 3 cm chords (10 to 22 degrees between
+    # them at the roof edge), which broke the studio reflection into a ragged streak; interpolate the section smoothly
+    smooth_v=True,
 )
 
 z_rocker = BODY.z_rocker

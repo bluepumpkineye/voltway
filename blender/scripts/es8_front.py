@@ -458,37 +458,74 @@ def build_emblem_and_plate(collection, lib):
 
 
 # ----------------------------------------------------------- Watchtower roof sensors
+# The three pods stand on the roof crown (es8_panels.ES8_Roof_Crown, x 0.30 to 0.56), the black band between the roof glass and
+# the windscreen's top edge, as on the real car (ext_front.jpg: the lidar and the two corner cameras on the roof's leading
+# edge, the glass header a hand's width below them; the maker's side render's silhouette has them 3 cm over the roof at
+# x 0.40). Each is a low "pebble" whose base plane is the roof's own tangent plane there: the roof falls 30 degrees at the
+# crown, and the first build's flat-based bumps (z = roof centre - 12 mm) hung half over the glass and half in the air.
+WT_LIDAR = dict(x=0.410, y=0.0, a=0.070, b=0.105, c=0.034)
+WT_CAM = dict(x=0.405, y=0.545, a=0.050, b=0.032, c=0.021, yaw_deg=10.0)
+
+
+def _roof_frame(x, y):
+    """The roof's top surface at (x, y): the point and an orthonormal frame on it. u runs along the surface towards the nose,
+    v across the car (+y), w is the outward normal."""
+    p, n = BODY.top_point(x, y, 0.0)
+    w = Vector(n).normalized()
+    v = Vector((0.0, 1.0, 0.0))
+    v = (v - w * v.dot(w)).normalized()
+    u = v.cross(w).normalized()
+    return Vector(p), u, v, w
+
+
+def _pebble(name, p, u, v, w, a, b, c, collection, mat, nu=32, nv=12, shoulder=0.55, crown=0.85, dip=0.004):
+    """A low dome of half-axes a (along u), b (along v), c (along w) with a steep wall and a rounded top, its base ring dip
+    metres under the surface at p so it meets a surface that curves away from the tangent plane without a gap."""
+    verts = []
+    for j in range(nv):
+        el = 0.5 * math.pi * j / nv
+        rr = math.cos(el) ** shoulder
+        zz = c * math.sin(el) ** crown - dip
+        for i in range(nu):
+            az = 2.0 * math.pi * i / nu
+            verts.append(tuple(p + u * (a * rr * math.cos(az)) + v * (b * rr * math.sin(az)) + w * zz))
+    verts.append(tuple(p + w * (c - dip)))
+    faces = []
+    for j in range(nv - 1):
+        for i in range(nu):
+            i2 = (i + 1) % nu
+            faces.append([j * nu + i, j * nu + i2, (j + 1) * nu + i2, (j + 1) * nu + i])
+    for i in range(nu):
+        faces.append([(nv - 1) * nu + i, (nv - 1) * nu + (i + 1) % nu, nv * nu])
+    ob = M.obj(name, verts, faces, collection, mat)
+    M.orient(ob.data, geom.away_from(tuple(p - w * 0.05)))
+    return ob
+
+
 def build_watchtower(collection, lib):
     made = []
-    # Central Aquila ultra-long-range LiDAR pod above windshield header
-    cx = 0.460
-    zc = S.Z_ROOF(cx) - 0.012
-    made.append(fittings.lidar_pod(
-        "ES8_Lidar", collection, lib["black_gloss"], cx, zc,
-        a=0.075, b=0.112, c=0.042,
-    ))
-    # Two front corner 8MP Watchtower camera pods ("犄角" at y = +/- 0.49 m)
-    cx_cam, cy_cam = 0.420, 0.490
-    p_cam, _ = BODY.top_point(cx_cam, cy_cam, 0.0)
-    z_cam = p_cam[2] - 0.006
-    rows = []
-    for dx, r_scale in ((-0.060, 0.35), (-0.020, 0.95), (0.028, 1.0), (0.050, 0.45)):
-        x = cx_cam + dx
-        row = []
-        for ang in (-0.95, -0.45, 0.0, 0.45, 0.95):
-            dy = 0.028 * r_scale * math.sin(ang)
-            dz = 0.022 * r_scale * math.cos(ang)
-            row.append((x, cy_cam + dy, z_cam + dz))
-        rows.append(row)
-    pod = M.grid("ES8_Watchtower_Cam", rows, collection, lib["black_gloss"],
-                 geom.away_from((cx_cam, cy_cam, z_cam - 0.05)))
-    M.solidify(pod, 0.004)
+    mat = lib["black_gloss"]
+    # Central Aquila ultra-long-range LiDAR pod, on the crown's centre
+    L = WT_LIDAR
+    p, u, v, w = _roof_frame(L["x"], L["y"])
+    made.append(_pebble("ES8_Lidar", p, u, v, w, L["a"], L["b"], L["c"], collection, mat, nu=40))
+    # Two front corner 8MP Watchtower camera pods, one built and mirrored; yawed outward as on the real car
+    C_ = WT_CAM
+    p, u, v, w = _roof_frame(C_["x"], C_["y"])
+    yaw = math.radians(C_["yaw_deg"])
+    u2 = (u * math.cos(yaw) + v * math.sin(yaw)).normalized()          # turned towards +y, about the normal
+    v2 = w.cross(u2).normalized()
+    pod = _pebble("ES8_Watchtower_Cam", p, u2, v2, w, C_["a"], C_["b"], C_["c"], collection, mat)
     M.mirror_y(pod)
     made.append(pod)
-    made += lamps.projector(
-        "ES8_Watchtower_Lens", (cx_cam + 0.044, cy_cam, z_cam + 0.007),
-        (1.0, 0.0, 0.0), 0.010, collection, lib,
-    )
+    # the lens, on the pod's front shoulder, facing along the pod's nose
+    el = math.radians(32.0)
+    rr = math.cos(el) ** 0.55
+    zz = C_["c"] * math.sin(el) ** 0.85 - 0.004
+    lens_c = p + u2 * (C_["a"] * rr) + w * zz
+    lens_n = (u2 * 0.85 + w * 0.52).normalized()
+    made += lamps.projector("ES8_Watchtower_Lens", tuple(lens_c + lens_n * 0.0008), tuple(lens_n), 0.0105,
+                            collection, lib)
     return made
 
 

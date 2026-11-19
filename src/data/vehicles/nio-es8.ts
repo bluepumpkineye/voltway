@@ -489,12 +489,14 @@ export const nioEs8: Vehicle = {
   // the pod's two lens units and its projector lens (M_Lamp_Lens) light with the low beam; the DRL's two bars are the usual M_LED_White
   lights: { projector: { material: 'M_Lamp_Lens' } },
   sensors: {
-    lidar: [0.55, 0.0, 1.76],
+    // the Watchtower pods stand on the roof crown (blender/scripts/es8_front.py WT_LIDAR / WT_CAM, 2026-11-19): the lidar on the
+    // centre line at x 0.41, the two corner cameras at x 0.405, y 0.545, both a hand above the crown's surface
+    lidar: [0.41, 0.0, 1.73],
     sideLidar: [1.18, 0.94, 0.92],
     rearLidar: [-2.56, 0.0, 1.08],
     cameras: [
       { at: [2.62, 0.0, 0.92] },
-      { at: [0.55, 0.52, 1.74], mirror: true },
+      { at: [0.405, 0.545, 1.70], mirror: true },
       { at: [0.95, 0.96, 1.02], mirror: true },
       { at: [-2.56, 0.0, 1.08] },
       { at: [-2.18, 0.0, 1.62] },

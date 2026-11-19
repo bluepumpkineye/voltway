@@ -249,18 +249,20 @@ def build_spoiler_and_fin(collection, lib):
         thickness=0.022, tip_taper=0.75, n=22, mat="paint", lift=0.002,
     ))
 
-    # Shark-fin roof antenna just ahead of spoiler
-    x_fin = -1.940
+    # Shark-fin roof antenna just ahead of spoiler. The maker's side render has it 2 to 4 cm over the roof (silhouette 1.785
+    # to 1.793 against a roof at 1.75 to 1.76, x -1.8 to -1.9): a low bump, not the 5.6 cm, 3 mm-thin spike the first build
+    # stood up there, which read as the peak of the rear roofline from the front (greenhouse pass, 2026-11-19).
+    x_fin = -1.900
     z_fin = S.Z_ROOF(x_fin) - 0.004
     fin_rows = [
-        [(x_fin + 0.065, 0.0, z_fin), (x_fin, 0.016, z_fin), (x_fin - 0.065, 0.004, z_fin)],
-        [(x_fin + 0.015, 0.0, z_fin + 0.056), (x_fin - 0.025, 0.004, z_fin + 0.060),
-         (x_fin - 0.060, 0.001, z_fin + 0.052)],
+        [(x_fin + 0.075, 0.0, z_fin), (x_fin, 0.022, z_fin), (x_fin - 0.070, 0.010, z_fin)],
+        [(x_fin + 0.022, 0.0, z_fin + 0.036), (x_fin - 0.020, 0.006, z_fin + 0.042),
+         (x_fin - 0.055, 0.003, z_fin + 0.034)],
     ]
     fin = M.grid("ES8_Shark_Fin", fin_rows, collection, lib["black_gloss"],
                  geom.const((0.0, 1.0, 0.0)))
     M.mirror_y(fin)
-    M.finish(fin, thickness=0.003, bevel=0.001)
+    M.finish(fin, thickness=0.004, bevel=0.0015)
     made.append(fin)
     return made
 

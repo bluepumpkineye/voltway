@@ -89,8 +89,14 @@ class LoftBody:
                  v_shoulder=0.520, cowl_x=None, backlight_x=None,
                  sill_height=0.150, n_lower=44, n_upper=40, core_z=0.62,
                  crease="sharp", section=None, name="body", z_dome=None, y_dome=None,
-                 y_glass=None, z_step=None, soft=None, section_at=None):
+                 y_glass=None, z_step=None, soft=None, section_at=None, smooth_v=False):
         self.name = name
+        # smooth_v: section_v interpolates the sampled section with a C1 cubic (Catmull-Rom through four samples) instead of
+        # straight chords. A pillar 8 cm wide spans only three 2.6 to 3 cm chords of the 40-point upper section, which turn
+        # 10 to 22 degrees at the roof edge: the chords are flat facets, and a glossy sheet laid on them breaks a studio
+        # reflection into a ragged streak (the Nio ES8's A-pillars, 2026-11-19). Off by default: the shipped cars were
+        # tuned on the chords.
+        self.SMOOTH_V = smooth_v
         self.LENGTH, self.WIDTH, self.HEIGHT = length, width, height
         self.HALF_L = length / 2.0
         self.HALF_W = width / 2.0
@@ -300,7 +306,23 @@ class LoftBody:
         t = f - i
         y0, z0 = pts[i]
         y1, z1 = pts[i + 1]
-        return (y0 + (y1 - y0) * t, z0 + (z1 - z0) * t)
+        if not self.SMOOTH_V:
+            return (y0 + (y1 - y0) * t, z0 + (z1 - z0) * t)
+        # uniform Catmull-Rom through the four samples round the segment; the stencil does not cross a sharp crease
+        lo, hi = 0, n - 1
+        if self.crease == "sharp" and self.SOFT is None:
+            if i + 1 <= k_sh:
+                hi = k_sh
+            elif i >= k_sh:
+                lo = k_sh
+        ya, za = pts[max(lo, i - 1)]
+        yb, zb = pts[min(hi, i + 2)]
+        t2, t3 = t * t, t * t * t
+        y = 0.5 * (2.0 * y0 + (-ya + y1) * t + (2.0 * ya - 5.0 * y0 + 4.0 * y1 - yb) * t2
+                   + (-ya + 3.0 * y0 - 3.0 * y1 + yb) * t3)
+        z = 0.5 * (2.0 * z0 + (-za + z1) * t + (2.0 * za - 5.0 * z0 + 4.0 * z1 - zb) * t2
+                   + (-za + 3.0 * z0 - 3.0 * z1 + zb) * t3)
+        return (y, z)
 
     def surface(self, x, v):
         """A point on the half body surface, as (x, y, z) with y >= 0."""

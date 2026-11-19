@@ -15,7 +15,12 @@ SKIN = M.SKIN
 
 # ----------------------------------------------------------------- stations
 X_COWL = S.COWL_X            # 1.200, windscreen base
-X_ROOF_F = 0.420             # windscreen header
+X_ROOF_F = 0.420             # the roof's front corner: where the A-pillar's line meets the roof rail (A_TOP)
+X_HEADER = 0.560             # the windscreen glass's top edge (2026-11-19): 14 cm down the screen from the roof corner, so a black
+                             # roof crown (the underlay + ES8_Roof_Crown) stands above the glass and carries the Watchtower pods
+X_ROOF_GLASS_F = 0.300       # the panoramic roof glass's front edge: behind the pods, on the flat of the roof
+GLASS_RECESS = -0.0025       # the windscreen glass sits this far under the pillar frames and the crown (it bulged out of them)
+CROWN_OFFSET = 0.0012        # the crown stands this far proud of the surface
 X_KNEE = S.KNEE_X            # -2.180, roof spoiler trailing edge
 X_DLO_FRONT = 0.620          # where roof-side glass line meets A-pillar
 X_DOOR_TOP_F = 1.000         # front door leading edge at belt
@@ -79,18 +84,23 @@ BELT_Z = Curve([
     (-1.35, 1.240), (X_DLO_TIP, 1.262),
 ])
 
-DLO_TOP_Z = Curve([
-    (X_DLO_FRONT, 1.440), (0.42, 1.560), (0.00, 1.650), (-0.55, 1.662),
-    (-1.15, 1.650), (-1.60, 1.615), (X_DLO_TIP, 1.540),
-])
-
 A_FOOT = (1.185, 1.172)
 A_TOP = (X_ROOF_F, 1.560)
 
 
 def z_a(x):
+    """The A-pillar's outer edge in side view: ONE straight line from the foot to the roof corner."""
     t = (A_FOOT[0] - x) / (A_FOOT[0] - A_TOP[0])
     return A_FOOT[1] + (A_TOP[1] - A_FOOT[1]) * t
+
+
+# The side glass's top edge. Its front knot is ON the pillar's line (it was 1.9 cm under it at x 0.62, which needed a
+# blend between two lines and made the pillar's width swell there), so the glass line leaves the pillar line without a
+# corner: the pillar line's slope (-0.507) is the slope the spline arrives at the roof corner with.
+DLO_TOP_Z = Curve([
+    (X_DLO_FRONT, z_a(X_DLO_FRONT)), (0.42, 1.560), (0.00, 1.650), (-0.55, 1.662),
+    (-1.15, 1.650), (-1.60, 1.615), (X_DLO_TIP, 1.540),
+])
 
 
 def V_BELT(x):
@@ -98,19 +108,30 @@ def V_BELT(x):
 
 
 def V_GT(x):
-    if x > X_DLO_FRONT:
-        miss = z_a(X_DLO_FRONT) - DLO_TOP_Z(X_DLO_FRONT)
-        t = _clamp01((x - X_DLO_FRONT) / 0.30)
-        return v_up(x, z_a(x) - miss * (1.0 - _smooth(t)))
+    """The top edge of the side glass, which on the A-pillar is the pillar's outer edge: the straight line z_a, so the
+    pillar's plan curve is whatever the surface makes of one straight line in side view (Y_ROOF is solved for a convex
+    arc), with no second line to blend towards."""
+    if x > X_ROOF_F:
+        return v_up(x, z_a(x))
     return v_up(x, DLO_TOP_Z(max(X_DLO_TIP, x)))
 
 
+PILLAR_W = 0.080             # the A-pillar's width along the section, the same from the foot to the roof corner
+RAIL_W0 = 0.055              # the roof rail's width over the roof
+
+
 def V_A(x):
-    return S.v_along(x, v_up(x, z_a(min(A_FOOT[0], x))), 0.080)
+    return S.v_along(x, v_up(x, z_a(min(A_FOOT[0], x))), PILLAR_W)
+
+
+def RAIL_W(x):
+    """The roof rail's width: 55 mm over the roof, easing up to the pillar's 80 mm at the roof corner (it ran 55 mm into an
+    80 mm pillar, a 2 cm step in the inner edge and, with the blend between the two, a 1 cm notch at the corner)."""
+    return RAIL_W0 + (PILLAR_W - RAIL_W0) * _smooth((x + 0.10) / (X_ROOF_F + 0.10))
 
 
 def V_RAIL(x):
-    return S.v_along(x, V_GT(x), 0.055)
+    return S.v_along(x, V_GT(x), RAIL_W(x))
 
 
 Y_REARGLASS = Curve([
@@ -274,14 +295,20 @@ PANELS = [
          v=(lambda x: min(V_REARGLASS(x), V_CEDGE(x) - 0.006), 1.0), nx=48, nv=24,
          gap=dict(v1=False, x0=False), mat="black_gloss", offset=-0.010, thickness=0.0),
 
+    # ---- the roof crown: the black band across the top of the screen (the real car's roof leading edge, which carries the
+    # Watchtower pods). It stands 3.7 mm proud of the glass below it, which sits recessed in the pillar frames.
+    dict(name="ES8_Roof_Crown", x=(X_ROOF_GLASS_F, X_HEADER),
+         v=(V_RAIL_TOP, 1.0), nx=28, nv=48, gap=dict(v1=False), mat="black_gloss",
+         offset=CROWN_OFFSET),
+
     # ---- glazing
-    dict(name="ES8_Glass_Windshield", x=(X_ROOF_F, X_COWL - 0.012),
+    dict(name="ES8_Glass_Windshield", x=(X_HEADER, X_COWL - 0.012),
          v=(lambda x: V_A(x) + 0.004, 0.9995), nx=72, nv=56, glass="glass",
-         gap=dict(v1=False)),
+         gap=dict(v1=False), offset=GLASS_RECESS),
     dict(name="ES8_Roof_Paint", x=(X_KNEE - 0.003, X_ROOF_GLASS_R),
          v=(V_ROOF_LO, 1.0), nx=36, nv=24, fixed_x=(X_CTIP,),
          gap=dict(v1=False, x0=False, v0=False), mat="black_gloss"),
-    dict(name="ES8_Glass_Roof", x=(X_ROOF_GLASS_R + 0.006, X_ROOF_F - 0.020),
+    dict(name="ES8_Glass_Roof", x=(X_ROOF_GLASS_R + 0.006, X_ROOF_GLASS_F),
          v=(lambda x: V_RAIL(x) + 0.004, 0.9995), nx=64, nv=30, glass="glass_dark",
          gap=dict(v1=False)),
     dict(name="ES8_Glass_Wedge", x=(X_WEDGE_END, X_CTIP),
