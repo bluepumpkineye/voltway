@@ -326,8 +326,6 @@ export interface WheelOption {
 /** The named camera poses the showroom flies between. */
 export type AnchorId =
   | 'hero'
-  | 'doorsL'
-  | 'doorsR'
   | 'side'
   | 'front'
   | 'rear'
@@ -336,8 +334,6 @@ export type AnchorId =
   | 'xray'
   // the X-ray tab pulled back to take in the exploded view
   | 'xrayWide'
-  | 'frunk'
-  | 'trunk'
   | 'techWide'
   // the Dashboard tab: the car's screen beside the car, looking at one end of it
   | 'dashFront'

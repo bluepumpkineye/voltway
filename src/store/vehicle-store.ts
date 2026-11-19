@@ -118,16 +118,6 @@ const TAB_ANCHOR: Record<ShowroomTab, AnchorId> = {
   drive: 'techWide',
   tech: 'techWide',
 };
-/** Where the camera goes to see a part open: the side its hinge is on. */
-const OPENING_ANCHOR: Record<Opening, AnchorId> = {
-  doorFL: 'doorsL',
-  doorRL: 'doorsL',
-  doorFR: 'doorsR',
-  doorRR: 'doorsR',
-  frunk: 'frunk',
-  boot: 'trunk',
-  charge: 'doorsL',
-};
 // Height uses the front view: beside the car it has free space for the ruler
 // and its label, which the side view (nose and roof up to the screen edge) lacks.
 const DIMENSION_ANCHOR: Record<DimensionFocus, AnchorId> = {
@@ -552,13 +542,9 @@ export const useVehicleStore = create<VehicleUiState>((set) => ({
     set((s) => {
       // the car is on the move on a stage: its doors stay shut (the charging tab opens its own flap: setOpening)
       if (isStageTab(s.tab)) return {};
-      const openings = { ...s.openings, [o]: !s.openings[o] };
-      // opening a part from outside brings it into frame (as HIMA's showroom
-      // does); from the seat, or on another tab, the camera stays where it is
-      if (!s.openings[o] && s.cameraMode === 'exterior' && s.tab === 'colour') {
-        return { openings, ...anchorState(OPENING_ANCHOR[o]) };
-      }
-      return { openings };
+      // the camera stays where the visitor has put it: opening a part used to fly it round the car to a pose of its own,
+      // which read as the car spinning before the door moved
+      return { openings: { ...s.openings, [o]: !s.openings[o] } };
     }),
 
   setOpening: (o, on) => set((s) => (s.openings[o] === on ? s : { openings: { ...s.openings, [o]: on } })),

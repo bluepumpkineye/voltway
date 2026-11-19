@@ -37,17 +37,18 @@ import { XrayLabelLayer } from './XrayLabels';
 import { TechDevices, activeDevice, useDeviceColumn } from '@/components/tech/TechDevices';
 import { useWebGl } from './useWebGl';
 import { isChassisDriver } from '@/lib/tech/chassis';
+import { LoadingCardView } from './LoadingCard';
+import { runWithCard } from '@/store/loading-store';
+import { preloadSkin } from '@/components/hmi/skins';
 
-// three.js has no business in the server bundle
+// three.js has no business in the server bundle. While its code comes over, the card the viewer takes over (viewer/ViewerLoading) is already up.
 const ShowroomViewer = dynamic(
   () => import('@/components/viewer/ShowroomViewer').then((m) => m.ShowroomViewer),
   {
     ssr: false,
     loading: () => (
       <div className="absolute inset-0 grid place-items-center">
-        <div className="h-[3px] w-40 overflow-hidden rounded-full bg-black/10">
-          <div className="h-full w-1/3 rounded-full bg-neutral-800 animate-sweep" />
-        </div>
+        <LoadingCardView label="Loading the showroom" detail="Downloading the 3D viewer" instant />
       </div>
     ),
   },
@@ -59,9 +60,7 @@ const Comparison3DShowroom = dynamic(
     ssr: false,
     loading: () => (
       <div className="fixed inset-0 grid place-items-center bg-[#f1f2f4]">
-        <div className="h-[3px] w-40 overflow-hidden rounded-full bg-black/10">
-          <div className="h-full w-1/3 rounded-full bg-neutral-800 animate-sweep" />
-        </div>
+        <LoadingCardView label="Loading the comparison" detail="Downloading the 3D viewer" instant />
       </div>
     ),
   },
@@ -160,6 +159,25 @@ export function Showroom({
   const closeScreen = React.useCallback(() => setScreenOpen(false), []);
   const [specsOpen, setSpecsOpen] = React.useState(false);
   const webgl = useWebGl();
+
+  // A tab or a scene is a new set of objects to build and shaders to compile, which can hold the page for a second or more on a
+  // modest graphics chip: the loading card goes up first (store/loading-store.ts), then the change is made.
+  const requestTab = React.useCallback(
+    (t: ShowroomTab) => {
+      if (t === useVehicleStore.getState().tab) return;
+      runWithCard(`Preparing ${TITLES[t]}`, () => useVehicleStore.getState().setTab(t));
+    },
+    [],
+  );
+  const requestScene = React.useCallback((s: ShowroomScene) => {
+    if (s === useVehicleStore.getState().sceneKind) return;
+    runWithCard(`Preparing the ${s === 'city' ? 'city' : 'studio'}`, () => useVehicleStore.getState().setSceneKind(s));
+  }, []);
+  // the car's own operating system comes over while the visitor is still looking at the paint
+  React.useEffect(() => {
+    const id = window.setTimeout(() => preloadSkin(vehicle.cockpit.skin), 1500);
+    return () => window.clearTimeout(id);
+  }, [vehicle.cockpit.skin]);
 
   const variant = vehicle.variants.find((v) => v.id === variantId) ?? flagshipVariant(vehicle);
   // the Drive tab's scenario, for the playback bar's facts and the moments it marks
@@ -453,7 +471,7 @@ export function Showroom({
           <div className="order-3 flex w-full justify-center xl:order-none xl:w-auto short:absolute short:left-3 short:top-[62px] short:w-auto short:justify-start">
             <TabBar
               tab={tab}
-              onTab={setTab}
+              onTab={requestTab}
               disabled={hasCabin ? {} : { interior: 'The interior is not built yet', xray: 'The interior is not built yet' }}
               hidden={[
                 ...(vehicle.xray ? [] : ['xray' as const]),
@@ -474,7 +492,7 @@ export function Showroom({
               <span>◫</span>
               <span className="max-sm:hidden">Compare</span>
             </button>
-            {canCity && <SceneToggle scene={sceneKind} onScene={setSceneKind} />}
+            {canCity && <SceneToggle scene={sceneKind} onScene={requestScene} />}
             {Boolean(vehicle.openings?.length) && <SoundToggle />}
             <InfoButton title={TITLES[tab]} note={NOTES[tab]} hint={hint} sources={sources} />
           </div>
@@ -508,7 +526,7 @@ export function Showroom({
               dimension={dimension}
               onDimension={setDimension}
               sources={sources}
-              onCharging={hasCharging ? () => setTab('charging') : undefined}
+              onCharging={hasCharging ? () => requestTab('charging') : undefined}
               compact={false}
               compareVehicle={compareVehicle}
               compareVariant={compareVariant}
@@ -542,7 +560,7 @@ export function Showroom({
             dimension={dimension}
             onDimension={setDimension}
             sources={sources}
-            onCharging={hasCharging ? () => setTab('charging') : undefined}
+            onCharging={hasCharging ? () => requestTab('charging') : undefined}
             compact
             compareVehicle={compareVehicle}
             compareVariant={compareVariant}

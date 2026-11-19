@@ -3,11 +3,12 @@
 import React from 'react';
 import * as THREE from 'three';
 import { Canvas, useLoader, useThree } from '@react-three/fiber';
-import { ContactShadows, Html, Preload, useGLTF } from '@react-three/drei';
+import { ContactShadows, Preload, useGLTF } from '@react-three/drei';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { rigOf } from '@/lib/tech/rig';
 import { onDriveStage, useVehicleStore } from '@/store/vehicle-store';
+import { useLoadingStore } from '@/store/loading-store';
 import { CarModel, CabinModel, DRACO_PATH } from './CarModel';
 import { BoostKnob } from './BoostKnob';
 import { LightsDriver } from './Lights';
@@ -38,6 +39,7 @@ import { TechLotDressing, TechStreet } from './TechStreet';
 import { CarRoot } from './techRig';
 import { InteriorFx } from './cabinfx/InteriorFx';
 import { CabinFxDebugPanel } from './cabinfx/DebugPanel';
+import { SwitchSettle, ViewerLoading } from './ViewerLoading';
 
 /**
  * The showroom's viewer (/showroom/[slug]): the same car and cabin as the
@@ -96,6 +98,8 @@ export function ShowroomViewer({
         }}
       >
         <Invalidator />
+        {/* ends the loading card of a tab or scene change once the frames come steadily again */}
+        <SwitchSettle />
         <OpeningsDriver vehicle={vehicle} />
         <LightsDriver />
         <WeatherDriver />
@@ -109,7 +113,8 @@ export function ShowroomViewer({
         {process.env.NODE_ENV !== 'production' && <DebugHandle />}
         {/* the cabin's post-processing (N8AO, bloom, tone map): mounted only while the visitor sits in the cabin on the Interior tab */}
         <InteriorFx slug={vehicle.slug} />
-        <React.Suspense fallback={<Loading />}>
+        {/* the loading card (ViewerLoading, below the canvas) says what is being waited for: the fallback draws nothing */}
+        <React.Suspense fallback={null}>
           <Stage vehicle={vehicle} variant={variant} url={modelUrl} reflections={reflections} />
           <Preload all />
         </React.Suspense>
@@ -125,6 +130,7 @@ export function ShowroomViewer({
           </React.Suspense>
         )}
       </Canvas>
+      <ViewerLoading vehicle={vehicle} cabinWanted={cabinWanted} />
     </div>
   );
 }
@@ -165,8 +171,10 @@ function Stage({
       <ShowroomCameraRig vehicle={vehicle} />
       {/* the X-ray tab's Play drives the camera along its shots (it needs the loaded exterior, as the rig does) */}
       <XrayShowCamera vehicle={vehicle} />
-      {/* the Drive tab's exit: the fog that takes the car as it drives away (Play's world has its own) */}
-      {driving && !show && <DriveFog />}
+      {/* The fog the Drive tab's exit closes in with (Play's world has its own). It is up on every tab, 4 km away where it does nothing:
+          a scene gaining a fog turns a define on in every material's shader, so entering the Drive tab recompiled the whole car and
+          its cabin (about fifty programs: seconds on a modest graphics chip). */}
+      {!show && <DriveFog />}
       {show ? (
         <XrayWorld vehicle={vehicle} reflections={reflections} />
       ) : city && outside ? (
@@ -219,9 +227,10 @@ function Stage({
 function DebugHandle() {
   const state = useThree();
   React.useEffect(() => {
-    const w = window as unknown as { __viewer?: unknown; __store?: unknown };
+    const w = window as unknown as { __viewer?: unknown; __store?: unknown; __loading?: unknown };
     w.__viewer = state;
     w.__store = useVehicleStore;
+    w.__loading = useLoadingStore;
   }, [state]);
   return null;
 }
@@ -265,18 +274,4 @@ function useMirrorTier() {
     return () => q.removeEventListener('change', f);
   }, []);
   return on;
-}
-
-function Loading() {
-  return (
-    // under the showroom's own panels (the Tech tab's devices are up before the model is)
-    <Html center zIndexRange={[9, 0]}>
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-[3px] w-40 overflow-hidden rounded-full bg-black/10">
-          <div className="h-full w-1/3 rounded-full bg-neutral-800 animate-sweep" />
-        </div>
-        <span className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">Loading model</span>
-      </div>
-    </Html>
-  );
 }

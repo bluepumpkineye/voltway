@@ -86,6 +86,15 @@ body {
   animation: sweep 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+/* The loading card (components/showroom/LoadingCard): held back by its inline animation-delay, then fades in. Opacity and
+   transform run on the compositor, so the card appears on time even while the page is blocked compiling shaders. */
+@keyframes loading-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.loading-card {
+  animation: loading-in 220ms ease-out both;
+}
+
 @keyframes pulse-soft {
   0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { useGLTF, Html } from '@react-three/drei';
 import { addAfterEffect, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { useShallow } from 'zustand/react/shallow';
 import type { OpeningId, Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore } from '@/store/vehicle-store';
 import { HmiSurface } from '@/components/hmi/HmiSurface';
@@ -200,7 +201,10 @@ interface Props {
 
 export function CarModel({ vehicle, variant, url, customPaintId, forceClearGlass }: Props) {
   const { scene } = useGLTF(url, DRACO_PATH);
-  const { cameraMode, paintId: storePaintId, caliperId, wheelId } = useVehicleStore();
+  // only what the model reads: the whole store would re-render this component (and its dozen hooks) on every HMI tap
+  const { cameraMode, paintId: storePaintId, caliperId, wheelId } = useVehicleStore(
+    useShallow((s) => ({ cameraMode: s.cameraMode, paintId: s.paintId, caliperId: s.caliperId, wheelId: s.wheelId })),
+  );
   const paintId = customPaintId !== undefined ? customPaintId : storePaintId;
   const invalidate = useThree((s) => s.invalidate);
   const model = useClonedScene(scene, prepareRig);
@@ -416,7 +420,9 @@ function Cabin({
     [theme, vehicle.slug],
   );
   const model = useClonedScene(scene, prepare);
-  const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore();
+  const { ambientOn, ambientHue, ambientBrightness, trimId } = useVehicleStore(
+    useShallow((s) => ({ ambientOn: s.ambientOn, ambientHue: s.ambientHue, ambientBrightness: s.ambientBrightness, trimId: s.trimId })),
+  );
   // the Interior tab's seat: where the cabin's post-processing runs and the upgraded look applies (cabinfx/)
   const fxOn = useCabinFxOn(vehicle.slug);
   const fx = useCabinFx();
@@ -1072,5 +1078,3 @@ function screenBasis(mesh: THREE.Mesh) {
 
   return { position, quaternion, width };
 }
-
-useGLTF.preload('/models/su7-ultra.glb', DRACO_PATH);

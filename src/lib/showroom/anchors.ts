@@ -105,7 +105,7 @@ interface Shot {
 // lies on the floor: a little elevation opens it up, and the front view lifts
 // the car further so the rulers ahead of the nose clear the dock.
 const SHOTS: Record<
-  | 'hero' | 'doorsL' | 'doorsR' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'xrayWide' | 'frunk' | 'trunk' | 'techWide'
+  | 'hero' | 'side' | 'front' | 'rear' | 'rear34' | 'xray' | 'xrayWide' | 'techWide'
   | 'dashFront' | 'dashRear',
   Shot
 > = {
@@ -117,13 +117,6 @@ const SHOTS: Record<
   dashRear: { az: 154, el: 7, fov: 28, margin: 1.06, lift: 1, close: 0.84 },
   // the Tech tab: far enough back for a car that drives about, a high three-quarter
   techWide: { az: 38, el: 26, fov: 30, margin: 3.0, lift: 1 },
-  // an open door's card faces the tail, so a door is seen from behind it: the
-  // rear three-quarter of its own side
-  doorsL: { az: 124, el: 10, fov: 28, margin: 1.2, lift: 1 },
-  doorsR: { az: -124, el: 10, fov: 28, margin: 1.2, lift: 1 },
-  // an open bonnet and an open tailgate each want a higher, closer look
-  frunk: { az: 28, el: 24, fov: 28, margin: 1.2, lift: 1 },
-  trunk: { az: 150, el: 22, fov: 28, margin: 1.15, lift: 1 },
   // higher, so the cabin shows through the ghosted roof
   xray: { az: 40, el: 24, fov: 30, margin: 1.3, lift: 1 },
   // the exploded view: the body lifts a metre or more above the pack and the parts spread fore and aft and out to the sides

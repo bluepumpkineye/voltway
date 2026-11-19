@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import type { Vehicle, Variant } from '@/data/vehicles/schema';
 import { useVehicleStore, type HmiScreen } from '@/store/vehicle-store';
 import { DRIVE_MODES, effectiveRange } from '@/lib/performance';
@@ -11,15 +12,13 @@ import {
 import {
   HomeScreen, ClimateScreen, DriveScreen, NavScreen, MediaScreen, AdasScreen, ControlsScreen, ChargeScreen,
 } from './screens';
-import { HyperOsSurface } from './hyperos/HyperOsSurface';
-import { HarmonyOsSurface } from './harmonyos/HarmonyOsSurface';
-import { ZeekrOsSurface } from './zeekros/ZeekrOsSurface';
-import { DilinkSurface } from './dilink/DilinkSurface';
-import { XosSurface } from './xos/XosSurface';
-import { BanyanSurface } from './banyan/BanyanSurface';
-import { AvatrSurface } from './avatr/AvatrSurface';
-import { BydSurface } from './byd/BydSurface';
 import { ChassisScreen } from './chassis';
+import { SKIN_LOADERS, type SurfaceProps } from './skins';
+
+/** Each OS is its own chunk (skins.ts): the page draws the one the car wears, a moment after its code arrives. */
+const SKINS = Object.fromEntries(
+  Object.entries(SKIN_LOADERS).map(([skin, load]) => [skin, dynamic(load, { ssr: false, loading: () => null })]),
+) as Record<string, React.ComponentType<SurfaceProps>>;
 
 const DOCK: { id: HmiScreen; label: string; icon: React.ReactNode }[] = [
   { id: 'home', label: 'Home', icon: <HomeIcon /> },
@@ -50,14 +49,8 @@ export function HmiSurface({
   variant: Variant;
   className?: string;
 }) {
-  if (vehicle.cockpit.skin === 'hyperos') return <HyperOsSurface vehicle={vehicle} variant={variant} />;
-  if (vehicle.cockpit.skin === 'harmonyos') return <HarmonyOsSurface vehicle={vehicle} variant={variant} />;
-  if (vehicle.cockpit.skin === 'zeekros') return <ZeekrOsSurface vehicle={vehicle} variant={variant} />;
-  if (vehicle.cockpit.skin === 'dilink') return <DilinkSurface vehicle={vehicle} variant={variant} />;
-  if (vehicle.cockpit.skin === 'xos') return <XosSurface vehicle={vehicle} variant={variant} />;
-  if (vehicle.cockpit.skin === 'banyan') return <BanyanSurface vehicle={vehicle} variant={variant} className={className} />;
-  if (vehicle.cockpit.skin === 'avatr') return <AvatrSurface vehicle={vehicle} variant={variant} />;
-  if (vehicle.cockpit.skin === 'byd') return <BydSurface vehicle={vehicle} variant={variant} />;
+  const Skin = SKINS[vehicle.cockpit.skin];
+  if (Skin) return <Skin vehicle={vehicle} variant={variant} className={className} />;
   return <GenericSurface vehicle={vehicle} variant={variant} className={className} />;
 }
 
