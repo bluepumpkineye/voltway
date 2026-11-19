@@ -1,234 +1,250 @@
-import React from 'react';
-import styles from './landing.module.css';
+'use client';
 
-interface WayItem {
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  ChargingStage,
+  ColourStage,
+  DashboardStage,
+  DriveStage,
+  InteriorStage,
+  PAINT_SWATCHES,
+  SpecificationsStage,
+  TechStage,
+  WheelsStage,
+  XrayStage,
+  type PaintSwatch,
+} from './BentoWidgets';
+import styles from './bento.module.css';
+
+interface CapabilityCardSpec {
   id: string;
-  name: string;
-  line: string;
-  badge?: string;
-  accent?: boolean;
-  swatches?: string[];
-  icon: React.ReactNode;
+  index: string;
+  title: string;
+  description: string;
+  telemetryTag: string;
+  spanClass: string;
+  dark?: boolean;
 }
 
-const WAYS: WayItem[] = [
+const CAPABILITIES: CapabilityCardSpec[] = [
+  // Row 1 (matches Showroom tab order 01-03): 4 + 4 + 4 = 12 cols
   {
     id: 'colour',
-    name: 'Colour',
-    line: 'Change the paint and the trim and see it in daylight.',
-    accent: true,
-    swatches: ['#FACC15', '#2DD4BF', '#991B1B', '#475569'],
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-        <path d="M12 18a4 4 0 0 0 4-4" opacity="0.65" />
-      </svg>
-    ),
+    index: '01',
+    title: 'Colour',
+    description: 'Change the paint and the trim and see it in daylight.',
+    telemetryTag: '5500K STUDIO',
+    spanClass: styles.span4,
   },
   {
     id: 'interior',
-    name: 'Interior',
-    line: 'Sit inside and look around the cabin.',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M7 18v-6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v6" />
-        <path d="M9 10V6a3 3 0 0 1 6 0v4" />
-        <path d="M4 15c0 2.8 3.6 5 8 5s8-2.2 8-5" />
-      </svg>
-    ),
+    index: '02',
+    title: 'Interior',
+    description: 'Sit inside and look around the cabin.',
+    telemetryTag: '360° CABIN',
+    spanClass: styles.span4,
   },
   {
     id: 'dashboard',
-    name: 'Dashboard',
-    line: 'Use the screens and the instruments.',
-    badge: 'Interactive UI',
-    accent: true,
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <rect x="2.5" y="5" width="19" height="12" rx="2.5" />
-        <path d="M8 20h8" />
-        <path d="M7 13a5 5 0 0 1 10 0" />
-        <path d="M12 13l2.2-2.2" />
-      </svg>
-    ),
+    index: '03',
+    title: 'Dashboard',
+    description: 'Use the screens and the instruments.',
+    telemetryTag: 'INTERACTIVE HMI',
+    spanClass: styles.span4,
   },
+  // Row 2 (matches Showroom tab order 04-06): 3 + 4 + 5 = 12 cols
   {
     id: 'wheels',
-    name: 'Wheels',
-    line: 'Try the wheel designs the car is sold with.',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <circle cx="12" cy="12" r="9" />
-        <circle cx="12" cy="12" r="2.5" />
-        <path d="M12 3v6.5M19.8 7.5 14.2 10.7M19.8 16.5l-5.6-3.2M12 21v-6.5M4.2 16.5l5.6-3.2M4.2 7.5l5.6 3.2" />
-      </svg>
-    ),
+    index: '04',
+    title: 'Wheels',
+    description: 'Try the wheel designs the car is sold with.',
+    telemetryTag: 'OEM ALLOYS',
+    spanClass: styles.span3,
   },
   {
     id: 'specifications',
-    name: 'Specifications',
-    line: 'Dimensions, battery, charging and range, each on its own cycle.',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M4 20V10M10 20V4M16 20v-7M20 20H3" />
-        <path d="M19 6l-3 3M16 6h3v3" opacity="0.7" />
-      </svg>
-    ),
+    index: '05',
+    title: 'Specifications',
+    description: 'Dimensions, battery, charging and range, each on its own cycle.',
+    telemetryTag: 'CYCLE STRICT',
+    spanClass: styles.span4,
   },
   {
     id: 'xray',
-    name: 'X-ray',
-    line: 'See through the body to the motors and the pack.',
-    badge: '3D Cutaway',
-    accent: true,
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <rect x="6" y="7" width="12" height="10" rx="2" />
-        <path d="M4 7h16M4 17h16" opacity="0.5" />
-        <path d="M9 12h6M12 9v6" />
-        <circle cx="6" cy="5" r="1.5" />
-        <circle cx="18" cy="5" r="1.5" />
-        <circle cx="6" cy="19" r="1.5" />
-        <circle cx="18" cy="19" r="1.5" />
-      </svg>
-    ),
+    index: '06',
+    title: 'X-ray',
+    description: 'See through the body to the motors and the pack.',
+    telemetryTag: 'CTB CUTAWAY',
+    spanClass: styles.span5,
+    dark: true,
   },
+  // Row 3 (matches Showroom tab order 07-09): 4 + 4 + 4 = 12 cols
   {
     id: 'charging',
-    name: 'Charging',
-    line: 'Watch a charge session and how the power flows.',
-    accent: true,
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M13 2 4.5 13.5h6.5L10 22l9.5-11.5h-6.5L13 2z" />
-      </svg>
-    ),
+    index: '07',
+    title: 'Charging',
+    description: 'Watch a charge session and how the power flows.',
+    telemetryTag: '800V CURVE',
+    spanClass: styles.span4,
   },
   {
     id: 'drive',
-    name: 'Drive',
-    line: 'Run a launch, a curve and a stop and read what the car does.',
-    badge: 'Animated Physics',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M4 18c3-7 5-10 8-10s5 3 8 10" />
-        <path d="M12 8V4M8 14h8" />
-        <circle cx="12" cy="18" r="1.5" />
-      </svg>
-    ),
+    index: '08',
+    title: 'Drive',
+    description: 'Run a launch, a curve and a stop and read what the car does.',
+    telemetryTag: 'PHYSICS HUD',
+    spanClass: styles.span4,
   },
   {
     id: 'tech',
-    name: 'Tech',
-    line: 'See how the technology works, with its claims and sources.',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <rect x="7" y="7" width="10" height="10" rx="2" />
-        <path d="M10 10h4v4h-4z" />
-        <path d="M9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4" />
-      </svg>
-    ),
+    index: '09',
+    title: 'Tech',
+    description: 'See how the technology works, with its claims and sources.',
+    telemetryTag: 'SENSOR SUITE',
+    spanClass: styles.span4,
   },
 ];
 
-interface ProofItem {
+interface TrustItem {
+  status: string;
   name: string;
   line: string;
-  icon: React.ReactNode;
 }
 
-const PROOF: ProofItem[] = [
+const TRUST_ITEMS: TrustItem[] = [
   {
+    status: '01 // VERIFIED DATA',
     name: 'Sourced figures',
     line: 'Specifications come from manufacturer filings and reporting. Each car lists its sources.',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    ),
   },
   {
+    status: '02 // STANDARDIZED',
     name: 'One test cycle at a time',
     line: 'Range is shown on its own cycle. CLTC and WLTP are never mixed.',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    ),
   },
   {
+    status: '03 // BESPOKE MESH',
     name: 'Original 3D models',
     line: 'Every model is a reconstruction built for this project, not a manufacturer file.',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12" />
-      </svg>
-    ),
   },
   {
+    status: '04 // UNSPONSORED',
     name: 'Independent',
     line: 'Voltway is not affiliated with, endorsed by, or a partner of any manufacturer shown.',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-      </svg>
-    ),
   },
 ];
 
 export function CapabilitiesBento() {
+  const cardRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const [gridHovered, setGridHovered] = useState(false);
+  const [chargingHovered, setChargingHovered] = useState(false);
+  const [activePaint, setActivePaint] = useState<PaintSwatch>(PAINT_SWATCHES[0]);
+
+  const handleGridMouseMove = useCallback((e: React.MouseEvent<HTMLUListElement>) => {
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    for (const card of cardRefs.current) {
+      if (!card) continue;
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--mouse-x', `${clientX - rect.left}px`);
+      card.style.setProperty('--mouse-y', `${clientY - rect.top}px`);
+    }
+  }, []);
+
+  const renderStage = (id: string) => {
+    switch (id) {
+      case 'xray':
+        return <XrayStage />;
+      case 'drive':
+        return <DriveStage />;
+      case 'colour':
+        return <ColourStage activePaint={activePaint} onSelectPaint={setActivePaint} />;
+      case 'dashboard':
+        return <DashboardStage />;
+      case 'charging':
+        return <ChargingStage hovered={chargingHovered} />;
+      case 'specifications':
+        return <SpecificationsStage />;
+      case 'interior':
+        return <InteriorStage />;
+      case 'wheels':
+        return <WheelsStage />;
+      case 'tech':
+        return <TechStage />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <>
-      <section id="capabilities" className={`${styles.section} ${styles.does}`} aria-labelledby="does-h">
-        <p className={styles.kicker}>Inside the showroom</p>
-        <h2 id="does-h" className={styles.h2}>
-          What you can do with a car
-        </h2>
-        <ul className={styles.ways}>
-          {WAYS.map((w) => (
-            <li key={w.id} className={styles.bentoCard}>
-              {/* Decorative corner telemetry graphic */}
-              <svg className={styles.bentoTelemetry} width="96" height="64" viewBox="0 0 96 64" fill="none" aria-hidden>
-                <path d="M12 58C30 58 40 24 62 24C74 24 82 14 92 10" stroke="currentColor" strokeWidth="1.25" strokeDasharray="3 3" />
-                <circle cx="62" cy="24" r="2.5" fill="currentColor" />
-                <circle cx="92" cy="10" r="2" fill="currentColor" />
-              </svg>
+      <section id="capabilities" className={styles.bentoSection} aria-labelledby="does-h">
+        <div className={styles.headerRow}>
+          <div>
+            <p className={styles.kicker}>Inside the showroom</p>
+            <h2 id="does-h" className={styles.heading}>
+              What you can do with a car
+            </h2>
+          </div>
+          <span className={styles.headerMeta}>
+            <span className={styles.headerMetaDot} aria-hidden />
+            09 INTERACTIVE MODULES
+          </span>
+        </div>
 
-              <div className={styles.bentoTop}>
-                <span className={`${styles.bentoIcon} ${w.accent ? styles.bentoIconWarm : styles.bentoIconNeutral}`}>
-                  {w.icon}
-                </span>
-                {w.badge && <span className={styles.bentoBadge}>{w.badge}</span>}
-                {w.swatches && (
-                  <span className={styles.bentoSwatches} aria-label="Sample exterior paint colours">
-                    {w.swatches.map((hex) => (
-                      <span key={hex} className={styles.bentoSwatchDot} style={{ backgroundColor: hex }} />
-                    ))}
+        <ul
+          className={`${styles.bentoGrid} ${gridHovered ? styles.bentoGridActive : ''}`}
+          onMouseEnter={() => setGridHovered(true)}
+          onMouseLeave={() => setGridHovered(false)}
+          onMouseMove={handleGridMouseMove}
+        >
+          {CAPABILITIES.map((card, i) => (
+            <li
+              key={card.id}
+              ref={(el) => {
+                cardRefs.current[i] = el;
+              }}
+              className={`${styles.card} ${card.spanClass} ${card.dark ? styles.cardDark : ''}`}
+              onMouseEnter={card.id === 'charging' ? () => setChargingHovered(true) : undefined}
+              onMouseLeave={card.id === 'charging' ? () => setChargingHovered(false) : undefined}
+            >
+              {card.id === 'colour' && (
+                <div
+                  className={styles.colourAmbient}
+                  aria-hidden
+                  style={{
+                    background: `radial-gradient(85% 65% at 50% 24%, ${activePaint.glow} 0%, transparent 72%)`,
+                  }}
+                />
+              )}
+
+              {/* Top Zone (60%): Bespoke Interactive Visual Stage */}
+              <div className={styles.stageZone}>{renderStage(card.id)}</div>
+
+              {/* Bottom Zone (40%): Monospace Index, Bold Title & Description */}
+              <div className={styles.copyZone}>
+                <div className={styles.indexRow}>
+                  <span className={styles.indexTag}>
+                    <span className={styles.indexAccent}>/</span>
+                    {card.index}
                   </span>
-                )}
+                  <span className={styles.telemetryHint}>{card.telemetryTag}</span>
+                </div>
+                <h3 className={styles.cardTitle}>{card.title}</h3>
+                <p className={styles.cardDesc}>{card.description}</p>
               </div>
-
-              <b className={styles.bentoTitle}>{w.name}</b>
-              <span className={styles.bentoCopy}>{w.line}</span>
             </li>
           ))}
         </ul>
       </section>
 
-      <section id="methodology" className={`${styles.section} ${styles.trust}`} aria-label="How Voltway works">
-        <ul className={styles.proof}>
-          {PROOF.map((p) => (
-            <li key={p.name} className={styles.proofItem}>
-              <div className={styles.proofHead}>
-                <i className={styles.proofBar} aria-hidden />
-                <span className={styles.proofIcon}>{p.icon}</span>
-              </div>
-              <b>{p.name}</b>
-              <span>{p.line}</span>
+      <section id="methodology" className={styles.trustSection} aria-label="How Voltway works">
+        <ul className={styles.trustStrip}>
+          {TRUST_ITEMS.map((item) => (
+            <li key={item.name} className={styles.trustCol}>
+              <span className={styles.trustStatusPill}>{item.status}</span>
+              <b className={styles.trustTitle}>{item.name}</b>
+              <span className={styles.trustDesc}>{item.line}</span>
             </li>
           ))}
         </ul>
