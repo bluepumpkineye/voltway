@@ -676,6 +676,7 @@ layers behind them are the `*_Blackout` node's `M_Black_Gloss` (underlay) and `M
 - 2026-11-19: the underlay's black gloss is also masked by the same stencil (`useUnderlayMask`: drawn after the writers, refused where a pane is in
   front), because the triangle cull above left a row of teeth along every pane outline the underlay's grid does not follow (see docs/3d-pipeline.md,
   "Saw teeth along the glass outlines"). The writers are on whenever the panes are see-through from outside, shut or not; the cabin's mask still needs `shut`.
+  2026-11-20: the mask covers both layers of the blackout node (the shadow shell too) and both underlay materials (the G9L's is `M_Black_Trim`).
 - Not covered: the cabins of the five cars were never checked from outside, so anything visible through a pane (a gap above a dash, the
   G9L's slit at the windscreen base) is now seen; the capture routes (`VehicleViewer`) get the same glass.
 

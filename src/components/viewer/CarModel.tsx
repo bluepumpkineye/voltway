@@ -12,7 +12,7 @@ import { HmiSurface } from '@/components/hmi/HmiSurface';
 import { HMI_W, HMI_H } from '@/components/hmi/ui';
 import { useCaliper, usePaint, useTrim, useWheels } from './configurator';
 import { useGlass, useHiddenWhileOpen, useHingedNodes, useOpeningPicks, useStruts } from './Openings';
-import { cullBehindClearGlass, useCabinStencil, useGlassStencil, useUnderlayMask } from './clearGlass';
+import { cullBehindClearGlass, isUnderlayMaterial, useCabinStencil, useGlassStencil, useUnderlayMask } from './clearGlass';
 import { useXray, useXrayCabin, useXrayCabinPlan, useXrayShell } from './Xray';
 import { ghostable } from './xrayGhost';
 import { xrayOf } from '@/lib/xray/rig';
@@ -175,16 +175,23 @@ function inGreenhouse(o: THREE.Object3D): boolean {
   return false;
 }
 
-/** The materials of a mesh with the tie-break set; the greenhouse's trim is cloned first, the car's one M_Black_Gloss is shared with the doors. */
+/**
+ * The materials of a mesh with the tie-break set; the greenhouse's trim is cloned first, the car's one M_Black_Gloss (or, on the
+ * G9L, M_Black_Trim) and M_Shadow are shared with the doors and the body's other trim.
+ */
 function pushBehindPaint(o: THREE.Mesh): THREE.Material[] {
   const out = materialsOf(o).map((m) => {
     const name = m.name.toLowerCase();
     const glass = name.startsWith('m_glass');
-    if (!glass && !(name === 'm_black_gloss' && inGreenhouse(o))) return m;
+    // the shadow shell is cloned too (the stencil mask of useUnderlayMask is set on it), but it lies centimetres behind: no tie to break
+    const shell = name === 'm_shadow' && inGreenhouse(o);
+    if (!glass && !shell && !(isUnderlayMaterial(name) && inGreenhouse(o))) return m;
     const mine = glass ? m : m.clone();
-    mine.polygonOffset = true;
-    mine.polygonOffsetFactor = 2;
-    mine.polygonOffsetUnits = 2;
+    if (!shell) {
+      mine.polygonOffset = true;
+      mine.polygonOffsetFactor = 2;
+      mine.polygonOffsetUnits = 2;
+    }
     return mine;
   });
   if (out.some((m, i) => m !== materialsOf(o)[i])) o.material = Array.isArray(o.material) ? out : out[0];

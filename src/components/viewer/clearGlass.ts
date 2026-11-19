@@ -19,6 +19,18 @@ const isPane = (m: THREE.Material) => {
   return n === 'm_glass' || n === 'm_glass_privacy';
 };
 
+/**
+ * The black layer the build lays 3 mm behind every pane: M_Black_Gloss on every car but the G9L, whose greenhouse is a satin
+ * M_Black_Trim (the underlay is its own clone in the viewer either way, see CarModel's `pushBehindPaint`).
+ */
+export const isUnderlayMaterial = (name: string) => {
+  const n = name.toLowerCase();
+  return n === 'm_black_gloss' || n === 'm_black_trim';
+};
+
+/** Both layers of a car's `*_Blackout` node: the underlay and the shadow shell 1.5-3 cm behind it. */
+export const isBlackoutLayer = (name: string) => isUnderlayMaterial(name) || name.toLowerCase() === 'm_shadow';
+
 /** how far behind a clear pane, m, a layer's triangle is taken for the pane's backing */
 const REACH = { m_black_gloss: 0.05, m_black_trim: 0.05, m_shadow: 0.07 } as const;
 
@@ -146,7 +158,7 @@ export function cullBehindClearGlass(model: THREE.Object3D, blackout: THREE.Obje
       if (!reach || g.groups.length) return;
       // the black gloss is refused over the panes by the stencil (useUnderlayMask), to the pixel: taking its triangles out as
       // well leaves every other triangle of a strip between two panes standing, a row of teeth along the header
-      if (stencilled && mesh.material.name.toLowerCase() === 'm_black_gloss') return;
+      if (stencilled && isBlackoutLayer(mesh.material.name)) return;
       const pos = g.getAttribute('position');
       const index = g.index;
       const count = index ? index.count : pos.count;
@@ -257,7 +269,7 @@ export function useUnderlayMask(blackout: THREE.Object3D[], on: boolean) {
       root.traverse((o) => {
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh || Array.isArray(mesh.material)) return;
-        if (mesh.material.name.toLowerCase() === 'm_black_gloss') meshes.push(mesh);
+        if (isBlackoutLayer(mesh.material.name)) meshes.push(mesh);
       });
     }
     for (const mesh of meshes) {
