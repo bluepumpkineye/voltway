@@ -59,7 +59,11 @@ X_DLO_FRONT = 0.660          # where the roof-side glass line meets the A-pillar
 # in the doorway of an open door (reported 2026-10-08, twice). The real glass reaches the pillar.
 X_DOOR_TOP_F = 0.977         # the front door's leading edge at the belt (X_DOOR_F there)
 X_GLASS_F = 0.972            # the front door glass's front edge: flush with the door's, 5 mm short
-X_FOOT_END = 1.120           # the A-pillar's foot panel ends here (ZX_Pillar_Foot)
+# The silver A-pillar bar ends here, at the foot of the pillar, with a clean cut (maker's photographs: the real bar runs
+# down the windscreen's side to the cowl and stops; the windscreen's base is black, with no silver line along it, and no
+# block under the bar). Beyond this station the rail's limits (V_GT, V_A) clamp to the loft's cowl and the strip used to
+# run on across the whole base of the screen as a thin silver line that narrowed toward the centre.
+X_BAR_END = 1.120
 X_DLO_TIP = -1.600           # the quarter glass's rear tip (side photo: z 1.265)
 X_BLADE = -1.925             # the roof spoiler's trailing edge
 X_FRIT = -1.960              # (no frit band on the 7X: the rear glass is uniformly dark)
@@ -252,6 +256,36 @@ def V_WEDGE_TOP(x):
     return S.v_along(x, V_REARGLASS(x), 0.003) - 0.001
 
 
+# ----------------------------------------------------- the roof's silver arch and black glass
+# (2026-11-19) The roof used to be ONE sheet, ZX_Roof_Paint, whose faces were handed the silver or the black glass by
+# where their CENTROID lay (|y| < 0.5): the line between them was a staircase along the whole arch, and because the roof's
+# edge runs from y 0.56 to 0.72 while the cut stayed at 0.5 the silver arch grew from 9 cm over the doors to 20 cm at the
+# C-pillar. Now the arch has a width, W_ARCH in plan from the rail's outer edge, and three panels share the boundary
+# function: the silver strip (ZX_Roof_Paint), the black glass (ZX_Roof_Black, the whole roof from the header to the
+# spoiler, so the front glass and the black behind it are one surface, no seam) and the spoiler's wing (silver, the full
+# width). The boundary is the panels' own grid line: a smooth curve.
+W_ARCH = 0.075
+ROOF_GLASS_X0 = -1.840       # the black glass ends here; behind it the spoiler's wing is silver across the whole roof
+
+
+def Y_ROOF_GLASS(x):
+    """y of the black roof glass's side edge: the arch's width in from the rail's outer edge, and never
+    outboard of the roof's crown edge (behind the quarter glass's tip the rail's line runs down the C-pillar)."""
+    out = S.BODY.surface(x, V_GT(x) + 0.006)[1]
+    return min(out - W_ARCH, S.Y_ROOF(x) - 0.020)
+
+
+def V_ROOF_GLASS(x):
+    return S.v_at_y_upper(x, Y_ROOF_GLASS(x))
+
+
+# the black ceramic frit round the windscreen's edge (front photograph: a thin dark border just inside the silver frames,
+# deeper along the header). Sheets 2.2 mm over the glass, inside its outline.
+W_FRIT = 0.016
+W_FRIT_TOP = 0.034
+V_FRIT_IN = 0.0065
+
+
 # The clamshell hood: its side edge runs along the fender crowns from the cowl to
 # the lamp (sA: the hood/fender line, z 0.956 at x 1.40, 0.89 at the lamp).
 def _hood_front(v):
@@ -350,22 +384,31 @@ PANELS = [
     dict(name="ZX_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=60, nv=34, gap=dict(v1=False, x1=False), mat="paint", offset=0.0005),
     # Body-colour A-pillar and roof rail, butted to the quarter's C-pillar
-    dict(name="ZX_Roof_Rail", x=(X_DLO_TIP, X_COWL),
+    # (the bar stops at X_BAR_END, at the pillar's foot. There used to be a silver block under it there, ZX_Pillar_Foot,
+    # to cover the gap between the bar and the fender's top; the maker's photographs show a black sail triangle in that
+    # place, so the block is gone and the greenhouse's black underlay shows there: removed 2026-11-19, on the owner's request)
+    dict(name="ZX_Roof_Rail", x=(X_DLO_TIP, X_BAR_END),
          v=(lambda x: V_GT(x) + 0.006, V_RAIL_TOP),
-         nx=140, nv=10, gap=dict(x0=False), mat="roof_silver"),
-    # The A-pillar's foot: in front of the front door's leading edge the fender's top (V_HOOD) sits
-    # 2-6 cm under the belt and the pillar's line (V_GT) 10 cm over it, and nothing covered the
-    # gap but the black underlay: a black triangle left standing beside an open door. It is paint
-    # on the car (the dark triangle by the mirror is the door's glass, behind the door's edge).
-    # Ends at x 1.12: beyond 1.14 the loft has no surface at the pillar's height (V_GT jumps).
-    dict(name="ZX_Pillar_Foot", x=(X_DOOR_TOP_F + 0.004, X_FOOT_END),
+         nx=136, nv=10, gap=dict(x0=False, x1=False), mat="roof_silver"),
+    # The fender's top corner ahead of the door, in body colour, up to the silver bar's lower edge: the maker's
+    # photographs show the fender's paint rising to meet the bar, with no black wedge and no silver block there. (The
+    # loft's fender top sits 7 cm under the pillar's line at the foot, which left a hole that read as a black corner
+    # block, then as a silver one.)
+    dict(name="ZX_Fender_Corner", x=(X_DOOR_TOP_F + 0.004, X_BAR_END),
          v=(lambda x: V_HOOD(x) + 0.0005, lambda x: V_GT(x) + 0.006),
-         nx=14, nv=12, gap=dict(v0=False, v1=False), mat="roof_silver"),
+         nx=16, nv=14, gap=dict(v1=False, x1=False), mat="paint"),
 
     # ---- greenhouse underlay: glass surround, B-pillar, under the roof glass
-    dict(name="ZX_Greenhouse_Black", x=(X_DLO_TIP - 0.030, X_COWL),
+    dict(name="ZX_Greenhouse_Black", x=(X_DLO_TIP - 0.030, X_COWL - 0.030),
          v=(V_BELT, 1.0), nx=120, nv=50, gap=dict(v1=False), mat="black_gloss",
          offset=-0.003, thickness=0.0),
+    # The wiper cowl (2026-11-19): the underlay used to run on to the hood's rear edge at the same height (1.0973 against
+    # the hood's 1.098), so the black stood flush with the hood. Its own sheet now, 8 mm under the skin and running 3 cm
+    # under the hood's rear edge: the hood stands over it with a clean shut line (Seal_Cowl_Black's idea). In the blackout
+    # node (export_zx.BLACKOUT).
+    dict(name="ZX_Cowl_Black", x=(X_COWL - 0.030, X_COWL + 0.030),
+         v=(V_HOOD, 1.0), nx=14, nv=40, gap=dict(v1=False), mat="black_gloss",
+         offset=-0.008, thickness=0.0),
     dict(name="ZX_Roof_Rear_Black", x=(N.JOIN_R, X_DLO_TIP - 0.020),
          v=(lambda x: min(V_REARGLASS(x), V_CEDGE(x) - 0.006), 1.0), nx=48, nv=24,
          gap=dict(v1=False, x0=False), mat="black_gloss", offset=-0.010, thickness=0.0),
@@ -374,13 +417,32 @@ PANELS = [
     dict(name="ZX_Glass_Windshield", x=(X_ROOF_F, X_COWL - 0.012),
          v=(lambda x: V_A(x) + 0.004, 0.9995), nx=72, nv=56, glass="glass",
          gap=dict(v1=False)),
+    # the black ceramic frit round the windscreen's edge: the sides, then the header and the base across (disjoint
+    # in v, so nothing lies on anything), each a sheet over the glass inside its outline
+    dict(name="ZX_Frit_Side", x=(X_ROOF_F + 0.006, X_COWL - 0.018),
+         v=(lambda x: V_A(x) + V_FRIT_IN, lambda x: V_A(x) + V_FRIT_IN + W_FRIT),
+         nx=72, nv=3, mat="frit", offset=0.0022, thickness=0.0,
+         gap=dict(x0=False, x1=False, v0=False, v1=False)),
+    dict(name="ZX_Frit_Header", x=(X_ROOF_F + 0.006, X_ROOF_F + 0.006 + W_FRIT_TOP),
+         v=(lambda x: V_A(x) + V_FRIT_IN + W_FRIT, 0.9995), nx=6, nv=56,
+         mat="frit", offset=0.0022, thickness=0.0,
+         gap=dict(x0=False, x1=False, v0=False, v1=False)),
+    dict(name="ZX_Frit_Base", x=(X_COWL - 0.018 - W_FRIT, X_COWL - 0.018),
+         v=(lambda x: V_A(x) + V_FRIT_IN + W_FRIT, 0.9995), nx=4, nv=56,
+         mat="frit", offset=0.0022, thickness=0.0,
+         gap=dict(x0=False, x1=False, v0=False, v1=False)),
+    # the roof: silver strip, black glass, spoiler wing (see W_ARCH). The strip and the glass share their x range
+    # and fixed columns, so their grids meet exactly along V_ROOF_GLASS.
+    dict(name="ZX_Roof_Paint", x=(ROOF_GLASS_X0, X_ROOF_F - 0.020),
+         v=(V_ROOF_LO, V_ROOF_GLASS), nx=112, nv=12, fixed_x=(X_CTIP,),
+         gap=dict(x0=False, x1=False, v0=False, v1=False), mat="roof_silver"),
+    dict(name="ZX_Roof_Black", x=(ROOF_GLASS_X0, X_ROOF_F - 0.020),
+         v=(V_ROOF_GLASS, 0.9995), nx=112, nv=24, fixed_x=(X_CTIP,),
+         gap=dict(x0=False, x1=False, v0=False, v1=False), mat="roof_black"),
     # the paint starts at the blade's foot, so the roof spoiler's trailing face is body colour
-    dict(name="ZX_Roof_Paint", x=(X_KNEE - 0.003, X_ROOF_GLASS_R),
-         v=(V_ROOF_LO, 1.0), nx=64, nv=24, fixed_x=(X_CTIP,),
-         gap=dict(v1=False, x0=False, v0=False), mat="paint"),
-    dict(name="ZX_Glass_Roof", x=(X_ROOF_GLASS_R + 0.006, X_ROOF_F - 0.020),
-         v=(lambda x: V_RAIL(x) + 0.004, 0.9995), nx=48, nv=30, glass="glass_dark",
-         gap=dict(v1=False)),
+    dict(name="ZX_Roof_Wing", x=(X_KNEE - 0.003, ROOF_GLASS_X0),
+         v=(V_ROOF_LO, 1.0), nx=10, nv=24,
+         gap=dict(v1=False, x0=False, x1=False, v0=False), mat="roof_silver"),
     # No fixed_x column at the blade's foot (X_BLADE): panel_grid sorts the columns by their x at
     # v = 0.5, where this strip's x-limit (the cap's join, x -2.09 there and -2.30 where the strip
     # lives) is far from its own, so the fixed pair landed on the wrong side of the ordinary columns
@@ -414,29 +476,11 @@ def _cut_arches(ob):
 CUTTERS = {"arch": _cut_arches}
 
 
-ROOF_BLACK_Y = 0.50          # the roof panel behind the B-pillar: black glass inboard of this, silver outboard (a 4-8 cm rail)
-ROOF_BLACK_X = -1.84         # ... and ahead of the roof spoiler's wing (the wing is silver, as in the rear photographs)
-
-
-def _split_roof(made, lib):
-    """ZX_Roof_Paint is one sheet. The photographs show the whole roof as a black glass panel between
-    two silver rails, and the spoiler's wing silver: assign the sheet's faces by where they lie."""
-    for ob in made:
-        if ob.name != "ZX_Roof_Paint":
-            continue
-        me = ob.data
-        me.materials.clear()
-        me.materials.append(lib["roof_silver"])
-        me.materials.append(lib["roof_black"])
-        for f in me.polygons:
-            c = f.center
-            f.material_index = 1 if (abs(c.y) < ROOF_BLACK_Y and c.x > ROOF_BLACK_X) else 0
-
-
 def build_panels(collection, lib):
+    # (the roof's silver and black are panels of their own now, ZX_Roof_Paint / ZX_Roof_Black / ZX_Roof_Wing: the
+    # old `_split_roof`, which handed faces one material or the other by their centroid, left a staircase edge)
     made = BP.build_panels(PANELS, S.BODY, collection, lib, cutters=CUTTERS,
                            core_z=0.72, butt_bevel=False)
-    _split_roof(made, lib)
     return made
 
 

@@ -39,7 +39,7 @@ DEST = os.path.join(MODELS, "zeekr-7x.glb")
 DEST_SHADOW = os.path.join(MODELS, "zeekr-7x-shadow.webp")
 
 BLACKOUT = ("ZX_Shell_Shadow", "ZX_Shell_Shadow_F", "ZX_Shell_Shadow_R",
-            "ZX_Greenhouse_Black", "ZX_Roof_Rear_Black")
+            "ZX_Greenhouse_Black", "ZX_Cowl_Black", "ZX_Roof_Rear_Black")
 # the exterior's ambient occlusion (carkit.bake.ambient_occlusion): how far a surface
 # looks for shade
 AO_DISTANCE = 1.0

@@ -68,7 +68,7 @@ def view(eye, yaw, pitch, tag, lens=16.0, res=(1280, 720), samples=4):
                    mode="ids", clip=0.02,
                    colors={"int_": (0.55, 0.55, 0.55), "screen_": (0.15, 0.15, 0.2),
                            "ZX_": (1.0, 0.0, 1.0)},
-                   skip=("ZX_Glass", "ZX_Greenhouse_Black", "ZX_Shell", "ZX_Roof_Rear_Black",
+                   skip=("ZX_Glass", "ZX_Greenhouse_Black", "ZX_Cowl_Black", "ZX_Shell", "ZX_Roof_Rear_Black",
                          "ZX_Underbody", "Ground"))
 
 

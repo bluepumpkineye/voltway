@@ -150,9 +150,12 @@ def build_library():
                   coat=0.25, coat_rough=0.25)
     lib["roof_silver"] = m
     # the roof's glass panel between the rails: black glass, a faint blue cast (front 3/4 photograph)
+    # (2026-11-19: the whole roof is this one surface now, the front glass included. Roughness 0.06 / coat roughness
+    # 0.02 mirrored the studio's softbox as a hard-edged grey slab with ragged edges, which read as outlines on the
+    # black; 0.12 / 0.10 and a lighter coat give the same gloss with a soft highlight)
     m, nt, b = _M.mat("M_Roof_Glass")
-    _M.set_inputs(b, base=(0.006, 0.008, 0.012), metallic=0.0, roughness=0.06, specular=0.5,
-                  coat=1.0, coat_rough=0.02)
+    _M.set_inputs(b, base=(0.006, 0.008, 0.012), metallic=0.0, roughness=0.12, specular=0.5,
+                  coat=0.7, coat_rough=0.10)
     lib["roof_black"] = m
     # the visor (2026-11-16): black smoked glass over the lamp housing; roughness 0.10 and a low specular so
     # the white studio does not wash it grey (a piano-black coat mirrored the whole cove)

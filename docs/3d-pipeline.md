@@ -1178,6 +1178,56 @@ flares stood off it to reach the tyres' walls, which read as black blobs bolted 
   `porting/door_probe.py -- zx` (0 standing). The generated `blender/textures/t_perf_leather_white.png` differs after a cabin export: restore it
   from git.
 
+### Saw teeth along the glass outlines, and the 7X's A-pillar bar (2026-11-19)
+
+The owner circled rows of black teeth along the windscreen's header and A-pillars (Avatr 06T, Zeekr 7X, BYD Seal), and the 7X's silver block at the
+foot of the pillar. Two separate things:
+
+- **The teeth are the black underlay, not a panel.** Hiding `*_Blackout`'s `M_Black_Gloss` mesh in the viewer (`getObjectByName('Avatr06T_Blackout')
+  .children[1].visible = false`) leaves a straight glass edge. Two mechanisms, both from the underlay being a grid that does not follow a pane's outline:
+  (1) `cullBehindClearGlass` keeps every triangle that straddles the outline, so the ones sticking out over the glass stand as teeth (a curved header, a
+  raked pillar: the 06T, 7X, Seal; the SU7 came out clean from the header angle, probably because its header is a constant-x line on its grid);
+  (2) in a strip between two panes (the 2-3 cm header bar between the windscreen and the glass roof) the same cull deletes about every other triangle, so
+  the strip is a row of black and grey triangles.
+  **Fix, in the viewer for every car (no re-export):** `clearGlass.ts useUnderlayMask`. The panes already write 1 into the stencil (the cabin mask); the
+  underlay's black gloss is now drawn after the writers (render order 2) with stencil "not equal 1", so it is refused over the glass to the pixel, whatever
+  its tessellation, and `cullBehindClearGlass(..., stencilled)` leaves the gloss whole while that is on (the shadow shell is still culled by vertex
+  distance: it is dark and shows no teeth). The writers now run whenever the panes are see-through from outside (`CarModel.paneMask`), not only while every
+  door is shut: the cabin's own mask (`useCabinStencil`) still needs `shut`. With the mask off (Tech tab, before the cabin is up) the old cull applies
+  to the gloss. Check any new car with the `Blackout` hide test above, from the header and from the A-pillar.
+- **The 7X's bar.** The silver bar was not one bar: `ZX_Roof_Rail` ran on past the pillar's foot (x > 1.12) and across the whole base of the windscreen as a
+  thin silver line narrowing toward the centre (its v limits clamp to the cowl there), and `ZX_Pillar_Foot` was a 13 x 14 cm silver block under it (added
+  2026-10-09 to cover the gap between the bar and the fender's top). The maker's photographs (side and front three-quarter close-ups, `front_studio.jpg`)
+  show a slim bar of one width that stops at the foot, a small black sail triangle ahead of the door's leading edge, and a black windscreen base with no
+  silver. Now `zx_panels.X_BAR_END` (1.12) ends the rail with a plain cut (`gap` off at both ends), `ZX_Pillar_Foot` is gone (also from `zx_gate.GREENHOUSE`),
+  and the greenhouse underlay shows where it stood. `V_A` is NOT changed: `zx_interior_shell` places the cabin's A-pillar trim from it, so moving it
+  would misalign the baked cabin. Checked: the doors-open probe (`porting/door_probe.py -- zx`) for a black wedge standing in the doorway, the viewer from the
+  front, the 3/4 and the side. The bar is 6.4-9.3 cm wide along the pillar (the glass-top line `V_GT` eases 15-20 mm between x 0.66 and 0.96, the windscreen's
+  edge `V_A` does not): left as built, it is the photograph's silhouette.
+- **Second pass (2026-11-19, the owner's four-point brief; each point checked against the photographs first):**
+  - *The foot.* The black wedge left by removing the block was the underlay showing through a hole: the loft's fender top is 7 cm under the
+    pillar's line at the foot. The maker's photographs show the fender's body-colour top rising to meet the bar there, so `ZX_Fender_Corner` (paint,
+    x 0.981 .. `X_BAR_END`, from the fender's top edge to the bar's lower edge) fills it. The bar's width and path are unchanged; it is not extended
+    round the windscreen's lower corner (the corner sweeps inward across the cowl in this loft, and the cabin's pillar trim, `zx_interior_shell`, runs
+    along `V_A` to x 1.15, so moving `V_A` means a cabin re-export).
+  - *The roof arch.* `_split_roof` gave each face of one roof sheet the silver or the black by its centroid (|y| < 0.5): a staircase edge, and the
+    silver arch grew from 9 cm over the doors to 20 cm at the C-pillar because the roof's edge runs from y 0.56 to 0.72. Now `ZX_Roof_Paint` (silver
+    strip), `ZX_Roof_Black` (the whole black roof, header to spoiler: the front privacy-glass pane `ZX_Glass_Roof` is gone, so the roof is one
+    surface with no seam) and `ZX_Roof_Wing` (silver, full width, behind x -1.84) share the boundary `V_ROOF_GLASS`: `W_ARCH` (7.5 cm in plan)
+    in from the rail's outer edge, never outboard of the roof's crown. The strip and the glass use the same x range, `nx` and `fixed_x`, so their
+    grids meet exactly. Side effect: the roof is opaque from outside (the real car's), so the cabin's headliner opening is no longer seen through
+    it, nor the sky from the Interior tab. `M_Roof_Glass` is rougher (0.12, coat 0.7 / 0.10): at 0.06 the studio's softbox was a hard-edged grey
+    slab on the roof.
+  - *The windscreen's frit.* `ZX_Frit_Side` / `_Header` / `_Base` (`M_Frit_Black`): sheets 2.2 mm over the glass, 16 mm round the sides and base, 34 mm
+    on the header, inside the glass outline; the three have disjoint v ranges, so nothing lies on anything.
+  - *The cowl.* Measured in the viewer, the underlay ran on to the hood's rear edge at the same height (1.0973 against the hood's 1.098), so the
+    black stood flush with the hood. `ZX_Greenhouse_Black` now stops 3 cm short (`X_COWL - 0.030`) and `ZX_Cowl_Black` takes over: 8 mm under the skin,
+    running 3 cm under the hood's rear edge, in the blackout node (`export_zx.BLACKOUT`; `zx_leakqa` skips it). The hood stands over it with a shut line.
+- **The shipped 7X GLB carries `_BAKEDAO`**: export with `export_zx.web(ao=True)` (about 5 min), not the `ao=False` iteration build, or the baked occlusion is
+  dropped and the file shrinks by 0.6 MB.
+- The Seal has a different artefact at the A-pillar's foot (light-blue facets on the paint at the cowl corner): paint tessellation, present with the underlay
+  hidden, not touched.
+
 ### The Denza Z9 and XPeng G9L cabins (`z9_interior*.py`, `g9l_interior*.py`, `cabin_tools.py`, `cabin_hmi.py`)
 
 Both cars have a cabin built from Autohome's photographs (since 2026-10-17 their four doors, bonnet and tailgate or boot lid open, so each bakes two light sets, `_BAKEDLIGHT` and `_BAKEDLIGHT_OPEN`; see below)
