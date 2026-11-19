@@ -1191,8 +1191,8 @@ foot of the pillar. Two separate things:
   the strip is a row of black and grey triangles.
   **Fix, in the viewer for every car (no re-export):** `clearGlass.ts useUnderlayMask`. The panes already write 1 into the stencil (the cabin mask); the
   underlay's black gloss is now drawn after the writers (render order 2) with stencil "not equal 1", so it is refused over the glass to the pixel, whatever
-  its tessellation, and `cullBehindClearGlass(..., stencilled)` leaves the gloss whole while that is on (the shadow shell is still culled by vertex
-  distance: it is dark and shows no teeth). The writers now run whenever the panes are see-through from outside (`CarModel.paneMask`), not only while every
+  its tessellation, and `cullBehindClearGlass(..., stencilled)` leaves the gloss whole while that is on. (The first version left the shadow shell to the
+  vertex-distance cull, "dark, shows no teeth": wrong, see the G9L below.) The writers now run whenever the panes are see-through from outside (`CarModel.paneMask`), not only while every
   door is shut: the cabin's own mask (`useCabinStencil`) still needs `shut`. With the mask off (Tech tab, before the cabin is up) the old cull applies
   to the gloss. Check any new car with the `Blackout` hide test above, from the header and from the A-pillar.
 - **The 7X's bar.** The silver bar was not one bar: `ZX_Roof_Rail` ran on past the pillar's foot (x > 1.12) and across the whole base of the windscreen as a
@@ -1227,6 +1227,21 @@ foot of the pillar. Two separate things:
   dropped and the file shrinks by 0.6 MB.
 - The Seal has a different artefact at the A-pillar's foot (light-blue facets on the paint at the cowl corner): paint tessellation, present with the underlay
   hidden, not touched.
+- **The XPeng G9L (2026-11-20, three reports: teeth on the window frames, "a bit of glass that stays when the rear door opens", the rear-view mirror outside
+  the car and upside down).**
+  - *Teeth, and the leftover pane.* The G9L was the one car the stencil mask above did not reach: its greenhouse underlay is the satin `M_Black_Trim`, not
+    `M_Black_Gloss` (every other car's `*_Blackout` holds `M_Shadow` + `M_Black_Gloss`, read from each GLB's JSON chunk), so `useUnderlayMask` found
+    nothing to mask and the cull's staircase stood on the header and, with a door open, over the fixed rear quarter pane (a ragged black region and black
+    "sticks", which read as a pane that stays when the door swings: the quarter glass is real, the photographs show it behind the rear door's shut line, but it
+    should be clear glass over the cabin). Fix, viewer only, all cars: `clearGlass.isUnderlayMaterial` (gloss or trim) and `isBlackoutLayer` (those plus
+    `M_Shadow`), `CarModel.pushBehindPaint` clones the greenhouse's trim as it did the gloss, and `useUnderlayMask` masks both layers of the blackout node
+    (the shadow shell too: its vertex-distance cull left a coarse rectangle where the quarter pane's grid has no vertex within 7 cm). Not seen through
+    glass while a door is open: the far side's pane against the bright studio reads as a pale rectangle behind the near quarter pane, which is correct.
+  - *The mirror.* `g9l_interior.MIRROR_C` was (0.700, 0, 1.640) but the windscreen's inner face at x 0.70 is z 1.550 (the 2026-10-27 rework lowered it): the head stood
+    9 cm above the glass, outside the car, and `cabin_parts.rear_view_mirror`'s stem ran from the head down to the glass. Now `MIRROR_MOUNT_X` 0.575 (the stem's
+    foot on the glass, z 1.633), the head at (0.610, 0, 1.548), 5 cm clear of the pane, and the stem takes the new `mount=(x, z)` argument (the Seal and Z9 keep
+    the old stem). Probe: `blender -b --factory-startup --python <script>` printing `S.section_v(x, S.v_at_y_upper(x, 0))[1]` along x. Cabin re-exported with
+    `export_g9l.web_cabin(look='hall', outside=False)`.
 
 ### The Denza Z9 and XPeng G9L cabins (`z9_interior*.py`, `g9l_interior*.py`, `cabin_tools.py`, `cabin_hmi.py`)
 

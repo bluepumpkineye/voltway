@@ -333,8 +333,9 @@ def build_pedals(col, lib):
 # ------------------------------------------------------------ roof fittings
 def build_roof_fittings(col, lib):
     made = []
-    zg = S.surface_offset(MIRROR_C[0] + 0.05, S.v_at_y_upper(MIRROR_C[0] + 0.05, 0.0), -0.006)[2]
-    made += CP.rear_view_mirror(col, lib, MIRROR_C, zg)
+    xm = ZI.MIRROR_MOUNT_X
+    zm = S.surface_offset(xm, S.v_at_y_upper(xm, 0.0), -0.006)[2]       # the stem's foot, on the glass's inner face
+    made += CP.rear_view_mirror(col, lib, MIRROR_C, zm, mount=(xm, zm))
     # the overhead console on the front band (c3_0072: a dark panel with the lamps and keys)
     xs = [0.430 - 0.100 * k / 8.0 for k in range(9)]
     rows = []

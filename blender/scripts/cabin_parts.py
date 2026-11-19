@@ -118,8 +118,13 @@ def pedals(col, lib, floor_z, specs, tilt_deg=38.0):
     return made
 
 
-def rear_view_mirror(col, lib, centre, zg, w=0.250, h=0.062, t=0.016):
-    """The frameless rear-view mirror hung from the header on a short stem."""
+def rear_view_mirror(col, lib, centre, zg, w=0.250, h=0.062, t=0.016, mount=None):
+    """The frameless rear-view mirror hung from the header on a short stem.
+
+    By default the stem rises from the head's top to the glass at `zg`, one stem-length ahead of it: right when the head hangs
+    UNDER the glass at that height. `mount=(x, z)` is the stem's foot on the glass's inner face instead (the head hangs below
+    and behind it, on a stem that runs down from the mount): the G9L's glass stands 9 cm under the old centre, which put the
+    head outside the car on a stem that ran down to the glass."""
     made = [F.round_slab(col, "int_rvmirror", centre, w, h, t, 0.024, lib["piano"],
                          tilt=math.radians(8.0))]
     mg = bpy.data.materials.get("INT_Mirror") or bpy.data.materials.new("INT_Mirror")
@@ -130,9 +135,17 @@ def rear_view_mirror(col, lib, centre, zg, w=0.250, h=0.062, t=0.016):
     bm.inputs["Roughness"].default_value = 0.05
     made.append(F.round_slab(col, "int_rvmirror_glass", (centre[0] - t * 0.5 - 0.0008, 0.0, centre[2]),
                              w - 0.006, h - 0.006, 0.0008, 0.021, mg, tilt=math.radians(8.0)))
-    stem = smooth_path([(centre[0] + 0.02, 0.0, centre[2] + 0.02),
-                        (centre[0] + 0.045, 0.0, 0.5 * (centre[2] + zg) + 0.01),
-                        (centre[0] + 0.07, 0.0, zg)], 8)
+    if mount is None:
+        stem = smooth_path([(centre[0] + 0.02, 0.0, centre[2] + 0.02),
+                            (centre[0] + 0.045, 0.0, 0.5 * (centre[2] + zg) + 0.01),
+                            (centre[0] + 0.07, 0.0, zg)], 8)
+    else:
+        tilt = math.radians(8.0)    # the head's own tilt (round_slab): its top leans forward
+        top = (centre[0] + 0.5 * t * math.cos(tilt) + (0.5 * h - 0.006) * math.sin(tilt), 0.0,
+               centre[2] - 0.5 * t * math.sin(tilt) + (0.5 * h - 0.006) * math.cos(tilt))
+        stem = smooth_path([top,
+                            (0.5 * (top[0] + mount[0]), 0.0, 0.5 * (top[2] + mount[1]) + 0.004),
+                            (mount[0], 0.0, mount[1])], 8)
     made.append(tube("int_rvmirror_stem", stem, ellipse(0.016, 0.010, 10), col, lib["satin"],
                      lateral=(0.0, 1.0, 0.0)))
     return made

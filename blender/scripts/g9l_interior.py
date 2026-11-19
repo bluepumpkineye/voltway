@@ -73,7 +73,12 @@ FRONT_BIGHT_X, FRONT_BIGHT_Z = 0.200, 0.690
 REAR_BIGHT_X, REAR_BIGHT_Z, REAR_Y = -1.020, 0.710, 0.385
 
 DASH_HALF = 0.790                  # the dash's ends, at the door cards
-MIRROR_C = (0.700, 0.000, 1.640)   # the frameless rear-view mirror, hung from the header
+# The frameless rear-view mirror, hung from the windscreen's inner face on a stem about 7 cm long. The glass's centreline is at
+# z 1.633 at x 0.575 and falls 0.62 per metre (z_glass(0.70, 0) = 1.555): the old centre (0.700, 1.640) stood 9 cm ABOVE it,
+# outside the car, with its stem running down to the glass. Now the head hangs 8.5 cm under the stem's foot and 5 cm clear of
+# the pane (perpendicular).
+MIRROR_MOUNT_X = 0.575
+MIRROR_C = (0.610, 0.000, 1.548)
 
 # linear RGB: the swatch #7E2530 is the red; the lit photographs read pinker than it
 RED = (0.205, 0.040, 0.052)        # bordeaux Nappa
