@@ -28,7 +28,7 @@ What makes a 7X, from the photographs:
               v = 0 at the underbody centreline, 1 at the roof centreline,
                   V_SHOULDER at the crease
 """
-from carkit.geom import Curve, Joined          # noqa: F401  (re-exported)
+from carkit.geom import Curve, Joined, smoothstep as _smooth          # noqa: F401  (re-exported)
 from carkit.body import LoftBody
 from carkit.body.loft import Section
 
@@ -80,11 +80,11 @@ Z_ROOF = Joined(COWL_X, Joined(KNEE_X, Curve([
     (-1.696, 1.546), (-1.603, 1.561), (-1.511, 1.584), (-1.418, 1.600),
     (-1.326, 1.612), (-1.233, 1.622), (-1.140, 1.629), (-1.047, 1.635),
     (-0.862, 1.640), (-0.677, 1.646), (-0.491, 1.649), (-0.306, 1.645),
-    (-0.120, 1.639), (-0.027, 1.632), (0.066, 1.618), (0.159, 1.597),
-    (0.251, 1.572), (0.344, 1.545), (0.437, 1.525), (0.530, 1.484),
-    (0.623, 1.438), (0.716, 1.388), (0.810, 1.336), (0.903, 1.283),
-    (0.996, 1.225), (1.089, 1.168), (1.182, 1.110), (COWL_X, 1.098),
-], -1.84, 0.30, passes=9))), Curve([
+    (-0.120, 1.639), (-0.027, 1.632), (0.066, 1.624), (0.159, 1.610),
+    (0.251, 1.592), (0.344, 1.570), (0.437, 1.542), (0.530, 1.498),
+    (0.623, 1.448), (0.716, 1.395), (0.810, 1.340), (0.903, 1.285),
+    (0.996, 1.226), (1.089, 1.168), (1.182, 1.110), (COWL_X, 1.098),
+], -1.84, 0.30, passes=5))), Curve([
     # the hood: nearly flat at 1.085, then over the nose
     (COWL_X, 1.098), (1.275, 1.089), (1.368, 1.090), (1.460, 1.086),
     (1.553, 1.085), (1.646, 1.079), (1.739, 1.069), (1.831, 1.053),
@@ -115,21 +115,21 @@ Z_HIP = Curve([
 # glass's tip). Ahead of the cowl it runs along the fender top into the lamp.
 Z_SHOULDER = Curve([
     (-HALF_L, 1.010), (-2.30, 1.050), (-2.00, 1.150), (-1.70, 1.200), (-1.40, 1.215),
-    (-1.10, 1.150), (-0.70, 1.105), (-0.10, 1.082), (0.60, 1.066), (1.20, 1.040),
-    (1.54, 0.990), (1.90, 0.900), (2.15, 0.840), (2.30, 0.810), (HALF_L, 0.760),
+    (-1.10, 1.150), (-0.70, 1.105), (-0.10, 1.082), (0.60, 1.066), (0.98, 1.060),
+    (1.20, 1.066), (1.54, 1.036), (1.90, 0.960), (2.15, 0.885), (2.30, 0.825), (HALF_L, 0.760),
 ])
 
-# Rail height relative to the centreline: the roof is strongly crowned (the side
-# glass's top edge at 1.55 under a 1.649 centre); the hood's fender crowns sit
-# a little under the centre.
-# 2026-11-16: the rear roof's crown was -0.09 over the whole length behind the B-pillar and the roof, seen from
-# behind, was a gable (a peak 25 px over its edges where the photograph's is flat to within 6). Half of it
-# behind x -1.3, blending back to the old value by x -0.5.
+HOOD_ROLL = 0.080
+HOOD_CROWN = 0.134
+
+# Rail height relative to the centreline: the roof has a gentle ~4.2-4.6 cm crown across its width
+# (matching the side, front and front-3/4 studio photographs; the earlier -0.100 drop sagged the
+# A-pillar and header 6 cm below the photograph's outline).
 Z_CREST = Curve([
-    (-HALF_L, -0.040), (-2.20, -0.045), (-1.93, -0.050), (-1.40, -0.055),
-    (-0.90, -0.075), (-0.50, -0.095), (0.40, -0.100), (0.80, -0.080), (COWL_X, -0.030),
-    (1.60, -0.030), (2.00, -0.040), (2.30, -0.030), (HALF_L, 0.0),
-])
+    (-HALF_L, -0.040), (-2.20, -0.042), (-1.93, -0.045), (-1.40, -0.046),
+    (-0.90, -0.046), (-0.50, -0.045), (0.40, -0.042), (0.80, -0.036), (COWL_X, -0.012),
+] + [(x, -HOOD_CROWN * (Z_ROOF(x) - Z_SHOULDER(x)))
+     for x in (1.40, 1.60, 1.80, 2.00, 2.20, 2.30, HALF_L)])
 
 # 2026-11-16 refit: the painted flank was 0.85-0.89 from the centreline (a 1.80 m wide car, the
 # published width 1.93) and black flares stood 6-7 cm proud of it to carry the car out to the
@@ -143,17 +143,18 @@ Y_HIP = Curve([
 ])
 Y_SHOULDER = Curve([
     (-HALF_L, 0.640), (-2.30, 0.730), (-2.00, 0.775), (-1.40, 0.810), (-0.70, 0.850),
-    (0.0, 0.860), (0.80, 0.845), (1.20, 0.815), (1.54, 0.800), (2.00, 0.775),
-    (2.25, 0.760), (HALF_L, 0.690),
+    (0.0, 0.860), (0.80, 0.845), (1.20, 0.838), (1.54, 0.835), (1.90, 0.835),
+    (2.15, 0.805), (2.28, 0.760), (HALF_L, 0.690),
 ])
-# Roof rail half-width: the side glass's top edge; ahead of the cowl the fender crowns.
-# 2026-11-16: the rear roof is +/-0.62 (rear photograph: the roof's silver edge to edge ~1.27 m), it was 0.54-0.585,
-# so the silver C-pillars sloped in at 45 degrees where the photograph's are nearly upright
+# Roof rail half-width: solved across the windscreen (0.43..1.12) so the A-pillar's outer and inner
+# edges follow a smooth convex arc in plan matching the front and side studio photographs, and ahead
+# of the cowl lies inside Y_SHOULDER so the fender crown rolls cleanly into the hood without folding.
 Y_ROOF = Curve([
-    (-HALF_L, 0.560), (-2.20, 0.610), (-1.90, 0.620), (-1.40, 0.618), (-0.50, 0.612),
-    (0.30, 0.625), (0.80, 0.680), (COWL_X, 0.790), (1.50, 0.830), (2.00, 0.810),
-    (2.30, 0.760), (HALF_L, 0.680),
-])
+    (-HALF_L, 0.560), (-2.20, 0.610), (-1.90, 0.620), (-1.40, 0.618), (-0.50, 0.618),
+    (0.00, 0.624), (0.30, 0.638), (0.43, 0.654), (0.55, 0.672), (0.65, 0.688),
+    (0.75, 0.705), (0.85, 0.722), (0.98, 0.745), (1.05, 0.758), (1.12, 0.772),
+    (COWL_X, 0.785),
+] + [(x, Y_SHOULDER(x) - 0.5 * HOOD_ROLL) for x in (1.40, 1.60, 1.80, 2.00, 2.15, 2.28, HALF_L)])
 Y_ROCKER = Curve([
     (-HALF_L, 0.700), (-2.20, 0.800), (-1.75, 0.900), (-1.38, 0.950), (-1.00, 0.925),
     (-0.70, 0.895), (0.00, 0.885), (0.80, 0.890), (1.20, 0.915), (1.54, 0.950),
@@ -167,6 +168,23 @@ UNDERCUT = Curve([
 
 
 # ------------------------------------------------------------------ the loft
+def SECTION_AT(x):
+    """Section constants ahead of the cowl (matching G9L and ES8): the greenhouse recipe's step and
+    tumble lean the glass in above the beltline crease, which ahead of the cowl folded the fender
+    back on itself under the hood's edge. Ahead of x = 1.10 the section transitions to a quarter-ellipse
+    roll from the flat hood top into the fender crown."""
+    t = _smooth((x - 1.10) / 0.25)
+    if t <= 0.0:
+        return None
+    lerp = lambda a, b: a + (b - a) * t
+    k0 = (0.40, 0.60, 0.52, 0.40)
+    k1 = (0.732, 0.268, 0.50, 0.0)
+    return dict(step_in=lerp(0.030, 0.003), step_max=lerp(0.028, 0.014),
+                shoulder_below_roof=lerp(0.045, 0.024),
+                tumble=tuple(lerp(a, b) for a, b in zip(k0, k1)),
+                rail_in=lerp(0.52, 0.931), rail_crest=lerp(0.34, 0.45))
+
+
 BODY = LoftBody(
     name="Zeekr 7X", length=LENGTH, width=WIDTH, height=HEIGHT,
     front_axle=FRONT_AXLE, rear_axle=REAR_AXLE, wheel_r=WHEEL_R, arch_r=ARCH_R,
@@ -176,6 +194,8 @@ BODY = LoftBody(
     v_shoulder=V_SHOULDER, cowl_x=COWL_X, backlight_x=BACKLIGHT_X,
     sill_height=0.130, core_z=0.72, crease="soft",
     section=Section(step_in=0.030, step_max=0.028, tumble=(0.40, 0.60, 0.52, 0.40)),
+    section_at=SECTION_AT,
+    smooth_v=True,
 )
 
 z_rocker = BODY.z_rocker

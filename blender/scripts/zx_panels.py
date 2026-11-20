@@ -117,52 +117,65 @@ def v_up(x, z):
 
 
 # ------------------------------------------------------------ window lines
-# Lower edge of the side glass (side photo, y 0.88): 1.106 at the A-pillar rising
-# to 1.265 at the quarter glass's tip.
-BELT_Z = Curve([(0.80, 1.100), (0.601, 1.106), (0.186, 1.113), (-0.124, 1.121),
-                (-0.690, 1.146), (-0.968, 1.164), (-1.108, 1.194), (-1.265, 1.220),
-                (X_DLO_TIP, 1.265)])
-# Upper edge along the roof side (side photo, y 0.7).
-DLO_TOP_Z = Curve([(X_DLO_FRONT, 1.315), (0.395, 1.434), (0.080, 1.510),
-                   (-0.129, 1.535), (-0.443, 1.548), (-0.757, 1.551),
-                   (-0.981, 1.523), (-1.261, 1.474), (-1.447, 1.403),
-                   (X_DLO_TIP, 1.285)])
-A_FOOT = (1.190, 1.100)
-A_TOP = (X_ROOF_F, 1.430)
+# Lower edge of the side glass (side photo, y 0.88): 1.096 at the door's leading edge
+# rising to 1.265 at the quarter glass's tip.
+BELT_Z = Curve([(X_DOOR_TOP_F, 1.096), (0.80, 1.098), (0.601, 1.106), (0.186, 1.113),
+                (-0.124, 1.121), (-0.690, 1.146), (-0.968, 1.164), (-1.108, 1.194),
+                (-1.265, 1.220), (X_DLO_TIP, 1.265)])
+# Upper edge of the side glass and lower edge of the silver arch from the quarter glass's tip
+# all the way down the A-pillar to the front door's top leading corner (X_DOOR_TOP_F), where it
+# meets the beltline and fender top at z = 1.096.
+DLO_TOP_Z = Curve([(X_DLO_TIP, 1.285), (-1.447, 1.408), (-1.261, 1.482), (-0.981, 1.532),
+                   (-0.757, 1.558), (-0.443, 1.564), (-0.129, 1.558), (0.080, 1.542),
+                   (0.290, 1.500), (0.430, 1.448), (0.550, 1.384), (0.700, 1.289),
+                   (0.840, 1.188), (X_DOOR_TOP_F, 1.0875)])
+A_FOOT = (X_DOOR_TOP_F, 1.096)
+A_TOP = (X_ROOF_F, 1.448)
 
 
 def z_a(x):
-    """Height of the A-pillar's glass edge at station x."""
+    """Height of the A-pillar's inner (windshield) edge at station x."""
     t = (A_FOOT[0] - x) / (A_FOOT[0] - A_TOP[0])
     return A_FOOT[1] + (A_TOP[1] - A_FOOT[1]) * t
 
 
 def V_BELT(x):
-    return v_up(x, BELT_Z(max(X_DLO_TIP, min(0.80, x))))
+    return v_up(x, BELT_Z(max(X_DLO_TIP, min(X_DOOR_TOP_F, x))))
 
 
 def V_GT(x):
-    """Top of the side glass: the A-pillar edge ahead of the door glass, the roof
-    side behind it. The two lines were read off the photographs separately and miss by
-    15 mm where they meet (X_DLO_FRONT): the A-pillar's eases down onto the roof-side
-    line over the next 0.3 m, so the glass's top edge, and the pillar's lower edge that
-    follows it, have no step."""
-    if x > X_DLO_FRONT:
-        miss = z_a(X_DLO_FRONT) - DLO_TOP_Z(X_DLO_FRONT)
-        t = _clamp01((x - X_DLO_FRONT) / 0.30)
-        return v_up(x, z_a(x) - miss * (1.0 - _smooth(t)))
+    """Top of the side glass and lower edge of the silver A-pillar / roof arch.
+    From the quarter glass tip (X_DLO_TIP) to the front door's top leading corner (X_DOOR_TOP_F)
+    it follows DLO_TOP_Z; ahead of the door corner (from X_DOOR_TOP_F to X_BAR_END) the silver
+    bar's bottom edge sits directly on the fender's top edge (V_HOOD) with no foot block under it."""
+    if x > X_DOOR_TOP_F:
+        return V_HOOD(x) - 0.0055
     return v_up(x, DLO_TOP_Z(max(X_DLO_TIP, x)))
 
 
+Y_A_EDGE = Curve([
+    (X_ROOF_F, 0.635), (0.550, 0.665), (0.700, 0.704), (0.840, 0.736),
+    (0.980, 0.768), (1.050, 0.785), (X_BAR_END, 0.806), (X_COWL, 0.796),
+])
+
+
 def V_A(x):
-    """The windscreen's side edge: 80 mm of body-colour A-pillar above the door
-    glass's edge."""
-    return S.v_along(x, v_up(x, z_a(min(A_FOOT[0], x))), 0.080)
+    """The windscreen's side edge (inner/upper edge of the silver A-pillar bar).
+    At X_BAR_END (1.120) it meets the lower edge of the bar on the fender/hood seam,
+    tapering the silver bar to a clean point at the cowl as on the real car."""
+    if x >= X_BAR_END:
+        return V_HOOD(x) + 0.0005
+    if x < X_ROOF_F:
+        return V_ROOF_GLASS(x)
+    return S.v_at_y_upper(x, Y_A_EDGE(x))
 
 
 def V_RAIL(x):
-    """Inboard edge of the body-colour roof rail: 55 mm above the side glass."""
-    return S.v_along(x, V_GT(x), 0.055)
+    """Inboard edge of the body-colour roof rail: 55 mm above the side glass over the cabin,
+    easing smoothly to the arch/pillar inner edge (V_ROOF_GLASS / V_A) at the header corner."""
+    v0 = S.v_along(x, V_GT(x), 0.055)
+    t = _smooth((x - 0.00) / (X_ROOF_F - 0.00))
+    return v0 + (V_A(x) - v0) * t
 
 
 # Backlight edges: an oval in the rear photograph (to be read), widest at mid height.
@@ -238,9 +251,9 @@ def V_QBASE(x):
 
 def V_ROOF_LO(x):
     if x >= X_DLO_TIP:
-        return V_RAIL(x) - 0.004
+        return V_RAIL_TOP(x)
     if x >= X_CTIP:
-        return V_Q_TOP(x) - 0.004 * (x - X_CTIP) / (X_DLO_TIP - X_CTIP)
+        return V_Q_TOP(x)
     return V_WTOP(x)
 
 
@@ -269,10 +282,12 @@ ROOF_GLASS_X0 = -1.840       # the black glass ends here; behind it the spoiler'
 
 
 def Y_ROOF_GLASS(x):
-    """y of the black roof glass's side edge: the arch's width in from the rail's outer edge, and never
-    outboard of the roof's crown edge (behind the quarter glass's tip the rail's line runs down the C-pillar)."""
+    """y of the black roof glass's side edge: the arch's width in from the rail's outer edge, easing
+    into the A-pillar's inner edge (Y_A_EDGE) at the header corner, and never outboard of the roof's
+    crown edge (behind the quarter glass's tip the rail's line runs down the C-pillar)."""
     out = S.BODY.surface(x, V_GT(x) + 0.006)[1]
-    return min(out - W_ARCH, S.Y_ROOF(x) - 0.020)
+    w = W_ARCH - 0.023 * _smooth((x - 0.10) / (X_ROOF_F - 0.10))
+    return min(out - w, S.Y_ROOF(x) - 0.020)
 
 
 def V_ROOF_GLASS(x):
@@ -281,21 +296,24 @@ def V_ROOF_GLASS(x):
 
 # the black ceramic frit round the windscreen's edge (front photograph: a thin dark border just inside the silver frames,
 # deeper along the header). Sheets 2.2 mm over the glass, inside its outline.
-W_FRIT = 0.016
-W_FRIT_TOP = 0.034
+W_FRIT = 0.020
+W_FRIT_TOP = 0.036
 V_FRIT_IN = 0.0065
 
 
 # The clamshell hood: its side edge runs along the fender crowns from the cowl to
-# the lamp (sA: the hood/fender line, z 0.956 at x 1.40, 0.89 at the lamp).
+# the lamp (sA: the hood/fender line, z 1.072 at x 1.40, 0.863 at the lamp).
 def _hood_front(v):
     # 2026-11-16: no overhang. The hood ran 15 mm past the nose cap's join over its top, a lip standing proud of
     # the fascia with a fold of slivers at each corner; it butts the cap now
     return N.JOIN_F(v)
 
 
-Y_HOOD = Curve([(X_COWL, 0.800), (1.40, 0.835), (1.60, 0.850), (1.80, 0.855),
-                (2.00, 0.845), (2.15, 0.815), (2.28, 0.760)])
+Y_HOOD = Curve([
+    (0.98, 0.806), (1.06, 0.807), (X_BAR_END, 0.806), (1.16, 0.803),
+    (X_COWL, 0.796), (1.26, 0.799), (1.40, 0.808),
+    (1.60, 0.820), (1.80, 0.822), (2.00, 0.812), (2.15, 0.790), (2.28, 0.745),
+])
 
 
 def V_HOOD(x):
@@ -380,23 +398,17 @@ PANELS = [
     # rear end, from the quarter's top edge up to V_Q_TOP. A panel of its own, so no limit jumps
     # inside one grid (see V_QBASE); it butts the quarter (v0), the rail (x1) and the roof paint.
     dict(name="ZX_Quarter_Pillar", x=(X_CTIP + 0.002, X_DLO_TIP), v=(V_QBASE, V_Q_TOP),
-         nx=12, nv=24, gap=dict(v0=False, x1=False), mat="roof_silver"),
+         nx=12, nv=24, gap=dict(v0=False, v1=False, x1=False), mat="roof_silver"),
     dict(name="ZX_Hood", x=(X_COWL, _hood_front), v=(V_HOOD, 1.0),
          nx=60, nv=34, gap=dict(v1=False, x1=False), mat="paint", offset=0.0005),
-    # Body-colour A-pillar and roof rail, butted to the quarter's C-pillar
-    # (the bar stops at X_BAR_END, at the pillar's foot. There used to be a silver block under it there, ZX_Pillar_Foot,
-    # to cover the gap between the bar and the fender's top; the maker's photographs show a black sail triangle in that
-    # place, so the block is gone and the greenhouse's black underlay shows there: removed 2026-11-19, on the owner's request)
+    # Body-colour A-pillar and roof rail, butted to the quarter's C-pillar.
+    # Its lower edge follows the top of the side glass down to the front door's top leading corner
+    # (X_DOOR_TOP_F) where it meets the beltline and fender top, and from X_DOOR_TOP_F to X_BAR_END
+    # runs horizontally along the fender top while its upper edge (V_RAIL_TOP / V_A) tapers down to
+    # meet it at X_BAR_END — with no foot block (ZX_Fender_Corner) under it.
     dict(name="ZX_Roof_Rail", x=(X_DLO_TIP, X_BAR_END),
          v=(lambda x: V_GT(x) + 0.006, V_RAIL_TOP),
-         nx=136, nv=10, gap=dict(x0=False, x1=False), mat="roof_silver"),
-    # The fender's top corner ahead of the door, in body colour, up to the silver bar's lower edge: the maker's
-    # photographs show the fender's paint rising to meet the bar, with no black wedge and no silver block there. (The
-    # loft's fender top sits 7 cm under the pillar's line at the foot, which left a hole that read as a black corner
-    # block, then as a silver one.)
-    dict(name="ZX_Fender_Corner", x=(X_DOOR_TOP_F + 0.004, X_BAR_END),
-         v=(lambda x: V_HOOD(x) + 0.0005, lambda x: V_GT(x) + 0.006),
-         nx=16, nv=14, gap=dict(v1=False, x1=False), mat="paint"),
+         nx=136, nv=10, fixed_x=(X_DOOR_TOP_F,), gap=dict(x0=False, x1=False, v1=False), mat="roof_silver"),
 
     # ---- greenhouse underlay: glass surround, B-pillar, under the roof glass
     dict(name="ZX_Greenhouse_Black", x=(X_DLO_TIP - 0.030, X_COWL - 0.030),
@@ -433,10 +445,10 @@ PANELS = [
          gap=dict(x0=False, x1=False, v0=False, v1=False)),
     # the roof: silver strip, black glass, spoiler wing (see W_ARCH). The strip and the glass share their x range
     # and fixed columns, so their grids meet exactly along V_ROOF_GLASS.
-    dict(name="ZX_Roof_Paint", x=(ROOF_GLASS_X0, X_ROOF_F - 0.020),
+    dict(name="ZX_Roof_Paint", x=(ROOF_GLASS_X0, X_ROOF_F - 0.004),
          v=(V_ROOF_LO, V_ROOF_GLASS), nx=112, nv=12, fixed_x=(X_CTIP,),
          gap=dict(x0=False, x1=False, v0=False, v1=False), mat="roof_silver"),
-    dict(name="ZX_Roof_Black", x=(ROOF_GLASS_X0, X_ROOF_F - 0.020),
+    dict(name="ZX_Roof_Black", x=(ROOF_GLASS_X0, X_ROOF_F - 0.004),
          v=(V_ROOF_GLASS, 0.9995), nx=112, nv=24, fixed_x=(X_CTIP,),
          gap=dict(x0=False, x1=False, v0=False, v1=False), mat="roof_black"),
     # the paint starts at the blade's foot, so the roof spoiler's trailing face is body colour
