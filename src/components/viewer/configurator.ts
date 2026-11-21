@@ -376,6 +376,9 @@ export function useTrim(model: THREE.Object3D, spec: ConfiguratorSpec | undefine
     t: number;
   } | null>(null);
   const touched = React.useRef(false);
+  /** the slots a trim was last applied to: a car that opens in a trim other than the one it was built in (the 06T's Tinted Charcoal)
+   *  puts it on without the fade, since the visitor has not seen the built colours */
+  const lastSlots = React.useRef<typeof slots | null>(null);
 
   React.useEffect(() => {
     if (!slots.size || !option) return;
@@ -383,6 +386,8 @@ export function useTrim(model: THREE.Object3D, spec: ConfiguratorSpec | undefine
     const asBuilt = Object.keys(colors).length === 0;
     if (!touched.current && asBuilt) return;
     touched.current = true;
+    const snap = lastSlots.current !== slots;
+    lastSlots.current = slots;
     const lower = new Map(Object.entries(colors).map(([n, c]) => [n.toLowerCase(), c]));
     const from = new Map<string, THREE.Color>();
     const to = new Map<string, THREE.Color>();
@@ -391,7 +396,7 @@ export function useTrim(model: THREE.Object3D, spec: ConfiguratorSpec | undefine
       const hex = lower.get(n);
       to.set(n, hex ? new THREE.Color(hex) : slot.built.clone());
     }
-    anim.current = { from, to, t: motionOk() ? 0 : 1 };
+    anim.current = { from, to, t: motionOk() && !snap ? 0 : 1 };
     invalidate();
     // keyed on the option id, as in usePaint
     // eslint-disable-next-line react-hooks/exhaustive-deps

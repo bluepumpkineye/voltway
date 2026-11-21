@@ -482,11 +482,18 @@ def build_pedals(col, lib):
     p = math.radians(40.0)
     a = Vector((math.sin(p), 0.0, math.cos(p)))
     n = Vector((-math.cos(p), 0.0, math.sin(p)))
-    for name, y, x, z, w, h, strips in (("rest", 0.640, 0.840, 0.470, 0.075, 0.210, 5),
-                                        ("brake", 0.390, 0.815, 0.500, 0.092, 0.078, 3),
-                                        ("accel", 0.235, 0.860, 0.450, 0.055, 0.200, 0)):
+    # 2026-11-21 (owner: "recess and darken the footwell pedals so they sit naturally in shadow under the dashboard"):
+    # set 6 cm further back toward the toe board and a little higher, in dark satin metal with black rubber ribs
+    from carkit import materials as MB
+    dark = bpy.data.materials.get("INT_Pedal_Dark")
+    if dark is None:
+        dark, nt, b = MB.mat("INT_Pedal_Dark")
+        MB.set_inputs(b, base=(0.026, 0.026, 0.030), metallic=0.7, roughness=0.52)
+    for name, y, x, z, w, h, strips in (("rest", 0.640, 0.900, 0.490, 0.075, 0.210, 5),
+                                        ("brake", 0.390, 0.875, 0.515, 0.092, 0.078, 3),
+                                        ("accel", 0.235, 0.920, 0.470, 0.055, 0.200, 0)):
         c = Vector((x, y, z))
-        made.append(F.box(col, "int_pedal_" + name, tuple(c), (0.010, w, h), lib["brushed"],
+        made.append(F.box(col, "int_pedal_" + name, tuple(c), (0.010, w, h), dark,
                           r=0.003, pitch=p))
         if name == "rest":
             for k in range(strips):
@@ -607,6 +614,7 @@ def main(lights=True):
     CK.build_dash(col, lib)
     CK.build_screens(col, lib)
     CK.build_wings(col, lib)
+    CK.build_grilles(col, lib)
     CK.build_wheel(col, lib)
     SE.build_front(col, lib, FRONT_BIGHT_X, FRONT_BIGHT_Z, (DRIVER_Y, PASS_Y), FLOOR_Z)
     SE.build_rear(col, lib, REAR_BIGHT_X, REAR_BIGHT_Z, REAR_Y, FLOOR_Z)

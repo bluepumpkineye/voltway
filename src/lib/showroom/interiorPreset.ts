@@ -14,15 +14,20 @@ export const INTERIOR_PRESET = {
 } as const;
 
 /**
- * Cars left exactly as they were before the interior upgrade (cabinfx): no composer, no material or glass changes, no live cluster,
- * the old 46 degree seat lens and no head-turn limit. The Avatr 06T: its own render (the baked light map, the original cluster) is
- * better than the upgrade's, the owner's call on 2026-11-13.
+ * Cars left exactly as they were before the interior upgrade (cabinfx): no composer, no material or glass changes, no live cluster.
+ * The Avatr 06T: its own render (the baked light map, the original cluster) is better than the upgrade's, the owner's call on
+ * 2026-11-13. This list is the RENDER only: every car, the 06T included, has the same seat camera (`interiorPresetFor`).
  */
 export const CABIN_FX_EXCLUDED: readonly string[] = ['avatr-06t'];
 
 export const cabinFxExcluded = (slug: string): boolean => CABIN_FX_EXCLUDED.includes(slug);
 
-/** The seat's lens and head-turn limit for a car: the shared preset, or what an excluded car always had. */
+/**
+ * The seat's lens and head-turn limit: the shared preset for every car. The 06T used to keep the old 46 degree lens and no
+ * head-turn limit with its render; on 2026-11-21 the owner asked for the Mona's look-around on it too (camera only), so a turn
+ * past `yawLimitDeg` no longer puts the eye inside the driver's headrest.
+ */
 export function interiorPresetFor(slug: string): { fov: number; fovMax: number; yawLimitDeg: number | null } {
-  return cabinFxExcluded(slug) ? { fov: 46, fovMax: 88, yawLimitDeg: null } : INTERIOR_PRESET;
+  void slug; // the same for every car; kept per car so that one can be given its own again
+  return INTERIOR_PRESET;
 }

@@ -15,6 +15,7 @@ Axes: +X forward, +Y left, +Z up.
 import math
 
 import bmesh
+import bpy
 from mathutils import Vector
 
 import a06t_interior as RI
@@ -32,8 +33,6 @@ TOP = Curve([
     (X_FRONT, 0.755),
 ], mode="pchip")
 CUPS = [(0.420, 0.057, 0.041), (0.420, -0.057, 0.041)]         # (x, y, r)
-ARCH_X0, ARCH_X1 = 0.750, 0.630            # the arch's depth
-ARCH_HW, ARCH_TOP = 0.158, 0.780           # screen lower edge (a06t_cockpit.SCREEN_C z 0.890 - 0.113 = 0.777)
 
 
 def _under(x):
@@ -89,63 +88,88 @@ def build_body(col, lib):
     return made
 
 
-def build_arch(col, lib):
-    """The sleek white bridge pedestal the screen stands on, its vent and the AVATR plate."""
+def _mat(name, base, rough, **kw):
+    from carkit import materials as MB
+    m = bpy.data.materials.get(name)
+    if m is None:
+        m, nt, b = MB.mat(name)
+        MB.set_inputs(b, base=base, metallic=kw.pop("metallic", 0.0), roughness=rough, **kw)
+    return m
+
+
+# the U-shaped padded surround under the screen (c10_0015 / c10_0047, the owner's photo 1): a rim open toward the seats
+SUR_X0, SUR_X1, SUR_Y = 0.575, 0.734, 0.112      # centre-line: open end, front wall, half width
+SUR_HV, SUR_HH = 0.028, 0.022                    # the rim's section: vertical and horizontal half sizes
+TRAY_HW = 0.090
+
+
+def build_surround(col, lib):
+    """A U-shaped padded surround housing a recessed dark tray with the AVATR wordmark; the screen floats above it
+    (2026-11-21: the old arch, its louvred vent, glossy black plate and the bar the screen stood on are gone)."""
     made = []
-    xm = 0.5 * (ARCH_X0 + ARCH_X1)
-    d = 0.5 * (ARCH_X0 - ARCH_X1)
-    corner = 0.016
-    z_base = TOP(ARCH_X1)
-    pts = [(-ARCH_HW, z_base)]
-    for k in range(9):
-        a = math.pi - 0.5 * math.pi * k / 8.0
-        pts.append((-ARCH_HW + corner + corner * math.cos(a), ARCH_TOP - 0.008 - corner + corner * math.sin(a)))
-    for k in range(9):
-        a = 0.5 * math.pi - 0.5 * math.pi * k / 8.0
-        pts.append((ARCH_HW - corner + corner * math.cos(a), ARCH_TOP - 0.008 - corner + corner * math.sin(a)))
-    pts.append((ARCH_HW, z_base))
-    path = smooth_path([(xm, y, z) for (y, z) in pts], 60)
+    ctrl = [(SUR_X0, SUR_Y), (0.640, SUR_Y), (0.703, SUR_Y - 0.004), (0.728, SUR_Y - 0.030), (SUR_X1, 0.0),
+            (0.728, -SUR_Y + 0.030), (0.703, -SUR_Y + 0.004), (0.640, -SUR_Y), (SUR_X0, -SUR_Y)]
+    xy = smooth_path([(x, y, 0.0) for (x, y) in ctrl], 80)
+    path = [(x, y, TOP(x) + 0.021) for (x, y, _) in xy]
+    e = 2.0 / 2.8
     prof = []
-    for k in range(20):
-        t = 2 * math.pi * k / 20
+    for k in range(24):
+        t = 2 * math.pi * k / 24
         c, s = math.cos(t), math.sin(t)
-        prof.append((d * math.copysign(abs(c) ** 0.45, c), 0.016 * math.copysign(abs(s) ** 0.45, s)))
-    made.append(tube("int_console_arch", path, prof, col, lib["plastic_white"], lateral=(1.0, 0.0, 0.0)))
-    # the vent across the mouth's top, louvred
-    zv = 0.5 * (z_base + ARCH_TOP)
-    made.append(F.box(col, "int_console_vent", (ARCH_X1 + 0.030, 0.0, zv), (0.040, 2 * ARCH_HW - 0.050,
-                      0.016), lib["piano"], r=0.004))
-    for k in range(13):
-        y = -ARCH_HW + 0.040 + (2 * ARCH_HW - 0.080) * k / 12.0
-        made.append(F.box(col, "int_console_vane%d" % k, (ARCH_X1 + 0.009, y, zv), (0.006, 0.0025, 0.012),
-                          lib["satin"], r=0.0008))
-    # the black glossy plate under it, sloping back to the pad, with the wordmark
-    za, zb = ARCH_TOP - 0.008, z_base + 0.002
-    xa, xb = ARCH_X1 + 0.028, ARCH_X1 - 0.040
-    rows = [[(xa + (xb - xa) * i / 8.0, -ARCH_HW + 0.034 + (2 * ARCH_HW - 0.068) * j / 10.0,
-              za + (zb - za) * i / 8.0) for j in range(11)] for i in range(9)]
-    pl = grid_mesh("int_console_plate", rows, col, lib["piano"])
-    _orient_to(pl, Vector(rows[4][5]), Vector((-(za - zb), 0.0, -(xa - xb))).normalized())
-    made.append(pl)
-    t = M.text_mesh("int_console_logo", "AVATR", 0.014, col, lib["satin_metal"], extrude=0.0004, resolution=4)
-    n = Vector((-(za - zb), 0.0, -(xa - xb))).normalized()
-    U = Vector((0.0, -1.0, 0.0))
-    V = n.cross(U).normalized() * -1.0
+        prof.append((SUR_HV * math.copysign(abs(c) ** e, c), SUR_HH * math.copysign(abs(s) ** e, s)))
+
+    def fade(s):
+        f = RI._smooth(min(s, 1.0 - s) / 0.07)
+        k = 0.55 + 0.45 * f
+        return (k, k)
+    made.append(tube("int_console_surround", path, prof, col, lib["leather_white"], lateral=(0.0, 0.0, 1.0), scale=fade))
+    # the recessed tray: a dark matte floor lower than the rim, dished toward the middle
+    tray = _mat("INT_Console_Tray", (0.012, 0.012, 0.014), 0.85, specular=0.2)
+    x0, x1 = SUR_X0 + 0.004, SUR_X1 - SUR_HH - 0.004
+    rows = []
+    for i in range(15):
+        x = x0 + (x1 - x0) * i / 14.0
+        rows.append([(x, TRAY_HW * (1.0 - 2.0 * j / 10.0),
+                      TOP(x) + 0.0075 - 0.0025 * (1.0 - (1.0 - 2.0 * j / 10.0) ** 2)) for j in range(11)])
+    tr = grid_mesh("int_console_tray", rows, col, tray)
+    M.orient(tr.data, lambda c: (0.0, 0.0, 1.0))
+    made.append(tr)
+    # the wordmark, reading from the seats, on the tray's front part
+    t = M.text_mesh("int_console_logo", "AVATR", 0.0135, col, lib["satin_metal"], extrude=0.0004, resolution=4)
+    U, V = Vector((0.0, -1.0, 0.0)), Vector((1.0, 0.0, 0.0))
     from mathutils import Matrix
     Mx = Matrix((tuple(U), tuple(V), tuple(U.cross(V)))).transposed().to_4x4()
-    c = Vector(rows[3][5]) + n * 0.0008
-    Mx.translation = c - U * 0.035
+    xl = x1 - 0.026
+    Mx.translation = Vector((xl, 0.0, TOP(xl) + 0.0068)) - U * 0.034
     t.matrix_world = Mx
     made.append(t)
     return made
 
 
+def build_pads(col, lib):
+    """The dual wireless charging pad behind the surround: two matte dark pads, each with a raised border and a row of
+    small horizontal grip ridges across its front (c10_0050 / c10_0051)."""
+    made = []
+    pad = _mat("INT_Charge_Pad", (0.030, 0.030, 0.034), 0.92, specular=0.15)
+    x0, x1, hw, y_mid = 0.470, 0.552, 0.049, 0.054
+    zp = 0.7258
+    for side, tag in ((1.0, "L"), (-1.0, "R")):
+        yc = side * y_mid
+        outline = [(x0 + a + 0.5 * (x1 - x0), yc + b) for (a, b) in
+                   F.round_rect_xy(-(x1 - x0) / 2, (x1 - x0) / 2, -hw, hw, 0.014, 5)]
+        made.append(F.ngon_cap(col, "int_console_pad" + tag, [(x, y, zp) for (x, y) in outline], pad, (0.0, 0.0, 1.0)))
+        ring = [(x, y, zp + 0.0006) for (x, y) in outline]
+        made.append(tube("int_console_padrim" + tag, ring + [ring[0]], ellipse(0.0016, 0.0009, 6), col, lib["satin"],
+                         lateral=(0.0, 0.0, 1.0)))
+        for k in range(5):
+            xr = x1 - 0.016 - 0.0085 * k
+            made.append(F.box(col, "int_console_padridge%s%d" % (tag, k), (xr, yc, zp + 0.0010),
+                              (0.0034, 2 * hw - 0.030, 0.0022), pad, r=0.0007))
+    return made
+
+
 def build_top(col, lib):
     made = []
-    # the phone guide: a satin-silver bar down the pad's middle
-    path = [(0.585 - 0.060 * k / 12.0, 0.0, TOP(0.585 - 0.060 * k / 12.0) + 0.0018) for k in range(13)]
-    made.append(tube("int_console_guide", path, ellipse(0.0040, 0.0018, 10), col, lib["satin_metal"],
-                     lateral=(0.0, 0.0, 1.0)))
     # cupholders: wells, satin rims, dark mats
     for k, (cx, cy, r) in enumerate(CUPS):
         z0 = TOP(cx)
@@ -204,5 +228,5 @@ def build_ambient(col, lib):
 
 
 def build(col, lib):
-    return build_body(col, lib) + build_arch(col, lib) + build_top(col, lib) + build_rear_face(col, lib) + \
-        build_ambient(col, lib)
+    # no ambient strips on the console (the owner, 2026-11-21: "replace the neon pink console strips")
+    return build_body(col, lib) + build_surround(col, lib) + build_pads(col, lib) + build_top(col, lib) +         build_rear_face(col, lib)

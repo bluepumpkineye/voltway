@@ -2143,3 +2143,57 @@ The cases:
 - Send the model only what the question needs: filter a scraped page to the lines about the car before `onboard`.
 - `finder` is only as good as the docstrings it reads. `Placer.radial` never says "wrap a lamp round a corner", so a search for that finds its module, not the method. Write docstrings for the need, not only the mechanics.
 
+
+### Avatr 06T cockpit rework (2026-11-21)
+
+Owner brief: Tinted Charcoal as the default interior; the centre screen up to the wheel's height without hiding the cluster; the
+wheel rebuilt "thoroughly" against the photographs; short dark stalks; a dash hood over a recess for the panoramic display with
+trapezoid e-mirror screens and round speaker grilles. Photographs: `c10_0008` (wheel square on, 2.56 px/mm at the wheel: rim 985 x 690
+px), `c10_0010` (hub, frame, windows), `c10_0013` (stalk), `c10_0006` (A-pillar foot, the recess's end), `c10_0001` (dash straight on).
+
+- **Default trim** (`avatr-06t.ts`): Tinted Charcoal is `trims[0]`; Misty Purple & Cotton White has no `colors` (= as built). The GLB
+  is still built in Misty Purple (the perforated leather's texture carries the white, so a darker trim can only be a factor below 1:
+  building the cabin in charcoal would make the other trims impossible). `useTrim` (`configurator.ts`) applies a trim that is not
+  the built one **without the 0.7 s fade** the first time it meets a model (`lastSlots`), so the cabin never flashes purple.
+- **Wheel** (`a06t_wheel.py`, called from `a06t_cockpit.build_wheel`). Everything is read off c10_0008: the rim is a superellipse
+  (a 0.1745, b 0.1195, n 3.6; 0.385 x 0.270 outside), section 36 x 33 mm at the grips and 33 mm on the flats, a thumb swell at 40 and
+  140 degrees, four dark seam rings where the flats meet the grips and a tone-on-tone stitch on the driver's face. The bottom 76 mm
+  of the rim is the frame's satin **sleeve** (the real wheel's silver replaces the leather there). The frame is ONE plate: the outline
+  (`FRAME_HALF`, mm) and its holes (two windows beside the hub, the rounded-triangle cut-out under it) were read from the photograph,
+  triangulated with `mathutils.geometry.tessellate_polygon`, subdivided, bulged a little, solidified and bevelled. The hub is a
+  squircle cushion with a stepped profile (a shoulder, a recessed ring, the dome) carrying two dark stitch lines, and the badge is a
+  4-facet pyramid in a vertical rectangle (24 x 43 mm). Rollers are knurled (a 26-tooth gear profile swept 6 mm) in oval bezels. The
+  stalks are 25 x 20 mm dark ovals with a satin tip, from a round boss on the column, inside the rim's outline. The old wheel's
+  twin wire rods, tube spokes and purple stalks are gone.
+- **Hood and recess** (`a06t_cockpit.py`): `DASH_SECTION` now has 28 control points: the dark pad, a flat crown (z 1.103), the lip,
+  the recess (ceiling z 1.080, floor 0.998, back wall leaning 13 degrees) and the face. `_section_at(y)` bends the band forward by
+  `ARCH_FWD` (0.08 m) toward each A-pillar (`ARCH_W` weights per control point), squeezes the ends under the glass and lowers the
+  hood and recess together where the glass comes down onto them. The panoramic display is 0.880 x 0.061 (it was 1.08 wide and
+  overlapped the e-mirror panels); `cluster_a06t.png` was re-laid at 3072 x 213 to match (the three cards cut out and replaced, not
+  stretched). The e-mirror panels are a grid on the bent wall (`_mirror_panel`, UV 0-1 so the Star Ring demo can still paint them),
+  tapered 0.078 -> 0.058 tall outboard.
+- **Centre screen**: `SCREEN_C` z 0.890 -> 0.945, the console arch (`a06t_console.ARCH_TOP`) 0.780 -> 0.835. The top is 3 mm under
+  the display's lower edge for a ray from the driver's eye (0.22, 0.40, 1.17) and about level with it from c10_0001's camera.
+- **Dev loop** (cabin only, about 1 min): a scratch script that deletes the factory Cube/Light, calls `a06t_interior.main()`, hides
+  `int_seat*`, and renders Cycles stills. The wheel view is **orthographic along the wheel's axis at 2558 px/m** (2000 x 1500), which
+  overlays directly on c10_0008 (rim centre at the image centre). The factory Cube must go first: it encloses the cabin and renders it
+  white.
+
+**Console, dash pad and doors (the same day, second brief).** Photos: `c10_0015/0047/0050` and the owner's photo 1 (console), `c3_0003`
+(front card), `c3_0023` (switches), `c3_0026` (Meridian grille).
+- **Console** (`a06t_console.py`): the arch (the bar the screen stood on), its louvred vent, the glossy black plate and the two pink
+  ambient strips are gone; the screen floats. `build_surround` is a U-shaped padded rim (a swept superellipse, open toward the seats)
+  with a dark matte tray inside it, 7 mm above the console top, and the AVATR wordmark laid flat on it; `build_pads` is the matte dual
+  charging pad (two rounded pads with a raised border and five 2 mm grip ridges each) behind it. The phone-guide bar is gone too.
+- **Dash pad**: `int_dash_Face` is ONE mesh from the recess floor to the firewall (it was Face + Lower with a seam between), and the
+  glovebox / knee-panel seams and the groove under the lip are deleted.
+- **Door cards** (`a06t_doorcards.py`): `_belt_cap` replaces `DoorCard.belt_cap` for this car (the shared kit is untouched): a soft
+  roll that narrows and sinks over its last 16 cm, so the sill dissolves into the dash end instead of ending as a flat shelf; the white
+  panel stands 3 mm proud with a 1.5 mm edge roll (6 mm rolled the edge behind the field and showed a jagged line). `_speaker` is a
+  dark metal face with concentric rings of short arc slots (black quads 0.4 mm over the face, c3_0026), in a gunmetal ring. The lower
+  pull lever is gone; `_release_button` is a flush rounded-rectangle with a satin outline just ahead of the panel's leading edge
+  (`lead(z) + 0.032`). The armrest floats (its back stands 12 mm off the card except at the tapered ends, a dark strip behind it);
+  the driver's has a dark plate with four metallic window keys (2 x 2).
+- **Pedals** (`a06t_interior.build_pedals`): dark satin metal (`INT_Pedal_Dark`) with black ribs, 6 cm further back and 1.5 cm higher.
+- Judging a door card from a dev render: the camera must look along the card's normal; the wheel and screen hide the front end, so hide
+  `int_wheel` and `int_screen` for that shot.

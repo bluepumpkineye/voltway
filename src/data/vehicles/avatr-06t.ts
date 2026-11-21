@@ -125,8 +125,9 @@ export const avatr06t: Vehicle = {
     },
     // the 06T's own seat: the bight at x 0.150, cushion centered in door aperture, backrest aligned with B-pillar
     driverEye: [0.22, 0.40, 1.17],
-    // Seated driver view with wide-angle lens showing the cockpit, console, and seating area
-    driverView: { back: 0.0, out: 0.0, lift: 0.0, fov: 56, look: [0.18, -0.035, 0.040] },
+    // The Interior tab: the driver's seat, framed as the Mona's cabin view is (a wide lens and the eye a little back and up, so the wheel
+    // does not fill the picture and the whole dash is in it), with the Mona's look-around (interiorPreset.ts)
+    driverView: { back: 0.06, out: 0.0, lift: 0.04, fov: 70, look: [0.18, -0.075, -0.014] },
     proxyUrl: '/models/avatr-06t-proxy.glb',
     heroColor: '#524660',
   },
@@ -164,15 +165,11 @@ export const avatr06t: Vehicle = {
       ...ownPaints('racing-green', 'saffron-gold', 'petrol-teal', 'champagne-sand', 'matt-grey', 'matt-orange'),
     ],
     trims: [
-      // The three cabins Autohome photographed (series 8538, cat 3: photos 1-64, 116-160 and 65-115). The cabin is built in
-      // the first; the others recolour its materials (INT_Leather_White_Perf's texture carries the white, so its colour
-      // is the target divided by 0.58). The red cabin's seats have horizontal pleats the recolour does not model.
-      {
-        id: 'misty-purple-cotton-white',
-        name: 'Misty Purple & Cotton White',
-        nameZh: '暮紫/烟白',
-        swatch: ['#7d798c', '#cbcac6'],
-      },
+      // The three cabins Autohome photographed (series 8538, cat 3: photos 1-64, 116-160 and 65-115). The cabin GLB is built in
+      // Misty Purple & Cotton White; every other trim recolours its materials (INT_Leather_White_Perf's texture carries the
+      // white, so its colour is the target divided by 0.58). Tinted Charcoal is the default (first in the list, applied
+      // without the fade on load: configurator.ts useTrim), the owner's call on 2026-11-21. The red cabin's seats have
+      // horizontal pleats the recolour does not model.
       {
         id: 'tinted-charcoal',
         name: 'Tinted Charcoal',
@@ -187,6 +184,13 @@ export const avatr06t: Vehicle = {
           INT_Headliner: '#38373f',
           INT_Thread_White: '#595561',
         },
+      },
+      {
+        id: 'misty-purple-cotton-white',
+        name: 'Misty Purple & Cotton White',
+        nameZh: '暮紫/烟白',
+        swatch: ['#7d798c', '#cbcac6'],
+        // no colours: the cabin's own, as built (useTrim restores each material's built colour)
       },
       {
         id: 'kalypso-red',
