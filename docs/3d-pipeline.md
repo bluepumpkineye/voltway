@@ -2197,3 +2197,33 @@ px), `c10_0010` (hub, frame, windows), `c10_0013` (stalk), `c10_0006` (A-pillar 
 - **Pedals** (`a06t_interior.build_pedals`): dark satin metal (`INT_Pedal_Dark`) with black ribs, 6 cm further back and 1.5 cm higher.
 - Judging a door card from a dev render: the camera must look along the card's normal; the wheel and screen hide the front end, so hide
   `int_wheel` and `int_screen` for that shot.
+
+### XPeng Mona L05 cabin polish (2026-11-21)
+
+Owner brief: the Mona's interior "looks basic, unpolished and unfinished"; give it the 06T's render workflow (texture, UV, shading,
+lighting, polishing effects), keep the design faithful to the Mona, and fix the steering wheel, which "looks ugly". The 06T's level
+came from two things: a wheel traced from photographs (`a06t_wheel.py`) and the per-car polish pass (`docs/cabin-fx.md`). The Mona had
+neither, only the generic wheel generator and the generic `car_polish` entry.
+
+- **Wheel** (`mona_wheel.py`, called from `mona_interior.build_wheel`; same structure as `a06t_wheel.py`). Photographs: the Cabin 360
+  front panorama through `scripts/photo-tools/pano.cjs` (the camera is at the driver's head, square on to the wheel, about 8.7 mm per
+  degree at the wheel) and the Autohome close-ups `c10_0009` / `c10_0002` / `c10_0016`. The rim is a two-exponent superellipse (n 2.7 on
+  the upper half, 3.9 on the lower; 0.300 x 0.254 outside) swept with a 28-sample section (fewer showed a polygonal silhouette): grey
+  fabric, a 15 mm silver clamp round the bottom (the sleeve's rows sit 0.6 mm outside the leather), a seam ring at each end of the clamp
+  and across each lower corner, and tone-on-tone stitching along the inner edge (`INT_Thread_Wheel`; the shared thread read bright white).
+  The hub is a ring-stack pillow (`HUB_RINGS`: 8 rings, 0.124 x 0.104, centre 22 mm below the rim's) in the dash lavender with the XPENG
+  X and the word AIRBAG. The two pods are the spokes: a silver frame round a grey pad with a knurled roller and a chevron at each end;
+  under each is a black glass key in a silver ring on a boss. Short dark stalks, a slim column (r 0.034-0.039) and a small gasket where it
+  meets the dash.
+- **Polish** (`mona_polish.py`, called at the end of `mona_interior.main()`; it replaces the generic entry in `car_polish.py`).
+  Pattern: `seal_polish.py`. Gasket on the column (`collar_loop`), icon quads (`icon_quad` into the shared 8 x 4 atlas the web draws in
+  `cabinfx/icons.ts`): chevrons and skip marks on the pods, the cruise key and MODE on the lower keys, window up / down / lock on both
+  doors' keys; a glow ribbon (`int_dash_Glow`, M_Glow) down the dash face under the light line; Bevel + Weighted Normal on the screen
+  housing, the console frame, lip and nose, the dash chrome and the wheel's silver parts (`BEVEL`), smooth shading on the rim, clamp,
+  spokes and bosses (`SMOOTH`). Each step runs under `guard`, so a failure prints and the cabin still exports.
+- **Door speakers** (`mona_interior._speaker`): the flat disc became 30 concentric rings with a ridge on every second one, a dome,
+  and a brushed rim, with planar UVs (it was one flat white mesh).
+- **Lighting**: the live cabin pipeline (`cabinfx`) already applied to the Mona; its exposure was checked, not guessed. At 0.9 the
+  cabin's mean luma measured 1.027 x the reference ratio, so no `CAR_PRESETS` entry was added.
+- **Build and export**: `blender -b --factory-startup --python run_export_mona.py -- web_cabin` (about 7 minutes, never two hall exports
+  at once: they share one AO atlas file), then `export_mona.hmi_cabin()` for the HMI clay art.

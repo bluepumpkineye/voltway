@@ -70,7 +70,7 @@ DASH_HALF = 0.738
 FRONT_BIGHT_X, FRONT_BIGHT_Z = 0.030, 0.655
 REAR_BIGHT_X, REAR_BIGHT_Z, REAR_Y = -0.940, 0.675, 0.375
 
-MIRROR_C = (0.235, 0.000, 1.445)
+MIRROR_C = (0.340, 0.000, 1.430)       # 2026-11-19: 10 cm further forward (the Cabin 360 mirror hangs right under the header, which our body has at x 0.38)
 
 def _lin8(r, g, b):
     """sRGB 0-255 -> linear albedo."""
@@ -143,7 +143,9 @@ def _mapped_image(nt, bsdf, img, tile, socket):
     return tex
 
 
-def perforation_maps(size=512, pitch_px=32, radius=0.14, strength=10.0):
+def perforation_maps(size=512, pitch_px=32, radius=0.105, strength=6.0):
+    """Seat leather's fine perforation. 2026-11-19: radius 0.14 -> 0.105 and strength 10 -> 6, the mask's darkness 0.80 -> 0.55 (the
+    panorama's holes are small and pale: they read as a fine dotting on the cushion, not as polka dots)."""
     import numpy as np
     from carkit import surfacemaps as SM
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
@@ -154,7 +156,7 @@ def perforation_maps(size=512, pitch_px=32, radius=0.14, strength=10.0):
     hole = np.clip((radius - d) / 0.04, 0.0, 1.0)
     nrm = SM._image("T_PerfMONA_Normal", SM.height_to_normal(-hole, strength / size * 60.0),
                     filename="t_perf_mona_normal.png")
-    mask = np.repeat((1.0 - 0.80 * hole)[..., None], 3, axis=2)
+    mask = np.repeat((1.0 - 0.55 * hole)[..., None], 3, axis=2)
     msk = SM._image("T_PerfMONA_Mask", mask, non_color=True, filename="t_perf_mona_mask.png")
     return nrm, msk
 
@@ -174,10 +176,21 @@ def pleat_map(size=512, n=22, strength=16.0):
 
 def perforated(name, color, maps, tile=0.064):
     m, nt, b = MB.mat(name)
-    MB.set_inputs(b, base=color, metallic=0.0, roughness=0.44, specular=0.5, coat=0.10,
+    MB.set_inputs(b, base=color, metallic=0.0, roughness=0.56, specular=0.5, coat=0.10,
                   coat_rough=0.30, ior=1.45, sheen=0.0)
     IM._textured(nt, b, maps["perf_vps"], tile, 0.7)
     _mapped_image(nt, b, _perf_image("T_Perf_MONA_" + name[4:], color, maps), tile, "Base Color")
+    return m
+
+
+def speaker_grille(maps):
+    """The door speakers' finely perforated grey metal (Cabin 360 front close-ups: a round grille of tiny holes, silver-grey, with a
+    soft dome). The seat perforation maps at a 10 mm tile give ~0.6 mm holes on a 0.6 mm pitch at the speaker's scale."""
+    m, nt, b = MB.mat("INT_Speaker_Grille")
+    col = _lin8(150, 156, 163)
+    MB.set_inputs(b, base=col, metallic=0.85, roughness=0.38, specular=0.5)
+    IM._textured(nt, b, maps["perf_vps"], 0.010, 1.0)
+    _mapped_image(nt, b, _perf_image("T_Perf_MONA_Grille", col, maps), 0.010, "Base Color")
     return m
 
 
@@ -192,12 +205,18 @@ def build_library():
     # the door cards' upper cloth: the band's colour with fine vertical pleats (its own name so a trim recolours it with the band)
     m, nt, b = MB.mat("INT_Door_Pleat")
     MB.set_inputs(b, base=PERIWINKLE, metallic=0.0, roughness=0.90, specular=0.25, coat=0.0, sheen=0.55)
-    IM._textured(nt, b, maps["pleat_mona"], 0.18, 1.0)
+    IM._textured(nt, b, maps["pleat_mona"], 0.18, 0.6)           # (strength 1.0 read as hard stripes in the viewer)
     lib["door_pleat"] = m
+    lib["speaker"] = speaker_grille(maps)
+    # the wheel's silver (pod bezels, satellite-button rings, the rim clamp): a soft satin silver, grey not white (the shared
+    # "brushed" metal blew out to white under the cabin's chrome environment and read as a bright plastic loop in the viewer)
+    m, nt, b = MB.mat("INT_Silver_Satin")
+    MB.set_inputs(b, base=_lin8(150, 155, 160), metallic=0.65, roughness=0.42, specular=0.5)
+    lib["silver_satin"] = m
     # smooth (unperforated) pale grey: the console lid, the door pods, the cup recess (c3_0011, c10_0002)
     lib["leather_smooth"] = IM.leather("INT_Leather_Smooth", CLOUD_BEIGE, maps, roughness=0.52, coat=0.04, strength=0.45)
     # the lavender-grey dash and its lower face: soft-touch, one colour from the windscreen to the console (c10_0002/0004)
-    lib["dash_lav"] = IM.leather("INT_Dash_Lav", DASH_LAVENDER, maps, roughness=0.55, coat=0.04, strength=0.35)
+    lib["dash_lav"] = IM.leather("INT_Dash_Lav", DASH_LAVENDER, maps, roughness=0.70, coat=0.02, strength=0.35)
     # seat side shells and base shrouds: tone on tone with the dash (c3_0042: lavender; the dark trim recolours it)
     lib["seat_shell"] = IM.leather("INT_Seat_Shell", SHELL_LAVENDER, maps, roughness=0.50, coat=0.05, strength=0.6)
     # steering wheel: smooth grey suede-like fabric (c10_0002: not perforated, darker than the seats)
@@ -253,13 +272,24 @@ def _pad_ramp(x):
     return 1.116 + 0.082 * t
 
 
+END_TAPER = 0.15         # the dash's last 15 cm at each door roll into it instead of ending in a flat block
+
+
 def dash_section(i, s):
+    """The dash's cross-section at the spine point s. 2026-11-19: over the last END_TAPER at each door the section's lower face
+    rises toward the top pad and pulls forward toward the cowl, so the dash narrows to a soft ear that tucks into the door card
+    (the brief's "smooth, continuous wrap-around": the first build ended in a flat 90-degree block, visible as a hard seam at the
+    door's top). Cabin 360: dash and door are one continuous sweep."""
     y = DASH_HALF * (1.0 - 2.0 * s)
     out = []
     for k, (x, z) in enumerate(DASH_SECTION):
         if z is None:
             z = min(_pad_ramp(x), z_glass(x, y) - GLASS_GAP[k])
         out.append((x, z))
+    t = _smooth((abs(y) - (DASH_HALF - END_TAPER)) / END_TAPER)
+    if t > 0.0:
+        ztop = max(z for (_, z) in out)
+        out = [(x + t * 0.12 * (1.10 - x), z + t * 0.30 * (ztop - z)) for (x, z) in out]
     return out
 
 
@@ -313,7 +343,8 @@ def build_dash(col, lib):
     for nm, y0, y1 in (("R", -0.585, 0.176), ("L", 0.520, 0.655)):
         made.append(F.box(col, "int_dash_Chrome" + nm, (0.5775 + FRONT_DX, 0.5 * (y0 + y1), 1.000),
                           (0.013, y1 - y0, 0.019), lib["brushed"], r=0.0055))
-    ys = [DASH_HALF - 2 * DASH_HALF * k / 80.0 for k in range(81)]
+    y_end = DASH_HALF - END_TAPER + 0.02         # (the dash's ends rise and pull forward: the line stops where they start to)
+    ys = [y_end - 2 * y_end * k / 80.0 for k in range(81)]
     made.append(tube("int_dash_Ambient", [(0.580 + FRONT_DX, y, 0.984) for y in ys],
                      ellipse(0.0016, 0.0016, 6), col, lib["ambient"], lateral=(1.0, 0.0, 0.0)))
     made += build_dash_ends(col, lib, sw)
@@ -432,9 +463,11 @@ MONA_WHEEL = dict(
     hub=dict(w=0.140, h=0.120, sides=4, r_corner=0.042, dome=0.010, depth=0.050, pad_role="wheel_fabric"),
     # (c10_0002: a silver-ringed button pod on each spoke, grey pad inside)
     spokes=dict(v=-0.004, h=0.050, t=0.024, u_in=0.058, pad=(0.062, 0.040), body_role="wheel_fabric",
-                pad_role="wheel_fabric", frame="brushed"),
+                pad_role="wheel_fabric", frame="silver_satin"),
     lower_spoke=None,
-    buttons=[],
+    # two round satellite buttons under the horizontal spokes (Cabin 360 wheel close-up: silver-ringed, dark cap, 8 cm either side of
+    # the centre line and 4 cm below the hub's centre); (u, v, r, cap role, ring role)
+    buttons=[(0.082, -0.040, 0.0072, "satin", "silver_satin"), (-0.082, -0.040, 0.0072, "satin", "silver_satin")],
     logo=None,                  # the letter X (9 mm) is replaced by the XPENG emblem below (34 mm wide in the panorama)
 )
 VOYAH_PASSION_S_WHEEL = MONA_WHEEL        # (the donor's name, kept for the shared polish tables)
@@ -467,12 +500,10 @@ def build_wheel_emblem(fr, col, lib, width=0.034, v_stretch=1.29, v_off=0.004, w
 
 
 def build_wheel(col, lib):
-    from carkit.interior import steering as ST
-    # the Mona's wheel is one pale grey (c10_0009: grey fabric rim, hub and spokes, chrome-ringed button pods)
-    lw = dict(lib, piano=lib["wheel_fabric"], leather_black=lib["wheel_fabric"], leather_white=lib["wheel_fabric"],
-              satin=lib["dash_lav"])              # (the column shroud is the dash's lavender, c10_0002)
-    made, fr = ST.wheel(col, lw, MONA_WHEEL, WHEEL_C, WHEEL_TILT)
-    made += build_wheel_emblem(fr, col, lw)
+    """The wheel is mona_wheel.py (2026-11-21): traced from the Cabin 360 front panorama and the Autohome close-ups, like the
+    Avatr 06T's a06t_wheel.py. MONA_WHEEL above is kept for the shared polish tables only."""
+    import mona_wheel as MW
+    made, _fr = MW.build(col, lib, WHEEL_C, WHEEL_TILT)
     return made
 
 
@@ -494,7 +525,7 @@ def _front_spec():
         # (the first build ran 0.25-0.28 all the way up: a slab. The Cabin 360 seat narrows to the shoulders, half width ~0.215)
         half_w=Curve([(0.0, 0.268), (0.42, 0.276), (0.68, 0.258), (0.86, 0.232), (1.0, 0.212)], mode="pchip"),
         bolster=Curve([(0.0, 0.55), (0.30, 1.0), (0.62, 0.72), (0.88, 0.30), (1.0, 0.12)], mode="pchip"),
-        bolster_h=0.070,
+        bolster_h=0.086,                   # (0.070: a stronger crest on the side bolsters, the brief's "smoother, pillowy" seat)
         centre_half=Curve([(0.0, 0.170), (0.55, 0.165), (1.0, 0.150)], mode="pchip"),
         depth=0.088, end_cap=True)
     return sp
@@ -599,11 +630,16 @@ CONSOLE_TOP = Curve([
     (-0.255, 0.770), (-0.245, 0.855), (-0.230, 0.888), (-0.205, 0.905), (-0.095, 0.909),
     (-0.035, 0.912), (-0.018, 0.913), (-0.008, 0.914), (0.000, 0.914),
     (0.145, 0.914), (0.155, 0.916), (0.165, 0.919), (0.180, 0.922),
-    (0.250, 0.928), (0.340, 0.936), (0.430, 0.942), (0.485, 0.948),
-    (0.495, 0.962), (0.505, 0.985), (0.525, 0.994), (0.640, 0.996),
+    (0.250, 0.928), (0.340, 0.936), (0.430, 0.942), (0.485, 0.946),
+    # the nose (2026-11-19): the first build climbed 5 cm onto a front block that ran into the screen's chrome strip (z 0.99). The
+    # Cabin 360 console ends under the dash's overhang with a dark gap between it and the dash face; its nose rolls over and stops
+    # at x 0.535 (0.705 with FRONT_DX), 8 cm short of the face at that height.
+    (0.505, 0.941), (0.520, 0.930), (0.535, 0.912),
 ], mode="pchip")
 CUP_Z = 0.9145                                          # the cup recess's rim height (the lid's, over x 0..0.145)
 CONSOLE_HW = 0.130
+CONSOLE_X1 = 0.535                                      # the nose (see CONSOLE_TOP)
+TRAY_DEPTH = 0.022                                      # the charging pad sits this far below its surround (Cabin 360: ~2 cm, a soft well)
 # c10_0002/0004, c3_0011/0042: a wireless-charging tray at the front (silver rim, raised front lip), ONE rounded cup recess
 # behind it, then the smooth armrest lid with a black gloss strip down each side; the lower box is dark under the lid
 # (the console floats on its front pillar)
@@ -615,18 +651,18 @@ Z_UNDER = 0.675                                         # below this (behind the
 def _console_stations():
     xs = []
     x = -0.255
-    while x < 0.640:
+    while x < CONSOLE_X1:
         xs.append(x)
-        dense = (-0.26 < x < -0.20) or (-0.04 < x < 0.18) or (0.48 < x < 0.54)
+        dense = (-0.26 < x < -0.20) or (-0.04 < x < 0.18) or (0.20 < x < 0.54)      # (0.20-0.48: the charging well's edge)
         x += 0.005 if dense else 0.014
-    xs.append(0.640)
+    xs.append(CONSOLE_X1)
     return xs
 
 
 def _hw(x):
     """The console's half width: 0.130 under the lid and the pockets, narrowing to 0.108 at the rear end (Cabin 360 rear
-    view: the rear block is about 20 % narrower than the lid)."""
-    return CONSOLE_HW * (1.0 - 0.17 * _smooth((0.0 - x) / 0.25))
+    view: the rear block is about 20 % narrower than the lid) and rounding in over the last 6 cm of the nose."""
+    return CONSOLE_HW * (1.0 - 0.17 * _smooth((0.0 - x) / 0.25)) * (1.0 - 0.30 * _smooth((x - 0.470) / 0.065))
 
 
 def _console_bottom(x):
@@ -678,6 +714,8 @@ def build_console(col, lib):
     ob = grid_mesh("int_console_body", rows, col, lib["leather_smooth"])
     ob.data.materials.append(lib["satin"])
     cx0, cy0, hx0, hy0, r0 = CUP_RECESS
+    tx0, tx1, thy, tr = TRAY
+    tcx, thx = 0.5 * (tx0 + tx1), 0.5 * (tx1 - tx0)
     bm = bmesh.new()
     bm.from_mesh(ob.data)
     kill = []
@@ -685,13 +723,19 @@ def build_console(col, lib):
         c = f.calc_center_median()
         if c.z > 0.85 and _in_rr(c.x, c.y, cx0, cy0, hx0 - 0.0015, hy0 - 0.0015, r0):
             kill.append(f)
-        elif c.z < Z_UNDER and c.x < 0.30:
+        elif c.z > 0.85 and _in_rr(c.x, c.y, tcx, 0.0, thx - 0.0015, thy - 0.0015, tr):
+            kill.append(f)                           # the charging well (below)
+        elif c.z < Z_UNDER:
             f.material_index = 1
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     bm.to_mesh(ob.data)
     bm.free()
     M.orient(ob.data, lambda c: (0.0, c[1], max(0.0, c[2] - 0.76)))
     made.append(ob)
+
+    # the nose: a smooth cap (the console's front end, under the dash's overhang)
+    made.append(F.ngon_cap(col, "int_console_nose", [(CONSOLE_X1 + 0.0005, y, z) for (y, z) in _console_section(CONSOLE_X1)],
+                           lib["leather_smooth"], (1.0, 0.0, 0.0)))
 
     # the rear face: a smooth cap with a small rounded switch panel and a USB-C pill (c3_0011 #26-27)
     rr = _console_section(xs[0])
@@ -709,19 +753,25 @@ def build_console(col, lib):
     def top(x, y, lift):
         return (x, y, CONSOLE_TOP(x) + 0.001 * (1.0 - (y / (CONSOLE_HW - 0.016)) ** 2) + lift)
 
-    # the wireless-charging tray: a light pad inside a silver rim with a raised front lip
-    tx0, tx1, thy, tr = TRAY
-    rows = [[top(tx0 + (tx1 - tx0) * i / 16.0, y, 0.0014) for y in
+    # the wireless-charging tray: a soft well (TRAY_DEPTH deep, walls leaning in) with a light rubbery pad at its floor, inside a
+    # silver rim, and a raised front lip. Cabin 360: the pad sits about 2 cm below the lid, not flush with it.
+    rows = [[top(tx0 + (tx1 - tx0) * i / 16.0, y, 0.0014 - TRAY_DEPTH) for y in
              [thy - 2 * thy * j / 20.0 for j in range(21)]] for i in range(17)]
     pn = grid_mesh("int_console_charge", rows, col, lib["charge"])
     M.orient(pn.data, lambda c: (0.0, 0.0, 1.0))
     made.append(pn)
-    rim = [top(x, y, 0.0030) for (x, y) in _rr_pts(0.5 * (tx0 + tx1), 0.0, 0.5 * (tx1 - tx0) + 0.0046, thy + 0.0046, tr)]
+    rings = []
+    for d, s in ((0.0, 1.0), (0.003, 0.988), (TRAY_DEPTH - 0.007, 0.972), (TRAY_DEPTH - 0.002, 0.950), (TRAY_DEPTH, 0.935)):
+        rings.append([top(x, y, -d) for (x, y) in _rr_pts(tcx, 0.0, thx * s, thy * s, tr * s)])
+    wl = grid_mesh("int_console_chargewell", rings, col, lib["leather_smooth"], wrap_t=True)
+    M.orient(wl.data, lambda c: (tcx - c[0], -c[1], 0.5))
+    made.append(wl)
+    rim = [top(x, y, 0.0030) for (x, y) in _rr_pts(tcx, 0.0, thx + 0.0050, thy + 0.0050, tr)]
     rim.append(rim[0])
-    # Cabin 360 close-up: the tray's bezel is a slim satin-metal frame (about 5 mm), the pad has one dark slit along its length
-    made.append(tube("int_console_frame", rim, ellipse(0.0046, 0.0026, 10), col, lib["brushed"],
+    # Cabin 360 close-up: the tray's bezel is a slim satin-metal frame (about 7 mm), the pad has one dark slit along its length
+    made.append(tube("int_console_frame", rim, ellipse(0.0070, 0.0030, 10), col, lib["brushed"],
                      lateral=(0.0, 0.0, 1.0)))
-    made.append(F.box(col, "int_console_charge_slit", top(0.5 * (tx0 + tx1) - 0.010, 0.016, 0.0016),
+    made.append(F.box(col, "int_console_charge_slit", top(tcx - 0.010, 0.016, 0.0016 - TRAY_DEPTH),
                       (0.100, 0.0020, 0.0012), lib["satin"], r=0.0005))
     lip = [top(tx1 + 0.004, y, 0.0050) for y in [thy - 2 * thy * k / 14.0 for k in range(15)]]
     made.append(tube("int_console_lip", lip, ellipse(0.0050, 0.0060, 8), col, lib["brushed"],
@@ -743,6 +793,10 @@ def build_console(col, lib):
                      lateral=(0.0, 0.0, 1.0)))
     made.append(F.box(col, "int_console_cup_tab", top(cx0 - hx0 - 0.030, 0.0, 0.0018), (0.014, 0.046, 0.0036),
                       lib["brushed"], r=0.0055))
+    # three small rubber fins up the wall of the pocket (Cabin 360 close-up: they split it into two cup slots)
+    for k, yf in enumerate((-0.052, 0.0, 0.052)):
+        made.append(F.box(col, "int_console_cup_fin%d" % k, (cx0 + hx0 - 0.018, cy0 + yf, CUP_Z - 0.073 + 0.011),
+                          (0.010, 0.012, 0.022), lib["leather_smooth"], r=0.0045))
 
     # the black gloss strip down each side of the lid
     for side, tag in ((1.0, "L"), (-1.0, "R")):
@@ -823,8 +877,50 @@ def _door_armrest(dc, name, col, lib, side, path_xz, width=0.068, height=0.048, 
     return [ob, st, sl, li]
 
 
+PLEAT_H = 0.095          # the pleated strip's height under the belt line (Cabin 360 door close-up: a narrow band, not the whole upper door)
+
+
+def _speaker(col, name, centre, normal, r, lib):
+    """A door speaker: a softly domed round grille of fine perforated grey metal in a thin brushed rim (Cabin 360: finely perforated,
+    silver-grey, not a black hole), with the fine concentric ridges the close-ups show (c3_0001: rings like a record's), which the
+    perforation map alone never showed at the viewer's scale (2026-11-21). The disc's UVs are laid planar in metres so the
+    perforation map tiles evenly."""
+    from carkit.interior.sweep import grid_mesh as _grid
+    N = Vector(normal).normalized()
+    e1 = N.orthogonal().normalized()
+    e2 = N.cross(e1).normalized()
+    C = Vector(centre)
+    n_rings, n_around = 30, 56
+    rows = []
+    for k in range(n_rings + 1):
+        s_ = 1.0 - k / float(n_rings)
+        h = 0.004 * (1.0 - s_ * s_) + (0.0007 if (k % 2 == 0 and 0 < k < n_rings) else 0.0)
+        rows.append([tuple(C + (e1 * math.cos(2 * math.pi * j / n_around) + e2 * math.sin(2 * math.pi * j / n_around))
+                           * (r * max(s_, 1e-4)) + N * h) for j in range(n_around)])
+    ob = _grid(name, rows, col, lib["speaker"], wrap_t=True)
+    M.orient(ob.data, lambda c: tuple(N))
+    made = [ob]
+    path = [tuple(C + (e1 * math.cos(2 * math.pi * j / n_around) + e2 * math.sin(2 * math.pi * j / n_around)) * r)
+            for j in range(n_around)]
+    path.append(path[0])
+    made.append(tube(name + "_Rim", path, ellipse(0.0024, 0.0024, 8), col, lib["brushed"], lateral=tuple(N)))
+    me = ob.data
+    uv = me.uv_layers.active
+    if uv is None:
+        uv = me.uv_layers.new(name="UVMap")
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            d = Vector(me.vertices[me.loops[li].vertex_index].co) - C
+            uv.data[li].uv = (e1.dot(d), e2.dot(d))
+    return made
+
+
 def build_doors(col, lib):
-    """Front & rear door cards styled after cabin_tail_1.jpg #60 and cabin_1.jpg #3-10."""
+    """Front & rear door cards styled after cabin_tail_1.jpg #60 and cabin_1.jpg #3-10.
+
+    2026-11-19: the pleated cloth is a narrow strip under the belt line (PLEAT_H), the door's main body between that strip and the
+    pale pod is smooth matte soft-touch (the wheel's fabric, a step lighter than the pleats: Cabin 360 door close-up), the speakers
+    are perforated grey metal, the window switches sit flush in a dark slot in the armrest."""
     made = []
     for side, tag in ((1.0, "L"), (-1.0, "R")):
         dc = front_card(side)
@@ -840,9 +936,12 @@ def build_doors(col, lib):
                                lambda x: _belt_z(x) - 0.002, x0=xr, x1=xf, mirror=False))
         made.append(dc.band(pre + "Lower", col, lib["leather_smooth"], lambda x: 0.495, pod_bot,
                             x0=xr, x1=xf, nx=52, nz=18, mirror=False))
-        made.append(dc.band(pre + "Rail", col, lib["door_pleat"], pod_top,
-                            lambda x: _belt_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nz=10,
+        made.append(dc.band(pre + "Rail", col, lib["door_pleat"], lambda x: _belt_z(x) - PLEAT_H,
+                            lambda x: _belt_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nz=6,
                             edge_round=0.006, mirror=False))
+        made.append(dc.band(pre + "Body", col, lib["wheel_fabric"], pod_top,
+                            lambda x: _belt_z(x) - PLEAT_H + 0.001, proud=0.0015, x0=xr, x1=xf, nz=10,
+                            edge_round=0.004, mirror=False))
         made.append(dc.band(pre + "White", col, lib["leather_smooth"], pod_bot,
                             lambda x: pod_top(x) - 0.002, proud=0.006, x0=xr, x1=xf,
                             nx=52, nz=14, mirror=False))
@@ -852,15 +951,20 @@ def build_doors(col, lib):
         pts = dc.curve([(0.78 - 0.88 * k / 24.0, rail_bot(0.78 - 0.88 * k / 24.0) - 0.004)
                         for k in range(25)], proud=0.007)
         made.append(piping(pre + "Ambient", pts, col, lib["ambient"], r=0.0018, lateral=(0.0, 0.0, 1.0)))
-        made += F.disc(col, pre + "Speaker", dc.point(0.64, 0.965, 0.004), (0.0, -side, 0.0), 0.038,
-                       lib["speaker"], dome=0.002, rim=0.0022, rim_mat=lib["brushed"])
+        made += _speaker(col, pre + "Speaker", dc.point(0.64, 0.965, 0.0045), (0.0, -side, 0.0), 0.038, lib)
         made += _door_armrest(dc, pre + "Armrest", col, lib, side,
                               [(-0.08, 0.805), (0.16, 0.822), (0.42, 0.842), (0.64, 0.862)])
+        # the window switches: a dark slot let into the armrest's top and three pale keys flush in it (the armrest's top at x is
+        # 0.842 + 0.020 (x - 0.42) / 0.22; keys stand 1.5 mm proud, the old black blocks stood 10 mm)
+        zt = lambda x: 0.842 + 0.020 * (x - 0.42) / 0.22
+        xs0 = 0.44 + 0.048
+        ys0 = side * (dc.skin_y(xs0, 0.855) - dc.th(0.855) - 0.036)
+        made.append(F.box(col, pre + "SwitchSlot", (xs0, ys0, zt(xs0) - 0.0008), (0.150, 0.026, 0.0024),
+                          lib["satin"], r=0.0045))
         for k in range(3):
             xk = 0.44 + 0.048 * k
-            yk = side * (dc.skin_y(xk, 0.855) - dc.th(0.855) - 0.036)
-            made.append(F.box(col, pre + "Switch%d" % k, (xk, yk, 0.860), (0.028, 0.016, 0.008),
-                              lib["piano"], r=0.002))
+            made.append(F.box(col, pre + "Switch%d" % k, (xk, ys0, zt(xk) + 0.0004), (0.030, 0.018, 0.0032),
+                              lib["brushed"], r=0.0035))
 
     # Rear door cards
     for side, tag in ((1.0, "L"), (-1.0, "R")):
@@ -875,9 +979,12 @@ def build_doors(col, lib):
                                lambda x: _rear_top_z(x) - 0.002, x0=xr, x1=xf, mirror=False))
         made.append(dc.band(pre + "Lower", col, lib["leather_smooth"], lambda x: 0.495, wb,
                             x0=xr, x1=xf, nz=16, mirror=False))
-        made.append(dc.band(pre + "Rail", col, lib["door_pleat"], rb,
-                            lambda x: _rear_top_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nz=8,
+        made.append(dc.band(pre + "Rail", col, lib["door_pleat"], lambda x: _rear_top_z(x) - PLEAT_H,
+                            lambda x: _rear_top_z(x) - 0.002, proud=0.002, x0=xr, x1=xf, nz=6,
                             edge_round=0.006, mirror=False))
+        made.append(dc.band(pre + "Body", col, lib["wheel_fabric"], rb,
+                            lambda x: _rear_top_z(x) - PLEAT_H + 0.001, proud=0.0015, x0=xr, x1=xf, nz=8,
+                            edge_round=0.004, mirror=False))
         made.append(dc.band(pre + "White", col, lib["leather_smooth"], wb,
                             lambda x: rb(x) - 0.002, proud=0.006, x0=xr, x1=xf, nz=12, mirror=False))
         made.append(dc.band(pre + "Pocket", col, lib["satin"], lambda x: wb(x) + 0.035,
@@ -888,8 +995,7 @@ def build_doors(col, lib):
         made.append(piping(pre + "Ambient", pts, col, lib["ambient"], r=0.0018, lateral=(0.0, 0.0, 1.0)))
         made += _door_armrest(dc, pre + "Armrest", col, lib, side,
                               [(-1.02, 0.815), (-0.74, 0.825), (-0.42, 0.835)], width=0.060)
-        made += F.disc(col, pre + "Speaker", dc.point(-0.52, 0.985, 0.004), (0.0, -side, 0.0), 0.034,
-                       lib["speaker"], dome=0.002, rim=0.0020, rim_mat=lib["brushed"])
+        made += _speaker(col, pre + "Speaker", dc.point(-0.52, 0.940, 0.0045), (0.0, -side, 0.0), 0.034, lib)
     return made
 
 
@@ -956,15 +1062,16 @@ def build_headliner(col, lib):
 
 def build_roof_fittings(col, lib):
     made = []
-    w, h, t = 0.225, 0.062, 0.016
+    # Cabin 360: a wide, slim, frameless mirror (about 21 x 8 cm) whose glass reads silver-white against the glass behind it
+    w, h, t = 0.215, 0.074, 0.014
     made.append(F.round_slab(col, "int_rvmirror", MIRROR_C, w, h, t, 0.024, lib["piano"],
                              tilt=math.radians(8.0)))
     mg = bpy.data.materials.get("INT_Mirror") or bpy.data.materials.new("INT_Mirror")
     mg.use_nodes = True
     bm = next(n for n in mg.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
-    bm.inputs["Base Color"].default_value = (0.30, 0.31, 0.32, 1.0)
+    bm.inputs["Base Color"].default_value = (0.62, 0.64, 0.66, 1.0)
     bm.inputs["Metallic"].default_value = 1.0
-    bm.inputs["Roughness"].default_value = 0.05
+    bm.inputs["Roughness"].default_value = 0.10
     made.append(F.round_slab(col, "int_rvmirror_glass",
                              (MIRROR_C[0] - t * 0.5 - 0.0008, 0.0, MIRROR_C[2]), w - 0.006,
                              h - 0.006, 0.0008, 0.021, mg, tilt=math.radians(8.0)))
@@ -976,7 +1083,7 @@ def build_roof_fittings(col, lib):
                      lateral=(0.0, 1.0, 0.0)))
 
     # Overhead console & visors (cabin_2.jpg #46-48, cabin_tail_1.jpg #49)
-    xs = [0.16 - 0.16 * k / 10.0 for k in range(11)]
+    xs = [0.26 - 0.16 * k / 10.0 for k in range(11)]       # (0.10 further forward with the mirror: the lamp unit sits just behind it)
     rows = []
     for x in xs:
         zr = S.Z_ROOF(x) - 0.046
@@ -985,6 +1092,15 @@ def build_roof_fittings(col, lib):
     oc = grid_mesh("int_overhead", rows, col, lib["piano"])
     M.orient(oc.data, lambda c: (0.0, 0.0, -1.0))
     made.append(oc)
+    # the lamp unit in its underside (Cabin 360 roof views: a silver-rimmed pill with a few small dark buttons in it)
+    xl = 0.180
+    zl = S.Z_ROOF(xl) - 0.0615
+    ring = [(x, y, zl) for (x, y) in _rr_pts(xl, 0.0, 0.052, 0.021, 0.019)]
+    ring.append(ring[0])
+    made.append(tube("int_overhead_rim", ring, ellipse(0.0026, 0.0020, 8), col, lib["brushed"], lateral=(0.0, 0.0, 1.0)))
+    for k, yb in enumerate((-0.026, 0.0, 0.026)):
+        made.append(F.box(col, "int_overhead_btn%d" % k, (xl, yb, zl - 0.0004), (0.022, 0.016, 0.0030),
+                          lib["satin"], r=0.0035))
 
     for side in (1.0, -1.0):
         rows = []
@@ -1009,12 +1125,16 @@ def build_shell(col, lib):
     def a_door(x):
         return (x, S.v_along(x, PN.v_up(x, max(PN.BELT_Z(0.68), PN.z_a(min(x, PN.A_FOOT[0])))), -0.020))
 
-    made.append(CB.edge_band(S.BODY, col, lib["headliner"], xs, a_door,
+    # 2026-11-19: a contoured trim panel, not a tube: the band is 1.5 cm wider and its crown a third as high (bulge 0.034 -> 0.010: it
+    # read as a fat round cylinder in the viewer; the Cabin 360 A-pillar is a wide, flat, soft-edged panel with a vent slot and the
+    # camera pod low on it)
+    made.append(CB.edge_band(S.BODY, col, lib["headliner"], xs,
+                             lambda x: (x, S.v_along(x, PN.v_up(x, max(PN.BELT_Z(0.68), PN.z_a(min(x, PN.A_FOOT[0])))), -0.040)),
                              lambda x: (x, S.v_along(x, PN.V_A(x), 0.018)),
-                             depth=0.010, bulge=0.034, name="int_apillar"))
-    # Driver A-pillar DMS camera pod + tweeter (cabin_tail_1.jpg #50)
-    made.append(F.box(col, "int_apillar_dms", (0.560, 0.675, 1.295), (0.046, 0.032, 0.058),
-                      lib["satin"], r=0.006))
+                             depth=0.010, bulge=0.010, nt=16, name="int_apillar"))
+    # Driver A-pillar DMS camera pod (cabin_tail_1.jpg #50; Cabin 360: a small pod about 2.5 cm wide, low on the pillar)
+    made.append(F.box(col, "int_apillar_dms", (0.560, 0.675, 1.290), (0.020, 0.024, 0.016),
+                      lib["satin"], r=0.004))
 
     xs = [PN.X_ROOF_F + 0.04 - (PN.X_ROOF_F + 0.04 - PN.X_DLO_TIP) * k / 44.0 for k in range(45)]
     made.append(CB.edge_band(S.BODY, col, lib["headliner"], xs,
@@ -1193,8 +1313,8 @@ def main(lights=True):
     build_doors(col, lib)
     build_closures(col, lib)
     build_pedals(col, lib)
-    # the gold-standard pass: collars, bevels, wheel icons (car_polish.py)
-    __import__("car_polish").build("mona", col, lib)
+    # the gold-standard pass for the Mona's own keys: collars, bevels, wheel and door icons (mona_polish.py)
+    __import__("mona_polish").build(col, lib)
     if lights:
         cabin_lights(col)
     from carkit import build as B

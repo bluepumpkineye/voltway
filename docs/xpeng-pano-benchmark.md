@@ -134,3 +134,39 @@ close-ups of the Cabin 360 panoramas (`pano.cjs rect`), checked with the same-ca
 Still open: the seats' overall form (the pale face is still two flat panels with a quilted look missing), the two-panel glass roof (needs
 the exterior glass), pleats are a little strong/regular in the viewer (the normal strength is 1.0; 0.6 would be softer), glow on the lime
 slits, per-material light, outside plate, the wheel's spoke pods and silver clamp, the screen's mount.
+
+## A pasted refinement brief, checked against the panoramas (2026-11-19)
+
+The owner pasted a generic 3-part brief (geometry, materials, lighting). Each point was checked against the Cabin 360 panoramas
+and against what the cabin already had (the brief read like a description of an early donor-based build). Result:
+
+**Already built (earlier slices, nothing to do):** dark suede headliner, sun visors, overhead console, centre mirror, contoured A/B/C
+pillar trims, the pleated door cloth, the recessed charger's centre slit, the bevelled cup bezel, N8AO (screen-space AO), the baked AO
+atlas, the hall HDRI with the gloss softboxes (`cabinfx/settings.ts`, `FX_DEFAULTS.ao`, `.gloss`), the squircle fabric wheel.
+
+**Built now (`blender/scripts/mona_interior.py`):**
+- Console nose: the first build climbed 5 cm onto a front block that ran into the screen's chrome strip. The panorama's console ends under
+  the dash's overhang with a dark gap; `CONSOLE_TOP` now rolls over to a nose at x 0.535 (`CONSOLE_X1`), the plan narrows over the last
+  6 cm (`_hw`), `int_console_nose` caps it, the underside is dark everywhere below z 0.675.
+- Wireless charger: the pad sits `TRAY_DEPTH` 22 mm below its surround in a soft well (the panorama: ~2 cm), bezel 7 mm, centre slit kept.
+  Cup pocket: three small fins on its wall (two cup slots).
+- Wheel: two silver-ringed satellite buttons under the spokes (u +-0.082, v -0.040), a silver clamp on the rim's flat bottom, thicker grey
+  pod bezels; the shared generator's `buttons` list did the buttons, `build_wheel_details` the rest. New `INT_Silver_Satin` (the shared
+  brushed metal blew out white under the cabin's chrome environment).
+- Doors: the pleated strip is only `PLEAT_H` 9.5 cm under the belt line; below it a smooth `INT_Wheel_Fabric` body (a step lighter, so the
+  trims recolour it with the wheel); speakers are domed perforated metal (`INT_Speaker_Grille`, planar UVs in metres); the window
+  switches are three pale keys flush in a dark slot (they were black blocks 10 mm proud).
+- A-pillar trim: a wide, flat panel (bulge 0.034 -> 0.010, 2 cm wider) instead of a round tube; the DMS pod is 2 x 2.4 x 1.6 cm (was 4.6 x
+  3.2 x 5.8). Mirror: 21.5 x 7.4 cm, silver glass, 10 cm further forward under the header; the lamp unit (silver rim, three buttons) moved
+  with it. Dash ends: the last 15 cm at each door narrow and rise (`END_TAPER`) instead of ending in a flat block.
+- Materials: seat perforation radius 0.14 -> 0.105, strength 10 -> 6, hole darkness 0.80 -> 0.55; leather roughness 0.44 -> 0.56; dash 0.55
+  -> 0.70; pleat normal strength 1.0 -> 0.6; stronger bolster crest (0.070 -> 0.086).
+
+**Deliberately NOT done, because the real car says otherwise** (the brief is not the reference):
+- "Remove the yellow piping": the Light Grey and Dark Grey trims have lime piping; the other three have silver-lilac, teal and purple.
+- "Red seatbelt buckles": the belts and buckles are pale grey webbing and a pale buckle in every panorama; no red anywhere.
+- "Dark-mode UI texture" and "light grey-blue dash": the real screen shows a LIGHT UI; the dash and wheel are the measured dark steel
+  (54,61,69), not blue-grey. The HMI skin and the palette stay as measured.
+- "Dual cupholder": the real recess is one squircle pocket with three fins; kept as one, with the fins.
+
+Not touched: the seats' overall form beyond the crest (the pillow shape needs the generator's `_section`), glass roof, outside plate.
